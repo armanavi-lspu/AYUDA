@@ -6,7 +6,11 @@ import json
 
 views = Blueprint('views', __name__)
 
-@views.route('/', methods = ['POST', 'GET'])
+@views.route('/', methods=['GET'])
+def about():
+    return render_template("about.html", user=current_user)
+
+@views.route('/home', methods = ['POST', 'GET'])
 @login_required
 def home(): 
     if request.method == 'POST':

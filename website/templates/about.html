@@ -1,9 +1,205 @@
 {% extends "base.html" %}
 {% block title %}About AYUDA{% endblock %}
 
+{% block styles %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+    
+    * {
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    .text-stroke {
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.8);
+        text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6);
+    }
+    
+    @media (max-width: 640px) {
+        .text-stroke {
+            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.8);
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
+        }
+    }
+
+    /* Smooth animations */
+    .fade-in-up {
+        animation: fadeInUp 0.8s ease-out forwards;
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    
+    .fade-in-left {
+        animation: fadeInLeft 0.8s ease-out forwards;
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    
+    .fade-in-right {
+        animation: fadeInRight 0.8s ease-out forwards;
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    
+    .scale-in {
+        animation: scaleIn 0.6s ease-out forwards;
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeInLeft {
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes fadeInRight {
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes scaleIn {
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* Floating animation */
+    .float {
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(2deg); }
+    }
+
+    /* Gradient backgrounds */
+    .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .gradient-card {
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+    }
+
+    /* Hover effects */
+    .hover-lift {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Custom button styles */
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
+    }
+    
+    .btn-primary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    .btn-primary:hover::before {
+        left: 100%;
+    }
+
+    /* Parallax effect */
+    .parallax {
+        background-attachment: fixed;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .hero-content-mobile {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding-top: 2rem;
+        }
+        
+        .parallax {
+            background-attachment: scroll;
+        }
+    }
+
+    /* Stagger animation delays */
+    .stagger-1 { animation-delay: 0.1s; }
+    .stagger-2 { animation-delay: 0.2s; }
+    .stagger-3 { animation-delay: 0.3s; }
+    .stagger-4 { animation-delay: 0.4s; }
+
+    /* Pulse animation for logo */
+    .pulse-subtle {
+        animation: pulseSubtle 4s ease-in-out infinite;
+    }
+    
+    @keyframes pulseSubtle {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }    /* Section divider */
+    .section-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        margin: 2rem 0;
+    }
+
+    /* Custom scrollbar for better UX */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(to bottom, #3b82f6, #6366f1);
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(to bottom, #2563eb, #4f46e5);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="relative scroll-smooth overflow-hidden">
-    <!-- Hero Section with Enhanced Background -->
     <div class="bg-cover bg-center h-screen parallax relative"
         style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), url('{{ url_for('static', filename='images/') }}');">
         
@@ -17,10 +213,10 @@
                     AYUDA
                 </h1>
                 <p class="text-2xl md:text-3xl mb-6 font-semibold text-blue-100 fade-in-left stagger-1">
-                    "AYUDA"
+                    "Reach out for government financial services easily"
                 </p>
                 <p class="text-lg md:text-xl mb-8 text-gray-200 leading-relaxed fade-in-left stagger-2">
-                    Eliminate bias and inequality, distribute government support equally.
+                    Find, apply, and qualify with available government financial services in your area. AYUDA para sa lahat.
                 </p>
                 <a href="#about"
                     class="inline-block btn-primary text-white font-bold py-4 px-8 rounded-full transition-all duration-300 shadow-2xl fade-in-left stagger-3">
@@ -28,6 +224,47 @@
                 </a>
             </div>
         </div>
+    </div>
+
+    <!-- About Section -->
+    <section id="about" class="py-16 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto text-center">
+                <h2 class="text-4xl font-bold text-gray-800 mb-8">About AYUDA</h2>
+                <p class="text-lg text-gray-600 mb-6">
+                    AYUDA is a comprehensive platform designed to eliminate bias and inequality in government support distribution. 
+                    Our mission is to ensure that every citizen receives fair and equal access to government assistance programs.
+                </p>
+                <div class="grid md:grid-cols-3 gap-8 mt-12">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Fair Distribution</h3>
+                        <p class="text-gray-600">Ensuring equal access to government support for all citizens regardless of background.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Transparency</h3>
+                        <p class="text-gray-600">Providing clear and transparent processes for all government assistance programs.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Accessibility</h3>
+                        <p class="text-gray-600">Making government support easily accessible through our user-friendly platform.</p>
+                    </div>
+                </div>
+                
+                <div class="mt-12">
+                    <a href="{{ url_for('auth.login') }}" 
+                       class="inline-block bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition-colors duration-300 mr-4">
+                        Get Started
+                    </a>
+                    <a href="{{ url_for('views.home') }}" 
+                       class="inline-block bg-gray-600 text-white font-bold py-3 px-8 rounded-full hover:bg-gray-700 transition-colors duration-300">
+                        Learn More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
 
 {% endblock %}
         
+
