@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, flash, jsonify
 from flask_login import login_required, current_user
-from .models import Note
+from .models import Programs
 from . import db
 import json
 
@@ -19,17 +19,17 @@ def home():
         if len(note) < 1:
             flash('Note is too short', category='error')
         else:  
-            new_note = Note(data=note, user_id = current_user.id)
+            new_note = Programs(data=note, user_id = current_user.id)
             db.session.add(new_note)
             db.session.commit()
             flash('Note added', category='success')
-    return render_template("community/home.html", user = current_user)
+    return render_template("admin/home.html", user = current_user)
 
 @views.route('/delete-note', methods = ['POST'])
 def delete_note():
     data = json.loads(request.data)  # Changed from json.load to json.loads
     noteId = data['noteId']  # Use 'data' variable and correct key name
-    note = Note.query.get(noteId)
+    note = Programs.query.get(noteId)
     if note: 
         if note.user_id == current_user.id:
             db.session.delete(note)
