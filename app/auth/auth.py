@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from ..models import User
+from ..models import users
 from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
@@ -12,7 +12,7 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
 
-        user = User.query.filter_by(email=email).first()
+        user = users.query.filter_by(email=email).first()
         if user: 
             if check_password_hash(user.password, password):
                 flash('Logged in successfully!', category='success')

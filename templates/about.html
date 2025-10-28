@@ -19,6 +19,14 @@
             -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.8);
             text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
         }
+        
+        .hero-title {
+            font-size: 3rem !important;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem !important;
+        }
     }
 
     /* Smooth animations */
@@ -74,14 +82,23 @@
         }
     }
 
-    /* Floating animation */
-    .float {
-        animation: float 6s ease-in-out infinite;
+    /* Hero section */
+    .hero-section {
+        position: relative;
+        height: 100vh;
+        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), 
+                    url('{{ url_for("static", filename="images/hero-bg.jpg") }}') center/cover;
+        background-attachment: fixed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
-    @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-20px) rotate(2deg); }
+    @media (max-width: 768px) {
+        .hero-section {
+            background-attachment: scroll;
+            padding: 2rem 1rem;
+        }
     }
 
     /* Gradient backgrounds */
@@ -106,20 +123,28 @@
     }
 
     /* Custom button styles */
-    .btn-primary {
+    .btn-hero {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: none;
         position: relative;
         overflow: hidden;
         transition: all 0.3s ease;
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
     }
     
-    .btn-primary:hover {
+    .btn-hero:hover {
         transform: translateY(-2px);
         box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
+        color: white;
+        text-decoration: none;
     }
     
-    .btn-primary::before {
+    .btn-hero::before {
         content: '';
         position: absolute;
         top: 0;
@@ -130,31 +155,23 @@
         transition: left 0.5s;
     }
     
-    .btn-primary:hover::before {
+    .btn-hero:hover::before {
         left: 100%;
     }
 
-    /* Parallax effect */
-    .parallax {
-        background-attachment: fixed;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
+    /* Feature cards */
+    .feature-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        height: 100%;
     }
-
-    /* Mobile responsiveness */
-    @media (max-width: 768px) {
-        .hero-content-mobile {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding-top: 2rem;
-        }
-        
-        .parallax {
-            background-attachment: scroll;
-        }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
 
     /* Stagger animation delays */
@@ -163,108 +180,246 @@
     .stagger-3 { animation-delay: 0.3s; }
     .stagger-4 { animation-delay: 0.4s; }
 
-    /* Pulse animation for logo */
-    .pulse-subtle {
-        animation: pulseSubtle 4s ease-in-out infinite;
+    /* Intersection Observer animations */
+    .animate-on-scroll {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.6s ease;
     }
     
-    @keyframes pulseSubtle {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-    }    /* Section divider */
-    .section-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
-        margin: 2rem 0;
+    .animate-on-scroll.animated {
+        opacity: 1;
+        transform: translateY(0);
     }
 
-    /* Custom scrollbar for better UX */
-    ::-webkit-scrollbar {
-        width: 8px;
+    /* Skip link for accessibility */
+    .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 6px;
+        background: #000;
+        color: #fff;
+        padding: 8px;
+        text-decoration: none;
+        transition: top 0.3s;
+        z-index: 1000;
     }
     
-    ::-webkit-scrollbar-track {
-        background: #f1f5f9;
+    .skip-link:focus {
+        top: 6px;
     }
-    
-    ::-webkit-scrollbar-thumb {
-        background: linear-gradient(to bottom, #3b82f6, #6366f1);
-        border-radius: 10px;
+
+    /* Loading state */
+    .loading {
+        opacity: 0.7;
+        pointer-events: none;
     }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(to bottom, #2563eb, #4f46e5);
+
+    /* Error state for images */
+    .hero-section.img-error {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="relative scroll-smooth overflow-hidden">
-    <div class="bg-cover bg-center h-screen parallax relative"
-        style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), url('{{ url_for('static', filename='images/') }}');">
-        
-        <!-- Animated background overlay -->
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-transparent to-purple-900/20"></div>
-        
-        <!-- Desktop Layout -->
-        <div class="relative container mx-auto px-4 h-full d-none d-md-flex flex-col justify-center">
-            <div class="max-w-2xl text-white fade-in-left">
-                <h1 class="text-6xl md:text-7xl lg:text-8xl font-bold mb-4 text-stroke leading-tight">
-                    AYUDA
-                </h1>
-                <p class="text-2xl md:text-3xl mb-6 font-semibold text-blue-100 fade-in-left stagger-1">
-                    "Reach out for government financial services easily"
-                </p>
-                <p class="text-lg md:text-xl mb-8 text-gray-200 leading-relaxed fade-in-left stagger-2">
-                    Find, apply, and qualify with available government financial services in your area. AYUDA para sa lahat.
-                </p>
-                <a href="#about"
-                    class="inline-block btn-primary text-white font-bold py-4 px-8 rounded-full transition-all duration-300 shadow-2xl fade-in-left stagger-3">
-                    <span class="relative z-10">About</span>
-                </a>
-            </div>
-        </div>
-    </div>
 
-    <!-- About Section -->
-    <section id="about" class="py-16 bg-gray-50">
-        <div class="container mx-auto px-4">
-            <div class="max-w-4xl mx-auto text-center">
-                <h2 class="text-4xl font-bold text-gray-800 mb-8">About AYUDA</h2>
-                <p class="text-lg text-gray-600 mb-6">
-                    AYUDA is a comprehensive platform designed to eliminate bias and inequality in government support distribution. 
-                    Our mission is to ensure that every citizen receives fair and equal access to government assistance programs.
-                </p>
-                <div class="grid md:grid-cols-3 gap-8 mt-12">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Fair Distribution</h3>
-                        <p class="text-gray-600">Ensuring equal access to government support for all citizens regardless of background.</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Transparency</h3>
-                        <p class="text-gray-600">Providing clear and transparent processes for all government assistance programs.</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-xl font-semibold text-blue-600 mb-4">Accessibility</h3>
-                        <p class="text-gray-600">Making government support easily accessible through our user-friendly platform.</p>
-                    </div>
-                </div>
-                
-                <div class="mt-12">
-                    <a href="{{ url_for('auth.login') }}" 
-                       class="inline-block bg-blue-600 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-700 transition-colors duration-300 mr-4">
-                        Get Started
-                    </a>
-                    <a href="{{ url_for('views.home') }}" 
-                       class="inline-block bg-gray-600 text-white font-bold py-3 px-8 rounded-full hover:bg-gray-700 transition-colors duration-300">
-                        Learn More
+<div class="position-relative overflow-hidden">
+    <!-- Hero Section -->
+    <section class="hero-section" role="banner" aria-labelledby="hero-title">
+        <!-- Animated background overlay -->
+        <div class="position-absolute w-100 h-100" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));"></div>
+        
+        <!-- Hero Content -->
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 text-center text-white">
+                    <h1 id="hero-title" class="hero-title text-stroke mb-4 fade-in-up" 
+                        style="font-size: 5rem; font-weight: 800; line-height: 1.1;">
+                        AYUDA
+                    </h1>
+                    <p class="hero-subtitle mb-4 fade-in-up stagger-1" 
+                       style="font-size: 1.5rem; font-weight: 600; color: #bfdbfe;">
+                        "Reach out for government financial services easily"
+                    </p>
+                    <p class="mb-5 fade-in-up stagger-2" 
+                       style="font-size: 1.1rem; color: #e5e7eb; line-height: 1.6;">
+                        Find, apply, and qualify with available government financial services in your area. AYUDA para sa lahat.
+                    </p>
+                    <a href="#about" class="btn-hero fade-in-up stagger-3" 
+                       aria-label="Learn more about AYUDA">
+                        <span class="position-relative" style="z-index: 10;">Learn More</span>
                     </a>
                 </div>
             </div>
         </div>
     </section>
+
+    <!-- About Section -->
+    <main id="main-content">
+        <section id="about" class="py-5 bg-light" aria-labelledby="about-title">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <div class="text-center mb-5">
+                            <h2 id="about-title" class="display-4 fw-bold text-dark mb-4 animate-on-scroll">
+                                About AYUDA
+                            </h2>
+                            <p class="lead text-muted animate-on-scroll">
+                                AYUDA is a comprehensive platform designed to eliminate bias and inequality in government support distribution. 
+                                Our mission is to ensure that every citizen receives fair and equal access to government assistance programs.
+                            </p>
+                        </div>
+
+                        <!-- Features Grid -->
+                        <div class="row g-4 mb-5">
+                            <div class="col-md-4">
+                                <div class="feature-card animate-on-scroll hover-lift">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-balance-scale fa-3x text-primary mb-3" aria-hidden="true"></i>
+                                    </div>
+                                    <h3 class="h5 fw-semibold text-primary mb-3">Fair Distribution</h3>
+                                    <p class="text-muted mb-0">
+                                        Ensuring equal access to government support for all citizens regardless of background.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-card animate-on-scroll hover-lift">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-eye fa-3x text-primary mb-3" aria-hidden="true"></i>
+                                    </div>
+                                    <h3 class="h5 fw-semibold text-primary mb-3">Transparency</h3>
+                                    <p class="text-muted mb-0">
+                                        Providing clear and transparent processes for all government assistance programs.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="feature-card animate-on-scroll hover-lift">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-universal-access fa-3x text-primary mb-3" aria-hidden="true"></i>
+                                    </div>
+                                    <h3 class="h5 fw-semibold text-primary mb-3">Accessibility</h3>
+                                    <p class="text-muted mb-0">
+                                        Making government support easily accessible through our user-friendly platform.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Call to Action -->
+                        <div class="text-center animate-on-scroll">
+                            <a href="{{ url_for('auth.login') }}" 
+                               class="btn btn-primary btn-lg me-3 mb-3"
+                               aria-label="Sign up or log in to get started">
+                                <i class="fas fa-rocket me-2" aria-hidden="true"></i>
+                                Get Started
+                            </a>
+                            <a href="{{ url_for('views.home') }}" 
+                               class="btn btn-outline-secondary btn-lg mb-3"
+                               aria-label="Learn more about our services">
+                                <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
+                                Learn More
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 </div>
 
+<!-- Loading overlay -->
+<div id="loading" class="d-none position-fixed w-100 h-100 bg-white d-flex align-items-center justify-content-center" style="z-index: 9999;">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+        <p>Loading...</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Intersection Observer for scroll animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animated');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
+    // Observe all elements with animate-on-scroll class
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Smooth scrolling for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // Image error handling
+    const heroSection = document.querySelector('.hero-section');
+    const img = new Image();
+    img.onerror = function() {
+        heroSection.classList.add('img-error');
+        console.warn('Hero background image failed to load, using fallback gradient');
+    };
+    img.src = '{{ url_for("static", filename="images/hero-bg.jpg") }}';
+
+    // Performance optimization: Reduce motion for users with vestibular disorders
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.querySelectorAll('[class*="fade-in"], [class*="scale-in"]').forEach(el => {
+            el.style.animation = 'none';
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+        });
+    }
+
+    // Loading state management
+    function showLoading() {
+        document.getElementById('loading').classList.remove('d-none');
+    }
+    
+    function hideLoading() {
+        document.getElementById('loading').classList.add('d-none');
+    }
+
+    // Add loading states to navigation links
+    document.querySelectorAll('a[href]:not([href^="#"])').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (this.hostname === window.location.hostname) {
+                showLoading();
+            }
+        });
+    });
+
+    // Hide loading on page load
+    hideLoading();
+});
+
+// Error handling for failed navigation
+window.addEventListener('error', function(e) {
+    console.error('Navigation error:', e);
+    document.getElementById('loading')?.classList.add('d-none');
+});
+</script>
 {% endblock %}
-        
+
 

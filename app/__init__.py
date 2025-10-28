@@ -18,7 +18,7 @@ def create_app():
     app.register_blueprint(auth, url_prefix='/')
 
     # Import both User and Programs models
-    from .models import User, Programs
+    from .models import users, Programs
     
     with app.app_context():
         db.create_all()
@@ -29,6 +29,6 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(id):
-        return User.query.get(int(id))
+        return users.query.get(int(id))
 
     return app
