@@ -8,31 +8,28 @@ class JsonSerializableMixin:
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
-class users(db.Model, UserMixin):
+class User(db.Model, UserMixin):
+    __tablename__ = 'users'     
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(150), unique=True, nullable=False, index =True)
-    password_hash = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False, index=True) 
+    #hashed password password = db.Column(db.String(150), nullable=False)  
+    password_hash = db.Column(db.String(150), nullable=False)  
     first_name = db.Column(db.String(150), nullable=False)
     middle_name = db.Column(db.String(150))
     last_name = db.Column(db.String(150), nullable=False)
-    role = db.Column(db.String(50), nullable=False, index = True)
+    role = db.Column(db.String(50), nullable=False, index=True)
     profile_pic = db.Column(db.String(255))
-
-    # New field to track last activity
-    last_activity = db.Column(db.DateTime)
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-    # Fixed relationship with proper backref and foreign key
-    programs = db.relationship('Programs')
+    last_activity = db.Column(db.DateTime)    
+    
+    programs = db.relationship('Programs', backref='user', lazy=True, cascade='all, delete-orphan')
 
 class Programs(db.Model):
+    __tablename__ = 'programs'
+    
     id = db.Column(db.Integer, primary_key=True)
-    program_name = db.Column(db.String(200))
-    program_type = db.Column(db.String(50))
-    program_period = db.Column(db.String(50))
+    program_name = db.Column(db.String(200), nullable=False)
+    program_type = db.Column(db.String(50), nullable=False)
+    program_period = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
     date = db.Column(db.DateTime(timezone=True), default=func.now())
-    # Add foreign key to link with User
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

@@ -3,10 +3,8 @@
 
 {% block styles %}
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
-    
     * {
-        font-family: 'Poppins', sans-serif;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
     
     .text-stroke {
@@ -14,44 +12,98 @@
         text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6);
     }
     
-    @media (max-width: 640px) {
-        .text-stroke {
-            -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.8);
-            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
-        }
-        
-        .hero-title {
-            font-size: 3rem !important;
-        }
-        
-        .hero-subtitle {
-            font-size: 1.25rem !important;
-        }
+    /* Hero section with full width background */
+    .hero-section {
+        position: relative;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        color: white;
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
     }
 
-    /* Smooth animations */
+    /* Apply background image with multiple fallbacks */
+    .hero-section.has-bg {
+        background: 
+            linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), 
+            url('{{ url_for("static", filename="images/hero-bg.jpg") }}'),
+            linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        min-height: 100vh;
+        width: 100vw;
+    }
+
+    /* Hero content layout */
+    .hero-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0 2rem;
+    }
+
+    .hero-text {
+        flex: 1;
+        text-align: left;
+        padding-right: 2rem;
+    }
+
+    .hero-logo-side {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;  /* Stack logo and text vertically */
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Logo styling for right side */
+    .hero-logo {
+        max-width: 200px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        transition: transform 0.3s ease;
+        margin-bottom: 1rem;  /* Space between logo and text */
+    }
+
+    .hero-logo:hover {
+        transform: scale(1.05);
+    }
+
+    /* AYUDA text below logo */
+    .logo-text {
+        font-size: 2.5rem;
+        font-weight: 800;
+        text-align: center;
+        margin-top: 0.5rem;
+        text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.6);
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Animations */
     .fade-in-up {
         animation: fadeInUp 0.8s ease-out forwards;
         opacity: 0;
         transform: translateY(30px);
     }
-    
+
     .fade-in-left {
         animation: fadeInLeft 0.8s ease-out forwards;
         opacity: 0;
         transform: translateX(-30px);
     }
-    
+
     .fade-in-right {
         animation: fadeInRight 0.8s ease-out forwards;
         opacity: 0;
         transform: translateX(30px);
-    }
-    
-    .scale-in {
-        animation: scaleIn 0.6s ease-out forwards;
-        opacity: 0;
-        transform: scale(0.9);
     }
 
     @keyframes fadeInUp {
@@ -60,74 +112,38 @@
             transform: translateY(0);
         }
     }
-    
+
     @keyframes fadeInLeft {
         to {
             opacity: 1;
             transform: translateX(0);
         }
     }
-    
+
     @keyframes fadeInRight {
         to {
             opacity: 1;
             transform: translateX(0);
         }
     }
-    
-    @keyframes scaleIn {
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
 
-    /* Hero section */
-    .hero-section {
-        position: relative;
-        height: 100vh;
-        background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), 
-                    url('{{ url_for("static", filename="images/hero-bg.jpg") }}') center/cover;
-        background-attachment: fixed;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .feature-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        height: 100%;
     }
     
-    @media (max-width: 768px) {
-        .hero-section {
-            background-attachment: scroll;
-            padding: 2rem 1rem;
-        }
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
 
-    /* Gradient backgrounds */
-    .gradient-bg {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    .gradient-card {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(10px);
-    }
-
-    /* Hover effects */
-    .hover-lift {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .hover-lift:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Custom button styles */
     .btn-hero {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: none;
-        position: relative;
-        overflow: hidden;
         transition: all 0.3s ease;
         color: white;
         padding: 1rem 2rem;
@@ -143,44 +159,13 @@
         color: white;
         text-decoration: none;
     }
-    
-    .btn-hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
-    }
-    
-    .btn-hero:hover::before {
-        left: 100%;
-    }
 
-    /* Feature cards */
-    .feature-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-    
-    .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    }
+    /* Animation delays */
+    .stagger-1 { animation-delay: 0.2s; }
+    .stagger-2 { animation-delay: 0.4s; }
+    .stagger-3 { animation-delay: 0.6s; }
+    .stagger-4 { animation-delay: 0.8s; }
 
-    /* Stagger animation delays */
-    .stagger-1 { animation-delay: 0.1s; }
-    .stagger-2 { animation-delay: 0.2s; }
-    .stagger-3 { animation-delay: 0.3s; }
-    .stagger-4 { animation-delay: 0.4s; }
-
-    /* Intersection Observer animations */
     .animate-on-scroll {
         opacity: 0;
         transform: translateY(30px);
@@ -192,175 +177,173 @@
         transform: translateY(0);
     }
 
-    /* Skip link for accessibility */
-    .skip-link {
-        position: absolute;
-        top: -40px;
-        left: 6px;
-        background: #000;
-        color: #fff;
-        padding: 8px;
-        text-decoration: none;
-        transition: top 0.3s;
-        z-index: 1000;
-    }
-    
-    .skip-link:focus {
-        top: 6px;
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .hero-content {
+            flex-direction: column;
+            text-align: center;
+            padding: 1rem;
+        }
+        
+        .hero-text {
+            padding-right: 0;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .hero-logo {
+            max-width: 120px;
+            max-height: 120px;
+        }
+        
+        .logo-text {
+            font-size: 2rem;
+        }
+        
+        .hero-section {
+            margin-left: 0;
+            width: 100%;
+        }
     }
 
-    /* Loading state */
-    .loading {
-        opacity: 0.7;
-        pointer-events: none;
-    }
-
-    /* Error state for images */
-    .hero-section.img-error {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    @media (min-width: 1200px) {
+        .hero-logo {
+            max-width: 250px;
+            max-height: 250px;
+        }
+        
+        .logo-text {
+            font-size: 3rem;
+        }
+        
+        .hero-content {
+            padding: 0 4rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-
 <div class="position-relative overflow-hidden">
     <!-- Hero Section -->
-    <section class="hero-section" role="banner" aria-labelledby="hero-title">
-        <!-- Animated background overlay -->
-        <div class="position-absolute w-100 h-100" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));"></div>
-        
-        <!-- Hero Content -->
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-8 text-center text-white">
-                    <h1 id="hero-title" class="hero-title text-stroke mb-4 fade-in-up" 
-                        style="font-size: 5rem; font-weight: 800; line-height: 1.1;">
-                        AYUDA
-                    </h1>
-                    <p class="hero-subtitle mb-4 fade-in-up stagger-1" 
+    <section class="hero-section has-bg" role="banner">
+        <div class="container-fluid">
+            <div class="hero-content">
+                <!-- Left side - Text content (without AYUDA title) -->
+                <div class="hero-text">
+                    <p class="hero-subtitle mb-4 fade-in-left" 
                        style="font-size: 1.5rem; font-weight: 600; color: #bfdbfe;">
                         "Reach out for government financial services easily"
                     </p>
-                    <p class="mb-5 fade-in-up stagger-2" 
+                    
+                    <p class="mb-5 fade-in-left stagger-1" 
                        style="font-size: 1.1rem; color: #e5e7eb; line-height: 1.6;">
                         Find, apply, and qualify with available government financial services in your area. AYUDA para sa lahat.
                     </p>
-                    <a href="#about" class="btn-hero fade-in-up stagger-3" 
-                       aria-label="Learn more about AYUDA">
-                        <span class="position-relative" style="z-index: 10;">Learn More</span>
+                    
+                    <a href="#about" class="btn-hero fade-in-left stagger-2">
+                        Learn More
                     </a>
+                </div>
+                
+                <!-- Right side - Logo with AYUDA text below -->
+                <div class="hero-logo-side fade-in-right stagger-1">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" 
+                         alt="AYUDA Logo" 
+                         class="hero-logo">
+                    <h1 class="logo-text">AYUDA</h1>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- About Section -->
-    <main id="main-content">
-        <section id="about" class="py-5 bg-light" aria-labelledby="about-title">
-            <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-lg-10">
-                        <div class="text-center mb-5">
-                            <h2 id="about-title" class="display-4 fw-bold text-dark mb-4 animate-on-scroll">
-                                About AYUDA
-                            </h2>
-                            <p class="lead text-muted animate-on-scroll">
-                                AYUDA is a comprehensive platform designed to eliminate bias and inequality in government support distribution. 
-                                Our mission is to ensure that every citizen receives fair and equal access to government assistance programs.
-                            </p>
-                        </div>
+    <section id="about" class="py-5 bg-light">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="text-center mb-5">
+                        <h2 class="display-4 fw-bold text-dark mb-4 animate-on-scroll">
+                            About AYUDA
+                        </h2>
+                        <p class="lead text-muted animate-on-scroll">
+                            AYUDA is a comprehensive platform designed to eliminate bias and inequality in government support distribution. 
+                            Our mission is to ensure that every citizen receives fair and equal access to government assistance programs.
+                        </p>
+                    </div>
 
-                        <!-- Features Grid -->
-                        <div class="row g-4 mb-5">
-                            <div class="col-md-4">
-                                <div class="feature-card animate-on-scroll hover-lift">
-                                    <div class="text-center mb-3">
-                                        <i class="fas fa-balance-scale fa-3x text-primary mb-3" aria-hidden="true"></i>
-                                    </div>
-                                    <h3 class="h5 fw-semibold text-primary mb-3">Fair Distribution</h3>
-                                    <p class="text-muted mb-0">
-                                        Ensuring equal access to government support for all citizens regardless of background.
-                                    </p>
+                    <!-- Features Grid -->
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-4">
+                            <div class="feature-card animate-on-scroll">
+                                <div class="text-center mb-3">
+                                    <i class="fas fa-balance-scale fa-3x text-primary mb-3"></i>
                                 </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="feature-card animate-on-scroll hover-lift">
-                                    <div class="text-center mb-3">
-                                        <i class="fas fa-eye fa-3x text-primary mb-3" aria-hidden="true"></i>
-                                    </div>
-                                    <h3 class="h5 fw-semibold text-primary mb-3">Transparency</h3>
-                                    <p class="text-muted mb-0">
-                                        Providing clear and transparent processes for all government assistance programs.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="feature-card animate-on-scroll hover-lift">
-                                    <div class="text-center mb-3">
-                                        <i class="fas fa-universal-access fa-3x text-primary mb-3" aria-hidden="true"></i>
-                                    </div>
-                                    <h3 class="h5 fw-semibold text-primary mb-3">Accessibility</h3>
-                                    <p class="text-muted mb-0">
-                                        Making government support easily accessible through our user-friendly platform.
-                                    </p>
-                                </div>
+                                <h3 class="h5 fw-semibold text-primary mb-3">Fair Distribution</h3>
+                                <p class="text-muted mb-0">
+                                    Ensuring equal access to government support for all citizens regardless of background.
+                                </p>
                             </div>
                         </div>
-                        
-                        <!-- Call to Action -->
-                        <div class="text-center animate-on-scroll">
-                            <a href="{{ url_for('auth.login') }}" 
-                               class="btn btn-primary btn-lg me-3 mb-3"
-                               aria-label="Sign up or log in to get started">
-                                <i class="fas fa-rocket me-2" aria-hidden="true"></i>
-                                Get Started
-                            </a>
-                            <a href="{{ url_for('views.home') }}" 
-                               class="btn btn-outline-secondary btn-lg mb-3"
-                               aria-label="Learn more about our services">
-                                <i class="fas fa-info-circle me-2" aria-hidden="true"></i>
-                                Learn More
-                            </a>
+                        <div class="col-md-4">
+                            <div class="feature-card animate-on-scroll">
+                                <div class="text-center mb-3">
+                                    <i class="fas fa-eye fa-3x text-primary mb-3"></i>
+                                </div>
+                                <h3 class="h5 fw-semibold text-primary mb-3">Transparency</h3>
+                                <p class="text-muted mb-0">
+                                    Providing clear and transparent processes for all government assistance programs.
+                                </p>
+                            </div>
                         </div>
+                        <div class="col-md-4">
+                            <div class="feature-card animate-on-scroll">
+                                <div class="text-center mb-3">
+                                    <i class="fas fa-universal-access fa-3x text-primary mb-3"></i>
+                                </div>
+                                <h3 class="h5 fw-semibold text-primary mb-3">Accessibility</h3>
+                                <p class="text-muted mb-0">
+                                    Making government support easily accessible through our user-friendly platform.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Call to Action -->
+                    <div class="text-center animate-on-scroll">
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg me-3 mb-3">
+                            Get Started
+                        </a>
+                        <a href="{{ url_for('views.home') }}" class="btn btn-outline-secondary btn-lg mb-3">
+                            Learn More
+                        </a>
                     </div>
                 </div>
             </div>
-        </section>
-    </main>
-</div>
-
-<!-- Loading overlay -->
-<div id="loading" class="d-none position-fixed w-100 h-100 bg-white d-flex align-items-center justify-content-center" style="z-index: 9999;">
-    <div class="text-center">
-        <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
-        <p>Loading...</p>
-    </div>
+        </div>
+    </section>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Intersection Observer for scroll animations
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('animated');
-                observer.unobserve(entry.target);
             }
         });
-    }, observerOptions);
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
 
-    // Observe all elements with animate-on-scroll class
+    // Observe elements
     document.querySelectorAll('.animate-on-scroll').forEach(el => {
         observer.observe(el);
     });
 
-    // Smooth scrolling for anchor links
+    // Smooth scrolling
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
@@ -373,51 +356,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
-    // Image error handling
-    const heroSection = document.querySelector('.hero-section');
-    const img = new Image();
-    img.onerror = function() {
-        heroSection.classList.add('img-error');
-        console.warn('Hero background image failed to load, using fallback gradient');
-    };
-    img.src = '{{ url_for("static", filename="images/hero-bg.jpg") }}';
-
-    // Performance optimization: Reduce motion for users with vestibular disorders
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        document.querySelectorAll('[class*="fade-in"], [class*="scale-in"]').forEach(el => {
-            el.style.animation = 'none';
-            el.style.opacity = '1';
-            el.style.transform = 'none';
-        });
-    }
-
-    // Loading state management
-    function showLoading() {
-        document.getElementById('loading').classList.remove('d-none');
-    }
-    
-    function hideLoading() {
-        document.getElementById('loading').classList.add('d-none');
-    }
-
-    // Add loading states to navigation links
-    document.querySelectorAll('a[href]:not([href^="#"])').forEach(link => {
-        link.addEventListener('click', function(e) {
-            if (this.hostname === window.location.hostname) {
-                showLoading();
-            }
-        });
-    });
-
-    // Hide loading on page load
-    hideLoading();
-});
-
-// Error handling for failed navigation
-window.addEventListener('error', function(e) {
-    console.error('Navigation error:', e);
-    document.getElementById('loading')?.classList.add('d-none');
 });
 </script>
 {% endblock %}
