@@ -56,36 +56,40 @@
                 <a class="nav-item nav-link text-white" id="logout" href="/logout">Log out</a>
                 <a class="nav-item nav-link text-white" id="home" href="/">Home</a>
                 
-                {% else %}
+                {% else %}                
+                <a class="nav-item nav-link text-white" id="About" href="/about">About</a>
                 <a class="nav-item nav-link text-white" id="login" href="/login">Login</a>
                 <a class="nav-item nav-link text-white" id="signUp" href="/sign-up">Sign Up</a>
-                <a class="nav-item nav-link text-white" id="About" href="/about">About</a>
                 
                 {% endif %}
             </div>   
         </div>     
     </nav>
 
-    {% with messages = get_flashed_messages(with_categories = true) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      {% for category, message in messages %}
-      {% if category == 'error' %}
-      <div class = "alert alert-danger alert-dismissabe fade show" role = "alert">
-        {{ message }}
-        <button type = "button" class = "close" data-dismiss = "alert">
-          <span aria-hidden = "true">&times;</span>
-        </button>
-      </div>
-      {% else %}
-      <div class = "alert alert-success alert-dismissabe fade show" role = "alert">
-        {{ message }}
-        <button type = "button" class = "close" data-dismiss = "alert">
-          <span aria-hidden = "true">&times;</span>
-        </button>
-      </div>
-      {% endif %}
-      {% endfor%}
-      {% endif %} 
+    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+        {% for category, message in messages %}
+        <div class="alert {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+            <div class="d-flex align-items-center">
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle mr-2"></i>
+                {% elif category == 'error' %}
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle mr-2"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% endwith %}
     
     <div class="container">
@@ -108,9 +112,28 @@
       crossorigin="anonymous"
     ></script>
 
+    <!-- Flash Messages Auto-dismiss Script -->
     <script>
+        $(document).ready(function() {
+            // Auto-dismiss flash messages after 10 seconds with fade-out animation
+            setTimeout(function() {
+                $('.alert').each(function() {
+                    $(this).fadeTo(500, 0).slideUp(500, function(){
+                        $(this).alert('close');
+                    });
+                });
+            }, 10000); // 10 seconds
+            
+            // Handle manual close with animation
+            $('.alert .close').on('click', function() {
+                $(this).closest('.alert').fadeTo(300, 0).slideUp(300);
+            });
+        });
+    </script>
+
+    <script
         type="text/javascript"
         src="{{ url_for('static', filename='index.js') }}"
-    </script>
+    ></script>
 </body>
 </html>

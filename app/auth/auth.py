@@ -8,20 +8,37 @@ auth = Blueprint('auth', __name__)
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST': 
+    if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
 
         user = User.query.filter_by(email=email).first()
-        if user: 
-            if check_password_hash(user.password, password):
-                flash('Logged in successfully!', category='success')
-                login_user(user, remember=True)
-                return redirect(url_for('views.home'))
-            else:
-                flash('Incorrect password, try again.', category='error')
-        else: 
+
+        if not user:
             flash('Email does not exist.', category='error')
+                    
+            return render_template("auth/login.html", user=current_user)
+        if not check_password_hash(user.password_hash, password):
+            flash('Incorrect password, try again.', category='error')
+            return render_template("auth/login.html", user=current_user)
+
+        # Successful login
+        login_user(user, remember=True)
+        flash('Logged in successfully!', category='success')
+
+        # Log successful login (Add Audit Log)
+        
+        # if user is an admin, create admin log
+
+        # Redirect based on role (admin/user) or default home
+        def _post_login_redirect(user):
+            if user.role == 'admin':
+                return redirect(url_for('admin.dashboard'))
+            if user.role == 'community':
+                return redirect(url_for('community.dashboard'))
+            return redirect(url_for('views.home'))
+        
+        return _post_login_redirect(user)
 
     return render_template("auth/login.html", user=current_user)
 
@@ -29,6 +46,7 @@ def login():
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))
 
 @auth.route('/about')
@@ -40,6 +58,7 @@ def sign_up():
     if request.method == 'POST':
         email = request.form.get('email')  
         firstName = request.form.get('firstName')
+        lastName = request.form.get('lastName') 
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
 
@@ -51,12 +70,14 @@ def sign_up():
             flash('Email must be greater than 3 characters.', category='error')
         elif len(firstName) < 2:
             flash('First name must be greater than 1 character.', category='error')
+        elif len(lastName) < 2:
+            flash('Last name must be greater than 1 character.', category='error')
         elif password1 != password2:
             flash('Passwords don\'t match.', category='error')
         elif len(password1) < 7:
             flash('Password must be at least 7 characters.', category='error')
         else:  
-            new_user = User(email=email, first_name=firstName, password_hash=generate_password_hash(
+            new_user = User(email=email, first_name=firstName, last_name=lastName, role='community', password_hash=generate_password_hash(
                 password1, method='pbkdf2:sha256'))
             db.session.add(new_user)
             db.session.commit()
