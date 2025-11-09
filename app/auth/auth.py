@@ -3,10 +3,11 @@ from ..models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
+from ..utils import redirect_user_by_role
 
-auth = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
-@auth.route('/login', methods=['GET', 'POST'])
+@auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -16,7 +17,6 @@ def login():
 
         if not user:
             flash('Email does not exist.', category='error')
-                    
             return render_template("auth/login.html", user=current_user)
         if not check_password_hash(user.password_hash, password):
             flash('Incorrect password, try again.', category='error')
@@ -26,38 +26,28 @@ def login():
         login_user(user, remember=True)
         flash('Logged in successfully!', category='success')
 
-        # Log successful login (Add Audit Log)
-        
-        # if user is an admin, create admin log
-
-        # Redirect based on role (admin/user) or default home
-        def _post_login_redirect(user):
-            if user.role == 'admin':
-                return redirect(url_for('admin.dashboard'))
-            if user.role == 'community':
-                return redirect(url_for('community.dashboard'))
-            return redirect(url_for('views.home'))
-        
-        return _post_login_redirect(user)
+        # Use utility function for role-based redirect
+        return redirect_user_by_role(user)
 
     return render_template("auth/login.html", user=current_user)
 
-@auth.route('/logout')
+@auth_bp.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))
 
-@auth.route('/about')
+@auth_bp.route('/about')
 def about():
     return render_template("about.html", user=current_user)
 
-@auth.route('/sign-up', methods=['GET', 'POST'])
+@auth_bp.route('/sign-up', methods=['GET', 'POST'])
 def sign_up():
     if request.method == 'POST':
         email = request.form.get('email')  
         firstName = request.form.get('firstName')
+        # middleName = request.form.get('middleName')
         lastName = request.form.get('lastName') 
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
@@ -70,6 +60,8 @@ def sign_up():
             flash('Email must be greater than 3 characters.', category='error')
         elif len(firstName) < 2:
             flash('First name must be greater than 1 character.', category='error')
+        # elif len(middleName) < 2:
+        #     flash('Middle name must be greater than 1 character.', category='error')
         elif len(lastName) < 2:
             flash('Last name must be greater than 1 character.', category='error')
         elif password1 != password2:
@@ -83,6 +75,6 @@ def sign_up():
             db.session.commit()
             login_user(new_user, remember=True)
             flash('Account created!', category='success')
-            return redirect(url_for('views.home'))
+            return redirect(url_for('community.dashboard'))
     
     return render_template("auth/sign_up.html", user=current_user)

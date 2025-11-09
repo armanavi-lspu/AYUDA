@@ -23,7 +23,7 @@ def home():
             db.session.add(new_note)
             db.session.commit()
             flash('Note added', category='success')
-    return render_template("admin/home.html", user = current_user)
+    return render_template("community/dashboard.html", user = current_user)
 
 @views.route('/delete-note', methods = ['POST'])
 def delete_note():

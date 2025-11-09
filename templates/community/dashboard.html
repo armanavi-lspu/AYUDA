@@ -1,11 +1,228 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello, {{ user.first_name }}!</title>
-</head>
-<body>
-    <h1>Hello, {{ user.first_name }}!</h1>
-</body>
-</html>
+{% extends "community/community_base.html" %}
+{% block title %}Community Dashboard - AYUDA{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">Welcome back, {{ user.first_name }}!</h1>
+        <p class="text-muted">Here's what's happening in your community</p>
+    </div>
+</div>
+
+<!-- Statistics Cards Row -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Active Programs</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">12</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">My Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">3</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Services</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">8</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-cogs fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Unread Messages</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">5</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-envelope fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Program Participation Chart -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Program Participation Overview</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="participationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Usage Pie Chart -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Service Usage</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="serviceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity and Quick Actions Row -->
+<div class="row">
+    <!-- Recent Announcements -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Announcements</h6>
+                <a href="{{ url_for('community.announcements') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Community Health Program</h6>
+                            <small>3 days ago</small>
+                        </div>
+                        <p class="mb-1">New health screening program starting next month...</p>
+                    </div>
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Educational Workshop</h6>
+                            <small>1 week ago</small>
+                        </div>
+                        <p class="mb-1">Digital literacy workshop registration is now open...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <a href="{{ url_for('community.programs') }}" class="btn btn-outline-primary btn-block">
+                            <i class="fas fa-calendar-plus mb-2"></i><br>
+                            Register for Program
+                        </a>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <a href="{{ url_for('community.services') }}" class="btn btn-outline-success btn-block">
+                            <i class="fas fa-hand-holding-heart mb-2"></i><br>
+                            Request Service
+                        </a>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <a href="#" class="btn btn-outline-info btn-block">
+                            <i class="fas fa-file-download mb-2"></i><br>
+                            Download Forms
+                        </a>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <a href="#" class="btn btn-outline-warning btn-block">
+                            <i class="fas fa-question-circle mb-2"></i><br>
+                            Get Help
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Program Participation Chart
+const ctx1 = document.getElementById('participationChart').getContext('2d');
+const participationChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+            label: 'Programs Joined',
+            data: [2, 3, 1, 4, 2, 3],
+            borderColor: 'rgb(75, 192, 192)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+// Service Usage Pie Chart
+const ctx2 = document.getElementById('serviceChart').getContext('2d');
+const serviceChart = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: ['Health', 'Education', 'Financial', 'Legal'],
+        datasets: [{
+            data: [40, 30, 20, 10],
+            backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+</script>
+
+<style>
+.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+.text-gray-800 { color: #5a5c69 !important; }
+.text-gray-300 { color: #dddfeb !important; }
+.chart-area { position: relative; height: 320px; }
+.chart-pie { position: relative; height: 245px; }
+</style>
+{% endblock %}

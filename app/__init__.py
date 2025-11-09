@@ -1,23 +1,30 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from pathlib import Path
 from flask_login import LoginManager
 from config import Config
-
-db = SQLAlchemy()
+from app.extensions import db 
 
 def create_app():
-    app = Flask(__name__, template_folder='../templates',
-                static_folder='../static')
+    root_path = Path(__file__).parent.parent
+    
+    app = Flask(__name__, 
+                template_folder=str(root_path / "templates"),
+                static_folder=str(root_path / "static"))
+    
     app.config.from_object(Config)
     db.init_app(app)
 
+    # Import and register blueprints
+    from .auth.auth import auth_bp
+    from .admin import admin_bp
+    from .community import community_bp  
     from .views import views
-    from .auth.auth import auth
-
+    
+    app.register_blueprint(auth_bp, url_prefix='/')
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(community_bp)  
     app.register_blueprint(views, url_prefix='/')
-    app.register_blueprint(auth, url_prefix='/')
-
-    # Import the models with correct names
+    
     from .models import User, Programs
     
     with app.app_context():

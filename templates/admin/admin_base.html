@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+      crossorigin="anonymous"
+    />
+    
+    <!-- Global Font Style -->
+    <style>
+        * {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        body {
+            overflow-x: hidden;
+        }
+        
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            padding-top: 60px;
+            background-color: #343a40;
+            width: 250px;
+        }
+        
+        .sidebar .nav-link {
+            color: #adb5bd;
+            padding: 15px 20px;
+            border-radius: 0;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: #495057;
+        }
+        
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #007bff;
+        }
+        
+        .content-wrapper {
+            margin-left: 250px;
+            padding-top: 60px;
+        }
+        
+        .top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            height: 60px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                margin-left: -250px;
+            }
+            
+            .content-wrapper {
+                margin-left: 0;
+            }
+        }
+    </style>
+    
+    <title>{% block title %}Community Portal{% endblock %}</title>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
+        <a class="navbar-brand text-white font-weight-bold" href="#" style="font-size: 1.8rem; font-family: 'Arial Black', sans-serif;">AYUDA</a>
+        
+        <!-- Mobile menu toggle -->
+        <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="ml-auto d-flex align-items-center">
+            <!-- Notification Icon -->
+            <div class="dropdown mr-3">
+                <button class="btn btn-link text-white p-0" type="button" id="notificationDropdown" data-toggle="dropdown">
+                    <i class="fas fa-bell fa-lg"></i>
+                    <span class="badge badge-danger badge-pill position-absolute" style="top: -5px; right: -5px;">3</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <h6 class="dropdown-header">Notifications</h6>
+                    <a class="dropdown-item" href="#">New announcement posted</a>
+                    <a class="dropdown-item" href="#">Program registration open</a>
+                    <a class="dropdown-item" href="#">Service update available</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item text-center" href="#">View all</a>
+                </div>
+            </div>
+            
+            <!-- User Info -->
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-toggle="dropdown">
+                    <i class="fas fa-user mr-2"></i>
+                    {% if user.is_authenticated %}
+                        {{ user.first_name }} {{ user.last_name }}
+                    {% else %}
+                        Guest User
+                    {% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="#"><i class="fas fa-user-cog mr-2"></i>Profile</a>
+                    <a class="dropdown-item" href="#"><i class="fas fa-cog mr-2"></i>Settings</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Side Navigation Bar -->
+    <nav class="col-md-2 d-none d-md-block sidebar collapse" id="sidebarMenu">
+        <div class="sidebar-sticky">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="{{ url_for('community.dashboard') }}">
+                        <i class="fas fa-tachometer-alt mr-2"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('community.announcements') }}">
+                        <i class="fas fa-bullhorn mr-2"></i>
+                        Announcements
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('community.programs') }}">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        Programs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('community.services') }}">
+                        <i class="fas fa-cogs mr-2"></i>
+                        Other Services
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="content-wrapper">
+        <div class="container-fluid p-4">
+            {% block content %}
+            <h1>Welcome to Community Portal</h1>
+            <p>Select a module from the sidebar to get started.</p>
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+      integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+      integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+      integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+        // Mobile sidebar toggle
+        $('.navbar-toggler').click(function() {
+            $('.sidebar').toggleClass('d-block d-md-block');
+        });
+        
+        // Set active nav item
+        $(document).ready(function() {
+            var path = window.location.pathname;
+            $('.sidebar .nav-link').removeClass('active');
+            $('.sidebar .nav-link[href="' + path + '"]').addClass('active');
+        });
+    </script>
+</body>
+</html>
