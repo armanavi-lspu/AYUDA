@@ -13,12 +13,14 @@ def create_app():
 
     from .views import views
     from .auth.auth import auth
+    from .recommendations_api import recommendations_bp
 
     app.register_blueprint(views, url_prefix='/')
     app.register_blueprint(auth, url_prefix='/')
+    app.register_blueprint(recommendations_bp)
 
     # Import the models with correct names
-    from .models import User, Programs
+    from .models import User, Programs, UserProgramInteraction
     
     with app.app_context():
         db.create_all()
