@@ -32,3 +32,17 @@ class Programs(db.Model):
     description = db.Column(db.Text)
     date = db.Column(db.DateTime(timezone=True), default=func.now())
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+class UserProgramInteraction(db.Model):
+    """Track user interactions with programs for recommendation system"""
+    __tablename__ = 'user_program_interactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    interaction_type = db.Column(db.String(50), nullable=False)  # 'view', 'apply', 'bookmark'
+    interaction_date = db.Column(db.DateTime(timezone=True), default=func.now())
+    
+    # Relationships
+    user = db.relationship('User', backref='program_interactions')
+    program = db.relationship('Programs', backref='interactions')
