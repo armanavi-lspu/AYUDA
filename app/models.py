@@ -1,7 +1,8 @@
-from . import db
+from app.extensions import db
 from flask_login import UserMixin
 from datetime import datetime
 from sqlalchemy.sql import func
+
 
 class JsonSerializableMixin:
     """Mixin to make models JSON serializable"""
@@ -11,16 +12,27 @@ class JsonSerializableMixin:
 class User(db.Model, UserMixin):
     __tablename__ = 'users'     
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(150), unique=True, nullable=False, index=True)  
-    password_hash = db.Column(db.String(150), nullable=False)  
-    first_name = db.Column(db.String(150), nullable=False)
-    middle_name = db.Column(db.String(150))
-    last_name = db.Column(db.String(150), nullable=False)
-    role = db.Column(db.String(50), nullable=False, index=True)
+    email = db.Column(db.String(100), unique=True, nullable=False, index=True)  
+    password_hash = db.Column(db.String(255), nullable=False)  
+    first_name = db.Column(db.String(50), nullable=False)
+    middle_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50), nullable=False)
+    role = db.Column(db.String(20), nullable=False, index=True) # 'admin' or 'community'
     profile_pic = db.Column(db.String(255))
-    last_activity = db.Column(db.DateTime)    
-    
-    programs = db.relationship('Programs', backref='user', lazy=True, cascade='all, delete-orphan')
+    last_activity = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+        
+    # Relationships
+    created_programs = db.relationship('Programs', backref='creator', lazy=True)
+    announcements = db.relationship('Announcements', backref='author', lazy=True)
+    notifications = db.relationship('Notifications', backref='user', lazy=True, cascade='all, delete-orphan')
+    applications = db.relationship('Applications', foreign_keys='Applications.user_id', backref='applicant', lazy=True)
+    reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
+    community_profile = db.relationship('CommunityUsers', backref='user', uselist=False, cascade='all, delete-orphan')
+    admin_profile = db.relationship('AdminUsers', backref='user', uselist=False, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<User {self.email}>'
 
 class Programs(db.Model):
     __tablename__ = 'programs'
@@ -30,5 +42,210 @@ class Programs(db.Model):
     program_type = db.Column(db.String(50), nullable=False)
     program_period = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text)
-    date = db.Column(db.DateTime(timezone=True), default=func.now())
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    
+    # Relationships
+    applications = db.relationship('Applications', backref='program', lazy=True)
+    requirements = db.relationship('Requirements', secondary='program_requirements', backref='programs')
+    
+    def __repr__(self):
+        return f'<Program {self.program_name}>'
+
+class Requirements(db.Model):
+    __tablename__ = 'requirements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    document_name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    is_mandatory = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Requirement {self.document_name}>'
+
+class ProgramRequirements(db.Model):
+    __tablename__ = 'program_requirements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
+    is_mandatory = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<ProgramRequirement {self.program_id}-{self.requirement_id}>'
+
+class Announcements(db.Model):
+    __tablename__ = 'announcements'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    announcement_title = db.Column(db.String(200), nullable=False)
+    announcement_content = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100), nullable=False, default='General')
+    status = db.Column(db.String(50), nullable=False, default='draft')
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    images = db.relationship('AnnouncementImages', backref='announcement', lazy=True, cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Announcement {self.announcement_title}>'
+
+class AnnouncementImages(db.Model):
+    __tablename__ = 'announcement_images'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    announcement_id = db.Column(db.Integer, db.ForeignKey('announcements.id'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
+    caption = db.Column(db.String(255))
+    display_order = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<AnnouncementImage {self.id}>'
+
+class Applications(db.Model):
+    __tablename__ = 'applications'
+    
+    id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    application_status = db.Column(db.String(20), nullable=False, default='pending')
+    application_date = db.Column(db.DateTime, default=datetime.utcnow)
+    review_date = db.Column(db.DateTime)
+    reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    remarks = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    document_checklist = db.relationship('ApplicationDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
+    
+    @property
+    def documents_complete(self):
+        """Check if all mandatory documents are approved"""
+        if not self.document_checklist:
+            return False
+            
+        mandatory_docs = []
+        for doc in self.document_checklist:
+            prog_req = db.session.query(ProgramRequirements).filter_by(
+                program_id=self.program_id,
+                requirement_id=doc.requirement_id,
+                is_mandatory=True
+            ).first()
+            if prog_req:
+                mandatory_docs.append(doc)
+        
+        if not mandatory_docs:
+            return True  # No mandatory docs required
+            
+        return all(doc.submission_status == 'approved' for doc in mandatory_docs)
+    
+    @property
+    def completion_percentage(self):
+        """Calculate document completion percentage"""
+        if not self.document_checklist:
+            return 0
+        
+        approved_count = sum(1 for doc in self.document_checklist 
+                           if doc.submission_status == 'approved')
+        return round((approved_count / len(self.document_checklist)) * 100)
+    
+    def __repr__(self):
+        return f'<Application {self.id}: {self.applicant.email} -> {self.program.program_name}>'
+    
+class ApplicationDocuments(db.Model):
+    __tablename__ = 'application_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
+    submission_status = db.Column(db.String(20), default='not_submitted')
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    verified_at = db.Column(db.DateTime)
+    admin_feedback = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    requirement = db.relationship('Requirements', backref='application_documents')
+    verifier = db.relationship('User', backref='verified_documents')
+    
+    @property
+    def is_mandatory(self):
+        """Check if this document is mandatory for the program"""
+        prog_req = db.session.query(ProgramRequirements).filter_by(
+            program_id=self.application.program_id,
+            requirement_id=self.requirement_id
+        ).first()
+        return prog_req.is_mandatory if prog_req else False
+    
+    def __repr__(self):
+        return f'<ApplicationDocument {self.id}: {self.requirement.document_name} - {self.submission_status}>'
+
+class FileAttachment(db.Model):
+    __tablename__ = 'file_attachment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer)
+    file_type = db.Column(db.String(100))
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    attachment_type = db.Column(db.String(50))
+    
+    uploader = db.relationship('User', backref='uploaded_files')
+    
+    def __repr__(self):
+        return f'<FileAttachment {self.filename}>'
+
+class Notifications(db.Model):
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    notif_title = db.Column(db.String(255), nullable=False)
+    notif_message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Notification {self.notif_title}>'
+
+class CommunityUsers(db.Model):
+    __tablename__ = 'community_users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    age = db.Column(db.Integer, nullable=False)
+    mobile_no = db.Column(db.String(20))
+    birth_month = db.Column(db.Integer)
+    birth_day = db.Column(db.Integer)
+    birth_year = db.Column(db.Integer)
+    barangay = db.Column(db.String(100))
+    sitio = db.Column(db.String(100))
+    municipality = db.Column(db.String(100))
+    is_currently_employed = db.Column(db.Boolean, default=False)
+    is_student = db.Column(db.Boolean, default=False)
+    is_solo_parent = db.Column(db.Boolean, default=False)
+    family_annual_income = db.Column(db.Numeric(12, 2))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<CommunityUser {self.user_id}>'
+
+class AdminUsers(db.Model):
+    __tablename__ = 'admin_users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<AdminUser {self.user_id}>'

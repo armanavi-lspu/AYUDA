@@ -4,8 +4,9 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="h3 mb-0">Welcome back, {{ user.first_name }}!</h1>
+        <h1 class="h3 mb-0">Welcome back, {{ current_user.first_name }}!</h1>
         <p class="text-muted">Here's what's happening in your community</p>
+        <p class="text-gray">{{ today.strftime('%A, %B %d, %Y') }}</p>
     </div>
 </div>
 
@@ -16,11 +17,13 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Active Programs</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">12</div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Pending Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ pending_applications }}
+                        </div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -32,8 +35,8 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">My Applications</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">3</div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_applications }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-file-alt fa-2x text-gray-300"></i>
@@ -48,8 +51,8 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Services</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">8</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Programs</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ available_programs }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-cogs fa-2x text-gray-300"></i>
@@ -64,11 +67,11 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Unread Messages</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">5</div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">New Announcements</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_announcements }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-envelope fa-2x text-gray-300"></i>
+                        <i class="fas fa-bullhorn fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -152,7 +155,7 @@
                         </a>
                     </div>
                     <div class="col-6 mb-3">
-                        <a href="{{ url_for('community.services') }}" class="btn btn-outline-success btn-block">
+                        <a href="{{ url_for('community.other_services') }}" class="btn btn-outline-success btn-block">
                             <i class="fas fa-hand-holding-heart mb-2"></i><br>
                             Request Service
                         </a>

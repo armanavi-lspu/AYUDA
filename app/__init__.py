@@ -18,12 +18,10 @@ def create_app():
     from .auth.auth import auth_bp
     from .admin import admin_bp
     from .community import community_bp  
-    from .views import views
     
     app.register_blueprint(auth_bp, url_prefix='/')
     app.register_blueprint(admin_bp)
     app.register_blueprint(community_bp)  
-    app.register_blueprint(views, url_prefix='/')
     
     from .models import User, Programs
     

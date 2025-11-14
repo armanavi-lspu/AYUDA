@@ -3,8 +3,8 @@ from flask_login import login_required, current_user
 from app.admin import admin_bp
 from app.utils import role_required
 
-@admin_bp.route('/adm_analytics')
+@admin_bp.route('/applications')
 @login_required
 @role_required('admin')
-def analytics():
-    return render_template('admin/analytics.html', user=current_user)
+def applications():
+    return render_template('admin/applications.html', user=current_user)
