@@ -1,0 +1,83 @@
+{% extends "community/community_base.html" %}
+{% block title %}{{ category_name }} - AYUDA{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}">Programs</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ category_name }}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0">{{ category_name }}</h1>
+        <p class="text-muted">Browse available {{ category }} programs</p>
+    </div>
+</div>
+
+<!-- Statistics Card -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Programs in this Category</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Programs List -->
+<div class="row">
+    {% if programs %}
+        {% for program in programs %}
+        <div class="col-lg-6 col-md-12 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title font-weight-bold">{{ program.program_name }}</h5>
+                    <p class="card-text text-muted">{{ program.description }}</p>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="far fa-calendar-alt mr-1"></i>
+                            Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}
+                        </small>
+                    </div>
+                    
+                    <a href="{{ url_for('community.program_detail', program_id=program.id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-info-circle mr-1"></i>View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle mr-2"></i>
+                No programs available in this category at the moment.
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+.border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
+.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+.text-gray-800 { color: #5a5c69 !important; }
+.text-gray-300 { color: #dddfeb !important; }
+.card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card:hover { transform: translateY(-5px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
+</style>
+{% endblock %}

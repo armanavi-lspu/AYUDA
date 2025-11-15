@@ -16,6 +16,20 @@ CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_user_role ON users(role);
 CREATE INDEX idx_user_created_at ON users(created_at);
 
+-- Create file_attachment table (moved before programs for foreign key reference)
+CREATE TABLE file_attachment (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    file_size INTEGER,
+    file_type VARCHAR(100),
+    uploaded_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    attachment_type VARCHAR(50)
+);
+
+CREATE INDEX idx_file_attachment_uploaded_by ON file_attachment(uploaded_by_id);
+
 -- Create table for financial programs 
 CREATE TABLE programs (
     id SERIAL PRIMARY KEY,
@@ -24,6 +38,7 @@ CREATE TABLE programs (
     program_type VARCHAR(50) NOT NULL,
     program_period VARCHAR(50) NOT NULL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who created the program
+    file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -32,6 +47,7 @@ CREATE INDEX idx_programs_user_id ON programs(user_id);
 CREATE INDEX idx_programs_type ON programs(program_type);
 CREATE INDEX idx_programs_period ON programs(program_period);
 CREATE INDEX idx_programs_date ON programs(date DESC);
+CREATE INDEX idx_programs_file_attachment ON programs(file_attachment_id);
 
 -- Create table for applications
 CREATE TABLE applications (
@@ -83,20 +99,6 @@ CREATE TABLE announcement_images (
 );
 
 CREATE INDEX idx_announcement_images_announcement_id ON announcement_images(announcement_id);
-
--- Create file_attachment table
-CREATE TABLE file_attachment (
-    id SERIAL PRIMARY KEY,
-    filename VARCHAR(255) NOT NULL,
-    file_path VARCHAR(255) NOT NULL,
-    file_size INTEGER,
-    file_type VARCHAR(100),
-    uploaded_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    attachment_type VARCHAR(50)
-);
-
-CREATE INDEX idx_file_attachment_uploaded_by ON file_attachment(uploaded_by_id);
 
 -- Create notifications table
 CREATE TABLE notifications (
@@ -151,8 +153,6 @@ CREATE TABLE program_requirements (
 CREATE INDEX idx_program_requirements_program_id ON program_requirements(program_id);
 CREATE INDEX idx_program_requirements_requirement_id ON program_requirements(requirement_id);
 
-
-
 -- Create application_documents table (admin checklist for physical documents)
 CREATE TABLE application_documents (
     id SERIAL PRIMARY KEY,
@@ -184,5 +184,11 @@ CREATE INDEX idx_admin_users_user_id ON admin_users(user_id);
 -- Create table for community user activity log
 
 -- Create table for Admin Activity Logs
+
+###################################
+
+-- INSERT VALUES 
+
+###################################
 
 -- INSERT (CREATE ACCOUNT FOR 1 ADMIN and 1 USER)

@@ -44,10 +44,12 @@ class Programs(db.Model):
     description = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)  
     
     # Relationships
     applications = db.relationship('Applications', backref='program', lazy=True)
     requirements = db.relationship('Requirements', secondary='program_requirements', backref='programs')
+    file_attachment = db.relationship('FileAttachment', backref='program', uselist=False)  # Add relationship
     
     def __repr__(self):
         return f'<Program {self.program_name}>'
@@ -58,7 +60,6 @@ class Requirements(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     document_name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    is_mandatory = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -73,6 +74,9 @@ class ProgramRequirements(db.Model):
     is_mandatory = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    program = db.relationship('Programs', backref=db.backref('program_requirement_links', lazy='dynamic'))
+    requirement = db.relationship('Requirements', backref=db.backref('requirement_program_links', lazy='dynamic'))
+    
     def __repr__(self):
         return f'<ProgramRequirement {self.program_id}-{self.requirement_id}>'
 
@@ -83,7 +87,7 @@ class Announcements(db.Model):
     announcement_title = db.Column(db.String(200), nullable=False)
     announcement_content = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(100), nullable=False, default='General')
-    status = db.Column(db.String(50), nullable=False, default='draft')
+    status = db.Column(db.String(50), nullable=False, default='draft') # 'draft' or 'published'
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

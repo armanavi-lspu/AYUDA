@@ -1,0 +1,195 @@
+{% extends "community/community_base.html" %}
+{% block title %}Financial Assistance Programs - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-gradient-danger { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); }
+    .bg-gradient-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .bg-gradient-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .bg-gradient-info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .category-card { transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #e5e7eb; }
+    .category-card:hover { transform: translateY(-8px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.15)!important; }
+    .stat-bg { 
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        border: 2px solid rgba(102, 126, 234, 0.3) !important;
+    }
+    .stat-number { color: #4c1d95; }
+    .stat-label { color: #6b7280; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="bg-gradient-primary text-dark py-2 mb-4 rounded shadow-lg">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 font-weight-bold mb-3">Financial Assistance Programs</h1>
+                <p class="lead mb-0">Explore various financial assistance programs available through the MSWD Office to support our community members in need.</p>
+            </div>
+            <div class="col-lg-4">
+                <div class="d-flex justify-content-center mt-4 mt-lg-0">
+                    <!-- Categories Stat -->
+                    <div class="stat-bg rounded p-3 text-center flex-fill mr-2">
+                        <div class="h2 font-weight-bold mb-0 stat-number">{{ total_categories }}</div>
+                        <small class="text-uppercase stat-label font-weight-semibold" style="letter-spacing: 1px;">Categories</small>
+                    </div>
+                    <!-- Programs Stat -->
+                    <div class="stat-bg rounded p-3 text-center flex-fill ml-2">
+                        <div class="h2 font-weight-bold mb-0 stat-number">{{ total_programs }}</div>
+                        <small class="text-uppercase stat-label font-weight-semibold" style="letter-spacing: 1px;">Programs</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Program Categories -->
+<div class="row">
+    <!-- AICS Category -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100 border-left-primary">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="mr-3">
+                        <i class="fas fa-hand-holding-heart fa-3x text-primary"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-1 font-weight-bold">AICS</h5>
+                        <p class="text-muted small mb-0">Assistance to Individuals in Crisis Situation</p>
+                    </div>
+                </div>
+                <p class="card-text text-muted">
+                    Financial assistance for individuals and families facing crisis situations such as medical emergencies, 
+                    food assistance, educational support, and transportation needs.
+                </p>
+                <a href="{{ url_for('community.programs_by_category', category='AICS') }}" 
+                   class="btn btn-primary btn-block">
+                    <i class="fas fa-eye mr-2"></i>View AICS Programs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Shelter Category -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100 border-left-danger">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="mr-3">
+                        <i class="fas fa-house-damage fa-3x text-danger"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-1 font-weight-bold">Emergency Shelter Assistance</h5>
+                        <p class="text-muted small mb-0">Housing and Shelter Support</p>
+                    </div>
+                </div>
+                <p class="card-text text-muted">
+                    Provides temporary shelter and housing assistance to families affected by calamities, 
+                    disasters, or those in urgent need of safe housing facilities.
+                </p>
+                <a href="{{ url_for('community.programs_by_category', category='Emergency Shelter Assistance') }}" 
+                   class="btn btn-danger btn-block">
+                    <i class="fas fa-eye mr-2"></i>View Shelter Programs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4Ps Category -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100 border-left-success">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="mr-3">
+                        <i class="fas fa-users fa-3x text-success"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-1 font-weight-bold">4Ps</h5>
+                        <p class="text-muted small mb-0">Pantawid Pamilyang Pilipino Program</p>
+                    </div>
+                </div>
+                <p class="card-text text-muted">
+                    A conditional cash transfer program that provides cash grants to extremely poor families 
+                    to improve health, nutrition, and education of children aged 0-18.
+                </p>
+                <a href="{{ url_for('community.programs_by_category', category='4Ps') }}" 
+                   class="btn btn-success btn-block">
+                    <i class="fas fa-eye mr-2"></i>View 4Ps Programs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLP Category -->
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100 border-left-warning">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="mr-3">
+                        <i class="fas fa-briefcase fa-3x text-warning"></i>
+                    </div>
+                    <div>
+                        <h5 class="card-title mb-1 font-weight-bold">SLP</h5>
+                        <p class="text-muted small mb-0">Sustainable Livelihood Program</p>
+                    </div>
+                </div>
+                <p class="card-text text-muted">
+                    Provides opportunities for improving socio-economic conditions through skills training, 
+                    microenterprise development, and employment facilitation.
+                </p>
+                <a href="{{ url_for('community.programs_by_category', category='SLP') }}" 
+                   class="btn btn-warning btn-block">
+                    <i class="fas fa-eye mr-2"></i>View SLP Programs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Information Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>How to Apply</h5>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">Choose a program category above that fits your needs</li>
+                    <li class="mb-2">Browse available programs in that category</li>
+                    <li class="mb-2">Review the program requirements and eligibility criteria</li>
+                    <li class="mb-2">Click "Apply for this Program" and fill out the application form</li>
+                    <li>Submit required documents and wait for processing</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate stat numbers
+    document.querySelectorAll('.stat-number').forEach(stat => {
+        const finalValue = parseInt(stat.textContent);
+        if (isNaN(finalValue)) return;
+        
+        let currentValue = 0;
+        const increment = Math.ceil(finalValue / 20);
+        const timer = setInterval(() => {
+            currentValue += increment;
+            if (currentValue >= finalValue) {
+                stat.textContent = finalValue;
+                clearInterval(timer);
+            } else {
+                stat.textContent = currentValue;
+            }
+        }, 50);
+    });
+});
+</script>
+{% endblock %}

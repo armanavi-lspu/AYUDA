@@ -1,9 +1,256 @@
 {% extends "community/community_base.html" %}
-{% block title %}Announcements - AYUDA{% endblock %}
+{% block title %}Announcements - Community Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .announcement-card.hidden { display: none; }
+    .no-announcements { display: none; }
+    .no-announcements.show { display: block; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Community Announcements</h1>
-    <p>Stay updated with the latest announcements in your community.</p>
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="mb-4">
+        <h1 class="h3 text-dark font-weight-bold">Announcements</h1>
+        <p class="text-muted">Stay updated with the latest news and information.</p>
+    </div>
+
+    <!-- Filter Container -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row">
+                <!-- Search (Longer) -->
+                <div class="col-lg-4 col-md-12 mb-3 mb-lg-0">
+                    <label class="text-muted text-uppercase small font-weight-bold">Search</label>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search announcements...">
+                </div>
+                
+                <!-- Category -->
+                <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
+                    <label class="text-muted text-uppercase small font-weight-bold">Category</label>
+                    <select id="categoryFilter" class="form-control">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Date Range -->
+                <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
+                    <label class="text-muted text-uppercase small font-weight-bold">Date Range</label>
+                    <select id="dateRangeFilter" class="form-control">
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                    </select>
+                </div>
+                
+                <!-- Apply Button -->
+                <div class="col-lg-2 col-md-12">
+                    <label class="d-none d-lg-block">&nbsp;</label>
+                    <button type="button" id="applyFiltersBtn" class="btn btn-primary btn-block">
+                        <i class="fas fa-filter"></i> Apply
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Active Filters -->
+            <div class="d-none align-items-center justify-content-between pt-3 mt-3 border-top" id="filterStatus">
+                <div class="d-flex flex-wrap" id="activeFilters"></div>
+                <a href="#" class="text-muted small ml-auto" id="clearAllBtn">
+                    <i class="fas fa-times"></i> Clear all
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Info -->
+    <div class="mb-3 text-muted small">
+        Showing <strong id="visibleCount">{{ announcements|length }}</strong> of <strong id="totalCount">{{ announcements|length }}</strong> announcements
+    </div>
+
+    <!-- Announcements List -->
+    <div id="announcementsList">
+        {% if announcements %}
+            {% for announcement in announcements %}
+            <div class="card shadow-sm mb-3 announcement-card" 
+                 data-category="{{ announcement.category }}"
+                 data-date="{{ announcement.created_at.strftime('%Y-%m-%d') }}"
+                 data-title="{{ announcement.announcement_title|lower }}"
+                 data-content="{{ announcement.announcement_content|striptags|lower }}">
+                
+                <!-- Header -->
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="d-flex align-items-center flex-wrap mb-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white font-weight-bold mr-2 bg-primary" style="width: 32px; height: 32px; font-size: 12px;">
+                            {{ announcement.author.first_name[0] }}{{ announcement.author.last_name[0] }}
+                        </div>
+                        <strong class="mr-2">{{ announcement.author.first_name }} {{ announcement.author.last_name }}</strong>
+                        <span class="text-muted mr-2">•</span>
+                        <span class="text-muted small">{{ announcement.created_at.strftime('%B %d, %Y | %I:%M %p') }}</span>
+                        <span class="badge badge-secondary ml-auto">{{ announcement.category }}</span>
+                    </div>
+                    <h5 class="mb-0 font-weight-bold">{{ announcement.announcement_title }}</h5>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body">
+                    <div class="mb-3">
+                        <!-- Preview -->
+                        <div id="preview-{{ announcement.id }}">
+                            {% set content_length = announcement.announcement_content|length %}
+                            {% if content_length > 300 %}
+                                <div class="text-secondary">{{ announcement.announcement_content[:300]|safe }}...</div>
+                                <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
+                                    Show More <i class="fas fa-chevron-down"></i>
+                                </button>
+                            {% else %}
+                                <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Full Content -->
+                        {% if announcement.announcement_content|length > 300 %}
+                        <div style="display:none;" id="full-{{ announcement.id }}">
+                            <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
+                            <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
+                                Show Less <i class="fas fa-chevron-up"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Images -->
+                    {% if announcement.images %}
+                        {% for image in announcement.images %}
+                        <img src="{{ url_for('static', filename='uploads/announcements/' + image.image_path) }}" 
+                             alt="{{ image.caption or 'Announcement Image' }}"
+                             class="img-fluid rounded mb-2 shadow-sm">
+                        {% if image.caption %}
+                            <p class="text-muted small mb-3"><em>{{ image.caption }}</em></p>
+                        {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- View Full Button -->
+                    <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i> View Full Details
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- No Results -->
+        <div class="card shadow-sm text-center py-5 no-announcements" id="noResults">
+            <div class="card-body">
+                <i class="fas fa-bullhorn fa-3x text-muted mb-3 opacity-50"></i>
+                <h4 class="text-dark">No Announcements Found</h4>
+                <p class="text-muted">Try adjusting your search criteria or check back later.</p>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleContent(announcementId) {
+    const preview = document.getElementById(`preview-${announcementId}`);
+    const full = document.getElementById(`full-${announcementId}`);
+    preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+    full.style.display = full.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const dateRangeFilter = document.getElementById('dateRangeFilter');
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const filterStatus = document.getElementById('filterStatus');
+    const activeFiltersDiv = document.getElementById('activeFilters');
+    const noResults = document.getElementById('noResults');
+    const visibleCount = document.getElementById('visibleCount');
+    const totalCount = document.getElementById('totalCount');
+    const allCards = document.querySelectorAll('.announcement-card:not(#noResults)');
+    
+    totalCount.textContent = allCards.length;
+    
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const selectedCategory = categoryFilter.value;
+        const selectedDateRange = dateRangeFilter.value;
+        let visibleCards = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        allCards.forEach(card => {
+            const cardTitle = card.dataset.title;
+            const cardContent = card.dataset.content;
+            const cardCategory = card.dataset.category;
+            const cardDate = new Date(card.dataset.date);
+            cardDate.setHours(0, 0, 0, 0);
+            let showCard = true;
+            
+            if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) showCard = false;
+            if (selectedCategory && cardCategory !== selectedCategory) showCard = false;
+            
+            if (selectedDateRange) {
+                const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
+                if (selectedDateRange === 'today' && daysDiff !== 0) showCard = false;
+                else if (selectedDateRange === 'week' && daysDiff > 7) showCard = false;
+                else if (selectedDateRange === 'month' && daysDiff > 30) showCard = false;
+            }
+            
+            card.classList.toggle('hidden', !showCard);
+            if (showCard) visibleCards++;
+        });
+        
+        visibleCount.textContent = visibleCards;
+        noResults.classList.toggle('show', visibleCards === 0);
+        updateActiveFilters(searchTerm, selectedCategory, selectedDateRange);
+    }
+    
+    function updateActiveFilters(searchTerm, category, dateRange) {
+        activeFiltersDiv.innerHTML = '';
+        let hasFilters = false;
+        
+        if (searchTerm) {
+            hasFilters = true;
+            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Search: ${searchTerm} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('searchInput').value=''; applyFilters();"></i></span>`;
+        }
+        
+        if (category) {
+            hasFilters = true;
+            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Category: ${category} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('categoryFilter').value=''; applyFilters();"></i></span>`;
+        }
+        
+        if (dateRange) {
+            hasFilters = true;
+            const dateLabels = { 'today': 'Today', 'week': 'This Week', 'month': 'This Month' };
+            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Date: ${dateLabels[dateRange]} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();"></i></span>`;
+        }
+        
+        filterStatus.classList.toggle('d-none', !hasFilters);
+        filterStatus.classList.toggle('d-flex', hasFilters);
+    }
+    
+    applyBtn.addEventListener('click', applyFilters);
+    clearAllBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        searchInput.value = '';
+        categoryFilter.value = '';
+        dateRangeFilter.value = '';
+        applyFilters();
+    });
+    
+    searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') applyFilters(); });
+});
+</script>
 {% endblock %}
