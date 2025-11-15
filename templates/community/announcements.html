@@ -6,6 +6,32 @@
     .announcement-card.hidden { display: none; }
     .no-announcements { display: none; }
     .no-announcements.show { display: block; }
+    .empty-state-icon {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+    .empty-state {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        text-align: center;
+    }
+    .refresh-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    }
+    .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+    .refresh-btn.loading {
+        pointer-events: none;
+        opacity: 0.7;
+    }
 </style>
 {% endblock %}
 
@@ -17,7 +43,8 @@
         <p class="text-muted">Stay updated with the latest news and information.</p>
     </div>
 
-    <!-- Filter Container -->
+    <!-- Filter Container (Only show if there are announcements) -->
+    {% if announcements %}
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <div class="row">
@@ -72,29 +99,34 @@
     <div class="mb-3 text-muted small">
         Showing <strong id="visibleCount">{{ announcements|length }}</strong> of <strong id="totalCount">{{ announcements|length }}</strong> announcements
     </div>
+    {% endif %}
 
     <!-- Announcements List -->
     <div id="announcementsList">
         {% if announcements %}
             {% for announcement in announcements %}
             <div class="card shadow-sm mb-3 announcement-card" 
-                 data-category="{{ announcement.category }}"
-                 data-date="{{ announcement.created_at.strftime('%Y-%m-%d') }}"
-                 data-title="{{ announcement.announcement_title|lower }}"
-                 data-content="{{ announcement.announcement_content|striptags|lower }}">
+                 data-category="{{ announcement.category or '' }}"
+                 data-date="{{ announcement.created_at.strftime('%Y-%m-%d') if announcement.created_at else '' }}"
+                 data-title="{{ announcement.announcement_title|lower if announcement.announcement_title else '' }}"
+                 data-content="{{ announcement.announcement_content|striptags|lower if announcement.announcement_content else '' }}">
                 
                 <!-- Header -->
                 <div class="card-header bg-white border-bottom py-3">
                     <div class="d-flex align-items-center flex-wrap mb-2">
                         <div class="rounded-circle d-flex align-items-center justify-content-center text-white font-weight-bold mr-2 bg-primary" style="width: 32px; height: 32px; font-size: 12px;">
-                            {{ announcement.author.first_name[0] }}{{ announcement.author.last_name[0] }}
+                            {{ announcement.author.first_name[0] if announcement.author and announcement.author.first_name else 'A' }}{{ announcement.author.last_name[0] if announcement.author and announcement.author.last_name else 'D' }}
                         </div>
-                        <strong class="mr-2">{{ announcement.author.first_name }} {{ announcement.author.last_name }}</strong>
+                        <strong class="mr-2">
+                            {{ announcement.author.first_name if announcement.author and announcement.author.first_name else 'Admin' }} 
+                            {{ announcement.author.last_name if announcement.author and announcement.author.last_name else '' }}
+                        </strong>
                         <span class="text-muted mr-2">•</span>
-                        <span class="text-muted small">{{ announcement.created_at.strftime('%B %d, %Y | %I:%M %p') }}</span>
-                        <span class="badge badge-secondary ml-auto">{{ announcement.category }}</span>
+                        <span class="text-muted small">{{ announcement.created_at.strftime('%B %d, %Y | %I:%M %p') if announcement.created_at else 'Recently' }}</span>
+                        
+                        <span class="badge badge-secondary ml-auto" style="font-size: 0.875rem;">{{ announcement.category or 'General' }}</span>
                     </div>
-                    <h5 class="mb-0 font-weight-bold">{{ announcement.announcement_title }}</h5>
+                    <h5 class="mb-0 font-weight-bold">{{ announcement.announcement_title or 'Untitled Announcement' }}</h5>
                 </div>
 
                 <!-- Body -->
@@ -102,19 +134,23 @@
                     <div class="mb-3">
                         <!-- Preview -->
                         <div id="preview-{{ announcement.id }}">
-                            {% set content_length = announcement.announcement_content|length %}
-                            {% if content_length > 300 %}
-                                <div class="text-secondary">{{ announcement.announcement_content[:300]|safe }}...</div>
-                                <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
-                                    Show More <i class="fas fa-chevron-down"></i>
-                                </button>
+                            {% if announcement.announcement_content %}
+                                {% set content_length = announcement.announcement_content|length %}
+                                {% if content_length > 300 %}
+                                    <div class="text-secondary">{{ announcement.announcement_content[:300]|safe }}...</div>
+                                    <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
+                                        Show More <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                {% else %}
+                                    <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
+                                {% endif %}
                             {% else %}
-                                <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
+                                <div class="text-secondary">No content available.</div>
                             {% endif %}
                         </div>
                         
                         <!-- Full Content -->
-                        {% if announcement.announcement_content|length > 300 %}
+                        {% if announcement.announcement_content and announcement.announcement_content|length > 300 %}
                         <div style="display:none;" id="full-{{ announcement.id }}">
                             <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
                             <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
@@ -144,16 +180,55 @@
                 </div>
             </div>
             {% endfor %}
-        {% endif %}
-        
-        <!-- No Results -->
-        <div class="card shadow-sm text-center py-5 no-announcements" id="noResults">
-            <div class="card-body">
-                <i class="fas fa-bullhorn fa-3x text-muted mb-3 opacity-50"></i>
-                <h4 class="text-dark">No Announcements Found</h4>
-                <p class="text-muted">Try adjusting your search criteria or check back later.</p>
+
+            <!-- No Search Results (Hidden by default, shown by JS when filters return no results) -->
+            <div class="no-announcements" id="noResults">
+                <div class="empty-state">
+                    <i class="fas fa-search empty-state-icon"></i>
+                    <h4 class="text-dark font-weight-bold mb-3">No Announcements Found</h4>
+                    <p class="text-muted mb-3">We couldn't find any announcements matching your search criteria.</p>
+                    <div class="d-flex justify-content-center">
+                        <button class="btn btn-outline-primary btn-sm" onclick="clearAllFilters()">
+                            <i class="fas fa-times mr-1"></i>Clear Filters
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
+
+        {% else %}
+            <!-- No Announcements Posted Yet -->
+            <div class="empty-state">
+                <i class="fas fa-bullhorn empty-state-icon"></i>
+                <h4 class="text-dark font-weight-bold mb-3">No Announcements Yet</h4>
+                <p class="text-muted mb-4">
+                    There are currently no announcements posted. Check back later for updates from the MSWD Office.
+                </p>
+                
+                <!-- Refresh Button -->
+                <div class="mb-4">
+                    <button class="btn refresh-btn text-white font-weight-semibold px-4" id="refreshBtn" onclick="refreshPage()">
+                        <i class="fas fa-sync-alt mr-2" id="refreshIcon"></i>Check for New Announcements
+                    </button>
+                </div>
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card border-primary">
+                            <div class="card-body text-left">
+                                <h6 class="card-title text-primary">
+                                    <i class="fas fa-info-circle mr-2"></i>Stay Connected
+                                </h6>
+                                <ul class="list-unstyled mb-0 small">
+                                    <li class="mb-2"><i class="fas fa-phone text-success mr-2"></i>Contact us: (02) 123-4567</li>
+                                    <li class="mb-2"><i class="fas fa-envelope text-info mr-2"></i>Email: ayuda@mabitac.gov.ph</li>
+                                    <li><i class="fas fa-clock text-warning mr-2"></i>Office Hours: Monday-Friday, 8:00 AM - 5:00 PM</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -163,8 +238,39 @@
 function toggleContent(announcementId) {
     const preview = document.getElementById(`preview-${announcementId}`);
     const full = document.getElementById(`full-${announcementId}`);
-    preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
-    full.style.display = full.style.display === 'none' ? 'block' : 'none';
+    if (preview && full) {
+        preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+        full.style.display = full.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function refreshPage() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const refreshIcon = document.getElementById('refreshIcon');
+    
+    if (refreshBtn && refreshIcon) {
+        refreshBtn.classList.add('loading');
+        refreshIcon.classList.add('fa-spin');
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i>Checking...';
+    }
+    
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function clearAllFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const dateRangeFilter = document.getElementById('dateRangeFilter');
+    
+    if (searchInput) searchInput.value = '';
+    if (categoryFilter) categoryFilter.value = '';
+    if (dateRangeFilter) dateRangeFilter.value = '';
+    
+    if (window.applyFilters) {
+        applyFilters();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -178,79 +284,114 @@ document.addEventListener('DOMContentLoaded', function() {
     const noResults = document.getElementById('noResults');
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = document.getElementById('totalCount');
-    const allCards = document.querySelectorAll('.announcement-card:not(#noResults)');
+    const allCards = document.querySelectorAll('.announcement-card:not(.no-announcements)');
     
-    totalCount.textContent = allCards.length;
+    console.log('noResults classes:', noResults?.classList);
+    console.log('noResults computed display:', window.getComputedStyle(noResults).display);
+
+    if (noResults) {
+        noResults.classList.remove('show');
+        noResults.style.display = 'none'; // Extra safety
+    }
     
-    function applyFilters() {
-        const searchTerm = searchInput.value.toLowerCase().trim();
-        const selectedCategory = categoryFilter.value;
-        const selectedDateRange = dateRangeFilter.value;
-        let visibleCards = 0;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    // Only initialize filtering if there are announcements
+    if (allCards.length > 0 && totalCount) {
+        totalCount.textContent = allCards.length;
         
-        allCards.forEach(card => {
-            const cardTitle = card.dataset.title;
-            const cardContent = card.dataset.content;
-            const cardCategory = card.dataset.category;
-            const cardDate = new Date(card.dataset.date);
-            cardDate.setHours(0, 0, 0, 0);
-            let showCard = true;
+        function applyFilters() {
+            const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+            const selectedCategory = categoryFilter?.value || '';
+            const selectedDateRange = dateRangeFilter?.value || '';
+            let visibleCards = 0;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             
-            if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) showCard = false;
-            if (selectedCategory && cardCategory !== selectedCategory) showCard = false;
+            allCards.forEach(card => {
+                const cardTitle = card.dataset.title || '';
+                const cardContent = card.dataset.content || '';
+                const cardCategory = card.dataset.category || '';
+                const cardDate = new Date(card.dataset.date);
+                cardDate.setHours(0, 0, 0, 0);
+                let showCard = true;
+                
+                if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) showCard = false;
+                if (selectedCategory && cardCategory !== selectedCategory) showCard = false;
+                
+                if (selectedDateRange) {
+                    const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
+                    if (selectedDateRange === 'today' && daysDiff !== 0) showCard = false;
+                    else if (selectedDateRange === 'week' && daysDiff > 7) showCard = false;
+                    else if (selectedDateRange === 'month' && daysDiff > 30) showCard = false;
+                }
+                
+                card.classList.toggle('hidden', !showCard);
+                if (showCard) visibleCards++;
+            });
             
-            if (selectedDateRange) {
-                const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
-                if (selectedDateRange === 'today' && daysDiff !== 0) showCard = false;
-                else if (selectedDateRange === 'week' && daysDiff > 7) showCard = false;
-                else if (selectedDateRange === 'month' && daysDiff > 30) showCard = false;
+            if (visibleCount) {
+                visibleCount.textContent = visibleCards;
             }
             
-            card.classList.toggle('hidden', !showCard);
-            if (showCard) visibleCards++;
-        });
+            // ✅ FIX: Properly show/hide noResults
+            if (noResults) {
+                if (visibleCards === 0) {
+                    noResults.classList.add('show');
+                    noResults.style.display = 'block';
+                } else {
+                    noResults.classList.remove('show');
+                    noResults.style.display = 'none';
+                }
+            }
+            
+            updateActiveFilters(searchTerm, selectedCategory, selectedDateRange);
+        }
         
-        visibleCount.textContent = visibleCards;
-        noResults.classList.toggle('show', visibleCards === 0);
-        updateActiveFilters(searchTerm, selectedCategory, selectedDateRange);
+        function updateActiveFilters(searchTerm, category, dateRange) {
+            if (!activeFiltersDiv) return;
+            
+            activeFiltersDiv.innerHTML = '';
+            let hasFilters = false;
+            
+            if (searchTerm) {
+                hasFilters = true;
+                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Search: ${searchTerm} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('searchInput').value=''; applyFilters();"></i></span>`;
+            }
+            
+            if (category) {
+                hasFilters = true;
+                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Category: ${category} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('categoryFilter').value=''; applyFilters();"></i></span>`;
+            }
+            
+            if (dateRange) {
+                hasFilters = true;
+                const dateLabels = { 'today': 'Today', 'week': 'This Week', 'month': 'This Month' };
+                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Date: ${dateLabels[dateRange]} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();"></i></span>`;
+            }
+            
+            if (filterStatus) {
+                filterStatus.classList.toggle('d-none', !hasFilters);
+                filterStatus.classList.toggle('d-flex', hasFilters);
+            }
+        }
+        
+        // Event listeners
+        if (applyBtn) applyBtn.addEventListener('click', applyFilters);
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                clearAllFilters();
+            });
+        }
+        
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => { 
+                if (e.key === 'Enter') applyFilters(); 
+            });
+        }
+        
+        // Make applyFilters available globally
+        window.applyFilters = applyFilters;
     }
-    
-    function updateActiveFilters(searchTerm, category, dateRange) {
-        activeFiltersDiv.innerHTML = '';
-        let hasFilters = false;
-        
-        if (searchTerm) {
-            hasFilters = true;
-            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Search: ${searchTerm} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('searchInput').value=''; applyFilters();"></i></span>`;
-        }
-        
-        if (category) {
-            hasFilters = true;
-            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Category: ${category} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('categoryFilter').value=''; applyFilters();"></i></span>`;
-        }
-        
-        if (dateRange) {
-            hasFilters = true;
-            const dateLabels = { 'today': 'Today', 'week': 'This Week', 'month': 'This Month' };
-            activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Date: ${dateLabels[dateRange]} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();"></i></span>`;
-        }
-        
-        filterStatus.classList.toggle('d-none', !hasFilters);
-        filterStatus.classList.toggle('d-flex', hasFilters);
-    }
-    
-    applyBtn.addEventListener('click', applyFilters);
-    clearAllBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        searchInput.value = '';
-        categoryFilter.value = '';
-        dateRangeFilter.value = '';
-        applyFilters();
-    });
-    
-    searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') applyFilters(); });
 });
 </script>
 {% endblock %}

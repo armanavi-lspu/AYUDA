@@ -120,7 +120,7 @@ def submit_application(program_id):
     new_application = Applications(
         user_id=current_user.id,
         program_id=program_id,
-        application_status='submitted',
+        application_status='pending',
         application_date=datetime.utcnow()
     )
     

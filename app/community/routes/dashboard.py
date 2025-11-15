@@ -1,65 +1,56 @@
-from flask import render_template, redirect, flash, url_for, request
+from flask import render_template
 from flask_login import login_required, current_user
-from datetime import datetime, timedelta
-from sqlalchemy import desc, func
 from app.community import community_bp
-from app.models import (
-    Programs, User, Applications, Announcements, Notifications
-)
+from app.models import Applications, Announcements, Programs
 from app.extensions import db
 from app.utils import role_required
+from sqlalchemy import desc, func
+from datetime import datetime, timedelta, date
 
 @community_bp.route('/dashboard')
 @login_required
-@role_required(['community'])
+@role_required('community')
 def dashboard():
-    # Get the current date for welcome message
-    today = datetime.utcnow()
+    """Community dashboard with real-time data"""
     
     # Get user's application statistics
+    total_applications = Applications.query.filter_by(user_id=current_user.id).count()
     pending_applications = Applications.query.filter_by(
-        user_id=current_user.id, 
-        application_status='pending'
-    ).count()
-    
-    total_applications = Applications.query.filter_by(
         user_id=current_user.id
-    ).count()
+    ).filter(Applications.application_status.in_(['pending', 'submitted', 'under_review'])).count()
+    returned_applications = Applications.query.filter_by(
+        user_id=current_user.id
+    ).filter(Applications.application_status.in_(['returned', 'missing', 'incomplete'])).count()
     
-    # Get available programs/services count
+    # Get available programs count
     available_programs = Programs.query.count()
     
-    # Get unread notifications count (or new announcements if no notifications table)
-    # Option 1: If using notifications
-    unread_notifications = Notifications.query.filter_by(
-        user_id=current_user.id,
-        is_read=False
-    ).count()
-    
-    # Option 2: If counting new announcements (last 7 days)
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    # Get new announcements (last 30 days)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     new_announcements = Announcements.query.filter(
-        Announcements.created_at >= week_ago,
-        Announcements.status == 'published'
+        Announcements.status == 'published',
+        Announcements.created_at >= thirty_days_ago
     ).count()
     
-    # Get recent announcements for the announcements section
+    # Get recent applications (last 3)
+    recent_applications = Applications.query.filter_by(
+        user_id=current_user.id
+    ).order_by(desc(Applications.application_date)).limit(3).all()
+    
+    # Get recent announcements (last 3)
     recent_announcements = Announcements.query.filter_by(
         status='published'
     ).order_by(desc(Announcements.created_at)).limit(3).all()
     
-    # Get user's recent applications for activity tracking
-    user_applications = Applications.query.filter_by(
-        user_id=current_user.id
-    ).order_by(desc(Applications.created_at)).limit(5).all()
+    # Today's date - use date() for consistent comparison
+    today = date.today()
     
-    return render_template('community/dashboard.html', 
-                           user=current_user,
-                           today=today,
-                           pending_applications=pending_applications,
-                           total_applications=total_applications,
-                           available_programs=available_programs,
-                           unread_notifications=unread_notifications,
-                           new_announcements=new_announcements,
-                           recent_announcements=recent_announcements,
-                           user_applications=user_applications)
+    return render_template('community/dashboard.html',
+                         total_applications=total_applications,
+                         pending_applications=pending_applications,
+                         returned_applications = returned_applications,
+                         available_programs=available_programs,
+                         new_announcements=new_announcements,
+                         recent_applications=recent_applications,
+                         recent_announcements=recent_announcements,
+                         today=today)

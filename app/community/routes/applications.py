@@ -2,7 +2,7 @@ from flask import render_template, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.utils import role_required
-from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements
+from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements
 from app.extensions import db
 from sqlalchemy import desc, or_
 
@@ -79,7 +79,12 @@ def application_detail(application_id):
     # Get document checklist with requirement details
     documents = db.session.query(
         ApplicationDocuments,
-        ProgramRequirements.is_mandatory
+        ProgramRequirements.is_mandatory,
+        Requirements.document_name,
+        Requirements.description
+    ).join(
+        Requirements,
+        ApplicationDocuments.requirement_id == Requirements.id
     ).join(
         ProgramRequirements,
         (ApplicationDocuments.requirement_id == ProgramRequirements.requirement_id) &
@@ -89,7 +94,7 @@ def application_detail(application_id):
     ).all()
     
     return render_template(
-        'community/application_detail.html',
+        'community/application_details.html',
         application=application,
         documents=documents,
         user=current_user
@@ -105,13 +110,16 @@ def application_slip(application_id):
         user_id=current_user.id
     ).first_or_404()
     
-    # Get requirements for this application
+    # Get requirements for this application - FIXED QUERY
     requirements = db.session.query(
-        ApplicationDocuments.requirement,
+        Requirements,
         ProgramRequirements.is_mandatory
     ).join(
+        ApplicationDocuments,
+        Requirements.id == ApplicationDocuments.requirement_id
+    ).join(
         ProgramRequirements,
-        (ApplicationDocuments.requirement_id == ProgramRequirements.requirement_id) &
+        (Requirements.id == ProgramRequirements.requirement_id) &
         (ProgramRequirements.program_id == application.program_id)
     ).filter(
         ApplicationDocuments.application_id == application_id

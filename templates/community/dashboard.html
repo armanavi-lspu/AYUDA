@@ -1,214 +1,510 @@
 {% extends "community/community_base.html" %}
 {% block title %}Community Dashboard - AYUDA{% endblock %}
 
-{% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h1 class="h3 mb-0">Welcome back, {{ current_user.first_name }}!</h1>
-        <p class="text-muted">Here's what's happening in your community</p>
-        <p class="text-gray">{{ today.strftime('%A, %B %d, %Y') }}</p>
-    </div>
-</div>
-
-<!-- Statistics Cards Row -->
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Pending Applications</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ pending_applications }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clock fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Applications</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_applications }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-file-alt fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Programs</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ available_programs }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-cogs fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">New Announcements</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_announcements }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-bullhorn fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row -->
-<div class="row mb-4">
-    <!-- Program Participation Chart -->
-    <div class="col-xl-8 col-lg-7">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="h5 m-0 font-weight-bold ">Recent Applications</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-area">
-                    <canvas id="recentApplicationsChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Service Usage Pie Chart -->
-    <div class="col-xl-4 col-lg-5">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="h5 m-0 font-weight-bold">Programs Usage</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-pie pt-4 pb-2">
-                    <canvas id="serviceChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Activity and Quick Actions Row -->
-<div class="row">
-    <!-- Recent Announcements -->
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="h5 m-0 font-weight-bold">Recent Announcements</h6>
-                <a href="{{ url_for('community.announcements') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body">
-                <div class="list-group list-group-flush">
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">Community Health Program</h6>
-                            <small>3 days ago</small>
-                        </div>
-                        <p class="mb-1">New health screening program starting next month...</p>
-                    </div>
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">Educational Workshop</h6>
-                            <small>1 week ago</small>
-                        </div>
-                        <p class="mb-1">Digital literacy workshop registration is now open...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="h5 m-0 font-weight-bold">Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <a href="{{ url_for('community.programs') }}" class="btn btn-outline-primary btn-block">
-                            <i class="fas fa-calendar-plus mb-2"></i><br>
-                            Register for Program
-                        </a>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <a href="{{ url_for('community.other_services') }}" class="btn btn-outline-success btn-block">
-                            <i class="fas fa-hand-holding-heart mb-2"></i><br>
-                            Request Service
-                        </a>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <a href="#" class="btn btn-outline-info btn-block">
-                            <i class="fas fa-file-download mb-2"></i><br>
-                            Download Forms
-                        </a>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <a href="#" class="btn btn-outline-warning btn-block">
-                            <i class="fas fa-question-circle mb-2"></i><br>
-                            Get Help
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-
-
-// Service Usage Pie Chart
-const ctx2 = document.getElementById('serviceChart').getContext('2d');
-const serviceChart = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-        labels: ['Health', 'Education', 'Financial', 'Legal'],
-        datasets: [{
-            data: [40, 30, 20, 10],
-            backgroundColor: ['#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0']
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false
-    }
-});
-</script>
-
+{% block extra_css %}
 <style>
-.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
-.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
-.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
-.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
-.text-gray-800 { color: #5a5c69 !important; }
-.text-gray-300 { color: #dddfeb !important; }
-.chart-area { position: relative; height: 320px; }
-.chart-pie { position: relative; height: 245px; }
+    .border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+    .border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+    .border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+    .border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+    .text-gray-800 { color: #5a5c69 !important; }
+    .text-gray-300 { color: #dddfeb !important; }
+    
+    .stats-card { 
+        transition: all 0.3s ease; 
+        cursor: pointer;
+    }
+    .stats-card:hover { 
+        transform: translateY(-5px); 
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; 
+    }
+    
+    .application-item {
+        transition: all 0.2s ease;
+        border: 1px solid #e3e6f0;
+        border-left: 4px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+    }
+    .application-item:hover {
+        border-left-color: #4e73df;
+        background-color: #f8f9fc;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        font-weight: 600;
+    }
+    
+    .announcement-item {
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .announcement-item:hover {
+        background-color: #f8f9fc;
+        border-color: #e3e6f0;
+        transform: translateX(5px);
+    }
+    
+    .progress-ring {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto;
+    }
+    
+    .welcome-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    
+    .quick-action-card {
+        border: 2px dashed #dee2e6;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        transition: all 0.3s ease;
+    }
+    .quick-action-card:hover {
+        border-color: #4e73df;
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        transform: translateY(-2px);
+    }
+    
+    .time-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-card { margin-bottom: 1rem; }
+        .application-item { margin-bottom: 1rem; }
+        .welcome-title { font-size: 1.5rem; }
+    }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Welcome Header with Bootstrap Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card welcome-card shadow-lg border-0">
+                <div class="card-body p-4">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <h1 class="welcome-title font-weight-bold mb-2">
+                                <i class="fas fa-hand-wave mr-3"></i>Welcome back, {{ current_user.first_name }}!
+                            </h1>
+                            <p class="lead mb-1">Here's what's happening in your community</p>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-day mr-2"></i>
+                                <span class="font-weight-semibold">{{ today.strftime('%A, %B %d, %Y') }}</span>
+                            </div>
+                        </div>                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Statistics Cards with Enhanced Interactivity -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-primary shadow stats-card h-100 py-2" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view pending applications"
+                 onclick="location.href='{{ url_for('community.applications', status='pending') }}'">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Applications</div>
+                            <div class="row no-gutters align-items-center">
+                                <div class="col-auto">
+                                    <div class="h3 mb-0 mr-3 font-weight-bold text-warning" id="pendingCount">
+                                        {{ pending_applications }}
+                                    </div>
+                                </div>                                
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100 py-2" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view all applications"
+                 onclick="location.href='{{ url_for('community.applications') }}'">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Applications</div>
+                            <div class="h3 mb-0 font-weight-bold text-success" id="totalCount"><strong>{{ total_applications }}</strong></div>
+                            {% if total_applications > 0 %}
+                            <div class="mt-1">
+                                    {% set approved_count = (total_applications - pending_applications) %}
+                                    <span class="text-xs font-weight-light text-success"><strong>{{ approved_count }}</strong> completed </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-alt fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100 py-2" 
+                 data-toggle="tooltip" data-placement="top" title="Click to browse programs"
+                 onclick="location.href='{{ url_for('community.programs') }}'">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Programs</div>
+                            <div class="h3 mb-0 font-weight-bold text-info" id="programsCount"><strong>{{ available_programs }}</strong></div>
+                            <div class="mt-1">
+                                <a href="{{ url_for('community.programs') }}" class="text-xs font-weight-light text-info">
+                                    <i class="fas fa-arrow-up mr-1"></i>Ready to apply                                
+                            </div>
+                        </div>
+                        
+                        <div class="col-auto">
+                            <i class="fas fa-cogs fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100 py-2" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view announcements"
+                 onclick="location.href='{{ url_for('community.announcements') }}'">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">New Announcements</div>
+                            <div class="h3 mb-0 font-weight-bold text-danger" id="announcementsCount"><strong>{{ new_announcements }}</strong></div>
+                            {% if new_announcements > 0 %}
+                            <div class="mt-1">
+                                    <a href="{{ url_for('community.announcements') }}" class="text-xs font-weight-light text-danger">
+                                    <i class="fas fa-bell mr-1"></i>New updates
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-bullhorn fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Alert for Important Notices -->
+    {% if returned_applications > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-lg mr-3"></i>
+                    <div class="flex-grow-1">
+                        <strong>Action Required!</strong> You have {{ returned_applications }} application(s) requiring your attention.
+                    </div>
+                    <a href="{{ url_for('community.applications', status='returned') }}" class="btn btn-warning btn-sm ml-3">
+                        Review Now
+                    </a>
+                </div>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <!-- Recent Applications with Enhanced Bootstrap Card -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4 border-0">
+                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-clipboard-list text-primary mr-2"></i>Recent Applications
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.applications') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if recent_applications %}
+                        {% for application in recent_applications %}
+                        <div class="application-item p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h6 class="mb-0 font-weight-bold mr-3">
+                                            {{ application.program.program_name if application.program else 'Unknown Program' }}
+                                        </h6>
+                                        <!-- Enhanced Status Badges -->
+                                        {% if application.application_status == 'pending' or application.application_status == 'submitted' or application.application_status == 'under_review' %}
+                                            <span class="badge badge-warning status-badge">
+                                                <i class="fas fa-clock mr-1"></i>Pending Review
+                                            </span>
+                                        {% elif application.application_status == 'rejected' or application.remarks %}
+                                            <span class="badge badge-danger status-badge">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>Action Required
+                                            </span>
+                                        {% elif application.application_status == 'approved' %}
+                                            <span class="badge badge-success status-badge">
+                                                <i class="fas fa-check-circle mr-1"></i>Approved
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-secondary status-badge">
+                                                {{ application.application_status.title() if application.application_status else 'Unknown' }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Bootstrap Grid for Application Details -->
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Application ID:</small>
+                                            <div class="font-weight-semibold">#{{ application.id }}</div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Submitted:</small>
+                                            <div class="font-weight-semibold">
+                                                {% if application.application_date %}
+                                                    {{ application.application_date.strftime('%b %d, %Y') }}
+                                                {% else %}
+                                                    Not available
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Days Ago:</small>
+                                            <div class="font-weight-semibold text-primary">
+                                                {% if application.application_date %}
+                                                    {% set days_ago = (today - application.application_date.date()).days %}
+                                                    {{ days_ago }} day{{ 's' if days_ago != 1 else '' }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Bootstrap Badges for Program Info -->
+                                    {% if application.program %}
+                                    <div class="mt-2">
+                                        <span class="badge badge-light mr-2">
+                                            <i class="fas fa-tag mr-1"></i>{{ application.program.program_type }}
+                                        </span>
+                                        <span class="badge badge-info">
+                                            <i class="fas fa-calendar mr-1"></i>{{ application.program.program_period }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Bootstrap Button Group -->
+                                <div class="ml-3">
+                                    <div class="btn-group-vertical" role="group">
+                                        <a href="{{ url_for('community.application_detail', application_id=application.id) }}" 
+                                           class="btn btn-sm btn-outline-primary mb-1">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Enhanced Empty State -->
+                        <div class="quick-action-card text-center py-5">
+                            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                            <h5 class="text-dark font-weight-bold mb-2">No Applications Yet</h5>
+                            <p class="text-muted mb-4">Start your journey by applying for a program that meets your needs.</p>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('community.programs') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-2"></i>Apply for Program
+                                </a>
+                                <a href="{{ url_for('community.programs') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-search mr-2"></i>Browse Programs
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Announcements with Enhanced Bootstrap Features -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4 border-0">
+                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-bullhorn text-warning mr-2"></i>Recent Announcements
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.announcements') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_announcements %}
+                        <div class="list-group list-group-flush">
+                            {% for announcement in recent_announcements %}
+                            <div class="list-group-item announcement-item border-0">
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-2 font-weight-bold">
+                                            <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
+                                               class="text-decoration-none text-dark stretched-link">
+                                                {{ announcement.announcement_title or 'Untitled Announcement' }}
+                                            </a>
+                                        </h6>
+                                        <p class="mb-2 text-muted small">
+                                            {% if announcement.announcement_content %}
+                                                {% if announcement.announcement_content|length > 80 %}
+                                                    {{ announcement.announcement_content|striptags|truncate(80) }}
+                                                {% else %}
+                                                    {{ announcement.announcement_content|striptags }}
+                                                {% endif %}
+                                            {% else %}
+                                                No content available.
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge badge-secondary badge-pill">
+                                                <i class="fas fa-folder mr-1"></i>{{ announcement.category or 'General' }}
+                                            </span>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock mr-1"></i>
+                                                {% if announcement.created_at %}
+                                                    {% set days_ago = (today - announcement.created_at.date()).days %}
+                                                    {% if days_ago == 0 %}
+                                                        Today
+                                                    {% elif days_ago == 1 %}
+                                                        Yesterday  
+                                                    {% elif days_ago < 7 %}
+                                                        {{ days_ago }} days ago
+                                                    {% else %}
+                                                        {{ announcement.created_at.strftime('%b %d') }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    Recently
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 px-3">
+                            <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted font-weight-bold mb-2">No Announcements</h6>
+                            <p class="text-muted small mb-3">Check back later for updates from the MSWD Office.</p>
+                            <a href="{{ url_for('community.announcements') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-refresh mr-1"></i>Refresh
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Animate statistics counters with enhanced effects
+    document.querySelectorAll('.h5').forEach(function(element) {
+        const countTo = parseInt(element.textContent);
+        if (!isNaN(countTo) && countTo > 0) {
+            let current = 0;
+            const increment = Math.ceil(countTo / 25);
+            const timer = setInterval(function() {
+                current += increment;
+                if (current >= countTo) {
+                    element.textContent = countTo;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = current;
+                }
+            }, 40);
+        }
+    });
+    
+    // Add ripple effect to stats cards (optional enhancement)
+    document.querySelectorAll('.stats-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            // Create ripple effect
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s ease-out;
+                pointer-events: none;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    // Auto-refresh data every 5 minutes (optional)
+    {% if pending_applications > 0 %}
+    setTimeout(function() {
+        location.reload();
+    }, 300000); // 5 minutes
+    {% endif %}
+});
+
+// Add CSS for ripple animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes ripple {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
