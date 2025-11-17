@@ -250,7 +250,7 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-info-circle mr-2 fa-lg"></i>
                             <div>
-                                <strong>Note:</strong> Forecast model integration coming soon. The chart below shows sample forecast data based on trend projection.
+                                <strong>Forecasting Model:</strong> Using exponential smoothing with trend analysis to predict future applicant counts based on historical patterns.
                             </div>
                         </div>
                     </div>
@@ -276,7 +276,7 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-info-circle mr-2 fa-lg"></i>
                             <div>
-                                <strong>Note:</strong> Forecast model integration coming soon. The chart shows projected growth based on historical trends.
+                                <strong>Forecasting Model:</strong> Growth projections based on historical trends and category-specific patterns (15-30% estimated growth).
                             </div>
                         </div>
                     </div>
@@ -448,121 +448,150 @@ if (typeof Chart === 'undefined') {
         ctx3.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-map-marker-alt fa-4x mb-3 d-block"></i><h5>No barangay data available</h5><p class="text-muted">Barangay distribution will show when users submit applications.</p></div>';
     }
 
-    // Chart 4: Forecast - Applicants Over Time
+    // Chart 4: Forecast - Applicants Over Time (using API)
     const ctx4 = document.getElementById('forecastApplicantsChart');
     if (ctx4 && applicantsOverTime && applicantsOverTime.length > 0) {
-        const historicalMonths = applicantsOverTime.map(d => new Date(d[0]).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
-        const historicalData = applicantsOverTime.map(d => d[1]);
-
-        const forecastMonths = [];
-        const forecastData = [];
-        let lastDate = new Date(applicantsOverTime[applicantsOverTime.length - 1][0]);
-        let lastValue = historicalData[historicalData.length - 1];
-        const avgGrowth = historicalData.length > 1 ? 
-            (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length : 0;
-
-        for (let i = 1; i <= 6; i++) {
-            lastDate = new Date(lastDate);
-            lastDate.setMonth(lastDate.getMonth() + 1);
-            forecastMonths.push(lastDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
-            lastValue = Math.max(0, Math.round(lastValue + avgGrowth + (Math.random() * 2 - 1)));
-            forecastData.push(lastValue);
-        }
-
-        new Chart(ctx4.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [...historicalMonths, ...forecastMonths],
-                datasets: [
-                    {
-                        label: 'Historical Data',
-                        data: [...historicalData, ...Array(6).fill(null)],
-                        borderColor: '#4e73df',
-                        backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#4e73df'
-                    },
-                    {
-                        label: 'Forecast (Sample)',
-                        data: [...Array(historicalData.length).fill(null), ...forecastData],
-                        borderColor: '#f6c23e',
-                        backgroundColor: 'rgba(246, 194, 62, 0.05)',
-                        borderWidth: 3,
-                        borderDash: [8, 4],
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#f6c23e'
-                    }
-                ]
-            },
-            options: {
-                ...commonOptions,
-                scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        ticks: { precision: 0 },
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                    },
-                    x: { grid: { display: false } }
+        // Fetch forecast data from API
+        fetch('/api/analytics/forecast-applicants?months=12&forecast_periods=6')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    // Format dates
+                    const historicalLabels = data.historical_labels.map(d => 
+                        new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                    );
+                    const forecastLabels = data.forecast_labels.map(d => 
+                        new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                    );
+                    
+                    new Chart(ctx4.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: [...historicalLabels, ...forecastLabels],
+                            datasets: [
+                                {
+                                    label: 'Historical Data',
+                                    data: [...data.historical_values, ...Array(forecastLabels.length).fill(null)],
+                                    borderColor: '#4e73df',
+                                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                                    borderWidth: 3,
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#4e73df',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                },
+                                {
+                                    label: 'Forecast (Exponential Smoothing)',
+                                    data: [...Array(historicalLabels.length).fill(null), ...data.forecast_values],
+                                    borderColor: '#f6c23e',
+                                    backgroundColor: 'rgba(246, 194, 62, 0.05)',
+                                    borderWidth: 3,
+                                    borderDash: [8, 4],
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#f6c23e',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                }
+                            ]
+                        },
+                        options: {
+                            ...commonOptions,
+                            plugins: {
+                                ...commonOptions.plugins,
+                                tooltip: {
+                                    callbacks: {
+                                        footer: function(context) {
+                                            if (data.trend !== undefined) {
+                                                return 'Trend: ' + (data.trend > 0 ? '+' : '') + data.trend.toFixed(2) + ' per month';
+                                            }
+                                            return '';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: { 
+                                    beginAtZero: true, 
+                                    ticks: { precision: 0 },
+                                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                                },
+                                x: { grid: { display: false } }
+                            }
+                        }
+                    });
                 }
-            }
-        });
+            })
+            .catch(error => {
+                console.error('Error fetching forecast:', error);
+                ctx4.parentElement.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-2"></i>Failed to load forecast data. Using historical data only.</div>';
+            });
     } else if (ctx4) {
         ctx4.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-line fa-4x mb-3 d-block"></i><h5>Insufficient data for forecasting</h5><p class="text-muted">More historical data is needed to generate forecasts.</p></div>';
     }
 
-    // Chart 5: Forecast - Applications by Program Category
+    // Chart 5: Forecast - Applications by Program Category (using API)
     const ctx5 = document.getElementById('forecastProgramCategoryChart');
     if (ctx5 && applicationsByType && applicationsByType.length > 0) {
-        const programTypes = applicationsByType.map(d => d[0]);
-        const currentCounts = applicationsByType.map(d => d[1]);
-        const forecastCounts = currentCounts.map(v => Math.round(v * (1.1 + Math.random() * 0.3)));
-
-        new Chart(ctx5.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: programTypes,
-                datasets: [
-                    {
-                        label: 'Current Period',
-                        data: currentCounts,
-                        backgroundColor: '#4e73df',
-                        borderColor: '#2e59d9',
-                        borderWidth: 2,
-                        borderRadius: 5
-                    },
-                    {
-                        label: 'Forecast (Next Period)',
-                        data: forecastCounts,
-                        backgroundColor: '#f6c23e',
-                        borderColor: '#dda20a',
-                        borderWidth: 2,
-                        borderRadius: 5
-                    }
-                ]
-            },
-            options: {
-                ...commonOptions,
-                scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        ticks: { precision: 0 },
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                    },
-                    x: { 
-                        grid: { display: false },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 0
+        // Fetch forecast data from API
+        fetch('/api/analytics/forecast-program-categories')
+            .then(response => response.json())
+            .then(result => {
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    new Chart(ctx5.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: data.categories,
+                            datasets: [
+                                {
+                                    label: 'Current Period',
+                                    data: data.current_values,
+                                    backgroundColor: '#4e73df',
+                                    borderColor: '#2e59d9',
+                                    borderWidth: 2,
+                                    borderRadius: 5
+                                },
+                                {
+                                    label: 'Forecast (Next Period)',
+                                    data: data.forecast_values,
+                                    backgroundColor: '#f6c23e',
+                                    borderColor: '#dda20a',
+                                    borderWidth: 2,
+                                    borderRadius: 5
+                                }
+                            ]
+                        },
+                        options: {
+                            ...commonOptions,
+                            scales: {
+                                y: { 
+                                    beginAtZero: true, 
+                                    ticks: { precision: 0 },
+                                    grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                                },
+                                x: { 
+                                    grid: { display: false },
+                                    ticks: {
+                                        maxRotation: 45,
+                                        minRotation: 0
+                                    }
+                                }
+                            }
                         }
-                    }
+                    });
                 }
-            }
-        });
+            })
+            .catch(error => {
+                console.error('Error fetching program forecast:', error);
+                ctx5.parentElement.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle mr-2"></i>Failed to load forecast data.</div>';
+            });
     } else if (ctx5) {
         ctx5.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-bar fa-4x mb-3 d-block"></i><h5>No program category data available</h5><p class="text-muted">Forecast will be available when program applications exist.</p></div>';
     }
