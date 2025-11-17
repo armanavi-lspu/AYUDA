@@ -22,66 +22,86 @@ def analytics():
 @role_required('admin')
 def analytics_analysis():
     """Analysis page with graphs and statistics"""
-    # Get date range for filtering (default: last 12 months)
-    end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=365)
-    
-    # 1. Applicants count over time (monthly aggregation)
-    applicants_over_time_raw = db.session.query(
-        func.date_trunc('month', Applications.application_date).label('month'),
-        func.count(Applications.id).label('count')
-    ).filter(
-        Applications.application_date >= start_date
-    ).group_by('month').order_by('month').all()
-    
-    # Convert datetime objects to ISO format strings for JSON serialization
-    applicants_over_time = [
-        [row.month.isoformat() if row.month else None, row.count] 
-        for row in applicants_over_time_raw
-    ]
-    
-    # 2. Applications per program type
-    applications_by_type = db.session.query(
-        Programs.program_type,
-        func.count(Applications.id).label('count')
-    ).join(
-        Applications, Programs.id == Applications.program_id
-    ).group_by(Programs.program_type).all()
-    
-    # 3. Applicants per barangay
-    applicants_by_barangay = db.session.query(
-        CommunityUsers.barangay,
-        func.count(Applications.id).label('count')
-    ).join(
-        User, CommunityUsers.user_id == User.id
-    ).join(
-        Applications, User.id == Applications.user_id
-    ).filter(
-        CommunityUsers.barangay.isnot(None)
-    ).group_by(CommunityUsers.barangay).all()
-    
-    # Summary statistics
-    total_applications = Applications.query.count()
-    total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar()
-    total_programs = Programs.query.count()
-    
-    # Application status breakdown
-    status_breakdown = db.session.query(
-        Applications.application_status,
-        func.count(Applications.id).label('count')
-    ).group_by(Applications.application_status).all()
-    
-    return render_template(
-        'admin/analytics_analysis.html',
-        user=current_user,
-        applicants_over_time=applicants_over_time,
-        applications_by_type=applications_by_type,
-        applicants_by_barangay=applicants_by_barangay,
-        total_applications=total_applications,
-        total_applicants=total_applicants,
-        total_programs=total_programs,
-        status_breakdown=status_breakdown
-    )
+    try:
+        # Get date range for filtering (default: last 12 months)
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=365)
+        
+        # 1. Applicants count over time (monthly aggregation)
+        applicants_over_time_raw = db.session.query(
+            func.date_trunc('month', Applications.application_date).label('month'),
+            func.count(Applications.id).label('count')
+        ).filter(
+            Applications.application_date >= start_date
+        ).group_by('month').order_by('month').all()
+        
+        # Convert datetime objects to ISO format strings for JSON serialization
+        applicants_over_time = [
+            [row.month.isoformat() if row.month else None, row.count] 
+            for row in applicants_over_time_raw
+        ]
+        
+        # 2. Applications per program type
+        applications_by_type = db.session.query(
+            Programs.program_type,
+            func.count(Applications.id).label('count')
+        ).join(
+            Applications, Programs.id == Applications.program_id
+        ).group_by(Programs.program_type).all()
+        
+        # 3. Applicants per barangay
+        applicants_by_barangay = db.session.query(
+            CommunityUsers.barangay,
+            func.count(Applications.id).label('count')
+        ).join(
+            User, CommunityUsers.user_id == User.id
+        ).join(
+            Applications, User.id == Applications.user_id
+        ).filter(
+            CommunityUsers.barangay.isnot(None)
+        ).group_by(CommunityUsers.barangay).all()
+        
+        # Summary statistics
+        total_applications = Applications.query.count()
+        total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar() or 0
+        total_programs = Programs.query.count()
+        
+        # Application status breakdown
+        status_breakdown = db.session.query(
+            Applications.application_status,
+            func.count(Applications.id).label('count')
+        ).group_by(Applications.application_status).all()
+        
+        return render_template(
+            'admin/analytics_analysis.html',
+            user=current_user,
+            applicants_over_time=applicants_over_time,
+            applications_by_type=applications_by_type,
+            applicants_by_barangay=applicants_by_barangay,
+            total_applications=total_applications,
+            total_applicants=total_applicants,
+            total_programs=total_programs,
+            status_breakdown=status_breakdown
+        )
+    except Exception as e:
+        # Log the error and show a user-friendly message
+        print(f"Error in analytics_analysis: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return page with empty data
+        return render_template(
+            'admin/analytics_analysis.html',
+            user=current_user,
+            applicants_over_time=[],
+            applications_by_type=[],
+            applicants_by_barangay=[],
+            total_applications=0,
+            total_applicants=0,
+            total_programs=0,
+            status_breakdown=[],
+            error_message="Unable to load analytics data. Please try again later."
+        )
 
 @admin_bp.route('/adm_analytics/recommend')
 @login_required
