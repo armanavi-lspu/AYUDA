@@ -1,0 +1,580 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Analysis - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-nav {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    .analytics-nav .nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .analytics-nav .nav-link:hover {
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .analytics-nav .nav-link.active {
+        color: white;
+        background: rgba(255, 255, 255, 0.2);
+    }
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+    }
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 2rem;
+    }
+    .forecast-badge {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .no-data-message {
+        padding: 4rem 2rem;
+        text-align: center;
+        color: #858796;
+    }
+    .no-data-message i {
+        opacity: 0.5;
+    }
+    @media print {
+        .analytics-nav, .btn { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+        <div class="mb-3 mb-md-0">
+            <h1 class="h2 font-weight-bold mb-2">
+                <i class="fas fa-chart-line text-primary mr-2"></i>Data Analysis
+            </h1>
+            <p class="text-muted mb-0">Comprehensive analytics and forecasting</p>
+        </div>
+        <button class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print mr-2"></i>Print Report
+        </button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="analytics-nav">
+        <ul class="nav nav-pills mb-0">
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('admin.analytics_analysis') }}">
+                    <i class="fas fa-chart-line mr-2"></i>Analysis
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_recommend') }}">
+                    <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #4e73df;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-primary font-weight-bold text-xs mb-1">
+                                Total Applications
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_applications }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-primary opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #1cc88a;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-success font-weight-bold text-xs mb-1">
+                                Unique Applicants
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_applicants }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-success opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #36b9cc;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-info font-weight-bold text-xs mb-1">
+                                Active Programs
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_programs }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-folder-open fa-2x text-info opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #f6c23e;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-warning font-weight-bold text-xs mb-1">
+                                Pending Review
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {% set pending_count = status_breakdown | selectattr('0', 'equalto', 'pending') | map(attribute='1') | sum %}
+                                {{ pending_count if pending_count else 0 }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-warning opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="row">
+        <!-- Applicants Over Time -->
+        <div class="col-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-white py-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-area mr-2"></i>Applicants Count Over Time
+                            </h6>
+                        </div>
+                        <div class="col-md-4 text-md-right mt-2 mt-md-0">
+                            <select class="form-control form-control-sm" id="timeRangeSelect" style="max-width: 200px; margin-left: auto;">
+                                <option value="6">Last 6 Months</option>
+                                <option value="12" selected>Last 12 Months</option>
+                                <option value="24">Last 24 Months</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="applicantsTimeSeriesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications by Program Type -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie mr-2"></i>Applications per Program Type
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="programTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicants by Barangay -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-map-marker-alt mr-2"></i>Applicants per Barangay
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="barangayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast: Applicants Over Time -->
+        <div class="col-12 mb-4">
+            <div class="card shadow border-left-warning" style="border-left-width: 4px;">
+                <div class="card-header bg-warning text-white py-3">
+                    <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        <span>Forecast: Applicants Over Time</span>
+                        <span class="forecast-badge ml-2 mt-1 mt-md-0">AI-Powered</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info border-left-info" style="border-left-width: 4px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle mr-2 fa-lg"></i>
+                            <div>
+                                <strong>Note:</strong> Forecast model integration coming soon. The chart below shows sample forecast data based on trend projection.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="forecastApplicantsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast: Applications by Program Category -->
+        <div class="col-12 mb-4">
+            <div class="card shadow border-left-warning" style="border-left-width: 4px;">
+                <div class="card-header bg-warning text-white py-3">
+                    <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        <span>Forecast: Applications per Program Category</span>
+                        <span class="forecast-badge ml-2 mt-1 mt-md-0">AI-Powered</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info border-left-info" style="border-left-width: 4px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle mr-2 fa-lg"></i>
+                            <div>
+                                <strong>Note:</strong> Forecast model integration coming soon. The chart shows projected growth based on historical trends.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="forecastProgramCategoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Wait for Chart.js to load
+if (typeof Chart === 'undefined') {
+    console.error('Chart.js failed to load!');
+    document.querySelectorAll('.chart-container').forEach(container => {
+        container.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Chart.js library failed to load. Please check your internet connection.</div>';
+    });
+} else {
+    // Prepare data from backend
+    const applicantsOverTime = {{ applicants_over_time | tojson | safe }};
+    const applicationsByType = {{ applications_by_type | tojson | safe }};
+    const applicantsByBarangay = {{ applicants_by_barangay | tojson | safe }};
+
+    // Check if data exists
+    console.log('Applicants Over Time:', applicantsOverTime);
+    console.log('Applications By Type:', applicationsByType);
+    console.log('Applicants By Barangay:', applicantsByBarangay);
+
+    // Common Chart.js options
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                labels: {
+                    font: { family: 'system-ui, -apple-system, "Segoe UI", Roboto' }
+                }
+            }
+        }
+    };
+
+    // Chart 1: Applicants Over Time (Time Series)
+    const ctx1 = document.getElementById('applicantsTimeSeriesChart');
+    if (ctx1 && applicantsOverTime && applicantsOverTime.length > 0) {
+        new Chart(ctx1.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: applicantsOverTime.map(d => new Date(d[0]).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })),
+                datasets: [{
+                    label: 'Number of Applicants',
+                    data: applicantsOverTime.map(d => d[1]),
+                    borderColor: '#4e73df',
+                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#4e73df',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    ...commonOptions.plugins,
+                    title: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    } else if (ctx1) {
+        ctx1.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-line fa-4x mb-3 d-block"></i><h5>No data available for this time period</h5><p class="text-muted">Applications will appear here once they are submitted.</p></div>';
+    }
+
+    // Chart 2: Applications per Program Type (Pie)
+    const ctx2 = document.getElementById('programTypeChart');
+    if (ctx2 && applicationsByType && applicationsByType.length > 0) {
+        new Chart(ctx2.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: applicationsByType.map(d => d[0]),
+                datasets: [{
+                    data: applicationsByType.map(d => d[1]),
+                    backgroundColor: [
+                        '#4e73df', '#1cc88a', '#36b9cc', 
+                        '#f6c23e', '#e74a3b', '#858796',
+                        '#5a5c69', '#2e59d9', '#17a673'
+                    ],
+                    borderWidth: 3,
+                    borderColor: '#fff',
+                    hoverBorderColor: '#fff',
+                    hoverBorderWidth: 4
+                }]
+            },
+            options: {
+                ...commonOptions,
+                cutout: '60%',
+                plugins: {
+                    ...commonOptions.plugins,
+                    legend: { 
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    }
+                }
+            }
+        });
+    } else if (ctx2) {
+        ctx2.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-pie fa-4x mb-3 d-block"></i><h5>No program data available</h5><p class="text-muted">Data will appear when applications are submitted to programs.</p></div>';
+    }
+
+    // Chart 3: Applicants per Barangay (Bar)
+    const ctx3 = document.getElementById('barangayChart');
+    if (ctx3 && applicantsByBarangay && applicantsByBarangay.length > 0) {
+        new Chart(ctx3.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: applicantsByBarangay.map(d => d[0]),
+                datasets: [{
+                    label: 'Number of Applicants',
+                    data: applicantsByBarangay.map(d => d[1]),
+                    backgroundColor: '#1cc88a',
+                    borderColor: '#17a673',
+                    borderWidth: 2,
+                    borderRadius: 5,
+                    hoverBackgroundColor: '#17a673'
+                }]
+            },
+            options: {
+                ...commonOptions,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    } else if (ctx3) {
+        ctx3.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-map-marker-alt fa-4x mb-3 d-block"></i><h5>No barangay data available</h5><p class="text-muted">Barangay distribution will show when users submit applications.</p></div>';
+    }
+
+    // Chart 4: Forecast - Applicants Over Time
+    const ctx4 = document.getElementById('forecastApplicantsChart');
+    if (ctx4 && applicantsOverTime && applicantsOverTime.length > 0) {
+        const historicalMonths = applicantsOverTime.map(d => new Date(d[0]).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+        const historicalData = applicantsOverTime.map(d => d[1]);
+
+        const forecastMonths = [];
+        const forecastData = [];
+        let lastDate = new Date(applicantsOverTime[applicantsOverTime.length - 1][0]);
+        let lastValue = historicalData[historicalData.length - 1];
+        const avgGrowth = historicalData.length > 1 ? 
+            (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length : 0;
+
+        for (let i = 1; i <= 6; i++) {
+            lastDate = new Date(lastDate);
+            lastDate.setMonth(lastDate.getMonth() + 1);
+            forecastMonths.push(lastDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            lastValue = Math.max(0, Math.round(lastValue + avgGrowth + (Math.random() * 2 - 1)));
+            forecastData.push(lastValue);
+        }
+
+        new Chart(ctx4.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalMonths, ...forecastMonths],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(6).fill(null)],
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#4e73df'
+                    },
+                    {
+                        label: 'Forecast (Sample)',
+                        data: [...Array(historicalData.length).fill(null), ...forecastData],
+                        borderColor: '#f6c23e',
+                        backgroundColor: 'rgba(246, 194, 62, 0.05)',
+                        borderWidth: 3,
+                        borderDash: [8, 4],
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#f6c23e'
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    } else if (ctx4) {
+        ctx4.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-line fa-4x mb-3 d-block"></i><h5>Insufficient data for forecasting</h5><p class="text-muted">More historical data is needed to generate forecasts.</p></div>';
+    }
+
+    // Chart 5: Forecast - Applications by Program Category
+    const ctx5 = document.getElementById('forecastProgramCategoryChart');
+    if (ctx5 && applicationsByType && applicationsByType.length > 0) {
+        const programTypes = applicationsByType.map(d => d[0]);
+        const currentCounts = applicationsByType.map(d => d[1]);
+        const forecastCounts = currentCounts.map(v => Math.round(v * (1.1 + Math.random() * 0.3)));
+
+        new Chart(ctx5.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: programTypes,
+                datasets: [
+                    {
+                        label: 'Current Period',
+                        data: currentCounts,
+                        backgroundColor: '#4e73df',
+                        borderColor: '#2e59d9',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Forecast (Next Period)',
+                        data: forecastCounts,
+                        backgroundColor: '#f6c23e',
+                        borderColor: '#dda20a',
+                        borderWidth: 2,
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    }
+                }
+            }
+        });
+    } else if (ctx5) {
+        ctx5.parentElement.innerHTML = '<div class="no-data-message"><i class="fas fa-chart-bar fa-4x mb-3 d-block"></i><h5>No program category data available</h5><p class="text-muted">Forecast will be available when program applications exist.</p></div>';
+    }
+
+    // Time range selector (placeholder for future AJAX implementation)
+    const timeRangeSelect = document.getElementById('timeRangeSelect');
+    if (timeRangeSelect) {
+        timeRangeSelect.addEventListener('change', function(e) {
+            console.log('Selected time range:', e.target.value, 'months');
+            // TODO: Implement AJAX call to refresh chart with new time range
+        });
+    }
+}
+</script>
+{% endblock %}

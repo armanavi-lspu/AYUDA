@@ -1,79 +1,423 @@
-{% extends "base.html" %} <title>{% block title %}Sign Up{% endblock %}</title>
+{% extends "base.html" %}
+{% block title %}Sign Up - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signup-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 0;
+    }
+    .form-section {
+        background: #f8f9fc;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    .form-section h5 {
+        color: #4e73df;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e3e6f0;
+    }
+    .required-field::after {
+        content: " *";
+        color: #e74a3b;
+    }
+    .form-control:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+    .info-text {
+        font-size: 0.875rem;
+        color: #858796;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container py-5">
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card mt-5">
-                <div class="card-body">
-                    <form method="POST">
-                        <h3 class="text-center mb-4">CREATE ACCOUNT</h3>
-                        <p class="text-center mb-4">Fill in the details below to create your account</p>
-                        <div class="form-group mb-3">
-                            <label for="email">Email Address</label>
-                            <input 
-                                type="email" 
-                                class="form-control" 
-                                id="email" 
-                                name="email" 
-                                placeholder="Enter email"
-                            />
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0">
+                <!-- Header -->
+                <div class="signup-header">
+                    <h2 class="text-center mb-2">
+                        <i class="fas fa-user-plus mr-2"></i>Create Your Account
+                    </h2>
+                    <p class="text-center mb-0 lead">Join AYUDA Community Program</p>
+                </div>
+
+                <!-- Form Body -->
+                <div class="card-body p-4">
+                    <form method="POST" id="signupForm">
+                        <!-- Account Information Section -->
+                        <div class="form-section">
+                            <h5><i class="fas fa-shield-alt mr-2"></i>Account Information</h5>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="email" class="required-field">Email Address</label>
+                                    <input 
+                                        type="email" 
+                                        class="form-control" 
+                                        id="email" 
+                                        name="email" 
+                                        placeholder="your.email@example.com"
+                                        required
+                                    />
+                                    <small class="info-text">We'll use this for account verification and notifications</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="password1" class="required-field">Password</label>
+                                    <input 
+                                        type="password" 
+                                        class="form-control" 
+                                        id="password1" 
+                                        name="password1" 
+                                        placeholder="Enter password (min. 7 characters)"
+                                        required
+                                    />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="password2" class="required-field">Confirm Password</label>
+                                    <input 
+                                        type="password" 
+                                        class="form-control" 
+                                        id="password2" 
+                                        name="password2" 
+                                        placeholder="Re-enter password"
+                                        required
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group mb-3">
-                            <label for="firstName">First Name</label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="firstName" 
-                                name="firstName" 
-                                placeholder="Enter first name"
-                            />
+
+                        <!-- Personal Information Section -->
+                        <div class="form-section">
+                            <h5><i class="fas fa-user mr-2"></i>Personal Information</h5>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="firstName" class="required-field">First Name</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="firstName" 
+                                        name="firstName" 
+                                        placeholder="Juan"
+                                        required
+                                    />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="middleName">Middle Name</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="middleName" 
+                                        name="middleName" 
+                                        placeholder="Santos (Optional)"
+                                    />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="lastName" class="required-field">Last Name</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="lastName" 
+                                        name="lastName" 
+                                        placeholder="Dela Cruz"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="birth_month" class="required-field">Birth Month</label>
+                                    <select class="form-control" id="birth_month" name="birth_month" required>
+                                        <option value="">Select Month</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="birth_day" class="required-field">Birth Day</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="birth_day" 
+                                        name="birth_day" 
+                                        min="1" 
+                                        max="31" 
+                                        placeholder="DD"
+                                        required
+                                    />
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="birth_year" class="required-field">Birth Year</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="birth_year" 
+                                        name="birth_year" 
+                                        min="1900" 
+                                        max="2023" 
+                                        placeholder="YYYY"
+                                        required
+                                    />
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="age" class="required-field">Age</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="age" 
+                                        name="age" 
+                                        min="1" 
+                                        max="120" 
+                                        placeholder="Age"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="mobile_no">Mobile Number</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="mobile_no" 
+                                        name="mobile_no" 
+                                        placeholder="09XX-XXX-XXXX"
+                                        pattern="[0-9]{11}"
+                                    />
+                                    <small class="info-text">Format: 09XXXXXXXXX (11 digits)</small>
+                                </div>
+                            </div>
                         </div>
-                        <!--  <div class="form-group mb-3">
-                            <label for="firstName">Middle Name</label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="firstName" 
-                                name="firstName" 
-                                placeholder="Enter middle name"
-                            />
-                        </div> FontAwesome Icons -->
-                        <div class="form-group mb-3">
-                            <label for="lastName">Last Name</label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="lastName" 
-                                name="lastName" 
-                                placeholder="Enter last name"
-                            />
-                        
-                        <div class="form-group mb-3">
-                            <label for="password1">Password</label>
-                            <input 
-                                type="password" 
-                                class="form-control" 
-                                id="password1" 
-                                name="password1" 
-                                placeholder="Enter password"
-                            />
+
+                        <!-- Address Information Section -->
+                        <div class="form-section">
+                            <h5><i class="fas fa-map-marker-alt mr-2"></i>Address Information</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="barangay" class="required-field">Barangay</label>
+                                    <select class="form-control" id="barangay" name="barangay" required>
+                                        <option value="">Select Barangay</option>
+                                        <option value="Amuyong">Amuyong</option>
+                                        <option value="Bayanihan">Bayanihan</option>
+                                        <option value="Lambac">Lambac</option>
+                                        <option value="Libis ng Nayon">Libis ng Nayon</option>
+                                        <option value="Lucong">Lucong</option>
+                                        <option value="Maligaya">Maligaya</option>
+                                        <option value="Masikap">Masikap</option>
+                                        <option value="Matalatala">Matalatala</option>
+                                        <option value="Nanguma">Nanguma</option>
+                                        <option value="Numero Uno">Numero Uno</option>
+                                        <option value="Paagahan">Paagahan</option>
+                                        <option value="Pag-Asa">Pag-Asa</option>
+                                        <option value="San Antonio">San Antonio</option>
+                                        <option value="San Miguel">San Miguel</option>
+                                        <option value="Sinagtala">Sinagtala</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="sitio">Sitio/Purok</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="sitio" 
+                                        name="sitio" 
+                                        placeholder="Enter Sitio/Purok"
+                                    />
+                                </div>
+                                <div class="col-md-12 mb-3">
+                                    <label for="municipality">Municipality</label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="municipality" 
+                                        name="municipality" 
+                                        value="Mabitac" 
+                                        readonly
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group mb-3">
-                            <label for="password2">Confirm Password</label>
-                            <input 
-                                type="password" 
-                                class="form-control" 
-                                id="password2" 
-                                name="password2" 
-                                placeholder="Confirm your password"
-                            />
+
+                        <!-- Household & Employment Information Section -->
+                        <div class="form-section">
+                            <h5><i class="fas fa-briefcase mr-2"></i>Household & Employment Information</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="family_annual_income">Family Annual Income (₱)</label>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id="family_annual_income" 
+                                        name="family_annual_income" 
+                                        min="0" 
+                                        step="0.01"
+                                        placeholder="0.00"
+                                    />
+                                    <small class="info-text">Combined annual income of all family members</small>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="font-weight-bold">Status Information</label>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input 
+                                            type="checkbox" 
+                                            class="custom-control-input" 
+                                            id="is_currently_employed" 
+                                            name="is_currently_employed"
+                                        />
+                                        <label class="custom-control-label" for="is_currently_employed">
+                                            <i class="fas fa-briefcase mr-1 text-primary"></i>Currently Employed
+                                        </label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input 
+                                            type="checkbox" 
+                                            class="custom-control-input" 
+                                            id="is_student" 
+                                            name="is_student"
+                                        />
+                                        <label class="custom-control-label" for="is_student">
+                                            <i class="fas fa-graduation-cap mr-1 text-info"></i>Currently a Student
+                                        </label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input 
+                                            type="checkbox" 
+                                            class="custom-control-input" 
+                                            id="is_solo_parent" 
+                                            name="is_solo_parent"
+                                        />
+                                        <label class="custom-control-label" for="is_solo_parent">
+                                            <i class="fas fa-heart mr-1 text-danger"></i>Solo Parent
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Submit</button>
+
+                        <!-- Terms and Conditions -->
+                        <div class="form-section">
+                            <div class="custom-control custom-checkbox mb-3">
+                                <input 
+                                    type="checkbox" 
+                                    class="custom-control-input" 
+                                    id="terms" 
+                                    name="terms" 
+                                    required
+                                />
+                                <label class="custom-control-label" for="terms">
+                                    I agree to the <a href="#" data-toggle="modal" data-target="#termsModal">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-check-circle mr-2"></i>Create Account
+                            </button>
+                        </div>
+
+                        <!-- Login Link -->
+                        <div class="text-center mt-4">
+                            <p class="text-muted">Already have an account? 
+                                <a href="{{ url_for('auth.login') }}" class="font-weight-bold">Login here</a>
+                            </p>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" role="dialog" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Account Registration</h6>
+                <p>By creating an account, you agree to provide accurate and complete information.</p>
+                
+                <h6>2. Privacy and Data Protection</h6>
+                <p>Your personal information will be protected and used only for program eligibility and communication purposes.</p>
+                
+                <h6>3. Program Eligibility</h6>
+                <p>AYUDA reserves the right to verify information provided and determine program eligibility.</p>
+                
+                <h6>4. User Responsibilities</h6>
+                <p>You are responsible for maintaining the confidentiality of your account credentials.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation
+document.getElementById('signupForm').addEventListener('submit', function(e) {
+    const password1 = document.getElementById('password1').value;
+    const password2 = document.getElementById('password2').value;
+    
+    if (password1 !== password2) {
+        e.preventDefault();
+        alert('Passwords do not match!');
+        return false;
+    }
+    
+    if (password1.length < 7) {
+        e.preventDefault();
+        alert('Password must be at least 7 characters long!');
+        return false;
+    }
+    
+    const terms = document.getElementById('terms');
+    if (!terms.checked) {
+        e.preventDefault();
+        alert('Please accept the Terms and Conditions!');
+        return false;
+    }
+});
+
+// Mobile number formatting
+document.getElementById('mobile_no').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 11) {
+        value = value.slice(0, 11);
+    }
+    e.target.value = value;
+});
+</script>
 {% endblock %}

@@ -1,0 +1,355 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Recommend Beneficiaries - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-nav {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    .analytics-nav .nav-link {
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .analytics-nav .nav-link:hover {
+        color: white;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    .analytics-nav .nav-link.active {
+        color: white;
+        background: rgba(255, 255, 255, 0.2);
+    }
+    .parameter-card {
+        border: 2px solid #e3e6f0;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    .parameter-card:hover {
+        border-color: #4e73df;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .score-badge {
+        background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+    .recommendation-item {
+        transition: all 0.2s ease;
+        border-left: 4px solid #e3e6f0;
+    }
+    .recommendation-item:hover {
+        border-left-color: #1cc88a;
+        background-color: #f8f9fc;
+    }
+    .ml-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 font-weight-bold mb-2">Beneficiary Recommendation System</h1>
+            <p class="text-muted mb-0">Generate prioritized beneficiary lists using AI-powered analysis</p>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="analytics-nav">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_analysis') }}">
+                    <i class="fas fa-chart-line mr-2"></i>Analysis
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('admin.analytics_recommend') }}">
+                    <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Parameter Selection -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow parameter-card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="m-0 font-weight-bold d-flex align-items-center">
+                        <i class="fas fa-sliders-h mr-2"></i>
+                        Selection Parameters
+                        <span class="ml-badge ml-2">ML Model</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="recommendationForm">
+                        <!-- Program Selection -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-clipboard-list mr-2 text-primary"></i>Target Program
+                            </label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select a program...</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}">{{ program.program_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Select the program for beneficiary selection</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Max Beneficiaries -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-users mr-2 text-success"></i>Maximum Beneficiaries
+                            </label>
+                            <input type="number" class="form-control" id="max_beneficiaries" 
+                                   name="max_beneficiaries" value="50" min="1" max="500" required>
+                            <small class="form-text text-muted">Maximum number of recommendations to generate</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Priority Filters -->
+                        <h6 class="font-weight-bold mb-3">
+                            <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
+                        </h6>
+
+                        <!-- Barangay Priority -->
+                        <div class="form-group">
+                            <label>Priority Barangay</label>
+                            <select class="form-control" id="priority_barangay" name="priority_barangay">
+                                <option value="">All Barangays</option>
+                                {% for barangay in barangays %}
+                                <option value="{{ barangay }}">{{ barangay }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Income Range -->
+                        <div class="form-group">
+                            <label>Family Annual Income Range</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" 
+                                           id="min_income" name="min_income" 
+                                           placeholder="Min" value="0">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control form-control-sm" 
+                                           id="max_income" name="max_income" 
+                                           placeholder="Max" value="999999999">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Priority Checkboxes -->
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" 
+                                       id="solo_parent_priority" name="solo_parent_priority">
+                                <label class="custom-control-label" for="solo_parent_priority">
+                                    Prioritize Solo Parents
+                                </label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" 
+                                       id="student_priority" name="student_priority">
+                                <label class="custom-control-label" for="student_priority">
+                                    Prioritize Students
+                                </label>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- ML Model Note -->
+                        <div class="alert alert-info">
+                            <i class="fas fa-robot mr-2"></i>
+                            <strong>AI Integration:</strong> Machine learning model will be integrated to provide intelligent scoring and ranking.
+                        </div>
+
+                        <!-- Generate Button -->
+                        <button type="submit" class="btn btn-primary btn-block" id="generateBtn">
+                            <i class="fas fa-magic mr-2"></i>Generate Recommendations
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Results -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-list-ol mr-2"></i>Recommended Beneficiaries
+                    </h6>
+                    <button class="btn btn-light btn-sm" id="exportBtn" style="display: none;">
+                        <i class="fas fa-download mr-2"></i>Export List
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Initial State -->
+                    <div id="initialState" class="text-center py-5">
+                        <i class="fas fa-users-cog fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Recommendations Generated</h5>
+                        <p class="text-muted">Set your parameters and click "Generate Recommendations" to begin</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" class="text-center py-5" style="display: none;">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <h5 class="text-primary">Analyzing Data...</h5>
+                        <p class="text-muted">Please wait while we generate recommendations</p>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="resultsContainer" style="display: none;">
+                        <!-- Summary -->
+                        <div class="alert alert-success mb-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-check-circle mr-2"></i>
+                                        Generated <strong id="resultCount">0</strong> recommendations
+                                    </h6>
+                                </div>
+                                <div class="col-md-4 text-md-right">
+                                    <small class="text-muted" id="resultTimestamp"></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results List -->
+                        <div id="resultsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('recommendationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    document.getElementById('initialState').style.display = 'none';
+    document.getElementById('resultsContainer').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'block';
+    
+    // Collect form data
+    const formData = {
+        program_id: document.getElementById('program_id').value,
+        max_beneficiaries: document.getElementById('max_beneficiaries').value,
+        priority_barangay: document.getElementById('priority_barangay').value,
+        min_income: document.getElementById('min_income').value,
+        max_income: document.getElementById('max_income').value,
+        solo_parent_priority: document.getElementById('solo_parent_priority').checked,
+        student_priority: document.getElementById('student_priority').checked
+    };
+    
+    // Make API call
+    fetch('{{ url_for("admin.api_generate_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayResults(data);
+        } else {
+            alert('Error generating recommendations: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while generating recommendations');
+    })
+    .finally(() => {
+        document.getElementById('loadingState').style.display = 'none';
+    });
+});
+
+function displayResults(data) {
+    // Update result count
+    document.getElementById('resultCount').textContent = data.count;
+    document.getElementById('resultTimestamp').textContent = new Date().toLocaleString();
+    
+    // Build results HTML
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = '';
+    
+    if (data.recommendations.length === 0) {
+        resultsList.innerHTML = '<p class="text-muted text-center">No matching beneficiaries found with the specified criteria.</p>';
+    } else {
+        data.recommendations.forEach((rec, index) => {
+            const item = document.createElement('div');
+            item.className = 'recommendation-item p-3 mb-2 border rounded';
+            item.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-1 text-center">
+                        <div class="h5 mb-0 text-primary font-weight-bold">${index + 1}</div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="font-weight-bold">${rec.name}</div>
+                        <small class="text-muted">
+                            <i class="fas fa-envelope mr-1"></i>${rec.email} | 
+                            <i class="fas fa-map-marker-alt mr-1"></i>${rec.barangay || 'N/A'}
+                        </small>
+                        <div class="mt-1">
+                            ${rec.is_solo_parent ? '<span class="badge badge-info mr-1">Solo Parent</span>' : ''}
+                            ${rec.is_student ? '<span class="badge badge-primary mr-1">Student</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-right">
+                        <div class="mb-1">
+                            <small class="text-muted">Annual Income:</small>
+                            <div class="font-weight-bold">₱${rec.income.toLocaleString()}</div>
+                        </div>
+                        <div class="score-badge">
+                            Score: ${rec.score.toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            resultsList.appendChild(item);
+        });
+    }
+    
+    // Show results
+    document.getElementById('resultsContainer').style.display = 'block';
+    document.getElementById('exportBtn').style.display = 'inline-block';
+}
+
+// Export functionality
+document.getElementById('exportBtn').addEventListener('click', function() {
+    // TODO: Implement CSV export
+    alert('Export functionality will be implemented');
+});
+</script>
+{% endblock %}

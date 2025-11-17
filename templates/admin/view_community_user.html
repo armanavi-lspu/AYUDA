@@ -1,0 +1,291 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}User Profile - {{ community_user.first_name }} {{ community_user.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.community') }}">Community Users</a></li>
+            <li class="breadcrumb-item active">User Profile</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- User Profile Card -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    {% if community_user.profile_pic %}
+                        <img src="{{ community_user.profile_pic }}" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover;">
+                    {% else %}
+                        <div class="rounded-circle mb-3 mx-auto d-flex align-items-center justify-content-center" 
+                             style="width: 120px; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 3rem; font-weight: bold;">
+                            {{ community_user.first_name[0] }}{{ community_user.last_name[0] }}
+                        </div>
+                    {% endif %}
+                    
+                    <h4 class="font-weight-bold">{{ community_user.first_name }} {{ community_user.last_name }}</h4>
+                    <p class="text-muted">{{ community_user.email }}</p>
+                    
+                    <hr>
+                    
+                    <div class="text-left">
+                        <p><strong>Role:</strong> <span class="badge badge-primary">Community User</span></p>
+                        <p><strong>Member Since:</strong> {{ community_user.created_at.strftime('%B %d, %Y') }}</p>
+                        {% if community_user.last_activity %}
+                        <p><strong>Last Active:</strong> {{ community_user.last_activity.strftime('%B %d, %Y %I:%M %p') }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="btn-group-vertical btn-group-sm w-100">
+                        <button class="btn btn-warning" data-toggle="modal" data-target="#resetPasswordModal">
+                            <i class="fas fa-key mr-2"></i>Reset Password
+                        </button>
+                        <button class="btn btn-secondary" data-toggle="modal" data-target="#toggleStatusModal">
+                            <i class="fas fa-ban mr-2"></i>Restrict Account
+                        </button>
+                        <a href="{{ url_for('admin.community') }}" class="btn btn-info">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Details -->
+        <div class="col-lg-8">
+            <!-- Personal Information -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user mr-2"></i>Personal Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if community_user.community_profile %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Full Name:</strong>
+                            <p>{{ community_user.first_name }} {% if community_user.middle_name %}{{ community_user.middle_name }}{% endif %} {{ community_user.last_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Age:</strong>
+                            <p>{{ community_user.community_profile.age }} years old</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Birthday:</strong>
+                            <p>
+                                {% if community_user.community_profile.birth_month and community_user.community_profile.birth_day and community_user.community_profile.birth_year %}
+                                {{ community_user.community_profile.birth_month }}/{{ community_user.community_profile.birth_day }}/{{ community_user.community_profile.birth_year }}
+                                {% else %}
+                                Not provided
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Mobile Number:</strong>
+                            <p>{{ community_user.community_profile.mobile_no or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Barangay:</strong>
+                            <p>{{ community_user.community_profile.barangay or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Sitio:</strong>
+                            <p>{{ community_user.community_profile.sitio or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Municipality:</strong>
+                            <p>{{ community_user.community_profile.municipality or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Employment Status:</strong>
+                            <p>
+                                {% if community_user.community_profile.is_currently_employed %}
+                                    <span class="badge badge-success">Employed</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Unemployed</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Student Status:</strong>
+                            <p>
+                                {% if community_user.community_profile.is_student %}
+                                    <span class="badge badge-info">Yes</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">No</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Solo Parent:</strong>
+                            <p>
+                                {% if community_user.community_profile.is_solo_parent %}
+                                    <span class="badge badge-warning">Yes</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">No</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <strong>Family Annual Income:</strong>
+                            <p>{{ '₱{:,.2f}'.format(community_user.community_profile.family_annual_income) if community_user.community_profile.family_annual_income else 'Not provided' }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No profile information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Application Statistics -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-bar mr-2"></i>Application Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3 class="text-primary">{{ total_apps }}</h3>
+                            <p class="text-muted">Total</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-warning">{{ pending_apps }}</h3>
+                            <p class="text-muted">Pending</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-success">{{ approved_apps }}</h3>
+                            <p class="text-muted">Approved</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-danger">{{ rejected_apps }}</h3>
+                            <p class="text-muted">Rejected</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications List -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-list mr-2"></i>Application History
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if applications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Program</th>
+                                    <th>Status</th>
+                                    <th>Applied On</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in applications %}
+                                <tr>
+                                    <td>{{ app.program.program_name }}</td>
+                                    <td>
+                                        {% if app.application_status == 'pending' %}
+                                            <span class="badge badge-warning">Pending</span>
+                                        {% elif app.application_status == 'approved' %}
+                                            <span class="badge badge-success">Approved</span>
+                                        {% elif app.application_status == 'rejected' %}
+                                            <span class="badge badge-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge badge-info">{{ app.application_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ app.application_date.strftime('%b %d, %Y') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin.view_application', application_id=app.id) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        No applications yet
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.reset_user_password', user_id=community_user.id) }}">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title"><i class="fas fa-key mr-2"></i>Reset Password</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        A new random password will be generated and sent to the user via notification.
+                    </div>
+                    <p>Reset password for: <strong>{{ community_user.first_name }} {{ community_user.last_name }}</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Reset Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Status Modal -->
+<div class="modal fade" id="toggleStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=community_user.id) }}">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title"><i class="fas fa-ban mr-2"></i>Account Access Control</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <p>Manage account access for: <strong>{{ community_user.first_name }} {{ community_user.last_name }}</strong></p>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="action" id="disable" value="disable" checked>
+                        <label class="form-check-label" for="disable">
+                            <strong class="text-danger">Disable Account</strong>
+                            <br><small class="text-muted">User will not be able to login</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="action" id="enable" value="enable">
+                        <label class="form-check-label" for="enable">
+                            <strong class="text-success">Enable Account</strong>
+                            <br><small class="text-muted">Restore user's access</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

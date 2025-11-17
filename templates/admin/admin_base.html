@@ -13,6 +13,16 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- Custom styles block -->
+    {% block styles %} <!-- Global Font Style -->
+        
+    <link
+      href="{{ url_for('static', filename='css/base.css') }}"
+      rel="stylesheet"
+    />  
+
+    {% endblock %}
+
     <link
       rel="stylesheet"
       href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
@@ -152,12 +162,20 @@
                         Programs
                     </a>
                 </li>
-                                <li class="nav-item">
+                <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.analytics') }}">
                         <i class="fas fa-chart-line mr-2"></i>
                         Analytics
                     </a>
                 </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin.admin_management') }}">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        Admin Management
+                    </a>
+                </li>
+
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.community') }}">
                         <i class="fas fa-user-circle mr-2"></i>
@@ -184,6 +202,33 @@
         </div>
     </div>
 
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+        {% for category, message in messages %}
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+            <div class="d-flex align-items-center">
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle mr-2"></i>
+                {% elif category == 'error' %}
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle mr-2"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     <!-- Bootstrap JS -->
     <script
       src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
@@ -202,7 +247,7 @@
     ></script>
 
     <!-- Flash Messages Auto-dismiss Script -->
-    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/UI.js') }}"></script>
 
     <script>
         // Mobile sidebar toggle

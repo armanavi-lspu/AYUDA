@@ -1,9 +1,526 @@
+<!-- filepath: c:\Users\abule\Documents\GitHub\FLASK\templates\admin\community.html -->
 {% extends "admin/admin_base.html" %}
-{% block title %}Community - AYUDA{% endblock %}
+{% block title %}Community Users - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    
+    .user-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #dee2e6;
+    }
+    
+    .user-card:hover {
+        border-left-color: #4e73df;
+        background-color: #f8f9fc;
+        transform: translateX(5px);
+    }
+    
+    .badge-status {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+    }
+    
+    .filter-section {
+        background: #f8f9fc;
+        border-radius: 0.35rem;
+        padding: 1rem;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fc;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Community Users</h1>
-    <p>Manage registered users in your community.</p>
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="font-weight-bold mb-1">Community Users</h2>
+            <p class="text-muted mb-0">Manage registered community members</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.export_community_users') }}" class="btn btn-success">
+                <i class="fas fa-file-export mr-2"></i>Export to CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-primary shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Users
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Active Users
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_users }}</div>
+                            <small class="text-muted">Last 7 days</small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                With Applications
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ users_with_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                New This Month
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_this_month }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Users
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.community') }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Name, email, mobile..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Employment</label>
+                        <select class="form-control" name="employment">
+                            <option value="">All Status</option>
+                            <option value="employed" {% if request.args.get('employment')=='employed' %}selected{% endif %}>Employed</option>
+                            <option value="unemployed" {% if request.args.get('employment')=='unemployed' %}selected{% endif %}>Unemployed</option>
+                            <option value="student" {% if request.args.get('employment')=='student' %}selected{% endif %}>Student</option>
+                            <option value="solo_parent" {% if request.args.get('employment')=='solo_parent' %}selected{% endif %}>Solo Parent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Barangay</label>
+                        <select class="form-control" name="barangay">
+                            <option value="">All Barangays</option>
+                            {% for barangay in barangays %}
+                            <option value="{{ barangay }}" {% if request.args.get('barangay')==barangay %}selected{% endif %}>
+                                {{ barangay }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                            <option value="year" {% if request.args.get('date_range')=='year' %}selected{% endif %}>This Year</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">&nbsp;</label>
+                        <div class="d-flex">
+                            <button type="submit" class="btn btn-primary btn-block mr-2">
+                                <i class="fas fa-search mr-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('admin.community') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Community Members</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>#</th>
+                            <th>User</th>
+                            <th>Contact Info</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Applications</th>
+                            <th>Registered</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if users %}
+                            {% for user in users %}
+                            <tr class="user-card">
+                                <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {% if user.profile_pic %}
+                                                <img src="{{ user.profile_pic }}" alt="Avatar">
+                                            {% else %}
+                                                {{ user.first_name[0] }}{{ user.last_name[0] }}
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="font-weight-bold">
+                                                {{ user.first_name }} 
+                                                {% if user.middle_name %}{{ user.middle_name[0] }}.{% endif %} 
+                                                {{ user.last_name }}
+                                            </div>
+                                            <small class="text-muted">{{ user.email }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        <div><i class="fas fa-phone text-muted mr-1"></i>{{ user.community_profile.mobile_no or 'N/A' }}</div>
+                                        <small class="text-muted"><i class="fas fa-calendar mr-1"></i>Age: {{ user.community_profile.age }}</small>
+                                    {% else %}
+                                        <span class="text-muted">No profile</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        <div>{{ user.community_profile.barangay or 'N/A' }}</div>
+                                        <small class="text-muted">{{ user.community_profile.municipality or '' }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        {% if user.community_profile.is_currently_employed %}
+                                            <span class="badge badge-success badge-status">
+                                                <i class="fas fa-briefcase mr-1"></i>Employed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-secondary badge-status">
+                                                <i class="fas fa-briefcase mr-1"></i>Unemployed
+                                            </span>
+                                        {% endif %}
+                                        {% if user.community_profile.is_student %}
+                                            <br><span class="badge badge-info badge-status mt-1">
+                                                <i class="fas fa-graduation-cap mr-1"></i>Student
+                                            </span>
+                                        {% endif %}
+                                        {% if user.community_profile.is_solo_parent %}
+                                            <br><span class="badge badge-warning badge-status mt-1">
+                                                <i class="fas fa-child mr-1"></i>Solo Parent
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>
+                                        <span class="badge badge-primary">{{ user.app_count }} Total</span>
+                                    </div>
+                                    {% if user.approved_apps > 0 %}
+                                    <div class="mt-1">
+                                        <span class="badge badge-success">{{ user.approved_apps }} Approved</span>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ user.created_at.strftime('%b %d, %Y') }}</small>
+                                    {% if user.last_activity %}
+                                        <br><small class="text-success">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            {{ user.last_activity.strftime('%b %d') }}
+                                        </small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.view_community_user', user_id=user.id) }}" 
+                                           class="btn btn-info" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-warning" 
+                                                data-toggle="modal" 
+                                                data-target="#resetPasswordModal{{ user.id }}"
+                                                title="Reset Password">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" 
+                                                data-toggle="modal" 
+                                                data-target="#toggleStatusModal{{ user.id }}"
+                                                title="Restrict Account">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger" 
+                                                data-toggle="modal" 
+                                                data-target="#deleteUserModal{{ user.id }}"
+                                                title="Delete User">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-5">
+                                    <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                    <h5>No Community Users Found</h5>
+                                    <p>No users match your filter criteria.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Users pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.prev_num, **request.args) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.community', page=page_num, **request.args) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.next_num, **request.args) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<!-- Modals for Each User -->
+{% for user in users %}
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.reset_user_password', user_id=user.id) }}">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key mr-2"></i>Reset Password
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        A new random password will be generated and sent to the user via notification.
+                    </div>
+                    <p>Are you sure you want to reset the password for:</p>
+                    <p class="font-weight-bold">
+                        {{ user.first_name }} {{ user.last_name }}<br>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key mr-1"></i>Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Account Status Modal -->
+<div class="modal fade" id="toggleStatusModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-ban mr-2"></i>Account Access Control
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Manage account access for:</p>
+                    <p class="font-weight-bold">
+                        {{ user.first_name }} {{ user.last_name }}<br>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </p>
+                    <hr>
+                    <p>Choose an action:</p>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="action" id="disable{{ user.id }}" value="disable" checked>
+                        <label class="form-check-label" for="disable{{ user.id }}">
+                            <strong class="text-danger">Disable Account</strong>
+                            <br><small class="text-muted">User will not be able to login</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="action" id="enable{{ user.id }}" value="enable">
+                        <label class="form-check-label" for="enable{{ user.id }}">
+                            <strong class="text-success">Enable Account</strong>
+                            <br><small class="text-muted">Restore user's access</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.delete_community_user', user_id=user.id) }}">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-trash mr-2"></i>Delete User
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+                    <p>Are you sure you want to permanently delete this user?</p>
+                    <p class="font-weight-bold">
+                        {{ user.first_name }} {{ user.last_name }}<br>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </p>
+                    {% if user.app_count > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        This user has <strong>{{ user.app_count }} application(s)</strong>. Deletion may not be allowed.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash mr-1"></i>Delete Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

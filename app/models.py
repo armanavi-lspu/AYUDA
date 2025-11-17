@@ -232,9 +232,9 @@ class CommunityUsers(db.Model):
     birth_month = db.Column(db.Integer)
     birth_day = db.Column(db.Integer)
     birth_year = db.Column(db.Integer)
-    barangay = db.Column(db.String(100))
+    barangay = db.Column(db.String(100)) # Values: 'Amuyong', 'Bayanihan', 'Lambac', 'Libis ng Nayon', 'Lucong', 'Maligaya', 'Masikap', 'Matalatala', 'Nanguma', 'Numero Uno', 'Paagahan', 'Pag-Asa', 'San Antonio', 'San Miguel', 'Sinagtala'
     sitio = db.Column(db.String(100))
-    municipality = db.Column(db.String(100))
+    municipality = db.Column(db.String(100)) # Default to 'Mabitac'
     is_currently_employed = db.Column(db.Boolean, default=False)
     is_student = db.Column(db.Boolean, default=False)
     is_solo_parent = db.Column(db.Boolean, default=False)

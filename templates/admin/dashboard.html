@@ -16,7 +16,7 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Users</div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Community Users</div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users or 0 }}</div>
                     </div>
                     <div class="col-auto">
@@ -44,200 +44,76 @@
     </div>
 
     <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Community Users</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ community_count or 0 }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-people-group fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-warning shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Today</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_today or 0 }}</div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_applications or 0 }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-bolt fa-2x text-gray-300"></i>
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </div>    
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Programs</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programs or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    
 </div>
 
-<!-- Map + Chart Row -->
 <div class="row mb-4">
-    <!-- Service Coverage Map -->
+    <!-- Recent Applications -->
     <div class="col-xl-8 col-lg-7 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Service Coverage Map (Mabitac, Laguna)</h6>
+                <h6 class="m-0 font-weight-bold text-dark">Recent Applications</h6>
             </div>
-            <div class="card-body">
-                <div id="map" style="height: 400px; border-radius: 0.35rem;"></div>
-            </div>
+            
         </div>
     </div>
 
-    <!-- Users by Role Chart -->
+    <!-- Program Performance -->
     <div class="col-xl-4 col-lg-5 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">Users by Role</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-pie">
-                    <canvas id="usersByRoleChart"></canvas>
-                </div>
-                <div class="mt-4 text-center small">
-                    <span class="mr-2">
-                        <i class="fas fa-circle text-primary"></i> Admin
-                    </span>
-                    <span class="mr-2">
-                        <i class="fas fa-circle text-success"></i> Community
-                    </span>
-                </div>
-            </div>
+                <h6 class="m-0 font-weight-bold text-dark">Program Category Performance</h6>
+            </div>            
         </div>
     </div>
 </div>
 
-<!-- Additional Analytics Row (Optional) -->
+<!-- Quick Action Buttons -->
 <div class="row mb-4">
-    <div class="col-xl-12 mb-4">
+    <div class="col-xl-8 col-lg-7 mb-4">
         <div class="card shadow">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-primary">User Registration Trends</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-area">
-                    <canvas id="newUsersChart"></canvas>
-                </div>
-            </div>
+                <h6 class="m-0 font-weight-bold text-dark">User Registration Trends</h6>
+            </div>            
+        </div>
+    </div>
+    <div class="col-xl-4 col-lg-5 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-dark">Recent Admin Activities</h6>
+            </div>            
         </div>
     </div>
 </div>
-
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-
-<!-- Chart.js & Leaflet -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-
-<script>
-// Leaflet Map Initialization
-const center = [14.4478, 121.3966]; // Mabitac, Laguna coordinates
-const bounds = [[14.4060, 121.3650], [14.4720, 121.4200]];
-
-const map = L.map('map', { 
-    zoomControl: true,
-    scrollWheelZoom: false 
-});
-
-try {
-    map.fitBounds(bounds);
-} catch(e) {
-    map.setView(center, 13);
-}
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
-
-// Add a marker for Mabitac
-L.marker(center).addTo(map)
-    .bindPopup('<b>Mabitac, Laguna</b><br>Service Coverage Area')
-    .openPopup();
-
-// Optional: Add coverage circle
-L.circle(center, {
-    color: '#28a745',
-    fillColor: '#28a745',
-    fillOpacity: 0.1,
-    radius: 3000
-}).addTo(map);
-
-// Users by Role Doughnut Chart
-const roleCtx = document.getElementById('usersByRoleChart');
-const admins = {{ (admins_count or 0) | int }};
-const community = {{ (community_count or 0) | int }};
-
-new Chart(roleCtx, {
-    type: 'doughnut',
-    data: {
-        labels: ['Admin', 'Community'],
-        datasets: [{
-            data: [admins, community],
-            backgroundColor: ['#4e73df', '#1cc88a'],
-            borderColor: '#fff',
-            borderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { 
-                position: 'bottom',
-                labels: {
-                    padding: 15,
-                    font: { size: 12 }
-                }
-            }
-        }
-    }
-});
-
-// New Users Trend Line Chart
-const newUsersCtx = document.getElementById('newUsersChart');
-new Chart(newUsersCtx, {
-    type: 'line',
-    data: {
-        labels: ['January', 'February', 'March', 'April', 'May', 'June'],
-        datasets: [{
-            label: 'New User Registrations',
-            data: [12, 19, 7, 14, 22, 18],
-            borderColor: '#36b9cc',
-            backgroundColor: 'rgba(54, 185, 204, 0.1)',
-            tension: 0.3,
-            fill: true,
-            pointRadius: 4,
-            pointBackgroundColor: '#36b9cc'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    stepSize: 5
-                }
-            }
-        },
-        plugins: {
-            legend: {
-                display: true,
-                position: 'top'
-            }
-        }
-    }
-});
-</script>
 
 <style>
 .border-left-primary { border-left: 0.25rem solid #4e73df !important; }
