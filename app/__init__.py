@@ -2,7 +2,7 @@ from flask import Flask
 from pathlib import Path
 from flask_login import LoginManager
 from config import Config
-from app.extensions import db 
+from app.extensions import db
 
 def create_app():
     root_path = Path(__file__).parent.parent
@@ -18,10 +18,12 @@ def create_app():
     from .auth.auth import auth_bp
     from .admin import admin_bp
     from .community import community_bp  
+    from .home.routes import home_bp
     
     app.register_blueprint(auth_bp, url_prefix='/')
     app.register_blueprint(admin_bp)
     app.register_blueprint(community_bp)  
+    app.register_blueprint(home_bp)
     
     from .models import User, Programs
     

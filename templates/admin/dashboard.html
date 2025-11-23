@@ -1,6 +1,21 @@
 {% extends "admin/admin_base.html" %}
 {% block title %}Admin Dashboard - AYUDA{% endblock %}
 
+{% block extra_css %}
+<style>
+.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
+.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
+.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
+.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
+.border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
+.text-gray-800 { color: #5a5c69 !important; }
+.text-gray-300 { color: #dddfeb !important; }
+.chart-container { position: relative; height: 300px; }
+.chart-area { position: relative; height: 320px; }
+.chart-pie { position: relative; height: 280px; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
@@ -17,7 +32,7 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Community Users</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users or 0 }}</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ community_count or 0 }}</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-users fa-2x text-gray-300"></i>
@@ -32,11 +47,11 @@
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Admin Users</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ admins_count or 0 }}</div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Applications</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_applications or 0 }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-user-shield fa-2x text-gray-300"></i>
+                        <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -57,72 +72,179 @@
                 </div>
             </div>
         </div>
-    </div>    
+    </div>
 
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card border-left-info shadow h-100 py-2">
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Programs</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programs or 0 }}</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Active Programs</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_programs or 0 }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-file fa-2x text-gray-300"></i>
+                        <i class="fas fa-folder-open fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
         </div>
-    </div>    
+    </div>
 </div>
 
+<!-- Charts Row 1 -->
 <div class="row mb-4">
-    <!-- Recent Applications -->
+    <!-- Monthly Application Trend -->
     <div class="col-xl-8 col-lg-7 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-dark">Recent Applications</h6>
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-line mr-2"></i>Monthly Application Trend
+                </h6>
             </div>
-            
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="monthlyTrendChart" width="300" height="200"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Program Performance -->
+    <!-- Application Status Distribution -->
     <div class="col-xl-4 col-lg-5 mb-4">
         <div class="card shadow h-100">
             <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-dark">Program Category Performance</h6>
-            </div>            
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-pie mr-2"></i>Application Status
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie">
+                    <canvas id="statusPieChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Quick Action Buttons -->
+<!-- Charts Row 2 -->
 <div class="row mb-4">
-    <div class="col-xl-8 col-lg-7 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-dark">User Registration Trends</h6>
-            </div>            
+    <!-- Applications by Program Type -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-bar mr-2"></i>Applications by Program Type
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="applicationsByProgramChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="col-xl-4 col-lg-5 mb-4">
-        <div class="card shadow">
-            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                <h6 class="m-0 font-weight-bold text-dark">Recent Admin Activities</h6>
-            </div>            
+
+    <!-- Applications by Barangay -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-map-marker-alt mr-2"></i>Top 10 Barangays
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="barangayChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<style>
-.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
-.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
-.border-left-info { border-left: 0.25rem solid #36b9cc !important; }
-.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
-.text-gray-800 { color: #5a5c69 !important; }
-.text-gray-300 { color: #dddfeb !important; }
-.chart-area { position: relative; height: 320px; }
-.chart-pie { position: relative; height: 280px; }
-</style>
+<!-- Charts Row 3 -->
+<div class="row mb-4">
+    <!-- Age Distribution -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-users mr-2"></i>Applicants by Age Group
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="ageDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employment Status -->
+    <div class="col-xl-6 col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-briefcase mr-2"></i>Employment Status
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie">
+                    <canvas id="employmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Trend -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-calendar-week mr-2"></i>Weekly Application Trend
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="weeklyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data elements for JavaScript -->
+<script type="application/json" id="monthly-trend-data">{{ monthly_trend_json | safe }}</script>
+<script type="application/json" id="status-distribution-data">{{ status_distribution_json | safe }}</script>
+<script type="application/json" id="applications-by-program-data">{{ applications_by_program_json | safe }}</script>
+<script type="application/json" id="barangay-data">{{ barangay_data_json | safe }}</script>
+<script type="application/json" id="age-distribution-data">{{ age_distribution_json | safe }}</script>
+<script type="application/json" id="employment-data">{{ employment_json | safe }}</script>
+<script type="application/json" id="weekly-trend-data">{{ weekly_trend_json | safe }}</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Add this debug script BEFORE dashboard_charts.js -->
+<script>
+    console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+    console.log('Chart version:', Chart ? Chart.version : 'Not loaded');
+    
+    // Check if data elements exist
+    console.log('Monthly trend data element:', document.getElementById('monthly-trend-data'));
+    console.log('Status data element:', document.getElementById('status-distribution-data'));
+    
+    // Try to parse one dataset
+    try {
+        const monthlyData = JSON.parse(document.getElementById('monthly-trend-data').textContent);
+        console.log('Monthly data parsed:', monthlyData);
+    } catch(e) {
+        console.error('Error parsing monthly data:', e);
+    }
+</script>
+
+<script src="{{ url_for('static', filename='js/admin/dashboard_charts.js') }}"></script>
 {% endblock %}

@@ -15,6 +15,7 @@ CREATE TABLE users (
 CREATE INDEX idx_user_email ON users(email);
 CREATE INDEX idx_user_role ON users(role);
 CREATE INDEX idx_user_created_at ON users(created_at);
+CREATE INDEX idx_user_last_activity ON users(last_activity);
 
 -- Create file_attachment table (moved before programs for foreign key reference)
 CREATE TABLE file_attachment (
@@ -29,6 +30,7 @@ CREATE TABLE file_attachment (
 );
 
 CREATE INDEX idx_file_attachment_uploaded_by ON file_attachment(uploaded_by_id);
+CREATE INDEX idx_file_attachment_uploaded_at ON file_attachment(uploaded_at DESC);
 
 -- Create table for financial programs 
 CREATE TABLE programs (
@@ -39,6 +41,7 @@ CREATE TABLE programs (
     program_period VARCHAR(50) NOT NULL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who created the program
     file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
+    is_active BOOLEAN DEFAULT TRUE, -- NEW: Track active programs
     date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -48,6 +51,8 @@ CREATE INDEX idx_programs_type ON programs(program_type);
 CREATE INDEX idx_programs_period ON programs(program_period);
 CREATE INDEX idx_programs_date ON programs(date DESC);
 CREATE INDEX idx_programs_file_attachment ON programs(file_attachment_id);
+CREATE INDEX idx_programs_is_active ON programs(is_active);
+CREATE INDEX idx_programs_type_active ON programs(program_type, is_active);
 
 -- Create table for applications
 CREATE TABLE applications (
@@ -69,7 +74,11 @@ CREATE INDEX idx_applications_program_id ON applications(program_id);
 CREATE INDEX idx_applications_status ON applications(application_status);
 CREATE INDEX idx_applications_date ON applications(application_date DESC);
 CREATE INDEX idx_applications_reviewed_by ON applications(reviewed_by);
-
+CREATE INDEX idx_applications_review_date ON applications(review_date);
+-- Composite indexes for common query patterns
+CREATE INDEX idx_app_user_date ON applications(user_id, application_date);
+CREATE INDEX idx_app_program_status ON applications(program_id, application_status);
+CREATE INDEX idx_app_status_date ON applications(application_status, application_date DESC);
 
 -- Create table for Announcements
 CREATE TABLE announcements (
@@ -87,6 +96,8 @@ CREATE TABLE announcements (
 CREATE INDEX idx_announcements_author_id ON announcements(author_id);
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created_at ON announcements(created_at DESC);
+CREATE INDEX idx_announcements_category ON announcements(category);
+CREATE INDEX idx_announcements_status_created ON announcements(status, created_at DESC);
 
 -- Create announcement_images table
 CREATE TABLE announcement_images (
@@ -99,6 +110,7 @@ CREATE TABLE announcement_images (
 );
 
 CREATE INDEX idx_announcement_images_announcement_id ON announcement_images(announcement_id);
+CREATE INDEX idx_announcement_images_display_order ON announcement_images(announcement_id, display_order);
 
 -- Create notifications table
 CREATE TABLE notifications (
@@ -112,6 +124,8 @@ CREATE TABLE notifications (
 
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 
 -- Create community_users table
 CREATE TABLE community_users (
@@ -132,6 +146,18 @@ CREATE TABLE community_users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create indexes for community_users (for analytics and filtering)
+CREATE INDEX idx_community_users_user_id ON community_users(user_id);
+CREATE INDEX idx_community_users_age ON community_users(age);
+CREATE INDEX idx_community_users_barangay ON community_users(barangay);
+CREATE INDEX idx_community_users_employed ON community_users(is_currently_employed);
+CREATE INDEX idx_community_users_student ON community_users(is_student);
+CREATE INDEX idx_community_users_solo_parent ON community_users(is_solo_parent);
+CREATE INDEX idx_community_users_income ON community_users(family_annual_income);
+-- Composite indexes for common analytics queries
+CREATE INDEX idx_community_barangay_income ON community_users(barangay, family_annual_income);
+CREATE INDEX idx_community_age_employed ON community_users(age, is_currently_employed);
+
 -- Create requirements table
 CREATE TABLE requirements (
     id SERIAL PRIMARY KEY,
@@ -139,6 +165,8 @@ CREATE TABLE requirements (
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_requirements_created_at ON requirements(created_at DESC);
 
 -- Create program_requirements junction table (many-to-many)
 CREATE TABLE program_requirements (
@@ -152,6 +180,7 @@ CREATE TABLE program_requirements (
 
 CREATE INDEX idx_program_requirements_program_id ON program_requirements(program_id);
 CREATE INDEX idx_program_requirements_requirement_id ON program_requirements(requirement_id);
+CREATE INDEX idx_program_requirements_mandatory ON program_requirements(is_mandatory);
 
 -- Create application_documents table (admin checklist for physical documents)
 CREATE TABLE application_documents (
@@ -170,6 +199,8 @@ CREATE TABLE application_documents (
 CREATE INDEX idx_application_documents_application_id ON application_documents(application_id);
 CREATE INDEX idx_application_documents_requirement_id ON application_documents(requirement_id);
 CREATE INDEX idx_application_documents_status ON application_documents(submission_status);
+CREATE INDEX idx_application_documents_verified_by ON application_documents(verified_by);
+CREATE INDEX idx_application_documents_app_status ON application_documents(application_id, submission_status);
 
 -- Create admin_users table (extended admin info)
 CREATE TABLE admin_users (
@@ -178,7 +209,6 @@ CREATE TABLE admin_users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_community_users_user_id ON community_users(user_id);
 CREATE INDEX idx_admin_users_user_id ON admin_users(user_id);
 
 -- Create table for community user activity log

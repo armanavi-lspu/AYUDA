@@ -39,18 +39,20 @@ class Programs(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     program_name = db.Column(db.String(200), nullable=False)
-    program_type = db.Column(db.String(50), nullable=False)
+    program_type = db.Column(db.String(50), nullable=False, index=True)  # Added index for type queries
     program_period = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)  
+    file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, index=True)  # NEW: Track active programs
     
     # Relationships
-    applications = db.relationship('Applications', backref='program', lazy=True)
-    requirements = db.relationship('Requirements', secondary='program_requirements', backref='programs')
-    file_attachment = db.relationship('FileAttachment', backref='program', uselist=False)  # Add relationship
-    
+    applications = db.relationship('Applications', back_populates='program', lazy=True)
+    requirements = db.relationship('Requirements', secondary='program_requirements', viewonly=True)
+    file_attachment = db.relationship('FileAttachment', back_populates='program', uselist=False)
+    program_requirements = db.relationship('ProgramRequirements', back_populates='program', lazy='dynamic', cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<Program {self.program_name}>'
 
@@ -62,8 +64,12 @@ class Requirements(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Relationships
+    application_documents = db.relationship('ApplicationDocuments', back_populates='requirement')
+    requirement_programs = db.relationship('ProgramRequirements', back_populates='requirement', lazy='dynamic')
+
     def __repr__(self):
-        return f'<Requirement {self.document_name}>'
+        return f'<Requirement {self.document_name}'
 
 class ProgramRequirements(db.Model):
     __tablename__ = 'program_requirements'
@@ -74,9 +80,10 @@ class ProgramRequirements(db.Model):
     is_mandatory = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    program = db.relationship('Programs', backref=db.backref('program_requirement_links', lazy='dynamic'))
-    requirement = db.relationship('Requirements', backref=db.backref('requirement_program_links', lazy='dynamic'))
-    
+    # Relationships
+    program = db.relationship('Programs', back_populates='program_requirements')
+    requirement = db.relationship('Requirements', back_populates='requirement_programs')
+
     def __repr__(self):
         return f'<ProgramRequirement {self.program_id}-{self.requirement_id}>'
 
@@ -115,18 +122,25 @@ class Applications(db.Model):
     __tablename__ = 'applications'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
-    application_status = db.Column(db.String(20), nullable=False, default='pending')
-    application_date = db.Column(db.DateTime, default=datetime.utcnow)
-    review_date = db.Column(db.DateTime)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Added index
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)  # Added index
+    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # Added index
+    application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Added index for date queries
+    review_date = db.Column(db.DateTime, index=True)  # Added index
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Add composite indexes for common queries
+    __table_args__ = (
+        db.Index('idx_app_user_date', 'user_id', 'application_date'),
+        db.Index('idx_app_program_status', 'program_id', 'application_status'),
+    )
+    
     # Relationships
     document_checklist = db.relationship('ApplicationDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
+    program = db.relationship('Programs', back_populates='applications')
     
     @property
     def documents_complete(self):
@@ -177,7 +191,7 @@ class ApplicationDocuments(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    requirement = db.relationship('Requirements', backref='application_documents')
+    requirement = db.relationship('Requirements', back_populates='application_documents')
     verifier = db.relationship('User', backref='verified_documents')
     
     @property
@@ -205,6 +219,8 @@ class FileAttachment(db.Model):
     attachment_type = db.Column(db.String(50))
     
     uploader = db.relationship('User', backref='uploaded_files')
+    program = db.relationship('Programs', back_populates='file_attachment') 
+
     
     def __repr__(self):
         return f'<FileAttachment {self.filename}>'
@@ -226,19 +242,19 @@ class CommunityUsers(db.Model):
     __tablename__ = 'community_users'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    age = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Added index
+    age = db.Column(db.Integer, nullable=False, index=True)  # Added index for age-based queries
     mobile_no = db.Column(db.String(20))
     birth_month = db.Column(db.Integer)
     birth_day = db.Column(db.Integer)
     birth_year = db.Column(db.Integer)
-    barangay = db.Column(db.String(100)) # Values: 'Amuyong', 'Bayanihan', 'Lambac', 'Libis ng Nayon', 'Lucong', 'Maligaya', 'Masikap', 'Matalatala', 'Nanguma', 'Numero Uno', 'Paagahan', 'Pag-Asa', 'San Antonio', 'San Miguel', 'Sinagtala'
+    barangay = db.Column(db.String(100), index=True)  # Added index for barangay queries
     sitio = db.Column(db.String(100))
-    municipality = db.Column(db.String(100)) # Default to 'Mabitac'
-    is_currently_employed = db.Column(db.Boolean, default=False)
-    is_student = db.Column(db.Boolean, default=False)
-    is_solo_parent = db.Column(db.Boolean, default=False)
-    family_annual_income = db.Column(db.Numeric(12, 2))
+    municipality = db.Column(db.String(100))
+    is_currently_employed = db.Column(db.Boolean, default=False, index=True)  # Added index
+    is_student = db.Column(db.Boolean, default=False, index=True)  # Added index
+    is_solo_parent = db.Column(db.Boolean, default=False, index=True)  # Added index
+    family_annual_income = db.Column(db.Numeric(12, 2), index=True)  # Added index for income-based queries
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
