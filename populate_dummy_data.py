@@ -55,13 +55,13 @@ def populate_dummy_data():
         
         sitios = ['Sitio 1', 'Sitio 2', 'Sitio 3', 'Sitio 4', 'Purok 1', 'Purok 2']
         
-        first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Rosa', 'Carlos', 'Elena', 
+        first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Marc Josue', 'Jemcent', 'Elena', 
                        'Ramon', 'Sofia', 'Miguel', 'Carmen', 'Luis', 'Teresa', 'Antonio',
-                       'Gabriel', 'Isabel', 'Fernando', 'Luz', 'Ricardo']
+                       'Gabriel', 'Arman', 'Fernando', 'Avi', 'Ricardo']
         
-        last_names = ['Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Ramos', 'Mendoza', 
-                      'Torres', 'Gonzales', 'Flores', 'Rivera', 'Bautista', 'Fernandez',
-                      'Castillo', 'Morales', 'Diaz', 'Pascual']
+        last_names = ['Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Abulencia', 'Mendoza', 
+                      'Torres', 'Bitabara', 'Flores', 'Rivera', 'Bautista', 'Fernandez',
+                      'Castillo', 'Morales', 'Diaz', 'Pren']
         
         community_users = []
         for i in range(50):  # Create 50 community users
@@ -117,19 +117,27 @@ def populate_dummy_data():
         program_data = [
             {
                 'name': 'Financial Assistance Program',
-                'type': 'Financial Assistance',
+                'type': 'AICS',
                 'period': '2024-2025',
                 'description': 'Provides financial support to families in need for emergencies and basic necessities'
             },
+
+            {
+                'name': 'Burial Assistance Program',
+                'type': 'AICS',
+                'period': '2024-2025',
+                'description': 'Provides financial support to families in need for emergencies and basic necessities'
+            },
+
             {
                 'name': 'Educational Assistance Program',
-                'type': 'Educational Assistance',
+                'type': 'AICS',
                 'period': '2024-2025',
                 'description': 'Scholarship program and school supplies support for elementary to college students'
             },
             {
                 'name': 'Medical Assistance Program',
-                'type': 'Medical Assistance',
+                'type': 'AICS',
                 'period': '2024-2025',
                 'description': 'Healthcare support including medicine subsidies, hospital bills, and medical procedures'
             },
@@ -140,28 +148,28 @@ def populate_dummy_data():
                 'description': 'Skills training and business capital assistance for sustainable income generation'
             },
             {
-                'name': 'Senior Citizens Support Program',
-                'type': 'Social Welfare',
+                'name': 'Fire Disaster',
+                'type': 'Emergency Shelter Assistance',
                 'period': '2024-2025',
                 'description': 'Comprehensive support programs for senior citizens including health and social activities'
             },
             {
-                'name': 'PWD Assistance Program',
-                'type': 'Social Welfare',
+                'name': 'Typhoon Disaster',
+                'type': 'Emergency Shelter Assistance',
+                'period': '2024-2025',
+                'description': 'Comprehensive support programs for senior citizens including health and social activities'
+            },
+            {
+                'name': 'Pantawid Pamilyang Pilipino Program (4Ps)',
+                'type': '4Ps',
                 'period': '2024-2025',
                 'description': 'Special assistance for Persons with Disabilities including therapy and mobility aids'
             },
             {
-                'name': 'Housing Assistance',
-                'type': 'Housing',
+                'name': 'Capital Assistance for Livelihood Program',
+                'type': 'CAL',
                 'period': '2024-2025',
                 'description': 'Support for housing repairs and construction materials for qualified families'
-            },
-            {
-                'name': 'Food Security Program',
-                'type': 'Food Assistance',
-                'period': '2024-2025',
-                'description': 'Food packs and nutrition assistance for vulnerable families'
             }
         ]
         
@@ -183,8 +191,8 @@ def populate_dummy_data():
         
         # 4. Create Applications (distributed from January to October)
         print("📝 Creating applications (January - October 2025)...")
-        statuses = ['pending', 'approved', 'rejected', 'under_review']
-        status_weights = [0.30, 0.40, 0.15, 0.15]  # Probability weights
+        statuses = ['pending', 'approved', 'rejected', 'under_review', 'on-hold']
+        status_weights = [0.35, 0.40, 0.10, 0.10, 0.05]  # Probability weights
         
         applications_created = 0
         current_year = 2025
@@ -239,7 +247,7 @@ def populate_dummy_data():
                 )
                 
                 # Add review info if approved or rejected
-                if status in ['approved', 'rejected']:
+                if status in ['approved', 'rejected', 'under_review', 'on-hold']:
                     application.reviewed_by = admin_user.id
                     review_days = random.randint(3, 14)
                     application.review_date = application_date + timedelta(days=review_days)

@@ -60,7 +60,8 @@ class Requirements(db.Model):
     __tablename__ = 'requirements'
     
     id = db.Column(db.Integer, primary_key=True)
-    document_name = db.Column(db.String(255), nullable=False)
+    requirement_name = db.Column(db.String(255), nullable=False)  # Changed from document_name
+    requirement_type = db.Column(db.String(50), nullable=False, default='document', index=True)  # NEW: 'document' or 'qualification'
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -69,7 +70,7 @@ class Requirements(db.Model):
     requirement_programs = db.relationship('ProgramRequirements', back_populates='requirement', lazy='dynamic')
 
     def __repr__(self):
-        return f'<Requirement {self.document_name}'
+        return f'<Requirement {self.requirement_name} ({self.requirement_type})>'
 
 class ProgramRequirements(db.Model):
     __tablename__ = 'program_requirements'
@@ -122,11 +123,11 @@ class Applications(db.Model):
     __tablename__ = 'applications'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Added index
-    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)  # Added index
-    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # Added index
-    application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)  # Added index for date queries
-    review_date = db.Column(db.DateTime, index=True)  # Added index
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)
+    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    review_date = db.Column(db.DateTime, index=True)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -141,6 +142,51 @@ class Applications(db.Model):
     # Relationships
     document_checklist = db.relationship('ApplicationDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
     program = db.relationship('Programs', back_populates='applications')
+    
+    @property
+    def documents_complete(self):
+        """Check if all mandatory documents are approved"""
+        if not self.document_checklist:
+            return False
+        
+        mandatory_items = []
+        for doc in self.document_checklist:
+            prog_req = db.session.query(ProgramRequirements).filter_by(
+                program_id=self.program_id,
+                requirement_id=doc.requirement_id,
+                is_mandatory=True
+            ).first()
+            if prog_req:
+                mandatory_items.append(doc)
+        
+        if not mandatory_items:
+            return True  # No mandatory items required
+        
+        return all(item.is_complete for item in mandatory_items)
+    
+    @property
+    def completion_percentage(self):
+        """Calculate requirement completion percentage"""
+        if not self.document_checklist:
+            return 0
+        
+        completed_count = sum(1 for item in self.document_checklist if item.is_complete)
+        return round((completed_count / len(self.document_checklist)) * 100)
+    
+    @property
+    def documents_list(self):
+        """Get only document requirements"""
+        return [item for item in self.document_checklist 
+                if item.requirement.requirement_type == 'document']
+    
+    @property
+    def qualifications_list(self):
+        """Get only qualification requirements"""
+        return [item for item in self.document_checklist 
+                if item.requirement.requirement_type == 'qualification']
+    
+    def __repr__(self):
+        return f'<Application {self.id}: {self.applicant.email} -> {self.program.program_name}>'
     
     @property
     def documents_complete(self):
@@ -182,7 +228,8 @@ class ApplicationDocuments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
-    submission_status = db.Column(db.String(20), default='not_submitted')
+    submission_status = db.Column(db.String(20), default='not_submitted')  # For documents: 'not_submitted', 'submitted', 'approved', 'rejected'
+    qualification_met = db.Column(db.Boolean, default=False)  # NEW: For qualifications: True/False
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
     admin_feedback = db.Column(db.Text)
@@ -196,16 +243,24 @@ class ApplicationDocuments(db.Model):
     
     @property
     def is_mandatory(self):
-        """Check if this document is mandatory for the program"""
+        """Check if this requirement is mandatory for the program"""
         prog_req = db.session.query(ProgramRequirements).filter_by(
             program_id=self.application.program_id,
             requirement_id=self.requirement_id
         ).first()
         return prog_req.is_mandatory if prog_req else False
     
+    @property
+    def is_complete(self):
+        """Check if requirement is complete (document approved or qualification met)"""
+        if self.requirement.requirement_type == 'document':
+            return self.submission_status == 'approved'
+        elif self.requirement.requirement_type == 'qualification':
+            return self.qualification_met
+        return False
+    
     def __repr__(self):
-        return f'<ApplicationDocument {self.id}: {self.requirement.document_name} - {self.submission_status}>'
-
+        return f'<ApplicationDocument {self.id}: {self.requirement.requirement_name} ({self.requirement.requirement_type}) - {self.submission_status}>'
 class FileAttachment(db.Model):
     __tablename__ = 'file_attachment'
     

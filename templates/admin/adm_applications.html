@@ -1,0 +1,349 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Applications Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        font-weight: 600;
+    }
+    
+    .application-row {
+        transition: all 0.2s ease;
+    }
+    
+    .application-row:hover {
+        background-color: #f8f9fc;
+        transform: translateX(3px);
+    }
+    
+    .progress-sm {
+        height: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="font-weight-bold mb-1">Applications Management</h2>
+            <p class="text-muted mb-0">Review and manage community program applications</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.export_applications', status=request.args.get('status', ''), program=request.args.get('program', '')) }}" 
+               class="btn btn-success">
+                <i class="fas fa-file-export mr-2"></i>Export to CSV
+            </a>
+        </div>
+    </div>
+
+   <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg col-md-6 mb-3">
+            <div class="card border-left-primary shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_apps }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_apps }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Approved</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ approved_apps }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-3">
+            <div class="card border-left-danger shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Rejected</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rejected_apps }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">On Hold</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ on_hold_apps }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Applications
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.applications') }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search Applicant</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Name or email..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Status</label>
+                        <select class="form-control" name="status">
+                            <option value="">All Status</option>
+                            <option value="pending" {% if request.args.get('status')=='pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if request.args.get('status')=='approved' %}selected{% endif %}>Approved</option>
+                            <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>Rejected</option>
+                            <option value="on_hold" {% if request.args.get('status')=='on_hold' %}selected{% endif %}>On Hold</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Program</label>
+                        <select class="form-control" name="program">
+                            <option value="">All Programs</option>
+                            {% for program in programs %}
+                            <option value="{{ program.id }}" {% if request.args.get('program')==program.id|string %}selected{% endif %}>
+                                {{ program.program_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">&nbsp;</label>
+                        <div class="d-flex">
+                            <button type="submit" class="btn btn-primary btn-block mr-2">
+                                <i class="fas fa-search mr-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('admin.applications') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Applications Table -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Applications List</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Applicant</th>
+                            <th>Program</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Application Date</th>
+                            <th>Review Date</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if applications %}
+                            {% for app in applications %}
+                            <tr class="application-row">
+                                <td class="font-weight-bold">#{{ app.id }}</td>
+                                <td>
+                                    <div class="font-weight-bold">
+                                        {{ app.applicant.first_name }} {{ app.applicant.last_name }}
+                                    </div>
+                                    <small class="text-muted">{{ app.applicant.email }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light">{{ app.program.program_name }}</span>
+                                </td>
+                                <td>
+                                    {% if app.application_status == 'pending' %}
+                                        <span class="badge badge-warning status-badge">Pending</span>
+                                    {% elif app.application_status == 'approved' %}
+                                        <span class="badge badge-success status-badge">Approved</span>
+                                    {% elif app.application_status == 'rejected' %}
+                                        <span class="badge badge-danger status-badge">Rejected</span>
+                                    {% elif app.application_status == 'on_hold' %}
+                                        <span class="badge badge-info status-badge">On Hold</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 progress-sm mr-2">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {{ app.completion_percentage }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ app.completion_percentage }}%</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <small>{{ app.application_date.strftime('%Y-%m-%d %H:%M') if app.application_date else 'N/A' }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ app.review_date.strftime('%Y-%m-%d %H:%M') if app.review_date else '-' }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.view_application', application_id=app.id) }}" 
+                                       class="btn btn-sm btn-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            data-toggle="modal" 
+                                            data-target="#updateStatusModal{{ app.id }}"
+                                            title="Update Status">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-5">
+                                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                                    <p>No applications found</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Applications pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.applications', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modals -->
+{% for app in applications %}
+<div class="modal fade" id="updateStatusModal{{ app.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.update_application_status', application_id=app.id) }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit mr-2"></i>Update Application Status
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Application ID:</strong> #{{ app.id }}<br>
+                        <strong>Applicant:</strong> {{ app.applicant.first_name }} {{ app.applicant.last_name }}<br>
+                        <strong>Program:</strong> {{ app.program.program_name }}<br>
+                        <strong>Current Status:</strong> 
+                        <span class="badge badge-{{ 'warning' if app.application_status == 'pending' else ('success' if app.application_status == 'approved' else ('danger' if app.application_status == 'rejected' else 'info')) }}">
+                            {{ app.application_status.replace('_', ' ').title() }}
+                        </span>
+                    </div>
+                    <hr>
+                    <div class="form-group">
+                        <label class="font-weight-bold">New Status <span class="text-danger">*</span></label>
+                        <select name="status" class="form-control" required>
+                            <option value="">-- Select Status --</option>
+                            <option value="pending">Pending Review</option>
+                            <option value="approved">Approve</option>
+                            <option value="rejected">Reject</option>
+                            <option value="on_hold">Put On Hold</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Remarks / Feedback</label>
+                        <textarea name="remarks" class="form-control" rows="4" 
+                                  placeholder="Enter feedback or reason for status change...">{{ app.remarks or '' }}</textarea>
+                        <small class="form-text text-muted">
+                            This will be visible to the applicant. Required for "On Hold" status.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check mr-1"></i>Update Status
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,340 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Application #{{ application.id }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .document-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #dee2e6;
+    }
+    
+    .document-card:hover {
+        box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+    }
+    
+    .document-card.approved {
+        border-left-color: #28a745;
+    }
+    
+    .document-card.rejected {
+        border-left-color: #dc3545;
+    }
+    
+    .document-card.submitted {
+        border-left-color: #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Back Button -->
+    <div class="mb-3">
+        <a href="{{ url_for('admin.applications') }}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Applications
+        </a>
+    </div>
+
+    <!-- Application Header -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                Application #{{ application.id }}
+            </h6>
+            <div>
+                {% if application.application_status == 'pending' %}
+                    <span class="badge badge-warning badge-lg">Pending</span>
+                {% elif application.application_status == 'approved' %}
+                    <span class="badge badge-success badge-lg">Approved</span>
+                {% elif application.application_status == 'rejected' %}
+                    <span class="badge badge-danger badge-lg">Rejected</span>
+                {% elif application.application_status == 'on_hold' %}
+                    <span class="badge badge-info badge-lg">On Hold</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold">Applicant Information</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted" width="40%">Name:</td>
+                            <td class="font-weight-bold">
+                                {{ application.applicant.first_name }} {{ application.applicant.last_name }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Email:</td>
+                            <td>{{ application.applicant.email }}</td>
+                        </tr>
+                        {% if application.applicant.community_profile %}
+                        <tr>
+                            <td class="text-muted">Mobile:</td>
+                            <td>{{ application.applicant.community_profile.mobile_no or 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Barangay:</td>
+                            <td>{{ application.applicant.community_profile.barangay or 'N/A' }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold">Application Details</h6>
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted" width="40%">Program:</td>
+                            <td class="font-weight-bold">{{ application.program.program_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Application Date:</td>
+                            <td>{{ application.application_date.strftime('%Y-%m-%d %H:%M') if application.application_date else 'N/A' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Review Date:</td>
+                            <td>{{ application.review_date.strftime('%Y-%m-%d %H:%M') if application.review_date else 'Not yet reviewed' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Completion:</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-success" 
+                                         style="width: {{ application.completion_percentage }}%">
+                                        {{ application.completion_percentage }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if application.remarks %}
+            <div class="alert alert-info mt-3">
+                <strong><i class="fas fa-comment mr-2"></i>Remarks:</strong>
+                <p class="mb-0 mt-2">{{ application.remarks }}</p>
+            </div>
+            {% endif %}
+            
+            <hr>
+            <div class="text-center">
+                <button type="button" class="btn btn-primary" 
+                        data-toggle="modal" 
+                        data-target="#updateStatusModal">
+                    <i class="fas fa-edit mr-2"></i>Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Checklist -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-file-alt mr-2"></i>Document Checklist
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for doc in documents %}
+                <div class="col-md-6 mb-3">
+                    <div class="card document-card {{ doc.submission_status }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="font-weight-bold">
+                                        {{ doc.requirement.document_name }}
+                                        {% if doc.is_mandatory %}
+                                        <span class="badge badge-danger badge-sm">Required</span>
+                                        {% endif %}
+                                    </h6>
+                                    <small class="text-muted">{{ doc.requirement.description or '' }}</small>
+                                </div>
+                                <div>
+                                    {% if doc.submission_status == 'approved' %}
+                                        <span class="badge badge-success">Approved</span>
+                                    {% elif doc.submission_status == 'rejected' %}
+                                        <span class="badge badge-danger">Rejected</span>
+                                    {% elif doc.submission_status == 'submitted' %}
+                                        <span class="badge badge-warning">Submitted</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Not Submitted</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if doc.admin_feedback %}
+                            <div class="alert alert-light mt-2 mb-2">
+                                <small><strong>Admin Feedback:</strong> {{ doc.admin_feedback }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-success mr-1" 
+                                        onclick="updateDocument({{ doc.id }}, 'approved')">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger mr-1" 
+                                        onclick="updateDocument({{ doc.id }}, 'rejected')">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                                <button type="button" class="btn btn-sm btn-info" 
+                                        data-toggle="modal" 
+                                        data-target="#feedbackModal{{ doc.id }}">
+                                    <i class="fas fa-comment"></i> Feedback
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Feedback Modal for each document -->
+                <div class="modal fade" id="feedbackModal{{ doc.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Add Feedback</h5>
+                                <button type="button" class="close" data-dismiss="modal">
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Document:</strong> {{ doc.requirement.document_name }}</p>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select class="form-control" id="status{{ doc.id }}">
+                                        <option value="submitted">Submitted</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Feedback / Notes</label>
+                                    <textarea class="form-control" rows="4" 
+                                              id="notes{{ doc.id }}"
+                                              placeholder="Enter feedback...">{{ doc.admin_feedback or '' }}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" 
+                                        onclick="updateDocumentWithFeedback({{ doc.id }})">
+                                    Save Feedback
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.update_application_status', application_id=application.id) }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit mr-2"></i>Update Application Status
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold">New Status <span class="text-danger">*</span></label>
+                        <select name="status" class="form-control" required>
+                            <option value="">-- Select Status --</option>
+                            <option value="pending" {% if application.application_status == 'pending' %}selected{% endif %}>Pending Review</option>
+                            <option value="approved" {% if application.application_status == 'approved' %}selected{% endif %}>Approve</option>
+                            <option value="rejected" {% if application.application_status == 'rejected' %}selected{% endif %}>Reject</option>
+                            <option value="on_hold" {% if application.application_status == 'on_hold' %}selected{% endif %}>Put On Hold</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Remarks / Feedback</label>
+                        <textarea name="remarks" class="form-control" rows="4" 
+                                  placeholder="Enter feedback or reason for status change...">{{ application.remarks or '' }}</textarea>
+                        <small class="form-text text-muted">
+                            This will be visible to the applicant.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check mr-1"></i>Update Status
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateDocument(docId, status) {
+    if (!confirm('Are you sure you want to update this document status?')) {
+        return;
+    }
+    
+    fetch(`/admin/applications/{{ application.id }}/documents/${docId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            status: status,
+            notes: ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating document: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating document');
+    });
+}
+
+function updateDocumentWithFeedback(docId) {
+    const status = document.getElementById(`status${docId}`).value;
+    const notes = document.getElementById(`notes${docId}`).value;
+    
+    fetch(`/admin/applications/{{ application.id }}/documents/${docId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            status: status,
+            notes: notes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $(`#feedbackModal${docId}`).modal('hide');
+            location.reload();
+        } else {
+            alert('Error updating document: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating document');
+    });
+}
+</script>
+{% endblock %}

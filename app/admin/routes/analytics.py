@@ -25,23 +25,34 @@ def analytics_analysis():
     start_date = end_date - timedelta(days=365)
     
     # 1. Applicants count over time (monthly aggregation)
-    applicants_over_time = db.session.query(
+    applicants_over_time_raw = db.session.query(
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
     ).filter(
         Applications.application_date >= start_date
     ).group_by('month').order_by('month').all()
     
+    # Convert to JSON-friendly format
+    applicants_over_time = {
+        'labels': [row.month.strftime('%B %Y') if row.month else '' for row in applicants_over_time_raw],
+        'data': [row.count for row in applicants_over_time_raw]
+    }
+    
     # 2. Applications per program type
-    applications_by_type = db.session.query(
+    applications_by_type_raw = db.session.query(
         Programs.program_type,
         func.count(Applications.id).label('count')
     ).join(
         Applications, Programs.id == Applications.program_id
     ).group_by(Programs.program_type).all()
     
+    applications_by_type = {
+        'labels': [row.program_type for row in applications_by_type_raw],
+        'data': [row.count for row in applications_by_type_raw]
+    }
+    
     # 3. Applicants per barangay
-    applicants_by_barangay = db.session.query(
+    applicants_by_barangay_raw = db.session.query(
         CommunityUsers.barangay,
         func.count(Applications.id).label('count')
     ).join(
@@ -50,7 +61,12 @@ def analytics_analysis():
         Applications, User.id == Applications.user_id
     ).filter(
         CommunityUsers.barangay.isnot(None)
-    ).group_by(CommunityUsers.barangay).all()
+    ).group_by(CommunityUsers.barangay).order_by(func.count(Applications.id).desc()).limit(10).all()
+    
+    applicants_by_barangay = {
+        'labels': [row.barangay for row in applicants_by_barangay_raw],
+        'data': [row.count for row in applicants_by_barangay_raw]
+    }
     
     # Summary statistics
     total_applications = Applications.query.count()
@@ -66,9 +82,9 @@ def analytics_analysis():
     return render_template(
         'admin/analytics_analysis.html',
         user=current_user,
-        applicants_over_time=applicants_over_time,
-        applications_by_type=applications_by_type,
-        applicants_by_barangay=applicants_by_barangay,
+        applicants_over_time_json=json.dumps(applicants_over_time),
+        applications_by_type_json=json.dumps(applications_by_type),
+        applicants_by_barangay_json=json.dumps(applicants_by_barangay),
         total_applications=total_applications,
         total_applicants=total_applicants,
         total_programs=total_programs,

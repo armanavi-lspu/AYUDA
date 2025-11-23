@@ -196,24 +196,6 @@
     </div>
 </div>
 
-<!-- Weekly Trend -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-calendar-week mr-2"></i>Weekly Application Trend
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-area">
-                    <canvas id="weeklyTrendChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Hidden data elements for JavaScript -->
 <script type="application/json" id="monthly-trend-data">{{ monthly_trend_json | safe }}</script>
 <script type="application/json" id="status-distribution-data">{{ status_distribution_json | safe }}</script>
@@ -228,23 +210,285 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- Add this debug script BEFORE dashboard_charts.js -->
 <script>
-    console.log('Chart.js loaded:', typeof Chart !== 'undefined');
-    console.log('Chart version:', Chart ? Chart.version : 'Not loaded');
+// Add this debug check FIRST
+console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
     
     // Check if data elements exist
-    console.log('Monthly trend data element:', document.getElementById('monthly-trend-data'));
-    console.log('Status data element:', document.getElementById('status-distribution-data'));
+    const monthlyElement = document.getElementById('monthly-trend-data');
+    const weeklyElement = document.getElementById('weekly-trend-data');
+    const statusElement = document.getElementById('status-distribution-data');
     
-    // Try to parse one dataset
-    try {
-        const monthlyData = JSON.parse(document.getElementById('monthly-trend-data').textContent);
-        console.log('Monthly data parsed:', monthlyData);
-    } catch(e) {
-        console.error('Error parsing monthly data:', e);
+    console.log('Monthly element exists:', !!monthlyElement);
+    console.log('Weekly element exists:', !!weeklyElement);
+    console.log('Status element exists:', !!statusElement);
+    
+    if (!monthlyElement || !weeklyElement || !statusElement) {
+        console.error('Missing data elements!');
+        return;
     }
+    
+    // Parse JSON data from hidden script tags
+    let monthlyTrendData, weeklyTrendData, statusData, programData, barangayData, ageData, employmentData;
+    
+    try {
+        monthlyTrendData = JSON.parse(monthlyElement.textContent);
+        weeklyTrendData = JSON.parse(weeklyElement.textContent);
+        statusData = JSON.parse(statusElement.textContent);
+        programData = JSON.parse(document.getElementById('applications-by-program-data').textContent);
+        barangayData = JSON.parse(document.getElementById('barangay-data').textContent);
+        ageData = JSON.parse(document.getElementById('age-distribution-data').textContent);
+        employmentData = JSON.parse(document.getElementById('employment-data').textContent);
+        
+        console.log('Monthly Trend Data:', monthlyTrendData);
+        console.log('Weekly Trend Data:', weeklyTrendData);
+        console.log('Status Data:', statusData);
+        console.log('Program Data:', programData);
+        console.log('Barangay Data:', barangayData);
+        console.log('Age Data:', ageData);
+        console.log('Employment Data:', employmentData);
+        
+    } catch (error) {
+        console.error('Error parsing JSON:', error);
+        return;
+    }
+
+    // Check if canvas elements exist
+    const monthlyCanvas = document.getElementById('monthlyTrendChart');
+    console.log('Monthly canvas exists:', !!monthlyCanvas);
+    
+    if (!monthlyCanvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
+
+    // Monthly Trend Chart
+    const monthlyTrendCtx = monthlyCanvas.getContext('2d');
+    try {
+        new Chart(monthlyTrendCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyTrendData.labels,
+                datasets: [{
+                    label: 'Applications',
+                    data: monthlyTrendData.data,
+                    borderColor: 'rgba(255, 206, 86, 0.8)',
+                    backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Monthly chart created successfully');
+    } catch (error) {
+        console.error('Error creating monthly chart:', error);
+    }  
+
+    // Status Pie Chart
+    const statusCtx = document.getElementById('statusPieChart').getContext('2d');
+    try {
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: statusData.labels,
+                datasets: [{
+                    data: statusData.data,
+                    backgroundColor: [
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(89, 13, 240, 0.6)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        console.log('Status chart created successfully');
+    } catch (error) {
+        console.error('Error creating status chart:', error);
+    }
+
+    // Applications by Program Chart
+    const programCtx = document.getElementById('applicationsByProgramChart').getContext('2d');
+    try {
+        new Chart(programCtx, {
+            type: 'bar',
+            data: {
+                labels: programData.labels,
+                datasets: [{
+                    label: 'Applications',
+                    data: programData.data,
+                    backgroundColor: 'rgba(89, 13, 240, 0.6)',
+                    borderColor: 'rgba(89, 13, 240, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Program chart created successfully');
+    } catch (error) {
+        console.error('Error creating program chart:', error);
+    }
+
+    // Barangay Chart
+    const barangayCtx = document.getElementById('barangayChart').getContext('2d');
+    try {
+        new Chart(barangayCtx, {
+            type: 'bar',
+            data: {
+                labels: barangayData.labels,
+                datasets: [{
+                    label: 'Applications',
+                    data: barangayData.data,
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Barangay chart created successfully');
+    } catch (error) {
+        console.error('Error creating barangay chart:', error);
+    }
+
+    // Age Distribution Chart
+    const ageCtx = document.getElementById('ageDistributionChart').getContext('2d');
+    try {
+        new Chart(ageCtx, {
+            type: 'bar',
+            data: {
+                labels: ageData.labels,
+                datasets: [{
+                    label: 'Applicants',
+                    data: ageData.data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Age chart created successfully');
+    } catch (error) {
+        console.error('Error creating age chart:', error);
+    }
+
+    // Employment Chart
+    const employmentCtx = document.getElementById('employmentChart').getContext('2d');
+    try {
+        new Chart(employmentCtx, {
+            type: 'doughnut',
+            data: {
+                labels: employmentData.labels,
+                datasets: [{
+                    data: employmentData.data,
+                    backgroundColor: [
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(89, 13, 240, 0.6)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        console.log('Employment chart created successfully');
+    } catch (error) {
+        console.error('Error creating employment chart:', error);
+    }  
+});
 </script>
 
-<script src="{{ url_for('static', filename='js/admin/dashboard_charts.js') }}"></script>
 {% endblock %}

@@ -288,11 +288,300 @@
         </div>
     </div>
 </div>
+
+<!-- Hidden data elements for JavaScript -->
+<script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
+<script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
+<script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script src="{{ url_for('static', filename='js/admin/analysis.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Analytics page loaded');
+    
+    // Parse data from hidden script tags
+    const applicantsOverTimeData = JSON.parse(document.getElementById('applicants-over-time-data').textContent);
+    const applicationsByTypeData = JSON.parse(document.getElementById('applications-by-type-data').textContent);
+    const applicantsByBarangayData = JSON.parse(document.getElementById('applicants-by-barangay-data').textContent);
+    
+    console.log('Applicants Over Time:', applicantsOverTimeData);
+    console.log('Applications By Type:', applicationsByTypeData);
+    console.log('Applicants By Barangay:', applicantsByBarangayData);
+    
+    // 1. Applicants Time Series Chart
+    const timeSeriesCtx = document.getElementById('applicantsTimeSeriesChart');
+    if (timeSeriesCtx) {
+        new Chart(timeSeriesCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: applicantsOverTimeData.labels,
+                datasets: [{
+                    label: 'Number of Applicants',
+                    data: applicantsOverTimeData.data,
+                    borderColor: 'rgb(78, 115, 223)',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: 'rgb(78, 115, 223)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 2. Program Type Pie Chart
+    const programTypeCtx = document.getElementById('programTypeChart');
+    if (programTypeCtx) {
+        new Chart(programTypeCtx.getContext('2d'), {
+            type: 'pie',
+            data: {
+                labels: applicationsByTypeData.labels,
+                datasets: [{
+                    data: applicationsByTypeData.data,
+                    backgroundColor: [
+                        'rgba(78, 115, 223, 0.8)',
+                        'rgba(28, 200, 138, 0.8)',
+                        'rgba(54, 185, 204, 0.8)',
+                        'rgba(246, 194, 62, 0.8)',
+                        'rgba(231, 74, 59, 0.8)',
+                        'rgba(133, 135, 150, 0.8)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 3. Barangay Bar Chart
+    const barangayCtx = document.getElementById('barangayChart');
+    if (barangayCtx) {
+        new Chart(barangayCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: applicantsByBarangayData.labels,
+                datasets: [{
+                    label: 'Number of Applicants',
+                    data: applicantsByBarangayData.data,
+                    backgroundColor: 'rgba(54, 185, 204, 0.6)',
+                    borderColor: 'rgba(54, 185, 204, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 4. Forecast: Applicants Over Time (Sample/Placeholder)
+    const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
+    if (forecastApplicantsCtx) {
+        // Generate forecast data based on historical trend
+        const historicalData = applicantsOverTimeData.data;
+        const historicalLabels = applicantsOverTimeData.labels;
+        
+        // Simple linear projection for next 6 months
+        const avgGrowth = historicalData.length > 1 
+            ? (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length 
+            : 0;
+        
+        const forecastData = [];
+        const forecastLabels = [];
+        const lastValue = historicalData[historicalData.length - 1] || 0;
+        
+        for (let i = 1; i <= 6; i++) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + i);
+            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
+        }
+        
+        new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalLabels, ...forecastLabels],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(6).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Forecast',
+                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData],
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 5. Forecast: Program Category (Sample/Placeholder)
+    const forecastProgramCtx = document.getElementById('forecastProgramCategoryChart');
+    if (forecastProgramCtx) {
+        // Project growth for each program type
+        const programLabels = applicationsByTypeData.labels;
+        const currentData = applicationsByTypeData.data;
+        const forecastedData = currentData.map(val => Math.round(val * 1.15)); // 15% projected growth
+        
+        new Chart(forecastProgramCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: programLabels,
+                datasets: [
+                    {
+                        label: 'Current Applications',
+                        data: currentData,
+                        backgroundColor: 'rgba(78, 115, 223, 0.6)',
+                        borderColor: 'rgba(78, 115, 223, 1)',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Forecasted Applications (Next Period)',
+                        data: forecastedData,
+                        backgroundColor: 'rgba(246, 194, 62, 0.6)',
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Time range selector
+    const timeRangeSelect = document.getElementById('timeRangeSelect');
+    if (timeRangeSelect) {
+        timeRangeSelect.addEventListener('change', function() {
+            const months = this.value;
+            // Reload data with new time range
+            fetch(`/api/analytics/applicants-timeseries?months=${months}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Updated time range data:', data);
+                    // Update chart with new data
+                    // This would require storing the chart instance and updating it
+                })
+                .catch(error => console.error('Error fetching time range data:', error));
+        });
+    }
+});
+</script>
 
 {% endblock %}
