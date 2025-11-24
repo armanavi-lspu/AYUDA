@@ -100,10 +100,10 @@ def programs_index():
         program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
     
     # Get all requirements for the add program modal
-    all_requirements = Requirements.query.order_by(Requirements.document_name).all()
+    all_requirements = Requirements.query.order_by(Requirements.requirement_name).all()
     
     return render_template(
-        'admin/adm_programs.html',
+        'admin/adm_programs.html',  
         programs=pagination.items,
         pagination=pagination,
         total_programs=total_programs,

@@ -80,7 +80,7 @@ def application_detail(application_id):
     documents = db.session.query(
         ApplicationDocuments,
         ProgramRequirements.is_mandatory,
-        Requirements.document_name,
+        Requirements.requirement_name,
         Requirements.description
     ).join(
         Requirements,

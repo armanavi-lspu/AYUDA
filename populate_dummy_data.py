@@ -126,15 +126,22 @@ def populate_dummy_data():
                 'name': 'Burial Assistance Program',
                 'type': 'AICS',
                 'period': '2024-2025',
-                'description': 'Provides financial support to families in need for emergencies and basic necessities'
+                'description': 'Provides financial support to families in need for burial and funeral services'
+            },
+            {
+                'name': 'AKAP Partylist - Educational Assistance Program',
+                'type': 'AICS',
+                'period': '2024-2025',
+                'description': 'One time financial assistance program for elementary to college students'
             },
 
             {
                 'name': 'Educational Assistance Program',
                 'type': 'AICS',
                 'period': '2024-2025',
-                'description': 'Scholarship program and school supplies support for elementary to college students'
+                'description': 'One time financial assistance program for elementary to college students'
             },
+
             {
                 'name': 'Medical Assistance Program',
                 'type': 'AICS',
@@ -143,33 +150,31 @@ def populate_dummy_data():
             },
             {
                 'name': 'Livelihood Development Program',
-                'type': 'Livelihood Program',
+                'type': 'CAL',
                 'period': '2024-2025',
                 'description': 'Skills training and business capital assistance for sustainable income generation'
             },
             {
                 'name': 'Fire Disaster',
-                'type': 'Emergency Shelter Assistance',
+                'type': 'ESA',
                 'period': '2024-2025',
-                'description': 'Comprehensive support programs for senior citizens including health and social activities'
-            },
+                'description': 'Temporary shelter and housing assistance for families affected by fire incidents'},
             {
                 'name': 'Typhoon Disaster',
-                'type': 'Emergency Shelter Assistance',
+                'type': 'ESA',
                 'period': '2024-2025',
-                'description': 'Comprehensive support programs for senior citizens including health and social activities'
-            },
+                'description': 'Temporary shelter and housing assistance for families affected by typhoon incidents'},
             {
                 'name': 'Pantawid Pamilyang Pilipino Program (4Ps)',
                 'type': '4Ps',
                 'period': '2024-2025',
-                'description': 'Special assistance for Persons with Disabilities including therapy and mobility aids'
+                'description': 'Special assistance for beneficiaries of the 4Ps program to support health and education needs'
             },
             {
                 'name': 'Capital Assistance for Livelihood Program',
                 'type': 'CAL',
                 'period': '2024-2025',
-                'description': 'Support for housing repairs and construction materials for qualified families'
+                'description': 'Support for microenterprise development and livelihood projects'
             }
         ]
         

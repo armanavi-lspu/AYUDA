@@ -158,15 +158,17 @@ CREATE INDEX idx_community_users_income ON community_users(family_annual_income)
 CREATE INDEX idx_community_barangay_income ON community_users(barangay, family_annual_income);
 CREATE INDEX idx_community_age_employed ON community_users(age, is_currently_employed);
 
--- Create requirements table
+-- Create requirements table (updated to match models.Requirements)
 CREATE TABLE requirements (
     id SERIAL PRIMARY KEY,
-    document_name VARCHAR(255) NOT NULL,
+    requirement_name VARCHAR(255) NOT NULL,
+    requirement_type VARCHAR(50) NOT NULL DEFAULT 'document', -- 'document' or 'qualification'
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_requirements_created_at ON requirements(created_at DESC);
+CREATE INDEX idx_requirements_type ON requirements(requirement_type);
 
 -- Create program_requirements junction table (many-to-many)
 CREATE TABLE program_requirements (
@@ -182,12 +184,13 @@ CREATE INDEX idx_program_requirements_program_id ON program_requirements(program
 CREATE INDEX idx_program_requirements_requirement_id ON program_requirements(requirement_id);
 CREATE INDEX idx_program_requirements_mandatory ON program_requirements(is_mandatory);
 
--- Create application_documents table (admin checklist for physical documents)
+-- Create application_documents table (admin checklist for physical documents and qualifications)
 CREATE TABLE application_documents (
     id SERIAL PRIMARY KEY,
     application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
     submission_status VARCHAR(20) DEFAULT 'not_submitted', -- not_submitted, submitted, approved, rejected
+    qualification_met BOOLEAN DEFAULT FALSE, -- For qualification-type requirements
     verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who verified
     verified_at TIMESTAMP,
     admin_feedback TEXT, -- feedback if document is incorrect/missing
@@ -199,6 +202,7 @@ CREATE TABLE application_documents (
 CREATE INDEX idx_application_documents_application_id ON application_documents(application_id);
 CREATE INDEX idx_application_documents_requirement_id ON application_documents(requirement_id);
 CREATE INDEX idx_application_documents_status ON application_documents(submission_status);
+CREATE INDEX idx_application_documents_qualification_met ON application_documents(qualification_met);
 CREATE INDEX idx_application_documents_verified_by ON application_documents(verified_by);
 CREATE INDEX idx_application_documents_app_status ON application_documents(application_id, submission_status);
 

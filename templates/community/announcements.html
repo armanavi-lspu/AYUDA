@@ -3,31 +3,240 @@
 
 {% block extra_css %}
 <style>
-    .announcement-card.hidden { display: none; }
-    .no-announcements { display: none; }
-    .no-announcements.show { display: block; }
-    .empty-state-icon {
-        font-size: 4rem;
-        color: #dee2e6;
-        margin-bottom: 1rem;
+    /* Header Gradient */
+    .page-header-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
     }
+    
+    /* Filter Card Styling */
+    .filter-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .filter-card:hover {
+        box-shadow: 0 4px 25px rgba(0,0,0,0.12);
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1.5px solid #e0e6ed;
+        padding: 0.625rem 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15);
+    }
+    
+    /* Announcement Cards */
+    .announcement-card {
+        border: none;
+        border-radius: 15px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .announcement-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    .announcement-card.hidden { 
+        display: none; 
+    }
+    
+    .card-header-custom {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    /* Author Avatar */
+    .author-avatar {
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 14px;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Category Badges */
+    .category-badge {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }
+    
+    /* Active Filter Pills */
+    .filter-pill {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        margin: 0.25rem;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
+        animation: slideIn 0.3s ease;
+    }
+    
+    .filter-pill .remove-filter {
+        margin-left: 0.5rem;
+        cursor: pointer;
+        opacity: 0.8;
+        transition: opacity 0.2s;
+    }
+    
+    .filter-pill .remove-filter:hover {
+        opacity: 1;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Buttons */
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 0.625rem 1.5rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-gradient-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-outline-custom {
+        border: 2px solid #667eea;
+        color: #667eea;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
+    
+    /* Stats Badge */
+    .stats-badge {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
+        color: white;
+    }
+    
+    /* Empty State */
     .empty-state {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         border: 2px dashed #dee2e6;
-        border-radius: 12px;
-        padding: 3rem 2rem;
+        border-radius: 20px;
+        padding: 4rem 2rem;
         text-align: center;
     }
+    
+    .empty-state-icon {
+        font-size: 5rem;
+        color: #dee2e6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .no-announcements { 
+        display: none; 
+    }
+    
+    .no-announcements.show { 
+        display: block; 
+    }
+    
+    /* Content Preview */
+    .content-preview {
+        color: #6c757d;
+        line-height: 1.7;
+    }
+    
+    /* Image Styling */
+    .announcement-image {
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .announcement-image:hover {
+        transform: scale(1.02);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .page-header-gradient {
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .filter-card {
+            border-radius: 12px;
+        }
+        
+        .announcement-card {
+            border-radius: 12px;
+        }
+    }
+    
+    /* Loading Animation */
+    .loading-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Refresh Button */
     .refresh-btn {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
         border: none;
         transition: all 0.3s ease;
         box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
     }
+    
     .refresh-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
     }
+    
     .refresh-btn.loading {
         pointer-events: none;
         opacity: 0.7;
@@ -37,27 +246,51 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- Page Header -->
-    <div class="mb-4">
-        <h1 class="h3 text-dark font-weight-bold">Announcements</h1>
-        <p class="text-muted">Stay updated with the latest news and information.</p>
+    <!-- Page Header with Gradient -->
+    <div class="page-header-gradient text-dark py-5 px-4 mb-4">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 font-weight-bold mb-2">
+                    <i class="fas fa-bullhorn mr-3"></i>Announcements
+                </h1>
+                <p class="lead mb-0 opacity-90">Stay updated with the latest news and information from MSWD</p>
+            </div>
+            <div class="col-lg-4 text-lg-right mt-3 mt-lg-0">
+                <div class="stats-badge d-inline-block">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-newspaper fa-2x mr-3"></i>
+                        <div class="text-left">
+                            <div class="h3 font-weight-bold mb-0" id="totalCount">{{ announcements|length }}</div>
+                            <small class="text-uppercase font-weight-semibold">Total Posts</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Filter Container (Only show if there are announcements) -->
+    <!-- Filter Container -->
     {% if announcements %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row">
-                <!-- Search (Longer) -->
-                <div class="col-lg-4 col-md-12 mb-3 mb-lg-0">
-                    <label class="text-muted text-uppercase small font-weight-bold">Search</label>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search announcements...">
+    <div class="card filter-card mb-4">
+        <div class="card-body p-4">
+            <div class="row align-items-end">
+                <!-- Search Box -->
+                <div class="col-lg-4 col-md-6 mb-3 mb-lg-0">
+                    <label class="text-muted text-uppercase small font-weight-bold mb-2">
+                        <i class="fas fa-search mr-1"></i>Search
+                    </label>
+                    <input type="text" 
+                           id="searchInput" 
+                           class="form-control" 
+                           placeholder="Search by title or content...">
                 </div>
                 
-                <!-- Category -->
+                <!-- Category Filter -->
                 <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
-                    <label class="text-muted text-uppercase small font-weight-bold">Category</label>
-                    <select id="categoryFilter" class="form-control">
+                    <label class="text-muted text-uppercase small font-weight-bold mb-2">
+                        <i class="fas fa-tag mr-1"></i>Category
+                    </label>
+                    <select id="categoryFilter" class="form-control form-select">
                         <option value="">All Categories</option>
                         {% for category in categories %}
                         <option value="{{ category }}">{{ category }}</option>
@@ -65,39 +298,52 @@
                     </select>
                 </div>
                 
-                <!-- Date Range -->
+                <!-- Date Range Filter -->
                 <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
-                    <label class="text-muted text-uppercase small font-weight-bold">Date Range</label>
-                    <select id="dateRangeFilter" class="form-control">
+                    <label class="text-muted text-uppercase small font-weight-bold mb-2">
+                        <i class="fas fa-calendar-alt mr-1"></i>Date Range
+                    </label>
+                    <select id="dateRangeFilter" class="form-control form-select">
                         <option value="">All Time</option>
                         <option value="today">Today</option>
                         <option value="week">This Week</option>
                         <option value="month">This Month</option>
+                        <option value="3months">Last 3 Months</option>
                     </select>
                 </div>
                 
                 <!-- Apply Button -->
-                <div class="col-lg-2 col-md-12">
-                    <label class="d-none d-lg-block">&nbsp;</label>
-                    <button type="button" id="applyFiltersBtn" class="btn btn-primary btn-block">
-                        <i class="fas fa-filter"></i> Apply
+                <div class="col-lg-2 col-md-6">
+                    <button type="button" id="applyFiltersBtn" class="btn btn-gradient-primary btn-block">
+                        <i class="fas fa-filter mr-2"></i>Apply
                     </button>
                 </div>
             </div>
             
-            <!-- Active Filters -->
+            <!-- Active Filters Display -->
             <div class="d-none align-items-center justify-content-between pt-3 mt-3 border-top" id="filterStatus">
-                <div class="d-flex flex-wrap" id="activeFilters"></div>
-                <a href="#" class="text-muted small ml-auto" id="clearAllBtn">
-                    <i class="fas fa-times"></i> Clear all
-                </a>
+                <div class="d-flex flex-wrap align-items-center">
+                    <span class="text-muted small font-weight-bold mr-3">Active Filters:</span>
+                    <div id="activeFilters"></div>
+                </div>
+                <button class="btn btn-sm btn-outline-custom ml-auto" id="clearAllBtn">
+                    <i class="fas fa-times mr-1"></i>Clear All
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Results Info -->
-    <div class="mb-3 text-muted small">
-        Showing <strong id="visibleCount">{{ announcements|length }}</strong> of <strong id="totalCount">{{ announcements|length }}</strong> announcements
+    <!-- Results Summary -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted">
+            Showing <strong class="text-primary" id="visibleCount">{{ announcements|length }}</strong> 
+            of <strong>{{ announcements|length }}</strong> announcements
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-custom" onclick="refreshPage()">
+                <i class="fas fa-sync-alt mr-1"></i>Refresh
+            </button>
+        </div>
     </div>
     {% endif %}
 
@@ -105,56 +351,67 @@
     <div id="announcementsList">
         {% if announcements %}
             {% for announcement in announcements %}
-            <div class="card shadow-sm mb-3 announcement-card" 
+            <div class="card announcement-card mb-4" 
                  data-category="{{ announcement.category or '' }}"
                  data-date="{{ announcement.created_at.strftime('%Y-%m-%d') if announcement.created_at else '' }}"
                  data-title="{{ announcement.announcement_title|lower if announcement.announcement_title else '' }}"
                  data-content="{{ announcement.announcement_content|striptags|lower if announcement.announcement_content else '' }}">
                 
-                <!-- Header -->
-                <div class="card-header bg-white border-bottom py-3">
-                    <div class="d-flex align-items-center flex-wrap mb-2">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white font-weight-bold mr-2 bg-primary" style="width: 32px; height: 32px; font-size: 12px;">
-                            {{ announcement.author.first_name[0] if announcement.author and announcement.author.first_name else 'A' }}{{ announcement.author.last_name[0] if announcement.author and announcement.author.last_name else 'D' }}
+                <!-- Card Header -->
+                <div class="card-header card-header-custom py-3 px-4">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap">
+                        <div class="d-flex align-items-center mb-2 mb-md-0">
+                            <div class="author-avatar mr-3">
+                                {{ announcement.author.first_name[0] if announcement.author and announcement.author.first_name else 'A' }}{{ announcement.author.last_name[0] if announcement.author and announcement.author.last_name else 'D' }}
+                            </div>
+                            <div>
+                                <div class="font-weight-bold text-dark">
+                                    {{ announcement.author.first_name if announcement.author and announcement.author.first_name else 'Admin' }} 
+                                    {{ announcement.author.last_name if announcement.author and announcement.author.last_name else '' }}
+                                </div>
+                                <small class="text-muted">
+                                    <i class="far fa-clock mr-1"></i>
+                                    {{ announcement.created_at.strftime('%B %d, %Y at %I:%M %p') if announcement.created_at else 'Recently' }}
+                                </small>
+                            </div>
                         </div>
-                        <strong class="mr-2">
-                            {{ announcement.author.first_name if announcement.author and announcement.author.first_name else 'Admin' }} 
-                            {{ announcement.author.last_name if announcement.author and announcement.author.last_name else '' }}
-                        </strong>
-                        <span class="text-muted mr-2">•</span>
-                        <span class="text-muted small">{{ announcement.created_at.strftime('%B %d, %Y | %I:%M %p') if announcement.created_at else 'Recently' }}</span>
                         
-                        <span class="badge badge-secondary ml-auto" style="font-size: 0.875rem;">{{ announcement.category or 'General' }}</span>
+                        <span class="category-badge badge badge-primary">
+                            <i class="fas fa-tag mr-1"></i>{{ announcement.category or 'General' }}
+                        </span>
                     </div>
-                    <h5 class="mb-0 font-weight-bold">{{ announcement.announcement_title or 'Untitled Announcement' }}</h5>
+                    
+                    <h4 class="font-weight-bold text-dark mt-3 mb-0">
+                        {{ announcement.announcement_title or 'Untitled Announcement' }}
+                    </h4>
                 </div>
 
-                <!-- Body -->
-                <div class="card-body">
+                <!-- Card Body -->
+                <div class="card-body p-4">
+                    <!-- Content Preview -->
                     <div class="mb-3">
-                        <!-- Preview -->
                         <div id="preview-{{ announcement.id }}">
                             {% if announcement.announcement_content %}
                                 {% set content_length = announcement.announcement_content|length %}
-                                {% if content_length > 300 %}
-                                    <div class="text-secondary">{{ announcement.announcement_content[:300]|safe }}...</div>
-                                    <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
-                                        Show More <i class="fas fa-chevron-down"></i>
+                                {% if content_length > 350 %}
+                                    <div class="content-preview">{{ announcement.announcement_content[:350]|safe }}...</div>
+                                    <button type="button" class="btn btn-link p-0 text-primary font-weight-bold mt-2" onclick="toggleContent({{ announcement.id }})">
+                                        <i class="fas fa-chevron-down mr-1"></i>Read More
                                     </button>
                                 {% else %}
-                                    <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
+                                    <div class="content-preview">{{ announcement.announcement_content|safe }}</div>
                                 {% endif %}
                             {% else %}
-                                <div class="text-secondary">No content available.</div>
+                                <div class="content-preview">No content available.</div>
                             {% endif %}
                         </div>
                         
-                        <!-- Full Content -->
-                        {% if announcement.announcement_content and announcement.announcement_content|length > 300 %}
+                        <!-- Full Content (Hidden by default) -->
+                        {% if announcement.announcement_content and announcement.announcement_content|length > 350 %}
                         <div style="display:none;" id="full-{{ announcement.id }}">
-                            <div class="text-secondary">{{ announcement.announcement_content|safe }}</div>
-                            <button type="button" class="btn btn-link p-0 text-primary font-weight-bold" onclick="toggleContent({{ announcement.id }})">
-                                Show Less <i class="fas fa-chevron-up"></i>
+                            <div class="content-preview">{{ announcement.announcement_content|safe }}</div>
+                            <button type="button" class="btn btn-link p-0 text-primary font-weight-bold mt-2" onclick="toggleContent({{ announcement.id }})">
+                                <i class="fas fa-chevron-up mr-1"></i>Show Less
                             </button>
                         </div>
                         {% endif %}
@@ -162,36 +419,42 @@
 
                     <!-- Images -->
                     {% if announcement.images %}
+                    <div class="row mb-3">
                         {% for image in announcement.images %}
-                        <img src="{{ url_for('static', filename='uploads/announcements/' + image.image_path) }}" 
-                             alt="{{ image.caption or 'Announcement Image' }}"
-                             class="img-fluid rounded mb-2 shadow-sm">
-                        {% if image.caption %}
-                            <p class="text-muted small mb-3"><em>{{ image.caption }}</em></p>
-                        {% endif %}
+                        <div class="col-md-6 mb-3">
+                            <img src="{{ url_for('static', filename='uploads/announcements/' + image.image_path) }}" 
+                                 alt="{{ image.caption or 'Announcement Image' }}"
+                                 class="img-fluid announcement-image w-100">
+                            {% if image.caption %}
+                            <p class="text-muted small mt-2 mb-0">
+                                <i class="fas fa-info-circle mr-1"></i>{{ image.caption }}
+                            </p>
+                            {% endif %}
+                        </div>
                         {% endfor %}
+                    </div>
                     {% endif %}
 
-                    <!-- View Full Button -->
-                    <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
-                       class="btn btn-primary btn-sm">
-                        <i class="fas fa-external-link-alt"></i> View Full Details
-                    </a>
+                    <!-- Action Button -->
+                    <div class="pt-2 border-top">
+                        <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
+                           class="btn btn-gradient-primary">
+                            <i class="fas fa-external-link-alt mr-2"></i>View Full Details
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endfor %}
 
-            <!-- No Search Results (Hidden by default, shown by JS when filters return no results) -->
+            <!-- No Search Results (Hidden by default) -->
             <div class="no-announcements" id="noResults">
                 <div class="empty-state">
                     <i class="fas fa-search empty-state-icon"></i>
                     <h4 class="text-dark font-weight-bold mb-3">No Announcements Found</h4>
-                    <p class="text-muted mb-3">We couldn't find any announcements matching your search criteria.</p>
-                    <div class="d-flex justify-content-center">
-                        <button class="btn btn-outline-primary btn-sm" onclick="clearAllFilters()">
-                            <i class="fas fa-times mr-1"></i>Clear Filters
-                        </button>
-                    </div>
+                    <p class="text-muted mb-4">We couldn't find any announcements matching your search criteria.</p>
+                    <button class="btn btn-outline-custom" id="clearFiltersBtn">
+                        <i class="fas fa-times mr-2"></i>Clear All Filters
+                    </button>
                 </div>
             </div>
 
@@ -199,30 +462,38 @@
             <!-- No Announcements Posted Yet -->
             <div class="empty-state">
                 <i class="fas fa-bullhorn empty-state-icon"></i>
-                <h4 class="text-dark font-weight-bold mb-3">No Announcements Yet</h4>
-                <p class="text-muted mb-4">
+                <h3 class="text-dark font-weight-bold mb-3">No Announcements Yet</h3>
+                <p class="text-muted mb-4 lead">
                     There are currently no announcements posted. Check back later for updates from the MSWD Office.
                 </p>
                 
                 <!-- Refresh Button -->
-                <div class="mb-4">
-                    <button class="btn refresh-btn text-white font-weight-semibold px-4" id="refreshBtn" onclick="refreshPage()">
-                        <i class="fas fa-sync-alt mr-2" id="refreshIcon"></i>Check for New Announcements
-                    </button>
-                </div>
+                <button class="btn refresh-btn text-white font-weight-semibold px-4 py-2 mb-4" id="refreshBtn" onclick="refreshPage()">
+                    <i class="fas fa-sync-alt mr-2" id="refreshIcon"></i>Check for New Announcements
+                </button>
                 
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="card border-primary">
-                            <div class="card-body text-left">
-                                <h6 class="card-title text-primary">
+                <!-- Contact Info Card -->
+                <div class="row justify-content-center mt-4">
+                    <div class="col-md-8 col-lg-6">
+                        <div class="card border-primary shadow-sm">
+                            <div class="card-body p-4">
+                                <h5 class="card-title text-primary font-weight-bold mb-3">
                                     <i class="fas fa-info-circle mr-2"></i>Stay Connected
-                                </h6>
-                                <ul class="list-unstyled mb-0 small">
-                                    <li class="mb-2"><i class="fas fa-phone text-success mr-2"></i>Contact us: (02) 123-4567</li>
-                                    <li class="mb-2"><i class="fas fa-envelope text-info mr-2"></i>Email: ayuda@mabitac.gov.ph</li>
-                                    <li><i class="fas fa-clock text-warning mr-2"></i>Office Hours: Monday-Friday, 8:00 AM - 5:00 PM</li>
-                                </ul>
+                                </h5>
+                                <div class="text-left">
+                                    <div class="mb-3">
+                                        <i class="fas fa-phone text-success mr-3"></i>
+                                        <strong>Contact:</strong> (02) 123-4567
+                                    </div>
+                                    <div class="mb-3">
+                                        <i class="fas fa-envelope text-info mr-3"></i>
+                                        <strong>Email:</strong> ayuda@mabitac.gov.ph
+                                    </div>
+                                    <div class="mb-0">
+                                        <i class="fas fa-clock text-warning mr-3"></i>
+                                        <strong>Office Hours:</strong> Monday-Friday, 8:00 AM - 5:00 PM
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -235,23 +506,30 @@
 
 {% block extra_js %}
 <script>
+// Toggle announcement content
 function toggleContent(announcementId) {
     const preview = document.getElementById(`preview-${announcementId}`);
     const full = document.getElementById(`full-${announcementId}`);
     if (preview && full) {
-        preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
-        full.style.display = full.style.display === 'none' ? 'block' : 'none';
+        if (preview.style.display === 'none') {
+            preview.style.display = 'block';
+            full.style.display = 'none';
+        } else {
+            preview.style.display = 'none';
+            full.style.display = 'block';
+        }
     }
 }
 
+// Refresh page function
 function refreshPage() {
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshIcon = document.getElementById('refreshIcon');
     
     if (refreshBtn && refreshIcon) {
         refreshBtn.classList.add('loading');
-        refreshIcon.classList.add('fa-spin');
-        refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin mr-2"></i>Checking...';
+        refreshIcon.classList.add('loading-spinner');
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt loading-spinner mr-2"></i>Checking...';
     }
     
     setTimeout(() => {
@@ -259,6 +537,7 @@ function refreshPage() {
     }, 1000);
 }
 
+// Clear all filters
 function clearAllFilters() {
     const searchInput = document.getElementById('searchInput');
     const categoryFilter = document.getElementById('categoryFilter');
@@ -279,6 +558,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const dateRangeFilter = document.getElementById('dateRangeFilter');
     const applyBtn = document.getElementById('applyFiltersBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     const filterStatus = document.getElementById('filterStatus');
     const activeFiltersDiv = document.getElementById('activeFilters');
     const noResults = document.getElementById('noResults');
@@ -286,18 +566,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const totalCount = document.getElementById('totalCount');
     const allCards = document.querySelectorAll('.announcement-card:not(.no-announcements)');
     
-    console.log('noResults classes:', noResults?.classList);
-    console.log('noResults computed display:', window.getComputedStyle(noResults).display);
-
+    // Initialize
     if (noResults) {
         noResults.classList.remove('show');
-        noResults.style.display = 'none'; // Extra safety
+        noResults.style.display = 'none';
     }
     
     // Only initialize filtering if there are announcements
     if (allCards.length > 0 && totalCount) {
         totalCount.textContent = allCards.length;
         
+        // Apply filters function
         function applyFilters() {
             const searchTerm = searchInput?.value.toLowerCase().trim() || '';
             const selectedCategory = categoryFilter?.value || '';
@@ -314,25 +593,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 cardDate.setHours(0, 0, 0, 0);
                 let showCard = true;
                 
-                if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) showCard = false;
-                if (selectedCategory && cardCategory !== selectedCategory) showCard = false;
-                
-                if (selectedDateRange) {
-                    const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
-                    if (selectedDateRange === 'today' && daysDiff !== 0) showCard = false;
-                    else if (selectedDateRange === 'week' && daysDiff > 7) showCard = false;
-                    else if (selectedDateRange === 'month' && daysDiff > 30) showCard = false;
+                // Search filter
+                if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) {
+                    showCard = false;
                 }
                 
-                card.classList.toggle('hidden', !showCard);
-                if (showCard) visibleCards++;
+                // Category filter
+                if (selectedCategory && cardCategory !== selectedCategory) {
+                    showCard = false;
+                }
+                
+                // Date range filter
+                if (selectedDateRange) {
+                    const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
+                    
+                    if (selectedDateRange === 'today' && daysDiff !== 0) {
+                        showCard = false;
+                    } else if (selectedDateRange === 'week' && daysDiff > 7) {
+                        showCard = false;
+                    } else if (selectedDateRange === 'month' && daysDiff > 30) {
+                        showCard = false;
+                    } else if (selectedDateRange === '3months' && daysDiff > 90) {
+                        showCard = false;
+                    }
+                }
+                
+                // Show/hide card with animation
+                if (showCard) {
+                    card.classList.remove('hidden');
+                    visibleCards++;
+                } else {
+                    card.classList.add('hidden');
+                }
             });
             
+            // Update visible count
             if (visibleCount) {
                 visibleCount.textContent = visibleCards;
             }
             
-            // ✅ FIX: Properly show/hide noResults
+            // Show/hide no results message
             if (noResults) {
                 if (visibleCards === 0) {
                     noResults.classList.add('show');
@@ -343,9 +643,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
+            // Update active filters display
             updateActiveFilters(searchTerm, selectedCategory, selectedDateRange);
         }
         
+        // Update active filters display
         function updateActiveFilters(searchTerm, category, dateRange) {
             if (!activeFiltersDiv) return;
             
@@ -354,28 +656,51 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (searchTerm) {
                 hasFilters = true;
-                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Search: ${searchTerm} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('searchInput').value=''; applyFilters();"></i></span>`;
+                const pill = document.createElement('span');
+                pill.className = 'filter-pill';
+                pill.innerHTML = `<i class="fas fa-search mr-1"></i> "${searchTerm}" <span class="remove-filter" onclick="document.getElementById('searchInput').value=''; applyFilters();">×</span>`;
+                activeFiltersDiv.appendChild(pill);
             }
             
             if (category) {
                 hasFilters = true;
-                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Category: ${category} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('categoryFilter').value=''; applyFilters();"></i></span>`;
+                const pill = document.createElement('span');
+                pill.className = 'filter-pill';
+                pill.innerHTML = `<i class="fas fa-tag mr-1"></i> ${category} <span class="remove-filter" onclick="document.getElementById('categoryFilter').value=''; applyFilters();">×</span>`;
+                activeFiltersDiv.appendChild(pill);
             }
             
             if (dateRange) {
                 hasFilters = true;
-                const dateLabels = { 'today': 'Today', 'week': 'This Week', 'month': 'This Month' };
-                activeFiltersDiv.innerHTML += `<span class="badge badge-pill badge-primary mr-2 mb-2">Date: ${dateLabels[dateRange]} <i class="fas fa-times ml-1" style="cursor:pointer;" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();"></i></span>`;
+                const dateLabels = { 
+                    'today': 'Today', 
+                    'week': 'This Week', 
+                    'month': 'This Month',
+                    '3months': 'Last 3 Months'
+                };
+                const pill = document.createElement('span');
+                pill.className = 'filter-pill';
+                pill.innerHTML = `<i class="fas fa-calendar-alt mr-1"></i> ${dateLabels[dateRange]} <span class="remove-filter" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();">×</span>`;
+                activeFiltersDiv.appendChild(pill);
             }
             
+            // Show/hide filter status bar
             if (filterStatus) {
-                filterStatus.classList.toggle('d-none', !hasFilters);
-                filterStatus.classList.toggle('d-flex', hasFilters);
+                if (hasFilters) {
+                    filterStatus.classList.remove('d-none');
+                    filterStatus.classList.add('d-flex');
+                } else {
+                    filterStatus.classList.add('d-none');
+                    filterStatus.classList.remove('d-flex');
+                }
             }
         }
         
         // Event listeners
-        if (applyBtn) applyBtn.addEventListener('click', applyFilters);
+        if (applyBtn) {
+            applyBtn.addEventListener('click', applyFilters);
+        }
+        
         if (clearAllBtn) {
             clearAllBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -383,9 +708,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => {
+                clearAllFilters();
+            });
+        }
+        
         if (searchInput) {
             searchInput.addEventListener('keypress', (e) => { 
-                if (e.key === 'Enter') applyFilters(); 
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyFilters(); 
+                }
+            });
+        }
+        
+        // Real-time search (debounced)
+        let searchTimeout;
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    applyFilters();
+                }, 500);
             });
         }
         
