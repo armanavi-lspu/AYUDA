@@ -230,7 +230,7 @@ class ApplicationDocuments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
-    submission_status = db.Column(db.String(20), default='not_submitted')  # For documents: 'not_submitted', 'submitted', 'approved', 'rejected'
+    submission_status = db.Column(db.String(20), default='pending')  # For documents: 'pending', 'submitted', 'approved', 'rejected'
     qualification_met = db.Column(db.Boolean, default=False)  # NEW: For qualifications: True/False
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
