@@ -173,8 +173,8 @@ def update_application_status(application_id):
         
         # Create notification for applicant
         status_messages = {
-            'approved': f'Your application for {application.program.program_name} has been approved!',
-            'rejected': f'Your application for {application.program.program_name} has been rejected.',
+            'approved': f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
+            'rejected': f'Your application for {application.program.program_name} has been rejected. Please check the remarks for more information.',
             'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the remarks for more information.',
             'pending': f'Your application for {application.program.program_name} status has been updated to pending.'
         }

@@ -152,7 +152,7 @@ def submit_application(program_id):
     db.session.add(notification)
     db.session.commit()
     
-    flash('Application created successfully! Print your application slip.', 'success')
+    flash('Application submitted successfully! Please wait for admin approval. Once approved, you will receive a notification and can download your application slip.', 'success')
     
-    # Redirect to application slip
-    return redirect(url_for('community.application_slip', application_id=new_application.id))
+    # Redirect to application details page (not slip - slip is only available after approval)
+    return redirect(url_for('community.application_detail', application_id=new_application.id))

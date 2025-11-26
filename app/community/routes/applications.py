@@ -133,11 +133,16 @@ def download_document(doc_id):
 @login_required
 @role_required('community')
 def application_slip(application_id):
-    """Display printable application slip"""
+    """Display printable application slip - only available after admin approval"""
     application = Applications.query.filter_by(
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
+    
+    # Only allow access to application slip if application is approved
+    if application.application_status != 'approved':
+        flash('Application slip is only available after your application has been approved by the admin.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=application_id))
     
     # Get requirements for this application - FIXED QUERY
     requirements = db.session.query(
