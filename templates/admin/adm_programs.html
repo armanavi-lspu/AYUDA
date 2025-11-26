@@ -46,11 +46,54 @@
     }
     
     .requirements-list {
-        max-height: 300px;
         overflow-y: auto;
-        border: 1px solid #e3e6f0;
-        border-radius: 4px;
         padding: 10px;
+    }
+    
+    .req-checkbox:checked ~ .custom-control-label {
+        color: #1cc88a;
+        font-weight: 600;
+    }
+    
+    .mandatory-checkbox:checked ~ .custom-control-label {
+        color: #e74a3b;
+        font-weight: 600;
+    }
+    
+    .card-header h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .card-header small {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.8rem;
+    }
+    
+    .add-req-form {
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .add-req-form .border {
+        border: 2px dashed #dee2e6 !important;
+    }
+    
+    .add-req-form input:focus,
+    .add-req-form textarea:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     }
 </style>
 {% endblock %}
@@ -239,10 +282,11 @@
                             
                             <div class="col-lg-3 text-right">
                                 <div class="btn-group-vertical btn-group-sm">
-                                    <a href="{{ url_for('admin.view_program', id=program.id) }}" 
-                                       class="btn btn-info btn-sm">
+                                    <button type="button" class="btn btn-info btn-sm"
+                                            data-toggle="modal" 
+                                            data-target="#viewModal{{ program.id }}">
                                         <i class="fas fa-eye mr-1"></i>View
-                                    </a>
+                                    </button>
                                     <button type="button" class="btn btn-warning btn-sm"
                                             data-toggle="modal" 
                                             data-target="#editModal{{ program.id }}">
@@ -350,7 +394,6 @@
                                     <option value="">Select Type</option>
                                     <option value="AICS">AICS</option>
                                     <option value="ESA">ESA</option>
-                                    <option value="4Ps">4Ps</option>
                                     <option value="SLP">SLP</option>                                    
                                 </select>
                             </div>
@@ -392,42 +435,184 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="font-weight-bold">Program Requirements</label>
-                        <div class="requirements-list">
-                            {% if requirements %}
-                                {% for requirement in requirements %}
-                                <div class="requirement-item">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" 
-                                               name="requirements" 
-                                               value="{{ requirement.id }}" 
-                                               id="addReq{{ requirement.id }}">
-                                        <label class="custom-control-label" for="addReq{{ requirement.id }}">
-                                            <strong>{{ requirement.document_name }}</strong>
-                                            {% if requirement.description %}
-                                                <br><small class="text-muted">{{ requirement.description }}</small>
-                                            {% endif %}
-                                        </label>
-                                    </div>
-                                    <div class="ml-4 mt-1">
-                                        <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" 
-                                                   name="mandatory_requirements" 
-                                                   value="{{ requirement.id }}" 
-                                                   id="addMandatory{{ requirement.id }}">
-                                            <label class="custom-control-label text-danger" for="addMandatory{{ requirement.id }}">
-                                                <small>Mark as Mandatory</small>
-                                            </label>
+                        <label class="font-weight-bold mb-3">
+                            <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                        </label>
+                        
+                        <!-- Document Requirements Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 text-primary">
+                                        <i class="fas fa-file-alt mr-2"></i>Document Requirements
+                                    </h6>
+                                    <small class="text-muted">Select documents that applicants need to submit</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleAddDocForm()">
+                                    <i class="fas fa-plus"></i> Add New
+                                </button>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Add New Document Requirement Form (Hidden by default) -->
+                                <div id="addDocForm" class="add-req-form" style="display: none;">
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="font-weight-bold mb-3">
+                                            <i class="fas fa-plus-circle text-primary mr-2"></i>Add New Document Requirement
+                                        </h6>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Requirement Name *</small></label>
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   id="newDocName" placeholder="e.g., Valid ID, Birth Certificate">
+                                        </div>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Description (Optional)</small></label>
+                                            <textarea class="form-control form-control-sm" rows="2" 
+                                                      id="newDocDesc" placeholder="Brief description..."></textarea>
+                                        </div>
+                                        <div class="text-right">
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddDocForm()">
+                                                Cancel
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirement('document')">
+                                                <i class="fas fa-check mr-1"></i>Add Requirement
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-center text-muted py-3">
-                                    <i class="fas fa-exclamation-circle mb-2"></i>
-                                    <p class="mb-0">No requirements available. Please add requirements first.</p>
+                                
+                                <div class="requirements-list" style="max-height: 250px;" id="documentReqsList">
+                                    {% if requirements %}
+                                        {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
+                                        {% if document_reqs %}
+                                            {% for requirement in document_reqs %}
+                                            <div class="requirement-item">
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                           name="requirements" 
+                                                           value="{{ requirement.id }}" 
+                                                           id="addReq{{ requirement.id }}">
+                                                    <label class="custom-control-label" for="addReq{{ requirement.id }}">
+                                                        <strong>{{ requirement.requirement_name }}</strong>
+                                                        {% if requirement.description %}
+                                                            <br><small class="text-muted">{{ requirement.description }}</small>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                <div class="ml-4 mt-1">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                               name="mandatory_requirements" 
+                                                               value="{{ requirement.id }}" 
+                                                               id="addMandatory{{ requirement.id }}">
+                                                        <label class="custom-control-label text-danger" for="addMandatory{{ requirement.id }}">
+                                                            <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox"></i>
+                                                <p class="mb-0 small">No document requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-inbox"></i>
+                                            <p class="mb-0 small">No document requirements available. Click "Add New" to create one.</p>
+                                        </div>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Qualification Requirements Section -->
+                        <div class="card">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 text-success">
+                                        <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+                                    </h6>
+                                    <small class="text-muted">Select qualifications that applicants must meet</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleAddQualForm()">
+                                    <i class="fas fa-plus"></i> Add New
+                                </button>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Add New Qualification Requirement Form (Hidden by default) -->
+                                <div id="addQualForm" class="add-req-form" style="display: none;">
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="font-weight-bold mb-3">
+                                            <i class="fas fa-plus-circle text-success mr-2"></i>Add New Qualification Requirement
+                                        </h6>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Requirement Name *</small></label>
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   id="newQualName" placeholder="e.g., Student, Senior Citizen, PWD">
+                                        </div>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Description (Optional)</small></label>
+                                            <textarea class="form-control form-control-sm" rows="2" 
+                                                      id="newQualDesc" placeholder="Brief description..."></textarea>
+                                        </div>
+                                        <div class="text-right">
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddQualForm()">
+                                                Cancel
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirement('qualification')">
+                                                <i class="fas fa-check mr-1"></i>Add Requirement
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="requirements-list" style="max-height: 250px;" id="qualificationReqsList">
+                                    {% if requirements %}
+                                        {% set qualification_reqs = requirements|selectattr('requirement_type', 'equalto', 'qualification')|list %}
+                                        {% if qualification_reqs %}
+                                            {% for requirement in qualification_reqs %}
+                                            <div class="requirement-item">
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                           name="requirements" 
+                                                           value="{{ requirement.id }}" 
+                                                           id="addReq{{ requirement.id }}">
+                                                    <label class="custom-control-label" for="addReq{{ requirement.id }}">
+                                                        <strong>{{ requirement.requirement_name }}</strong>
+                                                        {% if requirement.description %}
+                                                            <br><small class="text-muted">{{ requirement.description }}</small>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                <div class="ml-4 mt-1">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                               name="mandatory_requirements" 
+                                                               value="{{ requirement.id }}" 
+                                                               id="addMandatory{{ requirement.id }}">
+                                                        <label class="custom-control-label text-danger" for="addMandatory{{ requirement.id }}">
+                                                            <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox"></i>
+                                                <p class="mb-0 small">No qualification requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-inbox"></i>
+                                            <p class="mb-0 small">No qualification requirements available. Click "Add New" to create one.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -444,8 +629,181 @@
     </div>
 </div>
 
-<!-- Edit & Delete Modals -->
+<!-- View, Edit & Delete Modals -->
 {% for program in programs %}
+<!-- View Modal -->
+<div class="modal fade" id="viewModal{{ program.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-eye mr-2"></i>View Program Details</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <h4 class="font-weight-bold text-primary mb-3">{{ program.program_name }}</h4>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card border-left-primary shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-primary font-weight-bold mb-2">
+                                    <i class="fas fa-tag mr-2"></i>Program Type
+                                </h6>
+                                <p class="mb-0">{{ program.program_type }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-left-success shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="text-success font-weight-bold mb-2">
+                                    <i class="fas fa-clock mr-2"></i>Program Period
+                                </h6>
+                                <p class="mb-0">{{ program.program_period }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0 font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Description</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0 text-justify">{{ program.description or 'No description available.' }}</p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card border-left-info shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-2x text-info mb-2"></i>
+                                <h5 class="font-weight-bold mb-0">{{ program.application_count }}</h5>
+                                <small class="text-muted">Total Applications</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-left-warning shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-clipboard-list fa-2x text-warning mb-2"></i>
+                                <h5 class="font-weight-bold mb-0">{{ program.requirement_count }}</h5>
+                                <small class="text-muted">Requirements</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-left-secondary shadow-sm">
+                            <div class="card-body text-center">
+                                <i class="fas fa-calendar fa-2x text-secondary mb-2"></i>
+                                <h5 class="font-weight-bold mb-0">{{ program.date.strftime('%b %d, %Y') }}</h5>
+                                <small class="text-muted">Date Created</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if program.file_attachment %}
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0 font-weight-bold"><i class="fas fa-paperclip mr-2"></i>Attachment</h6>
+                    </div>
+                    <div class="card-body">
+                        <a href="{{ url_for('static', filename=program.file_attachment.file_path) }}" 
+                           target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download mr-2"></i>{{ program.file_attachment.filename }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Requirements Section -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0 font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>Program Requirements</h6>
+                    </div>
+                    <div class="card-body">
+                        {% set program_reqs = program.program_requirements %}
+                        {% if program_reqs %}
+                            <!-- Document Requirements -->
+                            {% set doc_reqs = [] %}
+                            {% for pr in program_reqs %}
+                                {% if pr.requirement.requirement_type == 'document' %}
+                                    {% set _ = doc_reqs.append(pr) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if doc_reqs %}
+                            <h6 class="text-primary mb-3"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
+                            <ul class="list-group mb-3">
+                                {% for pr in doc_reqs %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ pr.requirement.requirement_name }}</strong>
+                                        {% if pr.requirement.description %}
+                                            <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if pr.is_mandatory %}
+                                        <span class="badge badge-danger">Mandatory</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Optional</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                            
+                            <!-- Qualification Requirements -->
+                            {% set qual_reqs = [] %}
+                            {% for pr in program_reqs %}
+                                {% if pr.requirement.requirement_type == 'qualification' %}
+                                    {% set _ = qual_reqs.append(pr) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if qual_reqs %}
+                            <h6 class="text-success mb-3"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
+                            <ul class="list-group">
+                                {% for pr in qual_reqs %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ pr.requirement.requirement_name }}</strong>
+                                        {% if pr.requirement.description %}
+                                            <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if pr.is_mandatory %}
+                                        <span class="badge badge-danger">Mandatory</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Optional</span>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        {% else %}
+                            <p class="text-muted mb-0">No requirements set for this program.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning" data-dismiss="modal" 
+                        data-toggle="modal" data-target="#editModal{{ program.id }}">
+                    <i class="fas fa-edit mr-1"></i>Edit Program
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal{{ program.id }}" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -465,16 +823,9 @@
                             <div class="form-group">
                                 <label>Program Type <span class="text-danger">*</span></label>
                                 <select class="form-control" name="program_type" required>
-                                    <option value="Financial Aid" {% if program.program_type=='Financial Aid' %}selected{% endif %}>Financial Aid</option>
-                                    <option value="Healthcare" {% if program.program_type=='Healthcare' %}selected{% endif %}>Healthcare</option>
-                                    <option value="Education" {% if program.program_type=='Education' %}selected{% endif %}>Education</option>
-                                    <option value="Housing" {% if program.program_type=='Housing' %}selected{% endif %}>Housing</option>
-                                    <option value="Employment" {% if program.program_type=='Employment' %}selected{% endif %}>Employment</option>
-                                    <option value="Social Services" {% if program.program_type=='Social Services' %}selected{% endif %}>Social Services</option>
-                                    <option value="Agriculture" {% if program.program_type=='Agriculture' %}selected{% endif %}>Agriculture</option>
-                                    <option value="Business Support" {% if program.program_type=='Business Support' %}selected{% endif %}>Business Support</option>
-                                    <option value="Emergency Relief" {% if program.program_type=='Emergency Relief' %}selected{% endif %}>Emergency Relief</option>
-                                    <option value="Infrastructure" {% if program.program_type=='Infrastructure' %}selected{% endif %}>Infrastructure</option>
+                                    <option value="AICS" {% if program.program_type=='AICS' %}selected{% endif %}>AICS</option>
+                                    <option value="CAL" {% if program.program_type=='CAL' %}selected{% endif %}>CAL</option>
+                                    <option value="ESA" {% if program.program_type=='ESA' %}selected{% endif %}>ESA</option>
                                 </select>
                             </div>
                         </div>
@@ -510,6 +861,203 @@
                             Current: {{ program.file_attachment.filename }}
                         </small>
                         {% endif %}
+                    </div>
+                    
+                    <!-- Requirements Section -->
+                    <div class="form-group">
+                        <label class="font-weight-bold mb-3">
+                            <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                        </label>
+                        
+                        <!-- Document Requirements Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 text-primary">
+                                        <i class="fas fa-file-alt mr-2"></i>Document Requirements
+                                    </h6>
+                                    <small class="text-muted">Select documents that applicants need to submit</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEditDocForm{{ program.id }}()">
+                                    <i class="fas fa-plus"></i> Add New
+                                </button>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Add New Document Requirement Form -->
+                                <div id="editAddDocForm{{ program.id }}" class="add-req-form" style="display: none;">
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="font-weight-bold mb-3">
+                                            <i class="fas fa-plus-circle text-primary mr-2"></i>Add New Document Requirement
+                                        </h6>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Requirement Name *</small></label>
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   id="editNewDocName{{ program.id }}" placeholder="e.g., Valid ID, Birth Certificate">
+                                        </div>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Description (Optional)</small></label>
+                                            <textarea class="form-control form-control-sm" rows="2" 
+                                                      id="editNewDocDesc{{ program.id }}" placeholder="Brief description..."></textarea>
+                                        </div>
+                                        <div class="text-right">
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditDocForm{{ program.id }}()">
+                                                Cancel
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document', {{ program.id }})">
+                                                <i class="fas fa-check mr-1"></i>Add Requirement
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="requirements-list" style="max-height: 250px;" id="editDocumentReqsList{{ program.id }}">
+                                    {% if requirements %}
+                                        {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
+                                        {% set program_req_ids = program.program_requirements|map(attribute='requirement_id')|list %}
+                                        {% set program_mandatory_ids = [] %}
+                                        {% for pr in program.program_requirements %}
+                                            {% if pr.is_mandatory %}
+                                                {% set _ = program_mandatory_ids.append(pr.requirement_id) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if document_reqs %}
+                                            {% for requirement in document_reqs %}
+                                            <div class="requirement-item">
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                           name="requirements" 
+                                                           value="{{ requirement.id }}" 
+                                                           id="editReq{{ program.id }}_{{ requirement.id }}"
+                                                           {% if requirement.id in program_req_ids %}checked{% endif %}>
+                                                    <label class="custom-control-label" for="editReq{{ program.id }}_{{ requirement.id }}">
+                                                        <strong>{{ requirement.requirement_name }}</strong>
+                                                        {% if requirement.description %}
+                                                            <br><small class="text-muted">{{ requirement.description }}</small>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                <div class="ml-4 mt-1">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                               name="mandatory_requirements" 
+                                                               value="{{ requirement.id }}" 
+                                                               id="editMandatory{{ program.id }}_{{ requirement.id }}"
+                                                               {% if requirement.id in program_mandatory_ids %}checked{% endif %}
+                                                               {% if requirement.id not in program_req_ids %}disabled{% endif %}>
+                                                        <label class="custom-control-label text-danger" for="editMandatory{{ program.id }}_{{ requirement.id }}">
+                                                            <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox"></i>
+                                                <p class="mb-0 small">No document requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-inbox"></i>
+                                            <p class="mb-0 small">No document requirements available. Click "Add New" to create one.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Qualification Requirements Section -->
+                        <div class="card">
+                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 text-success">
+                                        <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+                                    </h6>
+                                    <small class="text-muted">Select qualifications that applicants must meet</small>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleEditQualForm{{ program.id }}()">
+                                    <i class="fas fa-plus"></i> Add New
+                                </button>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Add New Qualification Requirement Form -->
+                                <div id="editAddQualForm{{ program.id }}" class="add-req-form" style="display: none;">
+                                    <div class="border rounded p-3 mb-3 bg-light">
+                                        <h6 class="font-weight-bold mb-3">
+                                            <i class="fas fa-plus-circle text-success mr-2"></i>Add New Qualification Requirement
+                                        </h6>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Requirement Name *</small></label>
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   id="editNewQualName{{ program.id }}" placeholder="e.g., Student, Senior Citizen, PWD">
+                                        </div>
+                                        <div class="form-group mb-2">
+                                            <label class="mb-1"><small>Description (Optional)</small></label>
+                                            <textarea class="form-control form-control-sm" rows="2" 
+                                                      id="editNewQualDesc{{ program.id }}" placeholder="Brief description..."></textarea>
+                                        </div>
+                                        <div class="text-right">
+                                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditQualForm{{ program.id }}()">
+                                                Cancel
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification', {{ program.id }})">
+                                                <i class="fas fa-check mr-1"></i>Add Requirement
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="requirements-list" style="max-height: 250px;" id="editQualificationReqsList{{ program.id }}">
+                                    {% if requirements %}
+                                        {% set qualification_reqs = requirements|selectattr('requirement_type', 'equalto', 'qualification')|list %}
+                                        {% if qualification_reqs %}
+                                            {% for requirement in qualification_reqs %}
+                                            <div class="requirement-item">
+                                                <div class="custom-control custom-checkbox">
+                                                    <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                           name="requirements" 
+                                                           value="{{ requirement.id }}" 
+                                                           id="editReq{{ program.id }}_{{ requirement.id }}"
+                                                           {% if requirement.id in program_req_ids %}checked{% endif %}>
+                                                    <label class="custom-control-label" for="editReq{{ program.id }}_{{ requirement.id }}">
+                                                        <strong>{{ requirement.requirement_name }}</strong>
+                                                        {% if requirement.description %}
+                                                            <br><small class="text-muted">{{ requirement.description }}</small>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                <div class="ml-4 mt-1">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                               name="mandatory_requirements" 
+                                                               value="{{ requirement.id }}" 
+                                                               id="editMandatory{{ program.id }}_{{ requirement.id }}"
+                                                               {% if requirement.id in program_mandatory_ids %}checked{% endif %}
+                                                               {% if requirement.id not in program_req_ids %}disabled{% endif %}>
+                                                        <label class="custom-control-label text-danger" for="editMandatory{{ program.id }}_{{ requirement.id }}">
+                                                            <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox"></i>
+                                                <p class="mb-0 small">No qualification requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-center text-muted py-3">
+                                            <i class="fas fa-inbox"></i>
+                                            <p class="mb-0 small">No qualification requirements available. Click "Add New" to create one.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -548,6 +1096,302 @@
 
 {% block extra_js %}
 <script>
+    // Create dynamic toggle functions for each program's edit modal
+    {% for program in programs %}
+    // Toggle functions for program {{ program.id }}
+    function toggleEditDocForm{{ program.id }}() {
+        const form = document.getElementById('editAddDocForm{{ program.id }}');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewDocName{{ program.id }}').focus();
+        }
+    }
+    
+    function toggleEditQualForm{{ program.id }}() {
+        const form = document.getElementById('editAddQualForm{{ program.id }}');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewQualName{{ program.id }}').focus();
+        }
+    }
+    {% endfor %}
+    
+    // Add New Requirement in Edit Modal via AJAX
+    function addNewRequirementEdit(type, programId) {
+        const nameField = 'editNewDocName' + programId;
+        const descField = 'editNewDocDesc' + programId;
+        const listId = type === 'document' ? 'editDocumentReqsList' + programId : 'editQualificationReqsList' + programId;
+        
+        if (type === 'qualification') {
+            nameField = 'editNewQualName' + programId;
+            descField = 'editNewQualDesc' + programId;
+        }
+        
+        const name = document.getElementById(nameField).value.trim();
+        const description = document.getElementById(descField).value.trim();
+        
+        if (!name) {
+            alert('Requirement name is required!');
+            document.getElementById(nameField).focus();
+            return;
+        }
+        
+        // Show loading state
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+        
+        // Send AJAX request to add requirement
+        fetch('{{ url_for("admin.add_requirement_ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: name,
+                requirement_type: type,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add the new requirement to the list
+                const list = document.getElementById(listId);
+                
+                // Remove "no requirements" message if it exists
+                const emptyMsg = list.querySelector('.text-center.text-muted');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+                
+                // Create new requirement item
+                const reqItem = document.createElement('div');
+                reqItem.className = 'requirement-item';
+                reqItem.innerHTML = `
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                               name="requirements" 
+                               value="${data.requirement.id}" 
+                               id="editReq${programId}_${data.requirement.id}">
+                        <label class="custom-control-label" for="editReq${programId}_${data.requirement.id}">
+                            <strong>${data.requirement.name}</strong>
+                            ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
+                        </label>
+                    </div>
+                    <div class="ml-4 mt-1">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                   name="mandatory_requirements" 
+                                   value="${data.requirement.id}" 
+                                   id="editMandatory${programId}_${data.requirement.id}" disabled>
+                            <label class="custom-control-label text-danger" for="editMandatory${programId}_${data.requirement.id}">
+                                <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                            </label>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(reqItem);
+                
+                // Setup event listeners for the new checkbox
+                setupRequirementCheckboxEdit(data.requirement.id, programId);
+                
+                // Clear form and hide it
+                document.getElementById(nameField).value = '';
+                document.getElementById(descField).value = '';
+                if (type === 'document') {
+                    eval('toggleEditDocForm' + programId + '()');
+                } else {
+                    eval('toggleEditQualForm' + programId + '()');
+                }
+                
+                // Show success message
+                showToast('Success! Requirement added.', 'success');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the requirement.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+    
+    // Setup event listeners for requirement checkbox in edit modal
+    function setupRequirementCheckboxEdit(reqId, programId) {
+        const checkbox = document.querySelector(`#editReq${programId}_${reqId}`);
+        const mandatoryCheckbox = document.getElementById(`editMandatory${programId}_${reqId}`);
+        
+        if (checkbox && mandatoryCheckbox) {
+            checkbox.addEventListener('change', function() {
+                if (!this.checked) {
+                    mandatoryCheckbox.checked = false;
+                    mandatoryCheckbox.disabled = true;
+                } else {
+                    mandatoryCheckbox.disabled = false;
+                }
+            });
+        }
+    }
+    
+    // Toggle Add Document Form
+    function toggleAddDocForm() {
+        const form = document.getElementById('addDocForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('newDocName').focus();
+        }
+    }
+    
+    // Toggle Add Qualification Form
+    function toggleAddQualForm() {
+        const form = document.getElementById('addQualForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('newQualName').focus();
+        }
+    }
+    
+    // Add New Requirement via AJAX
+    function addNewRequirement(type) {
+        const nameField = type === 'document' ? 'newDocName' : 'newQualName';
+        const descField = type === 'document' ? 'newDocDesc' : 'newQualDesc';
+        const listId = type === 'document' ? 'documentReqsList' : 'qualificationReqsList';
+        
+        const name = document.getElementById(nameField).value.trim();
+        const description = document.getElementById(descField).value.trim();
+        
+        if (!name) {
+            alert('Requirement name is required!');
+            document.getElementById(nameField).focus();
+            return;
+        }
+        
+        // Show loading state
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+        
+        // Send AJAX request to add requirement
+        fetch('{{ url_for("admin.add_requirement_ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: name,
+                requirement_type: type,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add the new requirement to the list
+                const list = document.getElementById(listId);
+                
+                // Remove "no requirements" message if it exists
+                const emptyMsg = list.querySelector('.text-center.text-muted');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+                
+                // Create new requirement item
+                const reqItem = document.createElement('div');
+                reqItem.className = 'requirement-item';
+                reqItem.innerHTML = `
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                               name="requirements" 
+                               value="${data.requirement.id}" 
+                               id="addReq${data.requirement.id}">
+                        <label class="custom-control-label" for="addReq${data.requirement.id}">
+                            <strong>${data.requirement.name}</strong>
+                            ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
+                        </label>
+                    </div>
+                    <div class="ml-4 mt-1">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                   name="mandatory_requirements" 
+                                   value="${data.requirement.id}" 
+                                   id="addMandatory${data.requirement.id}" disabled>
+                            <label class="custom-control-label text-danger" for="addMandatory${data.requirement.id}">
+                                <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                            </label>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(reqItem);
+                
+                // Setup event listeners for the new checkbox
+                setupRequirementCheckbox(data.requirement.id);
+                
+                // Clear form and hide it
+                document.getElementById(nameField).value = '';
+                document.getElementById(descField).value = '';
+                if (type === 'document') {
+                    toggleAddDocForm();
+                } else {
+                    toggleAddQualForm();
+                }
+                
+                // Show success message
+                showToast('Success! Requirement added.', 'success');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the requirement.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+    
+    // Setup event listeners for requirement checkbox
+    function setupRequirementCheckbox(reqId) {
+        const checkbox = document.querySelector(`.req-checkbox[value="${reqId}"]`);
+        const mandatoryCheckbox = document.getElementById('addMandatory' + reqId);
+        
+        if (checkbox && mandatoryCheckbox) {
+            checkbox.addEventListener('change', function() {
+                if (!this.checked) {
+                    mandatoryCheckbox.checked = false;
+                    mandatoryCheckbox.disabled = true;
+                } else {
+                    mandatoryCheckbox.disabled = false;
+                }
+            });
+        }
+    }
+    
+    // Simple toast notification
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        toast.innerHTML = `
+            <i class="fas fa-check-circle mr-2"></i>${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
     // Update file input label when file is selected
     document.querySelectorAll('.custom-file-input').forEach(input => {
         input.addEventListener('change', function(e) {
@@ -557,15 +1401,64 @@
         });
     });
     
-    // Auto-check mandatory when requirement is checked
-    document.querySelectorAll('[name="requirements"]').forEach(checkbox => {
+    // Auto-check mandatory when requirement is checked and prevent mandatory without requirement
+    document.querySelectorAll('.req-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             const reqId = this.value;
-            const mandatoryCheckbox = document.getElementById('addMandatory' + reqId);
-            if (!this.checked && mandatoryCheckbox) {
-                mandatoryCheckbox.checked = false;
+            // Handle both add and edit modals
+            let mandatoryCheckbox = document.getElementById('addMandatory' + reqId);
+            
+            // If not found, try edit modal format
+            if (!mandatoryCheckbox) {
+                // Find the matching edit modal mandatory checkbox
+                const editId = this.id.replace('editReq', 'editMandatory');
+                mandatoryCheckbox = document.getElementById(editId);
+            }
+            
+            if (mandatoryCheckbox) {
+                if (!this.checked) {
+                    // Uncheck mandatory if requirement is unchecked
+                    mandatoryCheckbox.checked = false;
+                    mandatoryCheckbox.disabled = true;
+                } else {
+                    // Enable mandatory checkbox when requirement is checked
+                    mandatoryCheckbox.disabled = false;
+                }
             }
         });
+    });
+    
+    // Initialize disabled state for mandatory checkboxes on page load
+    document.querySelectorAll('.req-checkbox').forEach(checkbox => {
+        const reqId = checkbox.value;
+        let mandatoryCheckbox = document.getElementById('addMandatory' + reqId);
+        
+        // If not found, try edit modal format
+        if (!mandatoryCheckbox) {
+            const editId = this.id.replace('editReq', 'editMandatory');
+            mandatoryCheckbox = document.getElementById(editId);
+        }
+        
+        if (mandatoryCheckbox) {
+            mandatoryCheckbox.disabled = !checkbox.checked;
+        }
+    });
+    
+    // Prevent form submission if mandatory is checked but requirement is not
+    document.querySelector('form[action*="add_program"]')?.addEventListener('submit', function(e) {
+        let hasError = false;
+        document.querySelectorAll('.mandatory-checkbox:checked').forEach(mandatoryCheck => {
+            const reqId = mandatoryCheck.value;
+            const reqCheckbox = document.querySelector(`.req-checkbox[value="${reqId}"]`);
+            if (!reqCheckbox || !reqCheckbox.checked) {
+                hasError = true;
+            }
+        });
+        
+        if (hasError) {
+            e.preventDefault();
+            alert('Error: Cannot mark a requirement as mandatory without selecting it first.');
+        }
     });
 </script>
 {% endblock %}

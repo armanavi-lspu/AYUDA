@@ -2,6 +2,7 @@ from flask import render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
+from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
 from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment
 from app.extensions import db
@@ -33,7 +34,10 @@ def programs_index():
     date_range = request.args.get('date_range', '').strip()
     
     # Base query
-    query = Programs.query
+    query = Programs.query.options(
+        db.joinedload(Programs.program_requirements)
+        .joinedload(ProgramRequirements.requirement)
+    )
     
     # Apply search filter
     if search:
@@ -386,3 +390,68 @@ def get_program_requirements(id):
         'name': req[1],
         'is_mandatory': req[2]
     } for req in requirements])
+
+@admin_bp.route('/requirements/add-ajax', endpoint='add_requirement_ajax', methods=['POST'])
+@login_required
+@role_required('admin')
+def add_requirement_ajax():
+    """Add a new requirement via AJAX"""
+    try:
+        data = request.get_json()
+        
+        requirement_name = data.get('requirement_name', '').strip()
+        requirement_type = data.get('requirement_type', 'document').strip()
+        description = data.get('description', '').strip()
+        
+        # Validation
+        if not requirement_name:
+            return jsonify({
+                'success': False,
+                'message': 'Requirement name is required'
+            }), 400
+        
+        if requirement_type not in ['document', 'qualification']:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid requirement type'
+            }), 400
+        
+        # Check if requirement already exists
+        existing = Requirements.query.filter_by(
+            requirement_name=requirement_name,
+            requirement_type=requirement_type
+        ).first()
+        
+        if existing:
+            return jsonify({
+                'success': False,
+                'message': f'A {requirement_type} requirement with this name already exists'
+            }), 400
+        
+        # Create new requirement
+        new_requirement = Requirements(
+            requirement_name=requirement_name,
+            requirement_type=requirement_type,
+            description=description if description else None
+        )
+        
+        db.session.add(new_requirement)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Requirement added successfully',
+            'requirement': {
+                'id': new_requirement.id,
+                'name': new_requirement.requirement_name,
+                'type': new_requirement.requirement_type,
+                'description': new_requirement.description
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error adding requirement: {str(e)}'
+        }), 500

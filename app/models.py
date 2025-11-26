@@ -51,7 +51,7 @@ class Programs(db.Model):
     applications = db.relationship('Applications', back_populates='program', lazy=True)
     requirements = db.relationship('Requirements', secondary='program_requirements', viewonly=True)
     file_attachment = db.relationship('FileAttachment', back_populates='program', uselist=False)
-    program_requirements = db.relationship('ProgramRequirements', back_populates='program', lazy='dynamic', cascade='all, delete-orphan')
+    program_requirements = db.relationship('ProgramRequirements', back_populates='program', lazy='select', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Program {self.program_name}>'
@@ -79,6 +79,8 @@ class ProgramRequirements(db.Model):
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
     requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
     is_mandatory = db.Column(db.Boolean, default=True)
+    is_completed = db.Column(db.Boolean, default=True)
+    document_status = db.Column(db.String(20), nullable=False, default='pending') # 'draft' or 'published'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -297,19 +299,21 @@ class CommunityUsers(db.Model):
     __tablename__ = 'community_users'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Added index
-    age = db.Column(db.Integer, nullable=False, index=True)  # Added index for age-based queries
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  
+    age = db.Column(db.Integer, nullable=False, index=True)  
     mobile_no = db.Column(db.String(20))
     birth_month = db.Column(db.Integer)
     birth_day = db.Column(db.Integer)
     birth_year = db.Column(db.Integer)
-    barangay = db.Column(db.String(100), index=True)  # Added index for barangay queries
+    barangay = db.Column(db.String(100), index=True)  
     sitio = db.Column(db.String(100))
     municipality = db.Column(db.String(100))
-    is_currently_employed = db.Column(db.Boolean, default=False, index=True)  # Added index
-    is_student = db.Column(db.Boolean, default=False, index=True)  # Added index
-    is_solo_parent = db.Column(db.Boolean, default=False, index=True)  # Added index
-    family_annual_income = db.Column(db.Numeric(12, 2), index=True)  # Added index for income-based queries
+    is_currently_employed = db.Column(db.Boolean, default=False, index=True) 
+    occupation = db.Column(db.String(100))
+    is_student = db.Column(db.Boolean, default=False, index=True)  
+    is_solo_parent = db.Column(db.Boolean, default=False, index=True) 
+    is_pwd = db.Column(db.Boolean, default=False, index=True)  
+    family_annual_income = db.Column(db.Numeric(12, 2), index=True)  
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):

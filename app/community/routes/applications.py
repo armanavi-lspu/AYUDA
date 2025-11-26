@@ -1,10 +1,11 @@
-from flask import render_template, request, flash, redirect, url_for
+from flask import render_template, request, flash, redirect, url_for, send_file
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.utils import role_required
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements
 from app.extensions import db
 from sqlalchemy import desc, or_
+import os
 
 @community_bp.route('/applications')
 @login_required
@@ -21,21 +22,19 @@ def applications():
     # Apply status filter
     if status_filter != 'all':
         if status_filter == 'pending':
-            # Pending includes: pending, submitted, under_review
-            query = query.filter(Applications.application_status.in_(['pending', 'submitted', 'under_review']))
+            query = query.filter(Applications.application_status.in_(['pending']))
         elif status_filter == 'returned':
-            # Returned includes: rejected, needs_revision (applications with admin feedback)
             query = query.filter(or_(
                 Applications.application_status == 'rejected',
                 Applications.remarks.isnot(None)
-            ))
+            ))  
+        elif status_filter == 'on-hold':
+            query = query.filter(Applications.application_status.in_(['on-hold']))
         else:
             query = query.filter_by(application_status=status_filter)
     
-    # Order by application date (newest first)
     query = query.order_by(desc(Applications.application_date))
     
-    # Paginate results
     applications_paginated = query.paginate(
         page=page,
         per_page=per_page,
@@ -48,7 +47,7 @@ def applications():
     stats = {
         'total': total_applications.count(),
         'pending': total_applications.filter(
-            Applications.application_status.in_(['pending', 'submitted', 'under_review'])
+            Applications.application_status.in_(['pending'])
         ).count(),
         'returned': total_applications.filter(or_(
             Applications.application_status == 'rejected',
@@ -99,6 +98,36 @@ def application_detail(application_id):
         documents=documents,
         user=current_user
     )
+
+
+@community_bp.route('/documents/<int:doc_id>/download')
+@login_required
+def download_document(doc_id):
+    """Download or view a document file"""
+    # Get the document
+    document = ApplicationDocuments.query.get_or_404(doc_id)
+    
+    # Security check: ensure user owns the application or is an admin
+    if current_user.role != 'admin':
+        if document.application.user_id != current_user.id:
+            flash('You do not have permission to view this document.', 'danger')
+            return redirect(url_for('community.applications'))
+    
+    # Check if file exists
+    if not document.file_path or not os.path.exists(document.file_path):
+        flash('Document file not found.', 'danger')
+        return redirect(request.referrer or url_for('community.applications'))
+    
+    try:
+        # Send file for download/view
+        return send_file(
+            document.file_path,
+            as_attachment=False,  # False = view in browser, True = force download
+            download_name=os.path.basename(document.file_path)
+        )
+    except Exception as e:
+        flash(f'Error accessing document: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('community.applications'))
 
 @community_bp.route('/applications/<int:application_id>/slip')
 @login_required

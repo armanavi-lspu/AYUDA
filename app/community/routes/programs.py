@@ -93,7 +93,7 @@ def program_detail(program_id):
     requirements = [
         {
             'id': req.id,
-            'document_name': req.document_name,
+            'document_name': req.requirement_name,
             'description': req.description,
             'is_mandatory': is_mandatory
         }

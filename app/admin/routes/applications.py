@@ -67,7 +67,7 @@ def applications():
     pending_apps = Applications.query.filter_by(application_status='pending').count()
     approved_apps = Applications.query.filter_by(application_status='approved').count()
     rejected_apps = Applications.query.filter_by(application_status='rejected').count()
-    on_hold_apps = Applications.query.filter_by(application_status='on_hold').count()
+    on_hold_apps = Applications.query.filter_by(application_status='on-hold').count()
     
     # Get all programs for filter dropdown
     programs = Programs.query.filter_by(is_active=True).order_by(Programs.program_name).all()
@@ -93,8 +93,53 @@ def view_application(application_id):
     """View detailed application information"""
     application = Applications.query.get_or_404(application_id)
     
-    # Get document checklist
-    documents = ApplicationDocuments.query.filter_by(application_id=application_id).all()
+    # Get program-specific requirements with their application document status
+    # Join ProgramRequirements with Requirements and left join with ApplicationDocuments
+    program_requirements = db.session.query(
+        ProgramRequirements,
+        Requirements,
+        ApplicationDocuments
+    ).join(
+        Requirements, ProgramRequirements.requirement_id == Requirements.id
+    ).outerjoin(
+        ApplicationDocuments,
+        db.and_(
+            ApplicationDocuments.application_id == application_id,
+            ApplicationDocuments.requirement_id == Requirements.id
+        )
+    ).filter(
+        ProgramRequirements.program_id == application.program_id,
+        Requirements.requirement_type == 'document'  # Only show document requirements
+    ).order_by(
+        ProgramRequirements.is_mandatory.desc(),
+        Requirements.requirement_name
+    ).all()
+    
+    # Format documents for template - combine program requirements with application documents
+    documents = []
+    for prog_req, requirement, app_doc in program_requirements:
+        # Create or use existing application document
+        if app_doc is None:
+            # Create a temporary object for display purposes
+            class TempDoc:
+                def __init__(self, req, prog_req):
+                    self.id = None
+                    self.requirement = req
+                    self.is_mandatory = prog_req.is_mandatory
+                    self.submission_status = 'not_submitted'
+                    self.admin_feedback = None
+                    self.notes = None
+                    self.verified_at = None
+                    self.verified_by = None
+            
+            doc = TempDoc(requirement, prog_req)
+        else:
+            # Use existing application document
+            doc = app_doc
+            doc.is_mandatory = prog_req.is_mandatory
+            doc.requirement = requirement
+        
+        documents.append(doc)
     
     return render_template(
         'admin/view_application.html',
@@ -111,10 +156,10 @@ def update_application_status(application_id):
     """Update application status (approve, reject, hold)"""
     application = Applications.query.get_or_404(application_id)
     
-    new_status = request.form.get('status')  # 'approved', 'rejected', 'on_hold'
+    new_status = request.form.get('status')  # 'approved', 'rejected', 'on-hold'
     remarks = request.form.get('remarks', '').strip()
     
-    if new_status not in ['approved', 'rejected', 'on_hold', 'pending']:
+    if new_status not in ['approved', 'rejected', 'on-hold', 'pending']:
         return jsonify(success=False, message='Invalid status'), 400
     
     try:
@@ -130,7 +175,7 @@ def update_application_status(application_id):
         status_messages = {
             'approved': f'Your application for {application.program.program_name} has been approved!',
             'rejected': f'Your application for {application.program.program_name} has been rejected.',
-            'on_hold': f'Your application for {application.program.program_name} is on hold. Please check the remarks for more information.',
+            'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the remarks for more information.',
             'pending': f'Your application for {application.program.program_name} status has been updated to pending.'
         }
         
@@ -168,11 +213,9 @@ def update_application_status(application_id):
 def admin_update_document(application_id, doc_id):
     """Update document status"""
     data = request.json or {}
-    new_status = data.get('status')  # 'submitted', 'approved', 'rejected'
+    is_complete = data.get('is_complete', False)  # True/False for complete/incomplete
     notes = data.get('notes', '').strip()
-
-    if new_status not in ['submitted', 'approved', 'rejected', 'not_submitted']:
-        return jsonify(success=False, message='Invalid status'), 400
+    admin_feedback = data.get('admin_feedback', '').strip()
 
     try:
         app_doc = ApplicationDocuments.query.filter_by(
@@ -180,45 +223,60 @@ def admin_update_document(application_id, doc_id):
             application_id=application_id
         ).first_or_404()
         
-        app_doc.submission_status = new_status
-        app_doc.admin_feedback = notes
+        # Update document completion status
+        if is_complete:
+            app_doc.submission_status = 'approved'  # Mark as approved when complete
+        else:
+            app_doc.submission_status = 'submitted'  # Mark as submitted when incomplete
+        
+        # Update feedback and notes
+        if admin_feedback:
+            app_doc.admin_feedback = admin_feedback
+        if notes:
+            app_doc.notes = notes
+            
         app_doc.verified_by = current_user.id
         app_doc.verified_at = datetime.utcnow()
         app_doc.updated_at = datetime.utcnow()
         
-        # Check if all mandatory documents are approved
+        # Check if all mandatory documents are complete
         application = app_doc.application
-        mandatory_docs = [doc for doc in application.document_checklist if doc.is_mandatory]
-        all_approved = all(doc.submission_status == 'approved' for doc in mandatory_docs)
+        mandatory_docs = []
+        for doc in application.document_checklist:
+            prog_req = db.session.query(ProgramRequirements).filter_by(
+                program_id=application.program_id,
+                requirement_id=doc.requirement_id,
+                is_mandatory=True
+            ).first()
+            if prog_req:
+                mandatory_docs.append(doc)
         
-        # Auto-update application status if all docs approved
-        if all_approved and application.application_status == 'pending':
-            application.application_status = 'approved'
-            application.reviewed_by = current_user.id
-            application.review_date = datetime.utcnow()
+        # Auto-update application status if all mandatory docs are complete
+        if mandatory_docs:
+            all_complete = all(doc.submission_status == 'approved' for doc in mandatory_docs)
+            if all_complete and application.application_status == 'pending':
+                application.application_status = 'approved'
+                application.reviewed_by = current_user.id
+                application.review_date = datetime.utcnow()
         
         db.session.commit()
 
-        # Notify applicant
-        status_messages = {
-            'approved': 'has been approved',
-            'rejected': 'has been rejected',
-            'submitted': 'has been received'
-        }
-        
-        notif = Notifications(
-            user_id=application.user_id,
-            notif_title='Document Status Updated',
-            notif_message=f'Your document "{app_doc.requirement.document_name}" {status_messages.get(new_status, "has been updated")} for {application.program.program_name}.',
-            is_read=False,
-            created_at=datetime.utcnow()
-        )
-        db.session.add(notif)
-        db.session.commit()
+        # Notify applicant if there's feedback
+        if admin_feedback or notes:
+            feedback_text = admin_feedback or notes
+            notif = Notifications(
+                user_id=application.user_id,
+                notif_title='Document Feedback',
+                notif_message=f'Admin has provided feedback on your document "{app_doc.requirement.requirement_name}" for {application.program.program_name}: {feedback_text}',
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(notif)
+            db.session.commit()
 
         return jsonify(
             success=True, 
-            status=new_status,
+            is_complete=is_complete,
             completion_percentage=application.completion_percentage
         )
         

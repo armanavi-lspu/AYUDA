@@ -140,8 +140,10 @@ CREATE TABLE community_users (
     sitio VARCHAR(100),
     municipality VARCHAR(100),
     is_currently_employed BOOLEAN DEFAULT FALSE,
+    occupation VARCHAR(100),
     is_student BOOLEAN DEFAULT FALSE,
     is_solo_parent BOOLEAN DEFAULT FALSE,
+    is_pwd BOOLEAN DEFAULT FALSE,
     family_annual_income DECIMAL(12,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -176,6 +178,8 @@ CREATE TABLE program_requirements (
     program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
     requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
     is_mandatory BOOLEAN DEFAULT TRUE,
+    is_completed BOOLEAN DEFAULT TRUE,
+    document_status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(program_id, requirement_id) -- prevent duplicate requirements per program
 );
@@ -189,7 +193,7 @@ CREATE TABLE application_documents (
     id SERIAL PRIMARY KEY,
     application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
-    submission_status VARCHAR(20) DEFAULT 'not_submitted', -- not_submitted, submitted, approved, rejected
+    submission_status VARCHAR(20), -- approved, rejected, incomplete, on-hold, under-review
     qualification_met BOOLEAN DEFAULT FALSE, -- For qualification-type requirements
     verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who verified
     verified_at TIMESTAMP,

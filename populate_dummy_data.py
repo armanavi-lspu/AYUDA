@@ -4,7 +4,7 @@ Run this with: python populate_dummy_data.py
 """
 
 from app import create_app, db
-from app.models import User, Programs, Applications, CommunityUsers, AdminUsers
+from app.models import User, Programs, Applications, CommunityUsers, AdminUsers, Requirements, ProgramRequirements
 from datetime import datetime, timedelta
 import random
 from werkzeug.security import generate_password_hash
@@ -19,6 +19,8 @@ def populate_dummy_data():
         # Clear existing data (optional - comment out if you want to keep existing data)
         print("⚠️  Clearing existing data...")
         Applications.query.delete()
+        ProgramRequirements.query.delete()
+        Requirements.query.delete()
         CommunityUsers.query.delete()
         AdminUsers.query.delete()
         Programs.query.delete()
@@ -55,12 +57,12 @@ def populate_dummy_data():
         
         sitios = ['Sitio 1', 'Sitio 2', 'Sitio 3', 'Sitio 4', 'Purok 1', 'Purok 2']
         
-        first_names = ['Juan', 'Maria', 'Pedro', 'Ana', 'Jose', 'Marc Josue', 'Jemcent', 'Elena', 
-                       'Ramon', 'Sofia', 'Miguel', 'Carmen', 'Luis', 'Teresa', 'Antonio',
+        first_names = ['Juan', 'Maria', 'Pedro', 'Mae Belle', 'Jose', 'Marc Josue', 'Jemcent', 'Elena', 
+                       'Ramon', 'Sofia', 'Mathel', 'Carmen', 'Luis', 'Teresa', 'Antonio',
                        'Gabriel', 'Arman', 'Fernando', 'Avi', 'Ricardo']
         
-        last_names = ['Dela Cruz', 'Santos', 'Reyes', 'Garcia', 'Abulencia', 'Mendoza', 
-                      'Torres', 'Bitabara', 'Flores', 'Rivera', 'Bautista', 'Fernandez',
+        last_names = ['Dela Cruz', 'Dimaano', 'Reyes', 'Garcia', 'Abulencia', 'Mendoza', 
+                      'Torres', 'Bitabara', 'Sansano', 'Rivera', 'Bautista', 'Fernandez',
                       'Castillo', 'Morales', 'Diaz', 'Pren']
         
         community_users = []
@@ -118,64 +120,69 @@ def populate_dummy_data():
             {
                 'name': 'Financial Assistance Program',
                 'type': 'AICS',
-                'period': '2024-2025',
+                'period': 'Ongoing',
                 'description': 'Provides financial support to families in need for emergencies and basic necessities'
             },
-
             {
                 'name': 'Burial Assistance Program',
                 'type': 'AICS',
-                'period': '2024-2025',
+                'period': 'Emergency',
                 'description': 'Provides financial support to families in need for burial and funeral services'
             },
             {
                 'name': 'AKAP Partylist - Educational Assistance Program',
                 'type': 'AICS',
-                'period': '2024-2025',
+                'period': 'Annual',
                 'description': 'One time financial assistance program for elementary to college students'
             },
-
             {
                 'name': 'Educational Assistance Program',
                 'type': 'AICS',
-                'period': '2024-2025',
-                'description': 'One time financial assistance program for elementary to college students'
+                'period': 'Semi-Annual',
+                'description': 'Educational financial assistance program for elementary to college students'
             },
-
             {
                 'name': 'Medical Assistance Program',
                 'type': 'AICS',
-                'period': '2024-2025',
+                'period': 'Ongoing',
                 'description': 'Healthcare support including medicine subsidies, hospital bills, and medical procedures'
             },
             {
                 'name': 'Livelihood Development Program',
                 'type': 'CAL',
-                'period': '2024-2025',
+                'period': 'Quarterly',
                 'description': 'Skills training and business capital assistance for sustainable income generation'
             },
             {
                 'name': 'Fire Disaster',
                 'type': 'ESA',
-                'period': '2024-2025',
-                'description': 'Temporary shelter and housing assistance for families affected by fire incidents'},
+                'period': 'Emergency',
+                'description': 'Temporary shelter and housing assistance for families affected by fire incidents'
+            },
             {
                 'name': 'Typhoon Disaster',
                 'type': 'ESA',
-                'period': '2024-2025',
-                'description': 'Temporary shelter and housing assistance for families affected by typhoon incidents'},
-            {
-                'name': 'Pantawid Pamilyang Pilipino Program (4Ps)',
-                'type': '4Ps',
-                'period': '2024-2025',
-                'description': 'Special assistance for beneficiaries of the 4Ps program to support health and education needs'
+                'period': 'Emergency',
+                'description': 'Temporary shelter and housing assistance for families affected by typhoon incidents'
             },
             {
                 'name': 'Capital Assistance for Livelihood Program',
                 'type': 'CAL',
-                'period': '2024-2025',
+                'period': 'Monthly',
                 'description': 'Support for microenterprise development and livelihood projects'
-            }
+            },            
+            {
+                'name': 'Christmas Gift Giving Program',
+                'type': 'AICS',
+                'period': 'Seasonal',
+                'description': 'Annual Christmas gift distribution for indigent families'
+            },
+            {
+                'name': 'Back-to-School Assistance',
+                'type': 'AICS',
+                'period': 'Seasonal',
+                'description': 'School supplies and uniform assistance distributed before school opening'
+            },
         ]
         
         programs = []
@@ -194,7 +201,291 @@ def populate_dummy_data():
         db.session.commit()
         print(f"✅ Created {len(programs)} programs\n")
         
-        # 4. Create Applications (distributed from January to October)
+        # 4. Create Requirements (Documents and Qualifications)
+        print("📋 Creating requirements...")
+        
+        # Document Requirements
+        document_requirements_data = [
+            {'name': 'Valid ID', 'description': 'Any government-issued ID (PhilID, Driver\'s License, Passport, etc.)'},
+            {'name': 'PSA Birth Certificate', 'description': 'Original copy from PSA (Philippine Statistics Authority)'},
+            {'name': 'Certificate of Enrollment', 'description': 'Current certificate of enrollment from school'},
+            {'name': 'Certificate of Registration (COR)', 'description': 'Certificate of Registration for current semester'},
+            {'name': 'Certificate of Grades (COG)', 'description': 'Latest grades from previous semester'},
+            {'name': 'Student ID', 'description': 'Valid student identification card'},
+            {'name': 'Barangay Certificate', 'description': 'Certificate of Residency from Barangay'},
+            {'name': 'Barangay Indigency Certificate', 'description': 'Certificate of Indigency from Barangay'},
+            {'name': 'Barangay Clearance', 'description': 'Barangay clearance certificate'},
+            {'name': 'Medical Certificate', 'description': 'Medical certificate from licensed physician'},
+            {'name': 'Death Certificate', 'description': 'PSA Death Certificate of deceased'},
+            {'name': 'Proof of Income', 'description': 'Latest payslip, ITR, or certificate of income'},
+            {'name': 'Funeral Contract', 'description': 'Contract or agreement with funeral service provider'},
+            {'name': 'Hospital Bills/Medical Records', 'description': 'Medical bills, prescriptions, or hospital records'},
+            {'name': 'PWD ID', 'description': 'Valid Person with Disability identification card'},
+            {'name': 'Senior Citizen ID', 'description': 'Valid senior citizen identification card'},
+            {'name': 'Solo Parent ID', 'description': 'Valid solo parent identification card'},
+            {'name': '2x2 ID Picture', 'description': 'Recent 2x2 identification picture'},
+            {'name': 'Proof of Business', 'description': 'Business permit, DTI registration, or business-related documents'},
+        ]
+        
+        document_requirements = []
+        for req_data in document_requirements_data:
+            req = Requirements(
+                requirement_name=req_data['name'],
+                requirement_type='document',
+                description=req_data['description']
+            )
+            db.session.add(req)
+            db.session.flush()
+            document_requirements.append(req)
+        
+        # Qualification Requirements
+        qualification_requirements_data = [
+            {'name': 'Student', 'description': 'Currently enrolled in any educational institution'},
+            {'name': 'Solo Parent', 'description': 'Registered solo parent with valid ID'},
+            {'name': 'Low Income Family', 'description': 'Family annual income below poverty threshold'},
+            {'name': 'Indigent Family', 'description': 'Family identified as indigent by barangay'},
+            {'name': 'Person with Disability (PWD)', 'description': 'Registered PWD with valid ID'},
+            {'name': 'Senior Citizen', 'description': '60 years old and above with valid ID'},
+            {'name': 'Unemployed', 'description': 'Currently unemployed and seeking livelihood'},
+            {'name': 'Resident of Mabitac', 'description': 'Bonafide resident of Mabitac, Laguna'},
+            {'name': 'Fire Victim', 'description': 'Affected by fire incident (with barangay certification)'},
+            {'name': 'Typhoon Victim', 'description': 'Affected by typhoon/calamity (with barangay certification)'},
+            {'name': 'Family Member of Deceased', 'description': 'Immediate family member of the deceased'},
+            {'name': 'Medical Emergency', 'description': 'Experiencing medical emergency or critical illness'},
+        ]
+        
+        qualification_requirements = []
+        for req_data in qualification_requirements_data:
+            req = Requirements(
+                requirement_name=req_data['name'],
+                requirement_type='qualification',
+                description=req_data['description']
+            )
+            db.session.add(req)
+            db.session.flush()
+            qualification_requirements.append(req)
+        
+        db.session.commit()
+        print(f"✅ Created {len(document_requirements)} document requirements")
+        print(f"✅ Created {len(qualification_requirements)} qualification requirements\n")
+        
+        # 5. Assign Requirements to Programs
+        print("🔗 Assigning requirements to programs...")
+        
+        # Helper function to find requirement by name
+        def find_doc(name):
+            return next((r for r in document_requirements if r.requirement_name == name), None)
+        
+        def find_qual(name):
+            return next((r for r in qualification_requirements if r.requirement_name == name), None)
+        
+        # Program-specific requirements mapping
+        program_requirements_mapping = {
+            'Financial Assistance Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Indigency Certificate', True),
+                    ('Proof of Income', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Burial Assistance Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Death Certificate', True),
+                    ('Funeral Contract', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Indigency Certificate', False),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Family Member of Deceased', True),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'AKAP Partylist - Educational Assistance Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Student ID', True),
+                    ('Certificate of Enrollment', True),
+                    ('Certificate of Registration (COR)', True),
+                    ('Certificate of Grades (COG)', False),
+                    ('Barangay Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Student', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Educational Assistance Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Student ID', True),
+                    ('Certificate of Enrollment', True),
+                    ('Certificate of Registration (COR)', True),
+                    ('Certificate of Grades (COG)', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Indigency Certificate', True),
+                    ('Proof of Income', False),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Student', True),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Medical Assistance Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Medical Certificate', True),
+                    ('Hospital Bills/Medical Records', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Indigency Certificate', True),
+                    ('Proof of Income', False),
+                    ('PWD ID', False),
+                    ('Senior Citizen ID', False),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Medical Emergency', True),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Livelihood Development Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Clearance', True),
+                    ('Proof of Income', False),
+                    ('Proof of Business', False),
+                    ('2x2 ID Picture', True),
+                ],
+                'qualifications': [
+                    ('Unemployed', True),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Fire Disaster': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Fire Victim', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Typhoon Disaster': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Typhoon Victim', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Capital Assistance for Livelihood Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Clearance', True),
+                    ('Proof of Business', True),
+                    ('Proof of Income', False),
+                    ('2x2 ID Picture', True),
+                ],
+                'qualifications': [
+                    ('Unemployed', False),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Senior Citizen Support Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Senior Citizen ID', True),
+                    ('Barangay Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Senior Citizen', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Christmas Gift Giving Program': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Barangay Certificate', True),
+                    ('Barangay Indigency Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+            'Back-to-School Assistance': {
+                'documents': [
+                    ('Valid ID', True),
+                    ('Student ID', True),
+                    ('Certificate of Enrollment', True),
+                    ('Barangay Certificate', True),
+                    ('2x2 ID Picture', False),
+                ],
+                'qualifications': [
+                    ('Student', True),
+                    ('Low Income Family', True),
+                    ('Resident of Mabitac', True),
+                ]
+            },
+        }
+        
+        # Assign requirements to each program
+        requirements_assigned = 0
+        for program in programs:
+            if program.program_name in program_requirements_mapping:
+                mapping = program_requirements_mapping[program.program_name]
+                
+                # Assign document requirements
+                for doc_name, is_mandatory in mapping['documents']:
+                    doc_req = find_doc(doc_name)
+                    if doc_req:
+                        prog_req = ProgramRequirements(
+                            program_id=program.id,
+                            requirement_id=doc_req.id,
+                            is_mandatory=is_mandatory
+                        )
+                        db.session.add(prog_req)
+                        requirements_assigned += 1
+                
+                # Assign qualification requirements
+                for qual_name, is_mandatory in mapping['qualifications']:
+                    qual_req = find_qual(qual_name)
+                    if qual_req:
+                        prog_req = ProgramRequirements(
+                            program_id=program.id,
+                            requirement_id=qual_req.id,
+                            is_mandatory=is_mandatory
+                        )
+                        db.session.add(prog_req)
+                        requirements_assigned += 1
+        
+        db.session.commit()
+        print(f"✅ Assigned {requirements_assigned} requirements to programs\n")
+        
+        # 6. Create Applications (distributed from January to October)
         print("📝 Creating applications (January - October 2025)...")
         statuses = ['pending', 'approved', 'rejected', 'under_review', 'on-hold']
         status_weights = [0.35, 0.40, 0.10, 0.10, 0.05]  # Probability weights
@@ -275,6 +566,9 @@ def populate_dummy_data():
         print(f"✅ Admin Users: 1")
         print(f"✅ Community Users: {len(community_users)}")
         print(f"✅ Programs: {len(programs)}")
+        print(f"✅ Document Requirements: {len(document_requirements)}")
+        print(f"✅ Qualification Requirements: {len(qualification_requirements)}")
+        print(f"✅ Program-Requirement Assignments: {requirements_assigned}")
         print(f"✅ Applications: {applications_created}")
         print(f"✅ Barangays: {len(barangays)}")
         print("="*70)
@@ -332,6 +626,23 @@ def populate_dummy_data():
         from sqlalchemy import func
         avg_income = db.session.query(func.avg(CommunityUsers.family_annual_income)).scalar()
         print(f"   • Average Family Income: ₱{avg_income:,.2f}")
+        
+        print("\n📋 REQUIREMENTS BREAKDOWN:")
+        print(f"   • Total Document Requirements: {len(document_requirements)}")
+        print(f"   • Total Qualification Requirements: {len(qualification_requirements)}")
+        
+        print("\n📑 SAMPLE PROGRAM REQUIREMENTS:")
+        sample_programs = ['Educational Assistance Program', 'Medical Assistance Program', 'Fire Disaster']
+        for prog_name in sample_programs:
+            program = next((p for p in programs if p.program_name == prog_name), None)
+            if program:
+                prog_reqs = ProgramRequirements.query.filter_by(program_id=program.id).all()
+                doc_count = sum(1 for pr in prog_reqs if pr.requirement.requirement_type == 'document')
+                qual_count = sum(1 for pr in prog_reqs if pr.requirement.requirement_type == 'qualification')
+                mandatory_count = sum(1 for pr in prog_reqs if pr.is_mandatory)
+                print(f"   • {prog_name}:")
+                print(f"     - Documents: {doc_count}, Qualifications: {qual_count}")
+                print(f"     - Mandatory: {mandatory_count}, Optional: {len(prog_reqs) - mandatory_count}")
         
         print("\n" + "="*70)
         print("🎉 Dummy data population completed successfully!")
