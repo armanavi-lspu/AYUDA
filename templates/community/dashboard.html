@@ -85,6 +85,44 @@
         padding: 0.2rem 0.4rem;
     }
     
+    .event-mini-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+    }
+    .event-mini-card:hover {
+        background-color: #f8f9fc;
+        box-shadow: 0 0.125rem 0.5rem rgba(58, 59, 69, 0.1);
+        transform: translateX(3px);
+    }
+    .event-mini-card.deadline {
+        border-left-color: #f6c23e;
+    }
+    .event-mini-card.claiming {
+        border-left-color: #1cc88a;
+    }
+    
+    .event-date-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 8px 12px;
+        text-align: center;
+        min-width: 70px;
+    }
+    
+    .event-date-badge .day {
+        font-size: 1.5rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .event-date-badge .month {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+    
     @media (max-width: 768px) {
         .stats-card { margin-bottom: 1rem; }
         .application-item { margin-bottom: 1rem; }
@@ -242,7 +280,7 @@
 
     <div class="row mb-4">
         <!-- Recent Applications with Enhanced Bootstrap Card -->
-        <div class="col-xl-8 col-lg-7">
+        <div class="col-xl-6 col-lg-6">
             <div class="card shadow mb-4 border-0">
                 <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
                     <h6 class="h5 m-0 font-weight-bold text-dark">
@@ -358,8 +396,83 @@
             </div>
         </div>
 
+        <!-- Upcoming Events Section -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card shadow mb-4 border-0">
+                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-calendar-day text-info mr-2"></i>Upcoming Events
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.schedule') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View Schedule
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_events %}
+                        {% for event in upcoming_events %}
+                        <div class="event-mini-card {{ event.type }} p-3 mb-3">
+                            <div class="d-flex align-items-start">
+                                <!-- Date Badge -->
+                                <div class="event-date-badge mr-3">
+                                    <div class="day">{{ event.date.strftime('%d') }}</div>
+                                    <div class="month">{{ event.date.strftime('%b') }}</div>
+                                </div>
+                                
+                                <!-- Event Details -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-start justify-content-between mb-1">
+                                        <h6 class="mb-0 font-weight-bold">
+                                            {{ event.title }}
+                                        </h6>
+                                        {% if event.type == 'deadline' %}
+                                        <span class="badge badge-warning badge-pill ml-2">
+                                            <i class="fas fa-clock mr-1"></i>Deadline
+                                        </span>
+                                        {% elif event.type == 'claiming' %}
+                                        <span class="badge badge-success badge-pill ml-2">
+                                            <i class="fas fa-hand-holding-usd mr-1"></i>Claiming
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <p class="mb-2 small text-muted">
+                                        <i class="fas fa-info-circle mr-1"></i>{{ event.description }}
+                                    </p>
+                                    
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="badge badge-light">
+                                            <i class="fas fa-file-alt mr-1"></i>{{ event.program }}
+                                        </span>
+                                        <a href="{{ url_for('community.application_detail', application_id=event.application_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Empty State -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted font-weight-bold mb-2">No Upcoming Events</h6>
+                            <p class="text-muted small mb-3">You don't have any scheduled deadlines or claim dates.</p>
+                            <a href="{{ url_for('community.schedule') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-calendar-alt mr-1"></i>View Full Schedule
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
         <!-- Recent Announcements with Enhanced Bootstrap Features -->
-        <div class="col-xl-4 col-lg-5">
+        <div class="col-xl-12 col-lg-12">
             <div class="card shadow mb-4 border-0">
                 <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
                     <h6 class="h5 m-0 font-weight-bold text-dark">
@@ -373,21 +486,21 @@
                 </div>
                 <div class="card-body p-0">
                     {% if recent_announcements %}
-                        <div class="list-group list-group-flush">
+                        <div class="row mx-0">
                             {% for announcement in recent_announcements %}
-                            <div class="list-group-item announcement-item border-0">
-                                <div class="d-flex w-100 justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
+                            <div class="col-md-4 px-2 mb-2">
+                                <div class="announcement-item border p-3 h-100">
+                                    <div class="d-flex flex-column h-100">
                                         <h6 class="mb-2 font-weight-bold">
                                             <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
                                                class="text-decoration-none text-dark stretched-link">
                                                 {{ announcement.announcement_title or 'Untitled Announcement' }}
                                             </a>
                                         </h6>
-                                        <p class="mb-2 text-muted small">
+                                        <p class="mb-2 text-muted small flex-grow-1">
                                             {% if announcement.announcement_content %}
-                                                {% if announcement.announcement_content|length > 80 %}
-                                                    {{ announcement.announcement_content|striptags|truncate(80) }}
+                                                {% if announcement.announcement_content|length > 100 %}
+                                                    {{ announcement.announcement_content|striptags|truncate(100) }}
                                                 {% else %}
                                                     {{ announcement.announcement_content|striptags }}
                                                 {% endif %}
@@ -395,7 +508,7 @@
                                                 No content available.
                                             {% endif %}
                                         </p>
-                                        <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex justify-content-between align-items-center mt-auto">
                                             <span class="badge badge-secondary badge-pill">
                                                 <i class="fas fa-folder mr-1"></i>{{ announcement.category or 'General' }}
                                             </span>

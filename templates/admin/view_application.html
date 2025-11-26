@@ -99,6 +99,14 @@
         font-size: 0.8rem;
         margin: 2px;
     }
+    
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    }
+    
+    .border-4 {
+        border-width: 4px !important;
+    }
 </style>
 {% endblock %}
 
@@ -117,16 +125,55 @@
             <h6 class="m-0 font-weight-bold text-primary">
                 Application #{{ application.id }}
             </h6>
-            <div>
-                {% if application.application_status == 'pending' %}
-                    <span class="badge badge-warning badge-lg">Pending</span>
-                {% elif application.application_status == 'approved' %}
-                    <span class="badge badge-success badge-lg">Approved</span>
-                {% elif application.application_status == 'rejected' %}
-                    <span class="badge badge-danger badge-lg">Rejected</span>
-                {% elif application.application_status == 'on_hold' %}
-                    <span class="badge badge-info badge-lg">On Hold</span>
-                {% endif %}
+            <div class="dropdown">
+                <button class="btn btn-sm dropdown-toggle 
+                    {% if application.application_status == 'pending' %}btn-warning
+                    {% elif application.application_status == 'approved' %}btn-success
+                    {% elif application.application_status == 'rejected' %}btn-danger
+                    {% elif application.application_status == 'on-hold' %}btn-info
+                    {% else %}btn-secondary{% endif %}" 
+                    type="button" 
+                    id="statusDropdown" 
+                    data-toggle="dropdown" 
+                    aria-haspopup="true" 
+                    aria-expanded="false">
+                    <i class="fas fa-circle mr-1"></i>
+                    {% if application.application_status == 'pending' %}Pending
+                    {% elif application.application_status == 'approved' %}Approved
+                    {% elif application.application_status == 'rejected' %}Rejected
+                    {% elif application.application_status == 'on-hold' %}On Hold
+                    {% else %}Unknown{% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="statusDropdown" style="min-width: 250px;">
+                    <h6 class="dropdown-header"><i class="fas fa-edit mr-1"></i>Update Status</h6>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item {% if application.application_status == 'pending' %}active{% endif %}" 
+                       href="#" 
+                       onclick="updateStatus('pending'); return false;">
+                        <i class="fas fa-clock text-warning mr-2"></i>Pending Review
+                    </a>
+                    <a class="dropdown-item {% if application.application_status == 'approved' %}active{% endif %}" 
+                       href="#" 
+                       onclick="updateStatus('approved'); return false;">
+                        <i class="fas fa-check-circle text-success mr-2"></i>Approve
+                    </a>
+                    <a class="dropdown-item {% if application.application_status == 'rejected' %}active{% endif %}" 
+                       href="#" 
+                       onclick="updateStatus('rejected'); return false;">
+                        <i class="fas fa-times-circle text-danger mr-2"></i>Reject
+                    </a>
+                    <a class="dropdown-item {% if application.application_status == 'on_hold' %}active{% endif %}" 
+                       href="#" 
+                       onclick="updateStatus('on-hold'); return false;">
+                        <i class="fas fa-pause-circle text-info mr-2"></i>Put On Hold
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <div class="px-3 py-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle mr-1"></i>You can add overall feedback after selecting status
+                        </small>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="card-body">
@@ -188,24 +235,78 @@
             
             {% if application.remarks %}
             <div class="alert alert-info mt-3">
-                <strong><i class="fas fa-comment mr-2"></i>Remarks:</strong>
+                <strong><i class="fas fa-comment mr-2"></i>Overall Feedback:</strong>
                 <p class="mb-0 mt-2">{{ application.remarks }}</p>
             </div>
             {% endif %}
-            
-            <hr>
-            <div class="text-center">
-                <button type="button" class="btn btn-primary" 
-                        data-toggle="modal" 
-                        data-target="#updateStatusModal">
-                    <i class="fas fa-edit mr-2"></i>Update Status
-                </button>
-            </div>
         </div>
     </div>
 
-    <!-- Document Checklist -->
-    <div class="card shadow">
+    <!-- Qualification Requirements Checklist -->
+    {% if qualification_requirements %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white py-3">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="list-group list-group-flush">
+                {% for qual in qualification_requirements %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="mr-auto">
+                            <h6 class="mb-1">
+                                {% if qual.is_qualified == True %}
+                                <i class="fas fa-check-circle text-success mr-2"></i>
+                                {% elif qual.is_qualified == False %}
+                                <i class="fas fa-times-circle text-danger mr-2"></i>
+                                {% else %}
+                                <i class="fas fa-question-circle text-warning mr-2"></i>
+                                {% endif %}
+                                {{ qual.requirement_name }}
+                            </h6>
+                            {% if qual.description %}
+                            <p class="mb-0 text-muted small">{{ qual.description }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if qual.is_qualified == True %}
+                            <span class="badge badge-success">Qualified</span>
+                            {% elif qual.is_qualified == False %}
+                            <span class="badge badge-danger">Not Qualified</span>
+                            {% else %}
+                            <span class="badge badge-warning">Needs Verification</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>Note:</strong> These are eligibility qualifications for this program. 
+                The system automatically checks these against the applicant's profile.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Approve/Reject Actions -->
+
+    {% if application.application_status != 'approved' and application.application_status != 'rejected' %}
+    <div class="mb-4">
+        <button type="button" class="btn btn-success btn-lg mr-2" onclick="handleApprove()" id="approveBtn">
+            <i class="fas fa-check-circle mr-1"></i>Approve
+        </button>
+        <button type="button" class="btn btn-danger btn-lg" onclick="handleReject()">
+            <i class="fas fa-times-circle mr-1"></i>Reject
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Document Requirements Verification -->
+    <div class="card shadow position-relative" id="docReqCard">
         <div class="card-header bg-gradient-success text-white py-3">
             <div class="d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold">
@@ -214,10 +315,18 @@
                 <div>
                     <span class="badge badge-light">
                         <i class="fas fa-check-double mr-1"></i>
-                        {{ documents|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ documents|length }} Verified
+                        {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Verified
                     </span>
                 </div>
             </div>
+            {% if application.application_status != 'approved' %}
+            <div class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="top:0; left:0; background:rgba(255,255,255,0.7); z-index:10;backdrop-filter: blur(2px);">
+                <div class="text-center">
+                    <i class="fas fa-lock fa-2x text-secondary mb-2"></i>
+                    <div class="font-weight-bold text-secondary">This section is only accessible after approval.</div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         <div class="card-body p-0">
             <!-- Documents Table -->
@@ -238,7 +347,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for doc in documents %}
+                        {% for doc in document_requirements %}
                         {% set doc_id = doc.id if doc.id else 'new_' ~ doc.requirement.id %}
                         <tr class="document-row" data-status="{{ doc.submission_status }}" data-mandatory="{{ doc.is_mandatory }}" data-doc-id="{{ doc_id }}">
                             <td>
@@ -307,8 +416,8 @@
                             <td>
                                 <button type="button" class="btn btn-sm btn-info btn-block" 
                                         data-toggle="collapse" data-target="#docDetail{{ doc_id }}"
-                                        title="Add Notes/Feedback">
-                                    <i class="fas fa-comment mr-1"></i>Add Feedback
+                                        title="Add Admin Notes">
+                                    <i class="fas fa-comment mr-1"></i>Add Notes
                                 </button>
                             </td>
                         </tr>
@@ -332,32 +441,32 @@
                                         <!-- Full Width: Notes and Feedback -->
                                         <div class="col-md-12">
                                             <h6 class="font-weight-bold mb-3 text-primary">
-                                                <i class="fas fa-sticky-note mr-2"></i>Admin Notes & Feedback
+                                                <i class="fas fa-sticky-note mr-2"></i>Admin Notes
                                                 <small class="text-muted font-weight-normal">(Visible to applicant)</small>
                                             </h6>
                                             
-                                            <!-- Existing Feedback Display -->
+                                            <!-- Existing Notes Display -->
                                             {% if doc.admin_feedback %}
                                             <div class="alert alert-info mb-3" role="alert">
-                                                <strong><i class="fas fa-info-circle mr-1"></i>Previous Feedback:</strong>
+                                                <strong><i class="fas fa-info-circle mr-1"></i>Previous Notes:</strong>
                                                 <p class="mb-0 mt-2">{{ doc.admin_feedback }}</p>
                                             </div>
                                             {% endif %}
                                             
                                             <!-- Notes Textarea -->
                                             <div class="form-group">
-                                                <label class="font-weight-bold small">Add New Notes / Feedback:</label>
+                                                <label class="font-weight-bold small">Add New Admin Notes:</label>
                                                 <textarea class="form-control document-notes" 
                                                           id="notes{{ doc_id }}"
                                                           rows="6"
                                                           {% if not doc.id %}disabled{% endif %}
-                                                          placeholder="Enter feedback, comments, or issues with this document...&#10;&#10;Example:&#10;• Document has expired on [date], please provide updated version&#10;• Signature is missing on page 2&#10;• Some pages are unclear - please ensure all pages are readable&#10;• Please bring original document for verification">{{ doc.notes or '' }}</textarea>
+                                                          placeholder="Enter notes, comments, or issues specific to this document...&#10;&#10;Example:&#10;• Document has expired on [date], please provide updated version&#10;• Signature is missing on page 2&#10;• Some pages are unclear - please ensure all pages are readable&#10;• Please bring original document for verification">{{ doc.notes or '' }}</textarea>
                                                 <small class="form-text text-muted">
-                                                    <i class="fas fa-lightbulb mr-1"></i>Be specific about what needs to be corrected to help the applicant fix issues without returning to the office.
+                                                    <i class="fas fa-lightbulb mr-1"></i>These notes are specific to this document requirement. For overall application feedback, use the status update dropdown above.
                                                 </small>
                                             </div>
                                             
-                                            <!-- Quick Feedback Templates -->
+                                            <!-- Quick Note Templates -->
                                             <div class="mb-3">
                                                 <label class="font-weight-bold small">Quick Templates:</label>
                                                 <div class="btn-group btn-group-sm d-flex flex-wrap" role="group">
@@ -396,7 +505,7 @@
                                                     {% else %}
                                                     disabled
                                                     {% endif %}>
-                                                <i class="fas fa-save mr-2"></i>Save Feedback
+                                                <i class="fas fa-save mr-2"></i>Save Admin Notes
                                             </button>
                                         </div>
                                     </div>
@@ -437,53 +546,136 @@
     </div>
 </div>
 
-<!-- Update Status Modal -->
-<div class="modal fade" id="updateStatusModal" tabindex="-1">
+<!-- Status Update Modal (opened after selecting from dropdown) -->
+<div class="modal fade" id="statusRemarksModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('admin.update_application_status', application_id=application.id) }}">
-                <div class="modal-header bg-primary text-white">
+            <form method="POST" action="{{ url_for('admin.update_application_status', application_id=application.id) }}" id="statusUpdateForm">
+                <div class="modal-header text-white" id="modalHeader">
                     <h5 class="modal-title">
-                        <i class="fas fa-edit mr-2"></i>Update Application Status
+                        <i class="fas fa-edit mr-2"></i>Update to <span id="statusName"></span>
                     </h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
                         <span>&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
+                    <input type="hidden" name="status" id="selectedStatus">
                     <div class="form-group">
-                        <label class="font-weight-bold">New Status <span class="text-danger">*</span></label>
-                        <select name="status" class="form-control" required>
-                            <option value="">-- Select Status --</option>
-                            <option value="pending" {% if application.application_status == 'pending' %}selected{% endif %}>Pending Review</option>
-                            <option value="approved" {% if application.application_status == 'approved' %}selected{% endif %}>Approve</option>
-                            <option value="rejected" {% if application.application_status == 'rejected' %}selected{% endif %}>Reject</option>
-                            <option value="on_hold" {% if application.application_status == 'on_hold' %}selected{% endif %}>Put On Hold</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Remarks / Feedback</label>
-                        <textarea name="remarks" class="form-control" rows="4" 
-                                  placeholder="Enter feedback or reason for status change...">{{ application.remarks or '' }}</textarea>
+                        <label class="font-weight-bold">Overall Feedback <span class="text-muted">(Optional)</span></label>
+                        <textarea name="remarks" class="form-control" rows="5" 
+                                  placeholder="Enter overall feedback or reason for status change...&#10;&#10;This will be visible to the applicant and applies to the entire application.">{{ application.remarks or '' }}</textarea>
                         <small class="form-text text-muted">
-                            This will be visible to the applicant.
+                            <i class="fas fa-info-circle mr-1"></i>This is the general feedback for the entire application, not specific to individual documents.
                         </small>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        <strong>Tip:</strong> You can update the status without adding feedback, or add document-specific notes in the requirements section below.
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check mr-1"></i>Update Status
+                        <i class="fas fa-check mr-1"></i>Confirm Update
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-{% endblock %}
 
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmActionModal" tabindex="-1" role="dialog" aria-labelledby="confirmActionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-weight-bold" id="confirmActionModalLabel">
+          <i class="fas fa-question-circle mr-2"></i>Confirm Action
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="confirmActionModalBody">
+        <!-- Message will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmActionModalConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
 {% block extra_js %}
 <script>
+// Quick Approve/Reject Functions
+function handleApprove() {
+    {% if qualification_requirements %}
+    // Count unqualified and needs verification
+    const notQualified = {{ qualification_requirements|selectattr('is_qualified', 'equalto', False)|list|length }};
+    const needsVerification = {{ qualification_requirements|rejectattr('is_qualified', 'in', [True, False])|list|length }};
+    
+    if (notQualified > 0 || needsVerification > 0) {
+        let warningMessage = 'Warning: Qualification Issues Detected\n\n';
+        
+        if (notQualified > 0) {
+            warningMessage += `• ${notQualified} qualification requirement(s) NOT MET\n`;
+        }
+        if (needsVerification > 0) {
+            warningMessage += `• ${needsVerification} qualification(s) need manual verification\n`;
+        }
+        
+        warningMessage += '\nApproving this application despite unmet qualifications may violate program eligibility rules.\n\n';
+        warningMessage += '\nAre you sure you want to APPROVE this application?';
+        
+        showConfirmModal(warningMessage, function() { updateStatus('approved'); });
+        return;
+    } else {
+        showConfirmModal('All qualification requirements are met.\n\nProceed to APPROVE this application?', function() { updateStatus('approved'); });
+        return;
+    }
+    {% else %}
+    showConfirmModal('Proceed to APPROVE this application?', function() { updateStatus('approved'); });
+    return;
+    {% endif %}
+}
+
+function handleReject() {
+    showConfirmModal('Are you sure you want to REJECT this application?\n\nThis action will notify the applicant.', function() { updateStatus('rejected'); });
+}
+
+// Status Update Function
+function updateStatus(status) {
+    const statusNames = {
+        'pending': 'Pending Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'on-hold': 'On Hold'
+    };
+    
+    const statusColors = {
+        'pending': 'bg-warning',
+        'approved': 'bg-success',
+        'rejected': 'bg-danger',
+        'on-hold': 'bg-info'
+    };
+    
+    // Update modal content
+    document.getElementById('selectedStatus').value = status;
+    document.getElementById('statusName').textContent = statusNames[status];
+    
+    // Update modal header color
+    const modalHeader = document.getElementById('modalHeader');
+    modalHeader.className = 'modal-header text-white ' + statusColors[status];
+    
+    // Show the modal
+    $('#statusRemarksModal').modal('show');
+}
+
 // Document Filtering
 function filterDocuments(filter) {
     const rows = document.querySelectorAll('.document-row');
@@ -614,12 +806,12 @@ function toggleDocumentComplete(docId, isComplete) {
     });
 }
 
-// Save Feedback
+// Save Admin Notes
 function saveFeedback(docId) {
     const notes = document.getElementById(`notes${docId}`).value.trim();
     
     if (!notes) {
-        alert('Please enter feedback before saving.');
+        alert('Please enter admin notes before saving.');
         return;
     }
     
@@ -641,17 +833,17 @@ function saveFeedback(docId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showSuccessToast('Feedback saved successfully');
+            showSuccessToast('Admin notes saved successfully');
             setTimeout(() => {
                 location.reload();
             }, 1000);
         } else {
-            alert('Error saving feedback: ' + data.message);
+            alert('Error saving admin notes: ' + data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error saving feedback. Please try again.');
+        alert('Error saving admin notes. Please try again.');
     });
 }
 
@@ -707,11 +899,11 @@ function saveAllNotes() {
     });
     
     if (!hasChanges) {
-        alert('No notes to save. Please add feedback before saving.');
+        alert('No notes to save. Please add admin notes before saving.');
         return;
     }
     
-    if (!confirm('Save notes for all documents with feedback?')) {
+    if (!confirm('Save notes for all documents with admin notes?')) {
         return;
     }
     
@@ -756,7 +948,7 @@ function bulkReject() {
     const selected = getSelectedDocuments();
     if (selected.length === 0) return;
     
-    const reason = prompt('Enter reason for marking as incomplete (will be added to all selected documents):');
+    const reason = prompt('Enter admin notes for marking as incomplete (will be added to all selected documents):');
     if (!reason) return;
     
     bulkUpdateDocuments(selected, false, reason);
@@ -814,5 +1006,23 @@ function updateDocumentWithFeedback(docId) {
     
     updateDocumentStatus(docId, status, notes);
 }
+
+// Modal-based Approve/Reject
+let pendingAction = null;
+
+function showConfirmModal(message, onConfirm) {
+    document.getElementById('confirmActionModalBody').textContent = message;
+    $('#confirmActionModal').modal('show');
+    pendingAction = onConfirm;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('confirmActionModalConfirmBtn').onclick = function() {
+        $('#confirmActionModal').modal('hide');
+        if (typeof pendingAction === 'function') {
+            setTimeout(pendingAction, 200); // slight delay for modal close
+        }
+    };
+});
 </script>
 {% endblock %}

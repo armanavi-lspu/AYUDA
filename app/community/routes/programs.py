@@ -133,12 +133,13 @@ def submit_application(program_id):
     db.session.flush()  # Get the ID
     
     # Get requirements and create application documents checklist
+    # Set status to 'pending' so admin can verify documents submitted at MSWD office
     program_requirements = ProgramRequirements.query.filter_by(program_id=program_id).all()
     for req_link in program_requirements:
         app_doc = ApplicationDocuments(
             application_id=new_application.id,
             requirement_id=req_link.requirement_id,
-            submission_status='not_submitted'
+            submission_status='pending'
         )
         db.session.add(app_doc)
     
@@ -152,7 +153,7 @@ def submit_application(program_id):
     db.session.add(notification)
     db.session.commit()
     
-    flash('Application created successfully! Print your application slip.', 'success')
+    flash('Application submitted! Please wait for admin approval to receive your application slip.', 'success')
     
-    # Redirect to application slip
-    return redirect(url_for('community.application_slip', application_id=new_application.id))
+    # Redirect to application details page (not slip - slip is only available after approval)
+    return redirect(url_for('community.application_detail', application_id=new_application.id))

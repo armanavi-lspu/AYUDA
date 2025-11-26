@@ -1,0 +1,370 @@
+{% extends "community/community_base.html" %}
+{% block title %}Schedule - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .schedule-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .event-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #dee2e6;
+        background: white;
+    }
+    
+    .event-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .event-card.deadline {
+        border-left-color: #f6c23e;
+    }
+    
+    .event-card.claiming {
+        border-left-color: #1cc88a;
+    }
+    
+    .event-card.past {
+        border-left-color: #d1d3e2;
+        opacity: 0.7;
+    }
+    
+    .event-date-box {
+        background: var(--gradient-primary);
+        color: white;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        min-width: 100px;
+    }
+    
+    .event-date-day {
+        font-size: 2rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .event-date-month {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .event-icon {
+        font-size: 2rem;
+        opacity: 0.2;
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .badge-deadline {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: white;
+    }
+    
+    .badge-claiming {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 20px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid var(--primary-color);
+        z-index: 1;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 20px;
+    }
+    
+    .calendar-header {
+        background: var(--gradient-primary);
+        color: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: var(--shadow);
+    }
+    
+    .stats-card .number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .stats-card .label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="schedule-container">
+    <!-- Page Header -->
+    <div class="calendar-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-2">
+                    <i class="fas fa-calendar-alt mr-2"></i>My Schedule
+                </h2>
+                <p class="mb-0 opacity-75">
+                    Keep track of important deadlines and claim dates for your applications
+                </p>
+            </div>
+            <div class="col-md-4 text-right">
+                <div class="text-white">
+                    <div style="font-size: 0.9rem; opacity: 0.8;">Today</div>
+                    <div style="font-size: 1.5rem; font-weight: bold;">
+                        {{ current_date.strftime('%B %d, %Y') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="number">{{ upcoming_events|length }}</div>
+                <div class="label">Upcoming Events</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="number">{{ upcoming_events|selectattr('type', 'equalto', 'deadline')|list|length }}</div>
+                <div class="label">Pending Deadlines</div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="stats-card">
+                <div class="number">{{ upcoming_events|selectattr('type', 'equalto', 'claiming')|list|length }}</div>
+                <div class="label">Scheduled Claims</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Events Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-calendar-day mr-2"></i>Upcoming Events
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if upcoming_events %}
+            <div class="timeline">
+                {% for event in upcoming_events %}
+                <div class="timeline-item">
+                    <div class="event-card card mb-3 {{ event.type }}">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <!-- Date Box -->
+                                <div class="col-auto">
+                                    <div class="event-date-box">
+                                        <div class="event-date-day">{{ event.date.strftime('%d') }}</div>
+                                        <div class="event-date-month">{{ event.date.strftime('%b %Y') }}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Event Details -->
+                                <div class="col position-relative">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0 font-weight-bold">
+                                            {{ event.title }}
+                                            {% if event.type == 'deadline' %}
+                                            <span class="badge badge-deadline ml-2">
+                                                <i class="fas fa-clock mr-1"></i>Deadline
+                                            </span>
+                                            {% elif event.type == 'claiming' %}
+                                            <span class="badge badge-claiming ml-2">
+                                                <i class="fas fa-hand-holding-usd mr-1"></i>Claiming
+                                            </span>
+                                            {% endif %}
+                                        </h6>
+                                    </div>
+                                    
+                                    <p class="mb-2 text-muted">
+                                        <i class="fas fa-info-circle mr-1"></i>{{ event.description }}
+                                    </p>
+                                    
+                                    <div class="d-flex align-items-center text-sm">
+                                        <span class="badge badge-light mr-2">
+                                            <i class="fas fa-file-alt mr-1"></i>{{ event.program }}
+                                        </span>
+                                        <span class="badge badge-light">
+                                            <i class="fas fa-hashtag mr-1"></i>Application #{{ event.application_id }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Background Icon -->
+                                    {% if event.type == 'deadline' %}
+                                    <i class="fas fa-clock event-icon text-warning"></i>
+                                    {% elif event.type == 'claiming' %}
+                                    <i class="fas fa-calendar-check event-icon text-success"></i>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Action Button -->
+                                <div class="col-auto">
+                                    <a href="{{ url_for('community.view_application', application_id=event.application_id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye mr-1"></i>View Application
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-calendar-day"></i>
+                <h5>No Upcoming Events</h5>
+                <p class="text-muted">You don't have any scheduled deadlines or claim dates at the moment.</p>
+                <a href="{{ url_for('community.programs') }}" class="btn btn-primary mt-3">
+                    <i class="fas fa-plus mr-2"></i>Apply for a Program
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Past Events Section -->
+    {% if past_events %}
+    <div class="card shadow">
+        <div class="card-header bg-white py-3">
+            <h5 class="m-0 font-weight-bold text-secondary">
+                <i class="fas fa-history mr-2"></i>Past Events
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="accordion" id="pastEventsAccordion">
+                <div class="card">
+                    <div class="card-header bg-light" id="pastEventsHeader">
+                        <button class="btn btn-link btn-block text-left text-secondary" type="button" data-toggle="collapse" data-target="#pastEventsCollapse">
+                            <i class="fas fa-chevron-down mr-2"></i>Show Past Events ({{ past_events|length }})
+                        </button>
+                    </div>
+                    <div id="pastEventsCollapse" class="collapse" data-parent="#pastEventsAccordion">
+                        <div class="card-body">
+                            {% for event in past_events %}
+                            <div class="event-card card mb-3 past">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <div class="event-date-box" style="background: #6c757d;">
+                                                <div class="event-date-day">{{ event.date.strftime('%d') }}</div>
+                                                <div class="event-date-month">{{ event.date.strftime('%b %Y') }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <h6 class="mb-1 font-weight-bold text-muted">{{ event.title }}</h6>
+                                            <p class="mb-1 small text-muted">{{ event.description }}</p>
+                                            <span class="badge badge-secondary">{{ event.program }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Information Alert -->
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading">
+            <i class="fas fa-info-circle mr-2"></i>About Schedule Dates
+        </h6>
+        <p class="mb-0 small">
+            <strong>Note:</strong> The dates shown here are system-generated placeholders for demonstration purposes. 
+            In the full implementation, these dates will be:
+        </p>
+        <ul class="mb-0 mt-2 small">
+            <li><strong>Submission Deadlines:</strong> Set by administrators based on program requirements and processing times</li>
+            <li><strong>Claim Dates:</strong> Scheduled by the office after your application is approved, based on availability and budget allocation</li>
+            <li>You will receive notifications when actual dates are confirmed</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh page every 5 minutes to keep schedule updated
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+    
+    // Highlight events happening today
+    $(document).ready(function() {
+        const today = new Date().toDateString();
+        $('.event-card').each(function() {
+            const eventDate = new Date($(this).find('.event-date-box').data('date')).toDateString();
+            if (eventDate === today) {
+                $(this).addClass('border-primary').css('border-width', '3px');
+                $(this).prepend('<div class="badge badge-primary mb-2"><i class="fas fa-star mr-1"></i>Today</div>');
+            }
+        });
+    });
+</script>
+{% endblock %}

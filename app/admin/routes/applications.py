@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.utils import role_required
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers
 from app.extensions import db
 
 
@@ -108,43 +108,126 @@ def view_application(application_id):
             ApplicationDocuments.requirement_id == Requirements.id
         )
     ).filter(
-        ProgramRequirements.program_id == application.program_id,
-        Requirements.requirement_type == 'document'  # Only show document requirements
+        ProgramRequirements.program_id == application.program_id
     ).order_by(
         ProgramRequirements.is_mandatory.desc(),
         Requirements.requirement_name
     ).all()
     
-    # Format documents for template - combine program requirements with application documents
-    documents = []
-    for prog_req, requirement, app_doc in program_requirements:
-        # Create or use existing application document
-        if app_doc is None:
-            # Create a temporary object for display purposes
-            class TempDoc:
-                def __init__(self, req, prog_req):
-                    self.id = None
-                    self.requirement = req
-                    self.is_mandatory = prog_req.is_mandatory
-                    self.submission_status = 'not_submitted'
-                    self.admin_feedback = None
-                    self.notes = None
-                    self.verified_at = None
-                    self.verified_by = None
-            
-            doc = TempDoc(requirement, prog_req)
-        else:
-            # Use existing application document
-            doc = app_doc
-            doc.is_mandatory = prog_req.is_mandatory
-            doc.requirement = requirement
+    # Get applicant's community profile for qualification checking
+    applicant = application.applicant
+    community_profile = CommunityUsers.query.filter_by(user_id=applicant.id).first()
+    
+    # Helper function to check if applicant meets a qualification
+    def check_qualification(qual_name, community_profile):
+        """Check if applicant meets the qualification requirement"""
+        if not community_profile:
+            return False
         
-        documents.append(doc)
+        qual_name_lower = qual_name.lower()
+        
+        # Check employment status
+        if 'unemployed' in qual_name_lower:
+            return not community_profile.is_currently_employed
+        
+        # Check student status
+        if 'student' in qual_name_lower:
+            return community_profile.is_student
+        
+        # Check solo parent status
+        if 'solo parent' in qual_name_lower:
+            return community_profile.is_solo_parent
+        
+        # Check PWD status (would need PWD field in model)
+        if 'pwd' in qual_name_lower or 'disability' in qual_name_lower:
+            # If you have a PWD field: return community_profile.is_pwd
+            return False  # Default to False if field doesn't exist
+        
+        # Check senior citizen (60+)
+        if 'senior' in qual_name_lower:
+            return community_profile.age >= 60 if community_profile.age else False
+        
+        # Check low income family (below 200k annual)
+        if 'low income' in qual_name_lower or 'indigent' in qual_name_lower:
+            if community_profile.family_annual_income:
+                return community_profile.family_annual_income < 20000
+            return False
+        
+        # Check residency
+        if 'resident' in qual_name_lower and 'mabitac' in qual_name_lower:
+            return community_profile.municipality and 'mabitac' in community_profile.municipality.lower()
+        
+        # Check disaster victims (would need additional tracking)
+        if 'fire victim' in qual_name_lower or 'typhoon victim' in qual_name_lower:
+            # This would require additional fields or tables to track disaster victims
+            return None  # Return None for unknown/manual verification needed
+        
+        # Check family member of deceased (for burial assistance)
+        if 'deceased' in qual_name_lower or 'family member' in qual_name_lower:
+            return None  # Requires manual verification
+        
+        # Check medical emergency
+        if 'medical emergency' in qual_name_lower:
+            return None  # Requires manual verification
+        
+        # Default: return None for manual verification
+        return None
+    
+    # Format requirements for template - separate documents from qualifications
+    document_requirements = []
+    qualification_requirements = []
+    
+    for prog_req, requirement, app_doc in program_requirements:
+        # Base requirement info
+        req_info = {
+            'requirement': requirement,
+            'requirement_id': requirement.id,
+            'requirement_name': requirement.requirement_name,
+            'requirement_type': requirement.requirement_type,
+            'is_mandatory': prog_req.is_mandatory,
+            'description': requirement.description
+        }
+        
+        if requirement.requirement_type == 'document':
+            # Document requirements - include verification fields
+            if app_doc is None:
+                doc_info = {
+                    **req_info,
+                    'id': None,
+                    'submission_status': 'not_submitted',
+                    'admin_feedback': None,
+                    'notes': None,
+                    'verified_at': None,
+                    'verified_by': None,
+                    'file_path': None,
+                    'file_name': None,
+                    'uploaded_at': None
+                }
+            else:
+                doc_info = {
+                    **req_info,
+                    'id': app_doc.id,
+                    'submission_status': app_doc.submission_status,
+                    'admin_feedback': app_doc.admin_feedback,
+                    'notes': app_doc.notes,
+                    'verified_at': app_doc.verified_at,
+                    'verified_by': app_doc.verified_by,
+                    'file_path': getattr(app_doc, 'file_path', None),
+                    'file_name': getattr(app_doc, 'file_name', None),
+                    'uploaded_at': getattr(app_doc, 'uploaded_at', None)
+                }
+            document_requirements.append(doc_info)
+        else:
+            # Qualification requirements - check if applicant meets them
+            is_qualified = check_qualification(requirement.requirement_name, community_profile)
+            req_info['is_qualified'] = is_qualified  # True, False, or None (manual verification needed)
+            qualification_requirements.append(req_info)
     
     return render_template(
         'admin/view_application.html',
         application=application,
-        documents=documents,
+        document_requirements=document_requirements,
+        qualification_requirements=qualification_requirements,
         user=current_user
     )
 
@@ -173,9 +256,9 @@ def update_application_status(application_id):
         
         # Create notification for applicant
         status_messages = {
-            'approved': f'Your application for {application.program.program_name} has been approved!',
-            'rejected': f'Your application for {application.program.program_name} has been rejected.',
-            'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the remarks for more information.',
+            'approved': f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
+            'rejected': f'Your application for {application.program.program_name} has been rejected. Please check the remarks for more information.',
+            'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the notes for more information.',
             'pending': f'Your application for {application.program.program_name} status has been updated to pending.'
         }
         

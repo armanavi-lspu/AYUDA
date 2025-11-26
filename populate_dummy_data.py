@@ -487,8 +487,6 @@ def populate_dummy_data():
         
         # 6. Create Applications (distributed from January to October)
         print("📝 Creating applications (January - October 2025)...")
-        statuses = ['pending', 'approved', 'rejected', 'under_review', 'on-hold']
-        status_weights = [0.35, 0.40, 0.10, 0.10, 0.05]  # Probability weights
         
         applications_created = 0
         current_year = 2025
@@ -532,26 +530,13 @@ def populate_dummy_data():
                     minutes=minutes_offset
                 )
                 
-                # Create application
-                status = random.choices(statuses, weights=status_weights)[0]
-                
+                # Create application with default pending status
                 application = Applications(
                     user_id=user.id,
                     program_id=program.id,
                     application_date=application_date,
-                    application_status=status
+                    application_status='pending'
                 )
-                
-                # Add review info if approved or rejected
-                if status in ['approved', 'rejected', 'under_review', 'on-hold']:
-                    application.reviewed_by = admin_user.id
-                    review_days = random.randint(3, 14)
-                    application.review_date = application_date + timedelta(days=review_days)
-                    
-                    if status == 'approved':
-                        application.remarks = 'Application meets all requirements and is approved.'
-                    else:
-                        application.remarks = 'Incomplete documents or does not meet eligibility criteria.'
                 
                 db.session.add(application)
                 applications_created += 1
@@ -575,8 +560,12 @@ def populate_dummy_data():
         
         # Show statistics
         print("\n📈 APPLICATION STATISTICS:")
-        for status in statuses:
-            count = Applications.query.filter_by(application_status=status).count()
+        status_counts = db.session.query(
+            Applications.application_status,
+            func.count(Applications.id)
+        ).group_by(Applications.application_status).all()
+        
+        for status, count in status_counts:
             percentage = (count / applications_created * 100) if applications_created > 0 else 0
             print(f"   • {status.upper()}: {count} ({percentage:.1f}%)")
         
