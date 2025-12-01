@@ -142,12 +142,32 @@ def api_generate_recommendations():
     """API endpoint to generate beneficiary recommendations using content-based filtering"""
     data = request.get_json()
     
-    # Extract parameters
+    # Extract and validate parameters
     program_id = data.get('program_id')
-    max_beneficiaries = int(data.get('max_beneficiaries', 50))
+    
+    try:
+        max_beneficiaries = int(data.get('max_beneficiaries', 50))
+        if max_beneficiaries < 1:
+            max_beneficiaries = 50
+    except (ValueError, TypeError):
+        max_beneficiaries = 50
+    
     priority_barangay = data.get('priority_barangay')
-    min_income = float(data.get('min_income', 0))
-    max_income = float(data.get('max_income', 999999999))
+    
+    try:
+        min_income = float(data.get('min_income', 0))
+        if min_income < 0:
+            min_income = 0
+    except (ValueError, TypeError):
+        min_income = 0
+    
+    try:
+        max_income = float(data.get('max_income', 999999999))
+        if max_income < 0:
+            max_income = 999999999
+    except (ValueError, TypeError):
+        max_income = 999999999
+    
     solo_parent_priority = data.get('solo_parent_priority', False)
     student_priority = data.get('student_priority', False)
     
