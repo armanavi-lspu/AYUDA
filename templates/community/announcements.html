@@ -388,6 +388,17 @@
 
                 <!-- Card Body -->
                 <div class="card-body p-4">
+                    <!-- Program Link Badge -->
+                    {% if announcement.linked_program %}
+                    <div class="alert alert-primary border-0 mb-3 shadow-sm" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-left: 4px solid #667eea !important;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-link text-primary mr-2"></i>
+                            <span class="text-primary font-weight-bold mr-2">Linked Program:</span>
+                            <span class="badge badge-primary">{{ announcement.linked_program.program_name }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <!-- Content Preview -->
                     <div class="mb-3">
                         <div id="preview-{{ announcement.id }}">
@@ -435,12 +446,26 @@
                     </div>
                     {% endif %}
 
-                    <!-- Action Button -->
+                    <!-- Action Buttons -->
                     <div class="pt-2 border-top">
-                        <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
-                           class="btn btn-gradient-primary">
-                            <i class="fas fa-external-link-alt mr-2"></i>View Full Details
-                        </a>
+                        <div class="d-flex flex-wrap align-items-center">
+                            <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
+                               class="btn btn-gradient-primary mr-2 mb-2">
+                                <i class="fas fa-external-link-alt mr-2"></i>View Full Details
+                            </a>
+                            {% if announcement.linked_program %}
+                            <a href="{{ url_for('community.program_detail', program_id=announcement.linked_program.id) }}" 
+                               class="btn btn-success mr-2 mb-2">
+                                <i class="fas fa-arrow-circle-right mr-2"></i>Apply to Program
+                            </a>
+                            {% endif %}
+                            {% if announcement.attachment_url %}
+                            <a href="{{ announcement.attachment_url }}" target="_blank" 
+                               class="btn btn-outline-info mb-2">
+                                <i class="fas fa-paperclip mr-2"></i>View Attachment
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

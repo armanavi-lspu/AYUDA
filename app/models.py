@@ -99,11 +99,14 @@ class Announcements(db.Model):
     category = db.Column(db.String(100), nullable=False, default='General')
     status = db.Column(db.String(50), nullable=False, default='draft') # 'draft' or 'published'
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=True)  # Link to program
+    attachment_url = db.Column(db.String(500), nullable=True)  # External link or attachment URL
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     images = db.relationship('AnnouncementImages', backref='announcement', lazy=True, cascade='all, delete-orphan')
+    linked_program = db.relationship('Programs', backref='announcements', foreign_keys=[program_id])
     
     def __repr__(self):
         return f'<Announcement {self.announcement_title}>'
@@ -131,6 +134,7 @@ class Applications(db.Model):
     application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     review_date = db.Column(db.DateTime, index=True)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    submission_deadline = db.Column(db.DateTime, index=True)  # Deadline for document submission
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -144,6 +148,7 @@ class Applications(db.Model):
     # Relationships
     document_checklist = db.relationship('ApplicationDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
     program = db.relationship('Programs', back_populates='applications')
+    shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
     
     @property
     def documents_complete(self):
@@ -328,3 +333,21 @@ class AdminUsers(db.Model):
     
     def __repr__(self):
         return f'<AdminUser {self.user_id}>'
+
+class ShelterPhotos(db.Model):
+    __tablename__ = 'shelter_photos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+    photo_path = db.Column(db.String(255), nullable=False)
+    caption = db.Column(db.String(255))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    verified_at = db.Column(db.DateTime)
+    verification_status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected'
+    admin_notes = db.Column(db.Text)
+    
+    verifier = db.relationship('User', backref='verified_shelter_photos')
+    
+    def __repr__(self):
+        return f'<ShelterPhoto {self.id} for Application {self.application_id}>'

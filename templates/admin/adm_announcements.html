@@ -304,6 +304,32 @@
                                           rows="8" placeholder="Enter announcement content..." required></textarea>
                                 <small class="form-text text-muted">Provide detailed information about the announcement.</small>
                             </div>
+                            
+                            <!-- Program Link Section -->
+                            <div class="card mb-3 border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-link mr-2"></i>Link to Program (Optional)
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-group mb-2">
+                                        <label for="program_id">Select Program</label>
+                                        <select class="form-control" id="program_id" name="program_id">
+                                            <option value="">-- No Program Link --</option>
+                                            {% for program in programs %}
+                                            <option value="{{ program.id }}">{{ program.program_name }} ({{ program.program_type }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <small class="form-text text-muted">Link this announcement to a specific program for easy application access</small>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label for="attachment_url">Or Add External Link/Attachment URL</label>
+                                        <input type="url" class="form-control" id="attachment_url" name="attachment_url" 
+                                               placeholder="https://example.com/resource">
+                                        <small class="form-text text-muted">Provide an external link or resource URL</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="form-group">
                                 <label for="status">Status</label>
                                 <select class="form-control" id="status" name="status">
@@ -373,6 +399,35 @@
                                     <label>Content</label>
                                     <textarea class="form-control" name="content" rows="8" required>{{ announcement.announcement_content }}</textarea>
                                 </div>
+                                
+                                <!-- Program Link Section -->
+                                <div class="card mb-3 border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <i class="fas fa-link mr-2"></i>Link to Program (Optional)
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-group mb-2">
+                                            <label>Select Program</label>
+                                            <select class="form-control" name="program_id">
+                                                <option value="">-- No Program Link --</option>
+                                                {% for program in programs %}
+                                                <option value="{{ program.id }}" {% if announcement.program_id == program.id %}selected{% endif %}>
+                                                    {{ program.program_name }} ({{ program.program_type }})
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <small class="form-text text-muted">Link this announcement to a specific program</small>
+                                        </div>
+                                        <div class="form-group mb-0">
+                                            <label>Or Add External Link/Attachment URL</label>
+                                            <input type="url" class="form-control" name="attachment_url" 
+                                                   value="{{ announcement.attachment_url or '' }}" 
+                                                   placeholder="https://example.com/resource">
+                                            <small class="form-text text-muted">Provide an external link or resource URL</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
                                 <div class="form-group">
                                     <label>Status</label>
                                     <select class="form-control" name="status">
@@ -469,6 +524,26 @@
                     | Created: {{ announcement.created_at.strftime('%b %d, %Y %I:%M %p') if announcement.created_at else 'N/A' }}
                 </p>
                 <hr>
+                
+                <!-- Program Link Info -->
+                {% if announcement.linked_program %}
+                <div class="alert alert-info">
+                    <i class="fas fa-link mr-2"></i><strong>Linked Program:</strong> 
+                    <a href="{{ url_for('admin.adm_programs') }}" class="alert-link">
+                        {{ announcement.linked_program.program_name }}
+                    </a>
+                    <span class="badge badge-secondary ml-2">{{ announcement.linked_program.program_type }}</span>
+                </div>
+                {% endif %}
+                
+                {% if announcement.attachment_url %}
+                <div class="alert alert-secondary">
+                    <i class="fas fa-paperclip mr-2"></i><strong>Attachment/Link:</strong> 
+                    <a href="{{ announcement.attachment_url }}" target="_blank" class="alert-link">
+                        {{ announcement.attachment_url }}
+                    </a>
+                </div>
+                {% endif %}
                 
                 <!-- Announcement Images -->
                 {% if announcement.images %}

@@ -63,6 +63,7 @@ CREATE TABLE applications (
     application_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_date TIMESTAMP,
     reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    submission_deadline TIMESTAMP, -- NEW: Deadline for document submission
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -75,6 +76,7 @@ CREATE INDEX idx_applications_status ON applications(application_status);
 CREATE INDEX idx_applications_date ON applications(application_date DESC);
 CREATE INDEX idx_applications_reviewed_by ON applications(reviewed_by);
 CREATE INDEX idx_applications_review_date ON applications(review_date);
+CREATE INDEX idx_applications_submission_deadline ON applications(submission_deadline); -- NEW: Index for deadline queries
 -- Composite indexes for common query patterns
 CREATE INDEX idx_app_user_date ON applications(user_id, application_date);
 CREATE INDEX idx_app_program_status ON applications(program_id, application_status);
@@ -87,13 +89,16 @@ CREATE TABLE announcements (
     announcement_content TEXT NOT NULL, 
     category VARCHAR(100) NOT NULL DEFAULT 'General',
     status VARCHAR(50) NOT NULL DEFAULT 'draft',
-    author_id INTEGER REFERENCES users(id) ON DELETE SET NULL, 
+    author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL, -- NEW: Link to program
+    attachment_url VARCHAR(500), -- NEW: External link or attachment URL
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for announcements
 CREATE INDEX idx_announcements_author_id ON announcements(author_id);
+CREATE INDEX idx_announcements_program_id ON announcements(program_id); -- NEW: Index for program links
 CREATE INDEX idx_announcements_status ON announcements(status);
 CREATE INDEX idx_announcements_created_at ON announcements(created_at DESC);
 CREATE INDEX idx_announcements_category ON announcements(category);
@@ -155,6 +160,7 @@ CREATE INDEX idx_community_users_barangay ON community_users(barangay);
 CREATE INDEX idx_community_users_employed ON community_users(is_currently_employed);
 CREATE INDEX idx_community_users_student ON community_users(is_student);
 CREATE INDEX idx_community_users_solo_parent ON community_users(is_solo_parent);
+CREATE INDEX idx_community_users_pwd ON community_users(is_pwd); -- NEW: Index for PWD status
 CREATE INDEX idx_community_users_income ON community_users(family_annual_income);
 -- Composite indexes for common analytics queries
 CREATE INDEX idx_community_barangay_income ON community_users(barangay, family_annual_income);
@@ -218,6 +224,26 @@ CREATE TABLE admin_users (
 );
 
 CREATE INDEX idx_admin_users_user_id ON admin_users(user_id);
+
+-- Create shelter_photos table (for ESA applications)
+CREATE TABLE shelter_photos (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    photo_path VARCHAR(255) NOT NULL,
+    caption VARCHAR(255),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified_at TIMESTAMP,
+    verification_status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    admin_notes TEXT
+);
+
+-- Create indexes for shelter_photos
+CREATE INDEX idx_shelter_photos_application_id ON shelter_photos(application_id);
+CREATE INDEX idx_shelter_photos_verified_by ON shelter_photos(verified_by);
+CREATE INDEX idx_shelter_photos_status ON shelter_photos(verification_status);
+CREATE INDEX idx_shelter_photos_uploaded_at ON shelter_photos(uploaded_at DESC);
+CREATE INDEX idx_shelter_photos_app_status ON shelter_photos(application_id, verification_status);
 
 -- Create table for community user activity log
 

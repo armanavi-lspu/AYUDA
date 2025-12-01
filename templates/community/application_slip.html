@@ -3,166 +3,469 @@
 <head>
   <title>Application Slip - {{ application.id }}</title>
   <style>
-    body { 
-        font-family: Arial, sans-serif; 
-        margin: 20px;
-        line-height: 1.6;
-        color: #333;
+    @page {
+        size: A4;
+        margin: 0;
     }
+    
+    * {
+        box-sizing: border-box;
+    }
+    
+    body { 
+        font-family: 'Times New Roman', Times, serif;
+        margin: 0;
+        padding: 0;
+        line-height: 1.4;
+        color: #000;
+        background: #fff;
+        font-size: 12pt;
+    }
+    
+    .page-container {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        padding: 20mm;
+        position: relative;
+    }
+    
+    /* Header with official letterhead style */
     .header { 
         text-align: center; 
-        margin-bottom: 2rem; 
+        margin-bottom: 1.5rem;
         padding-bottom: 1rem;
-        border-bottom: 3px solid #007bff;
+        border-bottom: 3px double #000;
     }
-    .header h2 {
-        color: #007bff;
-        margin-bottom: 0.5rem;
+    
+    .letterhead {
+        margin-bottom: 0. 5rem;
     }
-    .info-section {
-        margin: 1.5rem 0;
-    }
-    .info-section h4 {
-        color: #495057;
-        border-bottom: 1px solid #dee2e6;
-        padding-bottom: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    .checklist { 
-        margin-top: 1rem; 
-        padding-left: 1.5rem;
-    }
-    .checklist li {
-        margin-bottom: 0.8rem;
-        line-height: 1.5;
-    }
-    .requirement-type {
-        font-weight: bold;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.8rem;
-    }
-    .required {
-        background-color: #dc3545;
-        color: white;
-    }
-    .optional {
-        background-color: #6c757d;
-        color: white;
-    }
-    .note { 
-        margin-top: 2rem; 
-        font-size: 0.9rem; 
-        color: #555; 
-        background: #e7f3ff;
-        padding: 1rem;
-        border-left: 4px solid #007bff;
-        border-radius: 4px;
-    }
-    .note h5 {
-        margin-top: 0;
-        color: #007bff;
-    }
-    .note ul {
-        margin-bottom: 0;
-        padding-left: 1.2rem;
-    }
-    .note li {
+    
+    .letterhead . seal {
+        font-size: 2. 5rem;
+        color: #000;
         margin-bottom: 0.3rem;
     }
-    .no-print {
-        margin-top: 2rem;
-        text-align: center;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 5px;
+    
+    .letterhead h1 {
+        font-size: 13pt;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
     }
+    
+    .letterhead . office-name {
+        font-size: 12pt;
+        font-weight: bold;
+        margin: 0.1rem 0;
+    }
+    
+    .letterhead .address {
+        font-size: 10pt;
+        margin: 0.2rem 0;
+        font-style: italic;
+    }
+    
+    . document-title {
+        margin-top: 1rem;
+        font-size: 18pt;
+        font-weight: bold;
+        text-decoration: underline;
+        letter-spacing: 1px;
+    }
+    
+    .details-box {
+        border: 2px solid #000;
+        padding: 1rem;
+        margin: 1. 5rem 0;
+        background: #f9f9f9;
+    }
+    
+    .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.3rem;
+        margin-bottom: 0.2rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        border-bottom: 1px solid #ccc;
+    }
+    
+    .detail-label {
+        font-weight: bold;
+        min-width: 120px;
+        font-size: 10pt;
+    }
+    
+    .detail-value {
+        flex: 1;
+        font-size: 10pt;
+    }
+    
+    .detail-full {
+        grid-column: 1 / -1;
+    }
+    
+    . status-badge {
+        display: inline-block;
+        padding: 3px 12px;
+        background: #000;
+        color: #fff;
+        font-weight: bold;
+        font-size: 9pt;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Section headings */
+    .section {
+        margin: 1.5rem 0;
+        page-break-inside: avoid;
+    }
+    
+    .section-title {
+        font-size: 12pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        border-bottom: 2px solid #000;
+        padding-bottom: 0.3rem;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .program-info {
+        background: #f5f5f5;
+        border-left: 4px solid #000;
+        padding: 0.8rem;
+        margin: 0.8rem 0;
+    }
+    
+    . program-info p {
+        margin: 0. 4rem 0;
+        font-size: 10pt;
+    }
+    
+    .requirements-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.3rem 0;
+        font-size: 10pt;
+    }
+    
+    .requirements-table th {
+        background-color: #000;
+        color: #fff;
+        font-weight: bold;
+        padding: 0.3rem;
+        text-align: left;
+        border: 1px solid #000;
+        font-size: 10pt;
+        text-transform: uppercase;
+    }
+    
+    .requirements-table td {
+        padding: 0.3rem;
+        border: 1px solid #000;
+        line-height: 1.5;
+    }
+    
+    .requirements-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    
+    .requirement-type {
+        font-weight: bold;
+        padding: 2px 8px;
+        border: 1px solid #000;
+        font-size: 8pt;
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    
+    .required {
+        background-color: #000;
+        color: white;
+    }
+    
+    .optional {
+        background-color: #fff;
+        color: #000;
+    }
+    
+    .requirements-table .description {
+        color: #333;
+        font-style: italic;
+        font-size: 9pt;
+        margin-top: 0.2rem;
+    }
+    
+    /* Instructions box */
+    .instructions { 
+        margin-top: 1.5rem;
+        border: 2px solid #000;
+        padding: 1rem;
+        background: #fff;
+        page-break-inside: avoid;
+    }
+    
+    .instructions-title {
+        font-size: 11pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin: 0 0 0.8rem 0;
+        text-align: center;
+        text-decoration: underline;
+    }
+    
+    .instructions ul {
+        margin: 0;
+        padding-left: 1.5rem;
+        list-style: square;
+    }
+    
+    .instructions li {
+        margin-bottom: 0.5rem;
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    .instructions strong {
+        font-weight: bold;
+    }
+    
+    /* Footer signature section */
+    .signature-section {
+        margin-top: 2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        page-break-inside: avoid;
+    }
+    
+    .signature-box {
+        text-align: center;
+        font-size: 10pt;
+    }
+    
+    .signature-line {
+        border-bottom: 1px solid #000;
+        margin: 2rem 1rem 0.3rem 1rem;
+        height: 2rem;
+    }
+    
+    .signature-label {
+        font-size: 9pt;
+        font-style: italic;
+        color: #333;
+    }
+    
+    .signature-name {
+        font-weight: bold;
+        margin-top: 0.3rem;
+    }  
+    
+    
+    /* Watermark */
+    .watermark {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 72pt;
+        color: rgba(0, 0, 0, 0.03);
+        font-weight: bold;
+        z-index: -1;
+        pointer-events: none;
+        text-transform: uppercase;
+    }
+    
+    /* Print button - hidden when printing */
+    .no-print {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+    
     .no-print button {
-        background: #2c3239ff;
+        background: #2c3239;
         color: white;
         border: none;
-        padding: 10px 20px;
-        margin-right: 10px;
-        border-radius: 4px;
+        padding: 15px 30px;
+        border-radius: 5px;
         cursor: pointer;
+        font-size: 14pt;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s;
     }
-    .no-print button:hover {
-        background: #0056b3;
+    
+    . no-print button:hover {
+        background: #1a1d21;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
     }
-    .no-print a {
-        background: #6c757d;
-        color: white;
-        text-decoration: none;
-        padding: 10px 20px;
-        border-radius: 4px;
+    
+    /* Screen view - add margin for visibility */
+    @media screen {
+        body {
+            background: #525659;
+            padding: 20px 0;
+        }
     }
-    .no-print a:hover {
-        background: #545b62;
-    }
+    
+    /* Print styles */
     @media print { 
-        .no-print { display: none; }
-        body { margin: 0; }
-        .header { border-color: #000; }
+        .no-print { 
+            display: none ! important; 
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: white;
+        }
+        
+        .page-container {
+            width: 100%;
+            margin: 0;
+            padding: 20mm;
+            box-shadow: none;
+            page-break-after: avoid;
+        }
+        
+        .section {
+            page-break-inside: avoid;
+        }
+        
+        * {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h2>{{ application.program.program_name }}</h2>
-    <p><strong>Application ID:</strong> {{ application.id }}</p>
-    <p><strong>Applicant:</strong> {{ application.applicant.first_name }} {{ application.applicant.last_name }}</p>
-    <p><strong>Email:</strong> {{ application.applicant.email }}</p>
-    <p><strong>Application Date:</strong> {{ application.application_date.strftime('%B %d, %Y at %I:%M %p') }}</p>
-    <p><strong>Status:</strong> {{ application.application_status.title() }}</p>
+  <div class="page-container">
+    <!-- Watermark -->
+    <div class="watermark">MABITAC</div>   
+    
+    <!-- Official Header -->
+    <div class="header">
+      <div class="letterhead">
+        <h1>Municipal Social Welfare and Development Office</h1>
+        <div class="office-name">Municipality of Mabitac, Province of Laguna</div>
+      </div>
+      <div class="document-title"><strong>APPLICATION SLIP</strong></div>
+    </div>
+
+    <!-- Application Details Box -->
+    <div class="address"><strong>Program Name:</strong> {{ application.program. program_name }}</div>
+
+
+    <div class="details-box">
+      <div class="details-grid">
+        <div class="detail-item">
+          <span class="detail-label">Application No. :</span>
+          <span class="detail-value">{{ application. id }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Date Filed:</span>
+          <span class="detail-value">{{ application. application_date.strftime('%B %d, %Y') }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Applicant Name:</span>
+          <span class="detail-value">{{ application. applicant.first_name }} {{ application.applicant.last_name }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Time:</span>
+          <span class="detail-value">{{ application.application_date.strftime('%I:%M %p') }}</span>
+        </div>
+        <div class="detail-item detail">
+          <span class="detail-label">Email Address:</span>
+          <span class="detail-value">{{ application. applicant.email }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Status:</span>
+          <span class="detail-value">
+            <span class="status-badge">{{ application.application_status }}</span>
+          </span>
+        </div>
+      </div>
+    </div>   
+
+    <!-- Required Documents Table -->
+    <div class="section">
+      <div class="section-title">Required Documents</div>
+      {% if requirements %}
+      <table class="requirements-table">
+        <thead>
+          <tr>
+            <th style="width: 5%;">No.</th>
+            <th style="width: 30%;">Document Name</th>
+            <th style="width: 65%;">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req, is_mandatory in requirements %}
+          <tr>
+            <td style="text-align: center;">{{ loop.index }}</td>
+            <td><strong>{{ req.requirement_name }}</strong></td>
+            <td>
+              {% if req.description %}
+                {{ req.description }}
+              {% else %}
+                <span style="color: #999;">-</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p style="font-style: italic; font-size: 10pt;">No specific requirements listed for this program.</p>
+      {% endif %}
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <h5 class="instructions-title">⚠ Important Instructions - Please Read Carefully</h5>
+      <ul>
+        <li>Bring <strong>ORIGINAL documents</strong> and <strong>ONE (1) PHOTOCOPY</strong> of all required items</li>
+        <li>Submit documents at: <strong>Municipal Hall of Mabitac, MSWD Office</strong></li>
+        <li>Office Hours: <strong>Monday to Friday, 8:00 AM - 5:00 PM</strong> (No noon break)</li>
+        <li>Contact Information: <strong>(02) 123-4567</strong> or <strong>ayuda@mabitac.gov.ph</strong></li>
+        <li><strong>PRESENT THIS APPLICATION SLIP</strong> when submitting your documents</li>
+        <li>Incomplete requirements will <strong>NOT</strong> be processed</li>
+        <li>Keep a copy of this slip for your records</li>
+        <li>Processing time: 5-7 business days from submission of complete requirements</li>
+      </ul>
+    </div>
+
+    <!-- Signature Section -->
+    <div class="signature-section">
+      <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-label">Applicant's Signature over Printed Name</div>
+        <div class="signature-name">{{ application.applicant.first_name }} {{ application.applicant.last_name }}</div>
+      </div>
+      <div class="signature-box">
+        <div class="signature-line"></div>
+        <div class="signature-label">Received by (MSWD Staff)</div>
+        <div class="signature-name">Date: ___________________</div>
+      </div>
+    </div>
   </div>
 
-  <div class="info-section">
-    <h4>Program Information</h4>
-    <p><strong>Program Type:</strong> {{ application.program.program_type }}</p>
-    <p><strong>Program Period:</strong> {{ application.program.program_period }}</p>
-    {% if application.program.description %}
-    <p><strong>Description:</strong> {{ application.program.description }}</p>
-    {% endif %}
-  </div>
-
-  <div class="info-section">
-    <h4>Required Documents Checklist</h4>
-    {% if requirements %}
-    <ol class="checklist">
-      {% for req, is_mandatory in requirements %}
-        <li>
-          <strong>{{ req.document_name }}</strong>
-          {% if is_mandatory %}
-            <span class="requirement-type required">Required</span>
-          {% else %}
-            <span class="requirement-type optional">Optional</span>
-          {% endif %} {% if req.description %}
-            <br><small style="color: #666;">{{ req.description }}</small>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ol>
-    {% else %}
-    <p>No specific requirements listed for this program.</p>
-    {% endif %}
-  </div>
-
-  <div class="note">
-    <h5>Important Instructions:</h5>
-    <ul>
-      <li>Bring <strong>original documents</strong> and <strong>photocopies</strong> of all required items</li>
-      <li>Submit at: <strong>Municipal Hall of Mabitac, MSWD Office</strong></li>
-      <li>Office Hours: <strong>Monday-Friday, 8:00 AM - 5:00 PM</strong></li>
-      <li>Contact: <strong>(02) 123-4567</strong> | <strong>ayuda@mabitac.gov.ph</strong></li>
-      <li>Present this application slip when submitting your documents</li>
-      <li>Keep a copy of this slip for your records</li>
-    </ul>
-  </div>
-
+  <!-- Print Button -->
   <div class="no-print">
     <button onclick="window.print()">
       🖨️ Print Application Slip
-    </button>    
+    </button>
   </div>
 </body>
 </html>

@@ -2,10 +2,12 @@ from flask import render_template, jsonify, redirect, url_for, request, flash, s
 from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos
 from app.extensions import db
 from app.utils import role_required
 from sqlalchemy import desc, func
+from werkzeug.utils import secure_filename
+import os
 
 @community_bp.route('/programs')
 @login_required
@@ -79,6 +81,9 @@ def program_detail(program_id):
     """Display detailed information about a specific program"""
     program = Programs.query.get_or_404(program_id)
     
+    # Get user's community profile
+    user_profile = current_user.community_profile
+    
     # Get program requirements with is_mandatory info from junction table
     program_requirements = db.session.query(
         Requirements, ProgramRequirements.is_mandatory
@@ -89,20 +94,89 @@ def program_detail(program_id):
         ProgramRequirements.program_id == program_id
     ).all()
     
-    # Format requirements for template
-    requirements = [
-        {
+    # Helper function to check if user meets a qualification
+    def check_qualification(requirement_name, description):
+        """Check if user meets a qualification based on requirement name and description"""
+        if not user_profile:
+            return False
+        
+        req_lower = requirement_name.lower()
+        desc_lower = description.lower() if description else ''
+        combined = req_lower + ' ' + desc_lower
+        
+        # Age-based qualifications
+        if 'age' in combined or 'years old' in combined or 'senior' in combined:
+            if user_profile.age:
+                if 'senior' in combined or '60' in combined:
+                    return user_profile.age >= 60
+                elif '18' in combined:
+                    return user_profile.age >= 18
+                # Check for age range patterns
+                import re
+                age_match = re.search(r'(\d+)[-\s](?:to|and)[-\s](\d+)', combined)
+                if age_match:
+                    min_age, max_age = int(age_match.group(1)), int(age_match.group(2))
+                    return min_age <= user_profile.age <= max_age
+        
+        # Employment status
+        if 'employed' in combined or 'employment' in combined:
+            if 'unemployed' in combined or 'not employed' in combined:
+                return not user_profile.is_currently_employed
+            else:
+                return user_profile.is_currently_employed
+        
+        # Student status
+        if 'student' in combined:
+            return user_profile.is_student
+        
+        # Solo parent
+        if 'solo parent' in combined or 'single parent' in combined:
+            return user_profile.is_solo_parent
+        
+        # PWD status
+        if 'pwd' in combined or 'disability' in combined or 'disabled' in combined:
+            return user_profile.is_pwd
+        
+        # Location-based
+        if 'resident' in combined or 'barangay' in combined or 'mabitac' in combined:
+            return user_profile.barangay is not None
+        
+        # Income-based
+        if 'income' in combined or 'indigent' in combined or 'poverty' in combined:
+            if user_profile.family_annual_income:
+                # Assuming low income threshold is 250,000 PHP per year
+                if 'low income' in combined or 'indigent' in combined:
+                    return user_profile.family_annual_income <= 250000
+        
+        # Default: unable to determine
+        return None  # None means we can't auto-determine
+    
+    # Separate requirements by type and check qualifications
+    document_requirements = []
+    qualification_requirements = []
+    
+    for req, is_mandatory in program_requirements:
+        req_data = {
             'id': req.id,
-            'document_name': req.requirement_name,
+            'requirement_name': req.requirement_name,
             'description': req.description,
-            'is_mandatory': is_mandatory
+            'is_mandatory': is_mandatory,
+            'requirement_type': req.requirement_type
         }
-        for req, is_mandatory in program_requirements
-    ]
+        
+        if req.requirement_type == 'document':
+            document_requirements.append(req_data)
+        elif req.requirement_type == 'qualification':
+            # Check if user meets this qualification
+            meets_qualification = check_qualification(req.requirement_name, req.description)
+            req_data['is_qualified'] = meets_qualification
+            qualification_requirements.append(req_data)
     
     return render_template('community/program_detail.html',
                          program=program,
-                         requirements=requirements)
+                         document_requirements=document_requirements,
+                         qualification_requirements=qualification_requirements,
+                         user_profile=user_profile)
     
 @community_bp.route('/program/<int:program_id>/apply', methods=['POST'])
 @login_required
@@ -157,3 +231,130 @@ def submit_application(program_id):
     
     # Redirect to application details page (not slip - slip is only available after approval)
     return redirect(url_for('community.application_detail', application_id=new_application.id))
+
+@community_bp.route('/application/<int:application_id>/upload-shelter-photos', methods=['POST'])
+@login_required
+@role_required('community')
+def upload_shelter_photos(application_id):
+    """Upload shelter photos for ESA program applications"""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    # Verify this is an ESA program
+    if application.program.program_type != 'ESA':
+        flash('Shelter photos are only required for Emergency Shelter Assistance (ESA) programs.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    uploaded_files = request.files.getlist('shelter_photos')
+    captions = request.form.getlist('photo_captions')
+    
+    # Check current photo count
+    current_photos = len(application.shelter_photos)
+    new_photos = len([f for f in uploaded_files if f.filename])
+    total_after_upload = current_photos + new_photos
+    
+    if not uploaded_files or not any(f.filename for f in uploaded_files):
+        flash('Please select at least one photo to upload.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    # Check if adding these photos will meet the minimum requirement
+    if total_after_upload < 3:
+        flash(f'ESA applications require a minimum of 3 shelter photos. You currently have {current_photos} and are uploading {new_photos}. Please upload {3 - total_after_upload} more photo(s).', 'warning')
+        # Still allow upload but inform about requirement
+    
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    
+    uploaded_count = 0
+    
+    try:
+        for idx, file in enumerate(uploaded_files):
+            if file and file.filename:
+                # Check file extension
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS:
+                    # Check file size
+                    file.seek(0, os.SEEK_END)
+                    file_size = file.tell()
+                    file.seek(0)
+                    
+                    if file_size > MAX_FILE_SIZE:
+                        flash(f'File {file.filename} is too large. Maximum size is 5MB.', 'warning')
+                        continue
+                    
+                    # Create upload directory
+                    upload_path = os.path.join('static', 'uploads', 'shelter_photos', str(application_id))
+                    os.makedirs(upload_path, exist_ok=True)
+                    
+                    # Secure filename and save
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    unique_filename = f"{timestamp}_{idx}_{filename}"
+                    file_path = os.path.join(upload_path, unique_filename)
+                    
+                    file.save(file_path)
+                    
+                    # Get caption if provided
+                    caption = captions[idx] if idx < len(captions) else ''
+                    
+                    # Save to database
+                    shelter_photo = ShelterPhotos(
+                        application_id=application_id,
+                        photo_path=file_path.replace('\\', '/'),
+                        caption=caption,
+                        verification_status='pending'
+                    )
+                    db.session.add(shelter_photo)
+                    uploaded_count += 1
+        
+        db.session.commit()
+        
+        if uploaded_count > 0:
+            total_photos_now = len(application.shelter_photos)
+            if total_photos_now >= 3:
+                flash(f'Successfully uploaded {uploaded_count} shelter photo(s)! You now have {total_photos_now} photos meeting the minimum requirement.', 'success')
+            else:
+                remaining = 3 - total_photos_now
+                flash(f'Successfully uploaded {uploaded_count} shelter photo(s)! You need {remaining} more photo(s) to meet the minimum requirement of 3 photos.', 'warning')
+        else:
+            flash('No valid photos were uploaded.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error uploading photos: {str(e)}', 'danger')
+    
+    return redirect(url_for('community.application_detail', application_id=application_id))
+
+@community_bp.route('/shelter-photo/<int:photo_id>/delete', methods=['POST'])
+@login_required
+@role_required('community')
+def delete_shelter_photo(photo_id):
+    """Delete a shelter photo"""
+    photo = ShelterPhotos.query.get_or_404(photo_id)
+    
+    # Verify ownership
+    if photo.application.user_id != current_user.id:
+        flash('You do not have permission to delete this photo.', 'danger')
+        return redirect(url_for('community.applications'))
+    
+    # Only allow deletion if not yet verified
+    if photo.verification_status == 'approved':
+        flash('Cannot delete an approved photo.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=photo.application_id))
+    
+    try:
+        # Delete file from filesystem
+        if os.path.exists(photo.photo_path):
+            os.remove(photo.photo_path)
+        
+        application_id = photo.application_id
+        db.session.delete(photo)
+        db.session.commit()
+        
+        flash('Shelter photo deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting photo: {str(e)}', 'danger')
+    
+    return redirect(url_for('community.application_detail', application_id=application_id))

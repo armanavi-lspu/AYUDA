@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.utils import role_required
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos
 from app.extensions import db
 
 
@@ -223,11 +223,21 @@ def view_application(application_id):
             req_info['is_qualified'] = is_qualified  # True, False, or None (manual verification needed)
             qualification_requirements.append(req_info)
     
+    from datetime import timedelta
+    
+    # Calculate date values for deadline picker
+    today = datetime.utcnow()
+    min_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+    default_deadline = (today + timedelta(days=30)).strftime('%Y-%m-%d')
+    
     return render_template(
         'admin/view_application.html',
         application=application,
         document_requirements=document_requirements,
         qualification_requirements=qualification_requirements,
+        min_date=min_date,
+        default_deadline=default_deadline,
+        datetime=datetime,
         user=current_user
     )
 
@@ -241,6 +251,7 @@ def update_application_status(application_id):
     
     new_status = request.form.get('status')  # 'approved', 'rejected', 'on-hold'
     remarks = request.form.get('remarks', '').strip()
+    submission_deadline = request.form.get('submission_deadline', '').strip()
     
     if new_status not in ['approved', 'rejected', 'on-hold', 'pending']:
         return jsonify(success=False, message='Invalid status'), 400
@@ -254,18 +265,30 @@ def update_application_status(application_id):
         application.review_date = datetime.utcnow()
         application.updated_at = datetime.utcnow()
         
+        # Set submission deadline if status is approved and deadline is provided
+        if new_status == 'approved' and submission_deadline:
+            try:
+                deadline_date = datetime.strptime(submission_deadline, '%Y-%m-%d')
+                application.submission_deadline = deadline_date
+            except ValueError:
+                flash('Invalid deadline date format.', 'warning')
+        
         # Create notification for applicant
-        status_messages = {
-            'approved': f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
-            'rejected': f'Your application for {application.program.program_name} has been rejected. Please check the remarks for more information.',
-            'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the notes for more information.',
-            'pending': f'Your application for {application.program.program_name} status has been updated to pending.'
-        }
+        if new_status == 'approved':
+            deadline_text = f" Please submit all required documents by {application.submission_deadline.strftime('%B %d, %Y')} to complete your application." if application.submission_deadline else ""
+            notif_message = f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.{deadline_text}'
+        else:
+            status_messages = {
+                'rejected': f'Your application for {application.program.program_name} has been rejected. Please check the remarks for more information.',
+                'on-hold': f'Your application for {application.program.program_name} is on hold. Please check the notes for more information.',
+                'pending': f'Your application for {application.program.program_name} status has been updated to pending.'
+            }
+            notif_message = status_messages.get(new_status, 'Your application status has been updated.')
         
         notification = Notifications(
             user_id=application.user_id,
             notif_title=f'Application Status Update',
-            notif_message=status_messages.get(new_status, 'Your application status has been updated.'),
+            notif_message=notif_message,
             is_read=False,
             created_at=datetime.utcnow()
         )
@@ -366,6 +389,156 @@ def admin_update_document(application_id, doc_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=str(e)), 500
+
+
+@admin_bp.route('/application/<int:application_id>/shelter-photos/verify', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_all_shelter_photos(application_id):
+    """Verify or reject all shelter photos for an application"""
+    application = Applications.query.get_or_404(application_id)
+    
+    action = request.form.get('action')  # 'approve' or 'reject'
+    admin_notes = request.form.get('admin_notes', '').strip()
+    
+    if action not in ['approve', 'reject']:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    # Check if application has minimum 3 photos
+    if len(application.shelter_photos) < 3:
+        flash(f'ESA applications require a minimum of 3 shelter photos. Only {len(application.shelter_photos)} photos uploaded.', 'warning')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    try:
+        # Update all shelter photos with same status
+        for photo in application.shelter_photos:
+            if action == 'approve':
+                photo.verification_status = 'approved'
+                photo.admin_notes = admin_notes if admin_notes else None
+            else:  # reject
+                if not admin_notes:
+                    flash('Please provide a reason for rejection.', 'warning')
+                    return redirect(url_for('admin.view_application', application_id=application_id))
+                
+                photo.verification_status = 'rejected'
+                photo.admin_notes = admin_notes
+            
+            photo.verified_by = current_user.id
+            photo.verified_at = datetime.utcnow()
+        
+        # If approved, also update the shelter requirement qualification to approved
+        if action == 'approve':
+            # Find and update shelter photo requirement status
+            shelter_requirement = db.session.query(Requirements).filter(
+                Requirements.requirement_name.ilike('%shelter%')
+            ).first()
+            
+            if shelter_requirement:
+                # Check if there's already a document record for this requirement
+                existing_doc = ApplicationDocuments.query.filter_by(
+                    application_id=application_id,
+                    requirement_id=shelter_requirement.id
+                ).first()
+                
+                if existing_doc:
+                    existing_doc.submission_status = 'approved'
+                    existing_doc.verified_by = current_user.id
+                    existing_doc.verified_at = datetime.utcnow()
+                    existing_doc.admin_feedback = 'Shelter photos verified and approved.'
+                else:
+                    # Create new document record for shelter photo requirement
+                    new_doc = ApplicationDocuments(
+                        application_id=application_id,
+                        requirement_id=shelter_requirement.id,
+                        submission_status='approved',
+                        verified_by=current_user.id,
+                        verified_at=datetime.utcnow(),
+                        admin_feedback='Shelter photos verified and approved.',
+                        uploaded_at=datetime.utcnow()
+                    )
+                    db.session.add(new_doc)
+        
+        # Create notification for applicant
+        if action == 'approve':
+            flash_msg = 'All shelter photos approved successfully. Shelter requirement marked as qualified.'
+            notif_msg = f'All your shelter photos have been approved for {application.program.program_name} application. Your shelter requirement is now qualified.'
+        else:
+            flash_msg = 'All shelter photos rejected.'
+            notif_msg = f'Your shelter photos for {application.program.program_name} application were rejected. Please check admin notes and resubmit new photos.'
+        
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title='Shelter Photos Update',
+            notif_message=notif_msg,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(flash_msg, 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating shelter photos: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.view_application', application_id=application_id))
+
+
+@admin_bp.route('/shelter-photo/<int:photo_id>/verify', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_shelter_photo(photo_id):
+    """Verify or reject a shelter photo"""
+    photo = ShelterPhotos.query.get_or_404(photo_id)
+    
+    action = request.form.get('action')  # 'approve' or 'reject'
+    admin_notes = request.form.get('admin_notes', '').strip()
+    
+    if action not in ['approve', 'reject']:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.view_application', application_id=photo.application_id))
+    
+    try:
+        if action == 'approve':
+            photo.verification_status = 'approved'
+            photo.admin_notes = admin_notes if admin_notes else None
+            flash_msg = 'Shelter photo approved successfully.'
+            notif_msg = f'Your shelter photo has been approved for {photo.application.program.program_name} application.'
+        else:  # reject
+            if not admin_notes:
+                flash('Please provide a reason for rejection.', 'warning')
+                return redirect(url_for('admin.view_application', application_id=photo.application_id))
+            
+            photo.verification_status = 'rejected'
+            photo.admin_notes = admin_notes
+            flash_msg = 'Shelter photo rejected.'
+            notif_msg = f'Your shelter photo for {photo.application.program.program_name} application was rejected. Please check admin notes and resubmit.'
+        
+        photo.verified_by = current_user.id
+        photo.verified_at = datetime.utcnow()
+        
+        # Create notification for applicant
+        notification = Notifications(
+            user_id=photo.application.user_id,
+            notif_title='Shelter Photo Update',
+            notif_message=notif_msg,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(flash_msg, 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating shelter photo: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.view_application', application_id=photo.application_id))
 
 
 @admin_bp.route('/applications/export', methods=['GET'])

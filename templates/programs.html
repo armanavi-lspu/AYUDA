@@ -1,9 +1,378 @@
 {% extends "base.html" %}
-{% block title %}About AYUDA{% endblock %}
+{% block title %}MSWD Programs - AYUDA{% endblock %}
 
 {% block styles %}
-<div class="container mt-4">
-    <h1 class="mb-4">MSWD Programs</h1>
-    <p>Explore various financial assistance programs available through the MSWD Office to support our community members in need.</p>
+<style>
+    body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .bg-gradient-primary { 
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%); 
+    }
+    
+    .category-card { 
+        transition: all 0.4s ease; 
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        background: white;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .category-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--card-color, #4f46e5), var(--card-color-secondary, #7c3aed));
+        z-index: 1;
+    }
+    
+    .category-card:hover { 
+        transform: translateY(-10px) scale(1.02); 
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    .category-card.aics { --card-color: #4f46e5; --card-color-secondary: #6366f1; }
+    .category-card.esa { --card-color: #dc2626; --card-color-secondary: #ef4444; }
+    .category-card.cal { --card-color: #d97706; --card-color-secondary: #f59e0b; }
+    .category-card.fps { --card-color: #059669; --card-color-secondary: #10b981; }
+
+    .category-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        transition: transform 0.3s ease;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .category-card:hover .category-icon {
+        transform: rotate(10deg) scale(1.1);
+    }
+
+    .aics .category-icon { background: linear-gradient(135deg, #4f46e5, #6366f1); }
+    .esa .category-icon { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    .cal .category-icon { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .fps .category-icon { background: linear-gradient(135deg, #059669, #10b981); }
+    
+    .stat-bg { 
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(124, 58, 237, 0.1) 100%);
+        border: 2px solid rgba(79, 70, 229, 0.3);
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .hero-section {
+        position: relative;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
+        color: white;
+        border-radius: 0 0 50px 50px;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23dots)"/></svg>');
+    }
+
+    .animate-on-scroll {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.6s ease;
+    }
+    
+    .animate-on-scroll.animated {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .btn-custom {
+        background: linear-gradient(135deg, var(--btn-color, #4f46e5), var(--btn-color-secondary, #6366f1));
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 50px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-custom::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn-custom:hover::before {
+        left: 100%;
+    }
+
+    .btn-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        color: white;
+        text-decoration: none;
+    }
+
+    .aics .btn-custom { --btn-color: #4f46e5; --btn-color-secondary: #6366f1; }
+    .esa .btn-custom { --btn-color: #dc2626; --btn-color-secondary: #ef4444; }
+    .cal .btn-custom { --btn-color: #d97706; --btn-color-secondary: #f59e0b; }
+    .fps .btn-custom { --btn-color: #059669; --btn-color-secondary: #10b981; }
+
+    .program-count {
+        background: linear-gradient(135deg, var(--card-color, #4f46e5), var(--card-color-secondary, #7c3aed));
+        color: white;
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .category-card {
+            margin-bottom: 2rem;
+        }
+        
+        .hero-section {
+            border-radius: 0 0 30px 30px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section py-5 mb-5">
+    <div class="container position-relative">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 font-weight-bold mb-3">MSWD Financial Assistance Programs</h1>
+                <p class="lead mb-4">Explore comprehensive financial assistance programs designed to support families and individuals in need through various life challenges and opportunities.</p>
+            </div>
+            <div class="col-lg-4">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-bg p-3 text-center">
+                            <div class="h2 font-weight-bold mb-0 text-white">4</div>
+                            <small class="text-white text-uppercase font-weight-semibold">Categories</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-bg p-3 text-center">
+                            <div class="h2 font-weight-bold mb-0 text-white">25+</div>
+                            <small class="text-white text-uppercase font-weight-semibold">Programs</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <!-- Program Categories -->
+    <div class="row g-4 mb-5">
+        <!-- AICS Category -->
+        <div class="col-lg-6 col-md-12">
+            <div class="category-card aics h-100 animate-on-scroll">
+                <div class="p-4">
+                    <div class="category-icon">
+                        <i class="fas fa-hand-holding-heart"></i>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="h4 font-weight-bold mb-2">AICS</h3>
+                        <p class="text-muted mb-3">Assistance to Individuals in Crisis Situation</p>
+                        <p class="text-muted mb-4">
+                            Immediate financial assistance for individuals and families facing crisis situations including medical emergencies, 
+                            food assistance, educational support, transportation needs, and other urgent circumstances.
+                        </p>
+                        
+                        <div class="mb-4">
+                            <h6 class="font-weight-semibold mb-3">Available Services:</h6>
+                            <div class="row text-start">
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Medical Assistance</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Food Assistance</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Educational Support</small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Transportation Aid</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Burial Assistance</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-primary me-2"></i>Emergency Relief</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="#" class="btn-custom mb-3 d-block">
+                            <i class="fas fa-eye me-2"></i>View AICS Programs
+                        </a>
+                        
+                        <div class="program-count">
+                            <i class="fas fa-folder-open me-1"></i>
+                            8 Available Programs
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Shelter Assistance Category -->
+        <div class="col-lg-6 col-md-12">
+            <div class="category-card esa h-100 animate-on-scroll">
+                <div class="p-4">
+                    <div class="category-icon">
+                        <i class="fas fa-house-damage"></i>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="h4 font-weight-bold mb-2">Emergency Shelter Assistance</h3>
+                        <p class="text-muted mb-3">Housing and Shelter Support Programs</p>
+                        <p class="text-muted mb-4">
+                            Provides temporary and permanent shelter solutions for families affected by natural disasters, 
+                            calamities, or those experiencing homelessness and urgent housing needs.
+                        </p>
+                        
+                        <div class="mb-4">
+                            <h6 class="font-weight-semibold mb-3">Available Services:</h6>
+                            <div class="row text-start">
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Temporary Shelter</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Disaster Relief Housing</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Emergency Accommodation</small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Housing Materials</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Relocation Assistance</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-danger me-2"></i>Rehabilitation Support</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="#" class="btn-custom mb-3 d-block">
+                            <i class="fas fa-eye me-2"></i>View Shelter Programs
+                        </a>
+                        
+                        <div class="program-count">
+                            <i class="fas fa-folder-open me-1"></i>
+                            5 Available Programs
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAL Category -->
+        <div class="col-lg-6 col-md-12">
+            <div class="category-card cal h-100 animate-on-scroll">
+                <div class="p-4">
+                    <div class="category-icon">
+                        <i class="fas fa-briefcase"></i>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="h4 font-weight-bold mb-2">CAL</h3>
+                        <p class="text-muted mb-3">Capital Assistance for Livelihood</p>
+                        <p class="text-muted mb-4">
+                            Empowers individuals and families through livelihood opportunities, skills training, 
+                            microenterprise development, and employment facilitation to achieve sustainable income.
+                        </p>
+                        
+                        <div class="mb-4">
+                            <h6 class="font-weight-semibold mb-3">Available Services:</h6>
+                            <div class="row text-start">
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Skills Training</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Business Capital</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Equipment Assistance</small>
+                                </div>
+                                <div class="col-6">
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Microfinance</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Job Placement</small>
+                                    <small class="d-block mb-1"><i class="fas fa-check text-warning me-2"></i>Entrepreneurship</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <a href="#" class="btn-custom mb-3 d-block">
+                            <i class="fas fa-eye me-2"></i>View CAL Programs
+                        </a>
+                        
+                        <div class="program-count">
+                            <i class="fas fa-folder-open me-1"></i>
+                            7 Available Programs
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+
+    <!-- Call to Action Section -->
+    <section class="bg-light rounded-3 p-5 text-center mb-5 animate-on-scroll">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="h3 font-weight-bold mb-3">Ready to Apply for Assistance?</h2>
+                <p class="text-muted mb-4">
+                    Take the first step towards getting the support you need. Our application process is designed to be simple, 
+                    transparent, and accessible to everyone.
+                </p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Get Started Today
+                    </a>
+                    <a href="#" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-info-circle me-2"></i>Learn How to Apply
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animated');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    // Observe elements
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Add stagger delay to cards
+    document.querySelectorAll('.category-card').forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.2}s`;
+    });
+});
+</script>
 {% endblock %}

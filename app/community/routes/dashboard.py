@@ -47,7 +47,7 @@ def dashboard():
     user_applications = Applications.query.filter_by(
         user_id=current_user.id
     ).join(Programs).order_by(Applications.application_date.desc()).all()
-    
+     
     for app in user_applications:
         # Add submission deadline event (placeholder - currently using application_date + 30 days)
         if app.application_status in ['pending', 'on_hold'] and app.application_date:

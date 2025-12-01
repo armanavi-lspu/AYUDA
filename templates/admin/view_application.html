@@ -218,6 +218,22 @@
                             <td class="text-muted">Review Date:</td>
                             <td>{{ application.review_date.strftime('%Y-%m-%d %H:%M') if application.review_date else 'Not yet reviewed' }}</td>
                         </tr>
+                        {% if application.submission_deadline %}
+                        <tr>
+                            <td class="text-muted">Submission Deadline:</td>
+                            <td>
+                                <span class="{% if application.submission_deadline < datetime.utcnow() %}text-danger{% else %}text-warning{% endif %}">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    {{ application.submission_deadline.strftime('%B %d, %Y') }}
+                                    {% if application.submission_deadline < datetime.utcnow() %}
+                                    <small class="text-danger">(Overdue)</small>
+                                    {% else %}
+                                    <small class="text-muted">({{ ((application.submission_deadline - datetime.utcnow()).days) }} days remaining)</small>
+                                    {% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endif %}
                         <tr>
                             <td class="text-muted">Completion:</td>
                             <td>
@@ -272,11 +288,17 @@
                         </div>
                         <div>
                             {% if qual.is_qualified == True %}
-                            <span class="badge badge-success">Qualified</span>
+                            <span class="badge badge-success">
+                                <i class="fas fa-check mr-1"></i>Qualified
+                            </span>
                             {% elif qual.is_qualified == False %}
-                            <span class="badge badge-danger">Not Qualified</span>
+                            <span class="badge badge-danger">
+                                <i class="fas fa-times mr-1"></i>Not Qualified
+                            </span>
                             {% else %}
-                            <span class="badge badge-warning">Needs Verification</span>
+                            <span class="badge badge-warning d-block">
+                                <i class="fas fa-question mr-1"></i>Needs Verification
+                            </span>
                             {% endif %}
                         </div>
                     </div>
@@ -546,6 +568,171 @@
     </div>
 </div>
 
+<!-- Shelter Photos Section (ESA Programs Only) -->
+{% if application.program.program_type == 'ESA' %}
+<div class="card shadow mb-4">
+    <div class="card-header bg-info text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 font-weight-bold">
+                <i class="fas fa-home mr-2"></i>Shelter Photos Verification
+            </h6>
+            <small>ESA Program Requirement</small>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if application.shelter_photos %}
+        <div class="row">
+            {% for photo in application.shelter_photos %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <img src="/{{ photo.photo_path }}" class="card-img-top" style="height: 200px; object-fit: cover;" alt="Shelter Photo">
+                    <div class="card-body p-3">
+                        {% if photo.caption %}
+                        <p class="card-text small text-muted mb-2">{{ photo.caption }}</p>
+                        {% endif %}
+                        
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Uploaded: {{ photo.uploaded_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        </div>
+                        
+                        {% if photo.admin_notes %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <small><strong>Admin Notes:</strong><br>{{ photo.admin_notes }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Single Verification Status and Actions -->
+        {% set all_approved = application.shelter_photos | selectattr('verification_status', 'equalto', 'approved') | list | length == application.shelter_photos | length %}
+        {% set any_rejected = application.shelter_photos | selectattr('verification_status', 'equalto', 'rejected') | list | length > 0 %}
+        {% set verification_status = 'approved' if all_approved else ('rejected' if any_rejected else 'pending') %}
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="mb-1">Shelter Photos Verification Status</h6>
+                        <div class="mb-2">
+                            {% if verification_status == 'approved' %}
+                            <span class="badge badge-success">
+                                <i class="fas fa-check"></i> All Photos Approved
+                            </span>
+                            {% elif verification_status == 'rejected' %}
+                            <span class="badge badge-danger">
+                                <i class="fas fa-times"></i> Photos Rejected
+                            </span>
+                            {% else %}
+                            <span class="badge badge-warning">
+                                <i class="fas fa-clock"></i> Pending Verification
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if application.shelter_photos[0].verified_by and verification_status != 'pending' %}
+                        <small class="text-muted">
+                            Verified by: {{ application.shelter_photos[0].verifier.first_name }} {{ application.shelter_photos[0].verifier.last_name }}
+                            on {{ application.shelter_photos[0].verified_at.strftime('%b %d, %Y %I:%M %p') if application.shelter_photos[0].verified_at else '' }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6 text-right">
+                        {% if verification_status == 'pending' %}
+                        <div class="btn-group" role="group">
+                            <form method="POST" action="{{ url_for('admin.verify_all_shelter_photos', application_id=application.id) }}" style="display: inline;">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Approve All Photos
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-danger ml-2" 
+                                    data-toggle="modal" 
+                                    data-target="#rejectAllPhotosModal">
+                                <i class="fas fa-times"></i> Reject Photos
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reject All Photos Modal -->
+        <div class="modal fade" id="rejectAllPhotosModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="{{ url_for('admin.verify_all_shelter_photos', application_id=application.id) }}">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">Reject Shelter Photos</h5>
+                            <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="action" value="reject">
+                            <div class="form-group">
+                                <label>Reason for rejection:</label>
+                                <textarea class="form-control" name="admin_notes" rows="4" placeholder="Please provide detailed feedback for the applicant about why the shelter photos were rejected..." required></textarea>
+                            </div>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Note:</strong> This will reject all uploaded shelter photos and require the applicant to resubmit.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger">Reject All Photos</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Overall Shelter Photos Status -->
+        {% set total_photos = application.shelter_photos | length %}
+        {% set all_approved = application.shelter_photos | selectattr('verification_status', 'equalto', 'approved') | list | length == total_photos %}
+        {% set any_rejected = application.shelter_photos | selectattr('verification_status', 'equalto', 'rejected') | list | length > 0 %}
+        
+        <div class="mt-3 p-3 {% if total_photos >= 3 and all_approved %}bg-success{% elif total_photos >= 3 and any_rejected %}bg-danger{% elif total_photos < 3 %}bg-warning{% else %}bg-info{% endif %} text-white rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Shelter Photo Requirements Status</strong>
+                    <br>
+                    {% if total_photos < 3 %}
+                    <small>{{ total_photos }} of 3 required photos uploaded (need {{ 3 - total_photos }} more)</small>
+                    {% elif all_approved %}
+                    <small>All {{ total_photos }} photos approved ✓</small>
+                    {% elif any_rejected %}
+                    <small>Photos rejected - applicant needs to resubmit</small>
+                    {% else %}
+                    <small>{{ total_photos }} photos uploaded - pending verification</small>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    {% if total_photos >= 3 and all_approved %}
+                    <i class="fas fa-check-circle fa-2x"></i>
+                    {% elif total_photos >= 3 and any_rejected %}
+                    <i class="fas fa-times-circle fa-2x"></i>
+                    {% elif total_photos < 3 %}
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    {% else %}
+                    <i class="fas fa-clock fa-2x"></i>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>No shelter photos uploaded yet.</strong>
+            <p class="mb-0">ESA applications require a minimum of 3 shelter photos for verification. The applicant needs to upload photos of their shelter.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Status Update Modal (opened after selecting from dropdown) -->
 <div class="modal fade" id="statusRemarksModal" tabindex="-1">
     <div class="modal-dialog">
@@ -561,6 +748,19 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="status" id="selectedStatus">
+                    
+                    <!-- Submission Deadline (only for approved status) -->
+                    <div class="form-group" id="deadlineGroup" style="display: none;">
+                        <label class="font-weight-bold">Document Submission Deadline</label>
+                        <input type="date" name="submission_deadline" class="form-control" 
+                               min="{{ min_date }}"
+                               value="{{ default_deadline }}">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Set the deadline for the applicant to submit all required documents. Default is 30 days from today.
+                        </small>
+                    </div>
+                    
                     <div class="form-group">
                         <label class="font-weight-bold">Overall Feedback <span class="text-muted">(Optional)</span></label>
                         <textarea name="remarks" class="form-control" rows="5" 
@@ -667,6 +867,14 @@ function updateStatus(status) {
     // Update modal content
     document.getElementById('selectedStatus').value = status;
     document.getElementById('statusName').textContent = statusNames[status];
+    
+    // Show/hide deadline field based on status
+    const deadlineGroup = document.getElementById('deadlineGroup');
+    if (status === 'approved') {
+        deadlineGroup.style.display = 'block';
+    } else {
+        deadlineGroup.style.display = 'none';
+    }
     
     // Update modal header color
     const modalHeader = document.getElementById('modalHeader');

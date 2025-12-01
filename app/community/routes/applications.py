@@ -1,5 +1,6 @@
 from flask import render_template, request, flash, redirect, url_for, send_file
 from flask_login import login_required, current_user
+from datetime import datetime
 from app.community import community_bp
 from app.utils import role_required
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements
@@ -96,6 +97,7 @@ def application_detail(application_id):
         'community/application_details.html',
         application=application,
         documents=documents,
+        datetime=datetime,
         user=current_user
     )
 
