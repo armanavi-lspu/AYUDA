@@ -5,6 +5,7 @@ from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth
+from app.recommender import get_recommendations
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
 import json
@@ -139,65 +140,88 @@ def api_applicants_timeseries():
 @login_required
 @role_required('admin')
 def api_generate_recommendations():
-    """API endpoint to generate beneficiary recommendations"""
+    """API endpoint to generate beneficiary recommendations using content-based filtering"""
     data = request.get_json()
     
     # Extract parameters
     program_id = data.get('program_id')
-    max_beneficiaries = data.get('max_beneficiaries', 50)
-    priority_barangay = data.get('priority_barangay')
-    min_income = data.get('min_income', 0)
-    max_income = data.get('max_income', 999999999)
+    max_beneficiaries = int(data.get('max_beneficiaries', 50))
+    priority_barangays = data.get('priority_barangays', [])  # Now a list of barangays
+    min_income = float(data.get('min_income', 0) or 0)
+    max_income = float(data.get('max_income', 999999999) or 999999999)
     solo_parent_priority = data.get('solo_parent_priority', False)
     student_priority = data.get('student_priority', False)
+    pwd_priority = data.get('pwd_priority', False)
     
-    # TODO: Integrate ML model for recommendations
-    # For now, return a simple query-based recommendation
-    
+    # Query all community users with their profiles
     query = db.session.query(
         User.id,
         User.first_name,
         User.last_name,
         User.email,
+        CommunityUsers.age,
         CommunityUsers.barangay,
         CommunityUsers.family_annual_income,
         CommunityUsers.is_solo_parent,
-        CommunityUsers.is_student
+        CommunityUsers.is_student,
+        CommunityUsers.is_pwd,
+        CommunityUsers.is_currently_employed,
+        CommunityUsers.occupation
     ).join(
         CommunityUsers, User.id == CommunityUsers.user_id
-    ).filter(
-        CommunityUsers.family_annual_income.between(min_income, max_income)
     )
     
-    # Apply filters
-    if priority_barangay:
-        query = query.filter(CommunityUsers.barangay == priority_barangay)
+    all_users = query.all()
     
-    # Apply priority sorting (placeholder logic)
-    if solo_parent_priority:
-        query = query.order_by(CommunityUsers.is_solo_parent.desc())
-    if student_priority:
-        query = query.order_by(CommunityUsers.is_student.desc())
+    # Convert to list of dictionaries for the recommender
+    beneficiaries_data = [
+        {
+            'user_id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'email': u.email,
+            'age': u.age,
+            'barangay': u.barangay,
+            'family_annual_income': float(u.family_annual_income) if u.family_annual_income else 0,
+            'is_solo_parent': u.is_solo_parent,
+            'is_student': u.is_student,
+            'is_pwd': u.is_pwd,
+            'is_currently_employed': u.is_currently_employed,
+            'occupation': u.occupation
+        }
+        for u in all_users
+    ]
     
-    recommendations = query.limit(max_beneficiaries).all()
+    # Use content-based filtering to get recommendations
+    recommendations = get_recommendations(
+        beneficiaries_data=beneficiaries_data,
+        max_beneficiaries=max_beneficiaries,
+        solo_parent_priority=solo_parent_priority,
+        student_priority=student_priority,
+        pwd_priority=pwd_priority,
+        priority_barangays=priority_barangays if priority_barangays else None,
+        min_income=min_income,
+        max_income=max_income
+    )
     
     return jsonify({
         'success': True,
         'count': len(recommendations),
         'recommendations': [
             {
-                'user_id': r.id,
-                'name': f"{r.first_name} {r.last_name}",
-                'email': r.email,
-                'barangay': r.barangay,
-                'income': float(r.family_annual_income) if r.family_annual_income else 0,
-                'is_solo_parent': r.is_solo_parent,
-                'is_student': r.is_student,
-                'score': 0.0  # Placeholder for ML model score
+                'user_id': r.get('user_id'),
+                'name': f"{r.get('first_name', '')} {r.get('last_name', '')}",
+                'email': r.get('email', ''),
+                'barangay': r.get('barangay', 'N/A'),
+                'income': r.get('family_annual_income', 0),
+                'is_solo_parent': r.get('is_solo_parent', False),
+                'is_student': r.get('is_student', False),
+                'is_pwd': r.get('is_pwd', False),
+                'score': r.get('score', 0.0)
             }
             for r in recommendations
         ],
-        'message': 'Recommendations generated successfully (using rule-based approach)'
+        'message': 'Recommendations generated using content-based filtering algorithm'
     })
 
 @admin_bp.route('/api/analytics/arima-forecast')

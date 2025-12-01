@@ -132,15 +132,21 @@
                             <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
                         </h6>
 
-                        <!-- Barangay Priority -->
+                        <!-- Barangay Priority - Checkboxes -->
                         <div class="form-group">
-                            <label>Priority Barangay</label>
-                            <select class="form-control" id="priority_barangay" name="priority_barangay">
-                                <option value="">All Barangays</option>
+                            <label>Priority Barangays <small class="text-muted">(Select one or more)</small></label>
+                            <div class="barangay-checkbox-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
                                 {% for barangay in barangays %}
-                                <option value="{{ barangay }}">{{ barangay }}</option>
+                                <div class="custom-control custom-checkbox mb-1">
+                                    <input type="checkbox" class="custom-control-input barangay-checkbox" 
+                                           id="barangay_{{ loop.index }}" name="priority_barangays" value="{{ barangay }}">
+                                    <label class="custom-control-label" for="barangay_{{ loop.index }}">
+                                        {{ barangay }}
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
+                            </div>
+                            <small class="form-text text-muted">Leave all unchecked to include all barangays</small>
                         </div>
 
                         <!-- Income Range -->
@@ -176,6 +182,13 @@
                                     Prioritize Students
                                 </label>
                             </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" 
+                                       id="pwd_priority" name="pwd_priority">
+                                <label class="custom-control-label" for="pwd_priority">
+                                    Prioritize PWDs
+                                </label>
+                            </div>
                         </div>
 
                         <hr>
@@ -183,7 +196,7 @@
                         <!-- ML Model Note -->
                         <div class="alert alert-info">
                             <i class="fas fa-robot mr-2"></i>
-                            <strong>AI Integration:</strong> Machine learning model will be integrated to provide intelligent scoring and ranking.
+                            <strong>Content-Based Filtering:</strong> Using TF-IDF vectorization and nearest neighbors for intelligent beneficiary scoring and ranking.
                         </div>
 
                         <!-- Generate Button -->
@@ -260,15 +273,22 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     document.getElementById('resultsContainer').style.display = 'none';
     document.getElementById('loadingState').style.display = 'block';
     
+    // Collect selected barangays from checkboxes
+    const selectedBarangays = [];
+    document.querySelectorAll('.barangay-checkbox:checked').forEach(checkbox => {
+        selectedBarangays.push(checkbox.value);
+    });
+    
     // Collect form data
     const formData = {
         program_id: document.getElementById('program_id').value,
         max_beneficiaries: document.getElementById('max_beneficiaries').value,
-        priority_barangay: document.getElementById('priority_barangay').value,
+        priority_barangays: selectedBarangays,
         min_income: document.getElementById('min_income').value,
         max_income: document.getElementById('max_income').value,
         solo_parent_priority: document.getElementById('solo_parent_priority').checked,
-        student_priority: document.getElementById('student_priority').checked
+        student_priority: document.getElementById('student_priority').checked,
+        pwd_priority: document.getElementById('pwd_priority').checked
     };
     
     // Make API call
@@ -325,6 +345,7 @@ function displayResults(data) {
                         <div class="mt-1">
                             ${rec.is_solo_parent ? '<span class="badge badge-info mr-1">Solo Parent</span>' : ''}
                             ${rec.is_student ? '<span class="badge badge-primary mr-1">Student</span>' : ''}
+                            ${rec.is_pwd ? '<span class="badge badge-warning mr-1">PWD</span>' : ''}
                         </div>
                     </div>
                     <div class="col-md-4 text-md-right">
