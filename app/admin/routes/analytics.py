@@ -140,13 +140,30 @@ def api_applicants_timeseries():
 @login_required
 @role_required('admin')
 def api_generate_recommendations():
-    """API endpoint to generate beneficiary recommendations using content-based filtering"""
+    """
+    API endpoint to generate beneficiary recommendations using content-based filtering.
+    
+    Request Body (JSON):
+        program_id: Target program ID for recommendations
+        max_beneficiaries: Maximum number of recommendations to return (default: 50)
+        priority_barangays: List of barangay names to filter by. If empty list or not 
+                           provided, all barangays are included in recommendations.
+        min_income: Minimum annual income filter (default: 0)
+        max_income: Maximum annual income filter (default: 999999999)
+        solo_parent_priority: Boolean to prioritize solo parents in scoring (default: False)
+        student_priority: Boolean to prioritize students in scoring (default: False)
+        pwd_priority: Boolean to prioritize PWDs in scoring (default: False)
+    
+    Returns:
+        JSON with success status, count, recommendations list, and message
+    """
     data = request.get_json()
     
     # Extract parameters
     program_id = data.get('program_id')
     max_beneficiaries = int(data.get('max_beneficiaries', 50))
-    priority_barangays = data.get('priority_barangays', [])  # Now a list of barangays
+    # priority_barangays is a list of barangay names; empty list means include all barangays
+    priority_barangays = data.get('priority_barangays', [])
     min_income = float(data.get('min_income', 0) or 0)
     max_income = float(data.get('max_income', 999999999) or 999999999)
     solo_parent_priority = data.get('solo_parent_priority', False)

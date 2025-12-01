@@ -8,35 +8,43 @@ from app.recommender import (
 )
 
 
+@pytest.fixture
+def sample_beneficiaries():
+    """Sample beneficiary data for testing - shared across all test classes"""
+    return [
+        {
+            'user_id': 1, 'first_name': 'Juan', 'last_name': 'Dela Cruz',
+            'email': 'juan@test.com', 'age': 35, 'barangay': 'Poblacion',
+            'family_annual_income': 50000, 'is_solo_parent': True,
+            'is_student': False, 'is_pwd': True,
+            'is_currently_employed': False, 'occupation': 'None'
+        },
+        {
+            'user_id': 2, 'first_name': 'Maria', 'last_name': 'Santos',
+            'email': 'maria@test.com', 'age': 28, 'barangay': 'Bagong Silang',
+            'family_annual_income': 120000, 'is_solo_parent': False,
+            'is_student': True, 'is_pwd': False,
+            'is_currently_employed': True, 'occupation': 'Teacher'
+        },
+        {
+            'user_id': 3, 'first_name': 'Pedro', 'last_name': 'Garcia',
+            'email': 'pedro@test.com', 'age': 45, 'barangay': 'Poblacion',
+            'family_annual_income': 30000, 'is_solo_parent': False,
+            'is_student': False, 'is_pwd': False,
+            'is_currently_employed': False, 'occupation': 'Farmer'
+        },
+        {
+            'user_id': 4, 'first_name': 'Ana', 'last_name': 'Lopez',
+            'email': 'ana@test.com', 'age': 22, 'barangay': 'San Jose',
+            'family_annual_income': 80000, 'is_solo_parent': False,
+            'is_student': True, 'is_pwd': True,
+            'is_currently_employed': False, 'occupation': 'Student'
+        },
+    ]
+
+
 class TestBeneficiaryRecommender:
     """Tests for the BeneficiaryRecommender class"""
-    
-    @pytest.fixture
-    def sample_beneficiaries(self):
-        """Sample beneficiary data for testing"""
-        return [
-            {
-                'user_id': 1, 'first_name': 'Juan', 'last_name': 'Dela Cruz',
-                'email': 'juan@test.com', 'age': 35, 'barangay': 'Poblacion',
-                'family_annual_income': 50000, 'is_solo_parent': True,
-                'is_student': False, 'is_pwd': True,
-                'is_currently_employed': False, 'occupation': 'None'
-            },
-            {
-                'user_id': 2, 'first_name': 'Maria', 'last_name': 'Santos',
-                'email': 'maria@test.com', 'age': 28, 'barangay': 'Bagong Silang',
-                'family_annual_income': 120000, 'is_solo_parent': False,
-                'is_student': True, 'is_pwd': False,
-                'is_currently_employed': True, 'occupation': 'Teacher'
-            },
-            {
-                'user_id': 3, 'first_name': 'Pedro', 'last_name': 'Garcia',
-                'email': 'pedro@test.com', 'age': 45, 'barangay': 'Poblacion',
-                'family_annual_income': 30000, 'is_solo_parent': False,
-                'is_student': False, 'is_pwd': False,
-                'is_currently_employed': False, 'occupation': 'Farmer'
-            },
-        ]
     
     def test_recommender_initialization(self):
         """Test recommender initialization"""
@@ -65,7 +73,7 @@ class TestBeneficiaryRecommender:
         recommender = BeneficiaryRecommender()
         scored = recommender.score_beneficiaries(sample_beneficiaries)
         
-        assert len(scored) == 3
+        assert len(scored) == 4
         assert all('score' in b for b in scored)
         # Should be sorted by score descending
         assert scored[0]['score'] >= scored[1]['score']
@@ -92,40 +100,6 @@ class TestBeneficiaryRecommender:
 
 class TestGetRecommendations:
     """Tests for the get_recommendations function"""
-    
-    @pytest.fixture
-    def sample_beneficiaries(self):
-        """Sample beneficiary data for testing"""
-        return [
-            {
-                'user_id': 1, 'first_name': 'Juan', 'last_name': 'Dela Cruz',
-                'email': 'juan@test.com', 'age': 35, 'barangay': 'Poblacion',
-                'family_annual_income': 50000, 'is_solo_parent': True,
-                'is_student': False, 'is_pwd': True,
-                'is_currently_employed': False, 'occupation': 'None'
-            },
-            {
-                'user_id': 2, 'first_name': 'Maria', 'last_name': 'Santos',
-                'email': 'maria@test.com', 'age': 28, 'barangay': 'Bagong Silang',
-                'family_annual_income': 120000, 'is_solo_parent': False,
-                'is_student': True, 'is_pwd': False,
-                'is_currently_employed': True, 'occupation': 'Teacher'
-            },
-            {
-                'user_id': 3, 'first_name': 'Pedro', 'last_name': 'Garcia',
-                'email': 'pedro@test.com', 'age': 45, 'barangay': 'Poblacion',
-                'family_annual_income': 30000, 'is_solo_parent': False,
-                'is_student': False, 'is_pwd': False,
-                'is_currently_employed': False, 'occupation': 'Farmer'
-            },
-            {
-                'user_id': 4, 'first_name': 'Ana', 'last_name': 'Lopez',
-                'email': 'ana@test.com', 'age': 22, 'barangay': 'San Jose',
-                'family_annual_income': 80000, 'is_solo_parent': False,
-                'is_student': True, 'is_pwd': True,
-                'is_currently_employed': False, 'occupation': 'Student'
-            },
-        ]
     
     def test_get_recommendations_basic(self, sample_beneficiaries):
         """Test basic recommendations generation"""

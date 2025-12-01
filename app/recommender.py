@@ -95,9 +95,12 @@ class BeneficiaryRecommender:
         
         Args:
             beneficiaries: List of dictionaries with beneficiary data
+            
+        Returns:
+            bool: True if fitting was successful, False otherwise
         """
         df = self._prepare_dataframe(beneficiaries)
-        if df is None or len(df) < 2:
+        if df is None or len(df) < 1:
             return False
         
         self.beneficiary_data = df
@@ -108,8 +111,9 @@ class BeneficiaryRecommender:
         # Transform features
         features = self.preprocessor.fit_transform(df)
         
-        # Fit NearestNeighbors model
-        n_neighbors = min(len(df), 50)  # Use at most 50 neighbors
+        # Fit NearestNeighbors model with appropriate n_neighbors
+        # Ensure n_neighbors is at least 1 and at most the number of samples
+        n_neighbors = max(1, min(len(df), 50))
         self.model = NearestNeighbors(n_neighbors=n_neighbors, metric='cosine')
         self.model.fit(features)
         
