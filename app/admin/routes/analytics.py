@@ -4,6 +4,7 @@ from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User
 from app.extensions import db
+from app.forecasting import arima_forecast, forecast_program_growth
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
 import json
@@ -198,3 +199,67 @@ def api_generate_recommendations():
         ],
         'message': 'Recommendations generated successfully (using rule-based approach)'
     })
+
+@admin_bp.route('/api/analytics/arima-forecast')
+@login_required
+@role_required('admin')
+def api_arima_forecast():
+    """API endpoint for ARIMA-based applicants forecast"""
+    # Get parameters
+    months = request.args.get('months', 12, type=int)
+    forecast_periods = request.args.get('forecast_periods', 6, type=int)
+    
+    # Limit forecast periods for stability
+    forecast_periods = min(forecast_periods, 12)
+    
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=months * 30)
+    
+    # Query historical data
+    historical_data = db.session.query(
+        func.date_trunc('month', Applications.application_date).label('month'),
+        func.count(Applications.id).label('count')
+    ).filter(
+        Applications.application_date >= start_date
+    ).group_by('month').order_by('month').all()
+    
+    # Prepare data for ARIMA
+    labels = [d.month.strftime('%B %Y') for d in historical_data if d.month]
+    values = [d.count for d in historical_data]
+    
+    # Generate ARIMA forecast
+    forecast_result = arima_forecast(values, labels, periods=forecast_periods)
+    
+    return jsonify({
+        'historical': {
+            'labels': labels,
+            'values': values
+        },
+        'forecast': forecast_result,
+        'model': forecast_result.get('model', 'unknown')
+    })
+
+@admin_bp.route('/api/analytics/program-forecast')
+@login_required
+@role_required('admin')
+def api_program_forecast():
+    """API endpoint for program category growth forecast"""
+    growth_rate = request.args.get('growth_rate', type=float)
+    
+    # Query current program applications
+    applications_by_type = db.session.query(
+        Programs.program_type,
+        func.count(Applications.id).label('count')
+    ).join(
+        Applications, Programs.id == Applications.program_id
+    ).group_by(Programs.program_type).all()
+    
+    program_data = {
+        'labels': [row.program_type for row in applications_by_type],
+        'data': [row.count for row in applications_by_type]
+    }
+    
+    # Generate program growth forecast
+    forecast_result = forecast_program_growth(program_data, growth_rate)
+    
+    return jsonify(forecast_result)
