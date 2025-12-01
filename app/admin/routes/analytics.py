@@ -4,6 +4,7 @@ from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User
 from app.extensions import db
+from app.recommender import generate_beneficiary_recommendations
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
 import json
@@ -138,63 +139,77 @@ def api_applicants_timeseries():
 @login_required
 @role_required('admin')
 def api_generate_recommendations():
-    """API endpoint to generate beneficiary recommendations"""
+    """API endpoint to generate beneficiary recommendations using content-based filtering"""
     data = request.get_json()
     
     # Extract parameters
     program_id = data.get('program_id')
-    max_beneficiaries = data.get('max_beneficiaries', 50)
+    max_beneficiaries = int(data.get('max_beneficiaries', 50))
     priority_barangay = data.get('priority_barangay')
-    min_income = data.get('min_income', 0)
-    max_income = data.get('max_income', 999999999)
+    min_income = float(data.get('min_income', 0))
+    max_income = float(data.get('max_income', 999999999))
     solo_parent_priority = data.get('solo_parent_priority', False)
     student_priority = data.get('student_priority', False)
     
-    # TODO: Integrate ML model for recommendations
-    # For now, return a simple query-based recommendation
-    
+    # Query all community users with their profile data
     query = db.session.query(
-        User.id,
+        User.id.label('user_id'),
         User.first_name,
         User.last_name,
         User.email,
         CommunityUsers.barangay,
+        CommunityUsers.sitio,
+        CommunityUsers.municipality,
         CommunityUsers.family_annual_income,
         CommunityUsers.is_solo_parent,
-        CommunityUsers.is_student
+        CommunityUsers.is_student,
+        CommunityUsers.is_pwd,
+        CommunityUsers.is_currently_employed,
+        CommunityUsers.occupation,
+        CommunityUsers.age
     ).join(
         CommunityUsers, User.id == CommunityUsers.user_id
-    ).filter(
-        CommunityUsers.family_annual_income.between(min_income, max_income)
     )
     
-    # Apply filters
-    if priority_barangay:
-        query = query.filter(CommunityUsers.barangay == priority_barangay)
+    # Get all beneficiaries as a list of dictionaries
+    beneficiaries = []
+    for r in query.all():
+        beneficiaries.append({
+            'user_id': r.user_id,
+            'first_name': r.first_name,
+            'last_name': r.last_name,
+            'email': r.email,
+            'barangay': r.barangay,
+            'sitio': r.sitio,
+            'municipality': r.municipality,
+            'family_annual_income': float(r.family_annual_income) if r.family_annual_income else 0,
+            'is_solo_parent': r.is_solo_parent,
+            'is_student': r.is_student,
+            'is_pwd': r.is_pwd,
+            'is_currently_employed': r.is_currently_employed,
+            'occupation': r.occupation,
+            'age': r.age
+        })
     
-    # Apply priority sorting (placeholder logic)
-    if solo_parent_priority:
-        query = query.order_by(CommunityUsers.is_solo_parent.desc())
-    if student_priority:
-        query = query.order_by(CommunityUsers.is_student.desc())
+    # Prepare filters for the recommender
+    filters = {
+        'priority_barangay': priority_barangay if priority_barangay else None,
+        'min_income': min_income,
+        'max_income': max_income,
+        'solo_parent_priority': solo_parent_priority,
+        'student_priority': student_priority
+    }
     
-    recommendations = query.limit(max_beneficiaries).all()
+    # Generate recommendations using content-based filtering
+    recommendations = generate_beneficiary_recommendations(
+        beneficiaries=beneficiaries,
+        filters=filters,
+        max_results=max_beneficiaries
+    )
     
     return jsonify({
         'success': True,
         'count': len(recommendations),
-        'recommendations': [
-            {
-                'user_id': r.id,
-                'name': f"{r.first_name} {r.last_name}",
-                'email': r.email,
-                'barangay': r.barangay,
-                'income': float(r.family_annual_income) if r.family_annual_income else 0,
-                'is_solo_parent': r.is_solo_parent,
-                'is_student': r.is_student,
-                'score': 0.0  # Placeholder for ML model score
-            }
-            for r in recommendations
-        ],
-        'message': 'Recommendations generated successfully (using rule-based approach)'
+        'recommendations': recommendations,
+        'message': 'Recommendations generated successfully using content-based filtering (TF-IDF + NearestNeighbors)'
     })
