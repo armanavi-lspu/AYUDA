@@ -287,6 +287,20 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Analytics page loaded');
     
+    /**
+     * Helper function to build forecast data array for Chart.js
+     * Creates an array with null values for historical period, 
+     * then connects from lastValue to forecast values
+     * @param {number} historicalLength - Number of historical data points
+     * @param {number} lastValue - Last value from historical data (connection point)
+     * @param {Array} forecastData - Array of forecast values
+     * @returns {Array} - Data array for chart with nulls for historical and forecast values
+     */
+    function buildForecastDataArray(historicalLength, lastValue, forecastData) {
+        const nullsForHistorical = Array(historicalLength).fill(null);
+        return [...nullsForHistorical, lastValue, ...forecastData];
+    }
+    
     // Parse data from hidden script tags
     const applicantsOverTimeData = JSON.parse(document.getElementById('applicants-over-time-data').textContent);
     const applicationsByTypeData = JSON.parse(document.getElementById('applications-by-type-data').textContent);
@@ -478,7 +492,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     {
                         label: `ARIMA Forecast (${modelType})`,
-                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData.slice(0, -1), forecastData[forecastData.length - 1]],
+                        // Connect forecast to last historical point, then show forecast values
+                        data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
                         borderColor: 'rgb(246, 194, 62)',
                         backgroundColor: 'rgba(246, 194, 62, 0.1)',
                         fill: true,

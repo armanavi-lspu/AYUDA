@@ -5,12 +5,16 @@ This module provides stable time series forecasting for application trends.
 
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import warnings
 
 # Suppress warnings from statsmodels during model fitting
 warnings.filterwarnings('ignore', category=UserWarning)
 warnings.filterwarnings('ignore', category=FutureWarning)
+
+# Constants for simple linear forecast confidence intervals
+CONFIDENCE_LOWER_MULTIPLIER = 0.8
+CONFIDENCE_UPPER_MULTIPLIER = 1.2
 
 
 def prepare_time_series_data(labels, values):
@@ -157,16 +161,16 @@ def simple_linear_forecast(historical_data, historical_labels, periods=6):
         value = max(0, round(last_value + (avg_growth * i)))
         forecast_values.append(value)
     
-    # Generate forecast labels
+    # Generate forecast labels using proper month arithmetic
     forecast_labels = []
-    now = datetime.utcnow()
+    now = datetime.now()
     for i in range(1, periods + 1):
-        next_date = now + timedelta(days=30 * i)
+        next_date = now + pd.DateOffset(months=i)
         forecast_labels.append(next_date.strftime('%b %Y'))
     
-    # Simple confidence intervals (±20% of forecast value)
-    confidence_lower = [max(0, round(v * 0.8)) for v in forecast_values]
-    confidence_upper = [round(v * 1.2) for v in forecast_values]
+    # Simple confidence intervals using defined constants
+    confidence_lower = [max(0, round(v * CONFIDENCE_LOWER_MULTIPLIER)) for v in forecast_values]
+    confidence_upper = [round(v * CONFIDENCE_UPPER_MULTIPLIER) for v in forecast_values]
     
     return {
         'forecast_labels': forecast_labels,
