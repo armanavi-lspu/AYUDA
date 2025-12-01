@@ -429,10 +429,156 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 4. Forecast: Applicants Over Time (Sample/Placeholder)
+    // 4. Forecast: Applicants Over Time - Using ARIMA from backend
     const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
-    if (forecastApplicantsCtx) {
-        // Generate forecast data based on historical trend
+    let applicantsForecastChart = null;
+    
+    function loadArimaForecast() {
+        if (!forecastApplicantsCtx) return;
+        
+        // Show loading state
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        chartContainer.style.opacity = '0.5';
+        
+        fetch('/api/analytics/arima-forecast?months=12&forecast_periods=6')
+            .then(response => response.json())
+            .then(data => {
+                console.log('ARIMA Forecast Data:', data);
+                
+                const historicalLabels = data.historical.labels;
+                const historicalData = data.historical.values;
+                const forecastLabels = data.forecast.forecast_labels || [];
+                const forecastData = data.forecast.forecast_values || [];
+                const confidenceLower = data.forecast.confidence_lower || [];
+                const confidenceUpper = data.forecast.confidence_upper || [];
+                const modelType = data.model || 'unknown';
+                
+                // Destroy existing chart if any
+                if (applicantsForecastChart) {
+                    applicantsForecastChart.destroy();
+                }
+                
+                // Get last historical value for connecting forecast line
+                const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+                
+                // Create datasets
+                const datasets = [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: `ARIMA Forecast (${modelType})`,
+                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData.slice(0, -1), forecastData[forecastData.length - 1]],
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }
+                ];
+                
+                // Add confidence interval bands if available
+                if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
+                    datasets.push({
+                        label: '95% Confidence Interval',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceUpper],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: '+1',
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0
+                    });
+                    datasets.push({
+                        label: 'Confidence Lower',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceLower],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        hidden: true // Hide from legend
+                    });
+                }
+                
+                applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [...historicalLabels, ...forecastLabels],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    filter: function(item) {
+                                        // Hide confidence lower from legend
+                                        return item.text !== 'Confidence Lower';
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += Math.round(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                chartContainer.style.opacity = '1';
+            })
+            .catch(error => {
+                console.error('Error loading ARIMA forecast:', error);
+                chartContainer.style.opacity = '1';
+                
+                // Fallback to simple linear forecast on error
+                loadFallbackForecast();
+            });
+    }
+    
+    function loadFallbackForecast() {
+        if (!forecastApplicantsCtx) return;
+        
         const historicalData = applicantsOverTimeData.data;
         const historicalLabels = applicantsOverTimeData.labels;
         
@@ -452,7 +598,11 @@ document.addEventListener('DOMContentLoaded', function() {
             forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
         }
         
-        new Chart(forecastApplicantsCtx.getContext('2d'), {
+        if (applicantsForecastChart) {
+            applicantsForecastChart.destroy();
+        }
+        
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
             type: 'line',
             data: {
                 labels: [...historicalLabels, ...forecastLabels],
@@ -467,7 +617,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         borderWidth: 3
                     },
                     {
-                        label: 'Forecast',
+                        label: 'Forecast (Linear Fallback)',
                         data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData],
                         borderColor: 'rgb(246, 194, 62)',
                         backgroundColor: 'rgba(246, 194, 62, 0.1)',
@@ -499,55 +649,135 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 5. Forecast: Program Category (Sample/Placeholder)
+    // Load ARIMA forecast on page load
+    loadArimaForecast();
+    
+    // 5. Forecast: Program Category - Using backend forecast
     const forecastProgramCtx = document.getElementById('forecastProgramCategoryChart');
-    if (forecastProgramCtx) {
-        // Project growth for each program type
-        const programLabels = applicationsByTypeData.labels;
-        const currentData = applicationsByTypeData.data;
-        const forecastedData = currentData.map(val => Math.round(val * 1.15)); // 15% projected growth
+    let programForecastChart = null;
+    
+    function loadProgramForecast() {
+        if (!forecastProgramCtx) return;
         
-        new Chart(forecastProgramCtx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: programLabels,
-                datasets: [
-                    {
-                        label: 'Current Applications',
-                        data: currentData,
-                        backgroundColor: 'rgba(78, 115, 223, 0.6)',
-                        borderColor: 'rgba(78, 115, 223, 1)',
-                        borderWidth: 2
+        const chartContainer = forecastProgramCtx.parentElement;
+        chartContainer.style.opacity = '0.5';
+        
+        fetch('/api/analytics/program-forecast')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Program Forecast Data:', data);
+                
+                if (programForecastChart) {
+                    programForecastChart.destroy();
+                }
+                
+                const programLabels = data.labels || applicationsByTypeData.labels;
+                const currentData = data.current_data || applicationsByTypeData.data;
+                const forecastedData = data.forecast_data || currentData.map(val => Math.round(val * 1.10));
+                const growthRate = data.growth_rate || 0.10;
+                const growthPercent = Math.round(growthRate * 100);
+                
+                programForecastChart = new Chart(forecastProgramCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: programLabels,
+                        datasets: [
+                            {
+                                label: 'Current Applications',
+                                data: currentData,
+                                backgroundColor: 'rgba(78, 115, 223, 0.6)',
+                                borderColor: 'rgba(78, 115, 223, 1)',
+                                borderWidth: 2
+                            },
+                            {
+                                label: `Forecasted Applications (+${growthPercent}%)`,
+                                data: forecastedData,
+                                backgroundColor: 'rgba(246, 194, 62, 0.6)',
+                                borderColor: 'rgba(246, 194, 62, 1)',
+                                borderWidth: 2
+                            }
+                        ]
                     },
-                    {
-                        label: 'Forecasted Applications (Next Period)',
-                        data: forecastedData,
-                        backgroundColor: 'rgba(246, 194, 62, 0.6)',
-                        borderColor: 'rgba(246, 194, 62, 1)',
-                        borderWidth: 2
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
                         }
                     }
+                });
+                
+                chartContainer.style.opacity = '1';
+            })
+            .catch(error => {
+                console.error('Error loading program forecast:', error);
+                chartContainer.style.opacity = '1';
+                
+                // Fallback to static growth estimate
+                const programLabels = applicationsByTypeData.labels;
+                const currentData = applicationsByTypeData.data;
+                const forecastedData = currentData.map(val => Math.round(val * 1.10));
+                
+                if (programForecastChart) {
+                    programForecastChart.destroy();
                 }
-            }
-        });
+                
+                programForecastChart = new Chart(forecastProgramCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: programLabels,
+                        datasets: [
+                            {
+                                label: 'Current Applications',
+                                data: currentData,
+                                backgroundColor: 'rgba(78, 115, 223, 0.6)',
+                                borderColor: 'rgba(78, 115, 223, 1)',
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Forecasted Applications (Estimated +10%)',
+                                data: forecastedData,
+                                backgroundColor: 'rgba(246, 194, 62, 0.6)',
+                                borderColor: 'rgba(246, 194, 62, 1)',
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+            });
     }
+    
+    // Load program forecast on page load
+    loadProgramForecast();
     
     // Time range selector
     const timeRangeSelect = document.getElementById('timeRangeSelect');
