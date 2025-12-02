@@ -315,6 +315,13 @@ class ProgramRecommender:
     ALPHA = 0.7  # Weight for profile similarity
     BETA = 0.3   # Weight for popularity
     
+    # TF-IDF configuration
+    TFIDF_MAX_FEATURES = 200
+    
+    # Income bucket thresholds
+    INCOME_LOW_THRESHOLD = 100000
+    INCOME_MID_THRESHOLD = 300000
+    
     # Status-to-program-type boost values
     BOOST_STUDENT_EDUCATION = 0.15
     BOOST_SOLO_PARENT_EMERGENCY = 0.10
@@ -373,7 +380,7 @@ class ProgramRecommender:
         
         # Fit TF-IDF vectorizer on program texts
         self.vectorizer = TfidfVectorizer(
-            max_features=200,
+            max_features=self.TFIDF_MAX_FEATURES,
             stop_words='english',
             ngram_range=(1, 2)
         )
@@ -396,9 +403,9 @@ class ProgramRecommender:
             return "unknown_income"
         try:
             income = float(value)
-            if income <= 100000:
+            if income <= self.INCOME_LOW_THRESHOLD:
                 return "low_income"
-            elif income <= 300000:
+            elif income <= self.INCOME_MID_THRESHOLD:
                 return "mid_income"
             else:
                 return "high_income"

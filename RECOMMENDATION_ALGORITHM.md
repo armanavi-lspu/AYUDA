@@ -180,8 +180,16 @@ The `recommend_for_user()` method maintains full backward compatibility:
 ### Class-Level Constants (ProgramRecommender)
 
 ```python
+# Blending weights
 ALPHA = 0.7   # Weight for profile similarity
 BETA = 0.3    # Weight for popularity
+
+# TF-IDF configuration
+TFIDF_MAX_FEATURES = 200
+
+# Income bucket thresholds
+INCOME_LOW_THRESHOLD = 100000    # ≤ 100k = low_income
+INCOME_MID_THRESHOLD = 300000    # ≤ 300k = mid_income, > 300k = high_income
 
 # Status-to-type boost values
 BOOST_STUDENT_EDUCATION = 0.15

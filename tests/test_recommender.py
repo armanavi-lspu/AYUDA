@@ -396,19 +396,8 @@ class TestColdStartRecommendations:
         )
         
         # Education should be in top 3 for a student
-        assert education_rank is not None
+        assert education_rank is not None, "Education program should be found in results"
         assert education_rank < 3, f"Education program should be in top 3, got rank {education_rank}"
-        
-        # Compare with popularity-only fallback
-        popularity_results = recommender._popularity_fallback(top_n=6)
-        popularity_education_rank = next(
-            (idx for idx, r in enumerate(popularity_results) if r.get('program_type') == 'Education'),
-            len(popularity_results)
-        )
-        
-        # Education rank should be same or better than popularity baseline
-        # (since student boost should help Education programs)
-        assert education_rank <= popularity_education_rank or education_rank < 3
     
     def test_cold_start_solo_parent_low_income_biases_towards_emergency_or_housing(self, sample_programs):
         """
