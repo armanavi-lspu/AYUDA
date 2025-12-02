@@ -568,6 +568,110 @@
     </div>
 </div>
 
+<!-- Financial Assistance Claim Scheduling Section -->
+{% if application.application_status == 'approved' and application.program.program_type in ['AICS', 'CAL'] and application.documents_complete %}
+<div class="card shadow mb-4" id="claimScheduleCard">
+    <div class="card-header bg-gradient-primary text-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-calendar-alt mr-2"></i>Financial Assistance Claim Schedule
+            </h6>
+            <div>
+                {% if application.claim_status == 'scheduled' %}
+                <span class="badge badge-success">
+                    <i class="fas fa-check-circle mr-1"></i>Scheduled
+                </span>
+                {% elif application.claim_status == 'claimed' %}
+                <span class="badge badge-info">
+                    <i class="fas fa-hand-holding-usd mr-1"></i>Claimed
+                </span>
+                {% elif application.claim_status == 'missed' %}
+                <span class="badge badge-warning">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>Missed
+                </span>
+                {% else %}
+                <span class="badge badge-secondary">
+                    <i class="fas fa-clock mr-1"></i>Not Scheduled
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if application.claim_status == 'not_scheduled' or not application.claim_date %}
+        <!-- Not yet scheduled -->
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle mr-2"></i>
+            <strong>Ready for Scheduling</strong><br>
+            All required documents have been verified. You can now schedule the claim date for this financial assistance.
+        </div>
+        <button type="button" class="btn btn-primary btn-lg" onclick="showScheduleModal()">
+            <i class="fas fa-calendar-plus mr-2"></i>Schedule Claim Date
+        </button>
+        
+        {% else %}
+        <!-- Already scheduled -->
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="font-weight-bold mb-3">Scheduled Claim Details</h6>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td class="text-muted" width="40%">Claim Date:</td>
+                        <td class="font-weight-bold">{{ application.claim_date.strftime('%A, %B %d, %Y') if application.claim_date else 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Time:</td>
+                        <td>{{ application.claim_time or 'Not set' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Location:</td>
+                        <td>{{ application.claim_location or 'MSWD Office' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Scheduled by:</td>
+                        <td>
+                            {% if application.claim_scheduled_by %}
+                                {{ application.claim_scheduler.first_name }} {{ application.claim_scheduler.last_name }}
+                                <br><small class="text-muted">{{ application.claim_scheduled_at.strftime('%b %d, %Y %I:%M %p') if application.claim_scheduled_at else '' }}</small>
+                            {% else %}
+                                Not available
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                {% if application.claim_instructions %}
+                <h6 class="font-weight-bold mb-3">Special Instructions</h6>
+                <div class="alert alert-light">
+                    <i class="fas fa-clipboard-list mr-2"></i>
+                    {{ application.claim_instructions }}
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    {% if application.claim_status in ['scheduled', 'missed'] %}
+                    <button type="button" class="btn btn-warning btn-sm mr-2" onclick="showRescheduleModal()">
+                        <i class="fas fa-edit mr-1"></i>Reschedule
+                    </button>
+                    {% endif %}
+                    
+                    {% if application.claim_status == 'scheduled' %}
+                    <button type="button" class="btn btn-success btn-sm mr-2" onclick="markAsClaimed()">
+                        <i class="fas fa-check mr-1"></i>Mark as Claimed
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="markAsMissed()">
+                        <i class="fas fa-times mr-1"></i>Mark as Missed
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Shelter Photos Section (ESA Programs Only) -->
 {% if application.program.program_type == 'ESA' %}
 <div class="card shadow mb-4">
@@ -990,10 +1094,34 @@ function toggleDocumentComplete(docId, isComplete) {
             // Show success message
             showSuccessToast(`Document marked as ${isComplete ? 'Complete' : 'Incomplete'}`);
             
+            // Check if all documents are now complete and show scheduling option
+            {% if application.program.program_type in ['AICS', 'CAL'] and application.application_status == 'approved' %}
+            if (isComplete && data.completion_percentage === 100) {
+                setTimeout(() => {
+                    const shouldSchedule = confirm(
+                        'All required documents are now complete!\n\n' +
+                        'Would you like to schedule the claim date for this financial assistance?'
+                    );
+                    if (shouldSchedule) {
+                        location.reload();
+                        setTimeout(() => {
+                            showScheduleModal();
+                        }, 500);
+                    } else {
+                        location.reload();
+                    }
+                }, 1500);
+            } else {
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+            {% else %}
             // Reload after short delay
             setTimeout(() => {
                 location.reload();
             }, 1000);
+            {% endif %}
         } else {
             alert('Error updating document: ' + data.message);
             // Revert checkbox on error
@@ -1232,5 +1360,210 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 });
+
+// Claim Scheduling Functions
+function showScheduleModal() {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    document.getElementById('claimDate').min = tomorrow.toISOString().split('T')[0];
+    document.getElementById('claimDate').value = '';
+    document.getElementById('claimTime').value = '09:00';
+    document.getElementById('claimLocation').value = 'MSWD Office, Municipal Building, Mabitac, Laguna';
+    document.getElementById('claimInstructions').value = '';
+    
+    $('#scheduleClaimModal').modal('show');
+}
+
+function showRescheduleModal() {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    document.getElementById('claimDate').min = tomorrow.toISOString().split('T')[0];
+    {% if application.claim_date %}
+    document.getElementById('claimDate').value = '{{ application.claim_date.strftime('%Y-%m-%d') if application.claim_date else '' }}';
+    {% endif %}
+    {% if application.claim_time %}
+    document.getElementById('claimTime').value = '{{ application.claim_time.split()[0] if application.claim_time else '09:00' }}';
+    {% endif %}
+    document.getElementById('claimLocation').value = '{{ application.claim_location or 'MSWD Office, Municipal Building, Mabitac, Laguna' }}';
+    document.getElementById('claimInstructions').value = '{{ application.claim_instructions or '' }}';
+    
+    $('#scheduleClaimModal').modal('show');
+}
+
+function scheduleClaim() {
+    const claimDate = document.getElementById('claimDate').value;
+    const claimTime = document.getElementById('claimTime').value;
+    const claimLocation = document.getElementById('claimLocation').value;
+    const claimInstructions = document.getElementById('claimInstructions').value;
+    
+    if (!claimDate || !claimTime) {
+        alert('Please select both date and time for the claim schedule.');
+        return;
+    }
+    
+    // Format time with AM/PM
+    const timeObj = new Date('1970-01-01T' + claimTime + ':00');
+    const formattedTime = timeObj.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+    });
+    
+    fetch(`/admin/applications/{{ application.id }}/schedule-claim`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            claim_date: claimDate,
+            claim_time: formattedTime,
+            claim_location: claimLocation || 'MSWD Office, Municipal Building, Mabitac, Laguna',
+            claim_instructions: claimInstructions
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $('#scheduleClaimModal').modal('hide');
+            showSuccessToast('Claim schedule saved successfully!');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            alert('Error scheduling claim: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error scheduling claim. Please try again.');
+    });
+}
+
+function markAsClaimed() {
+    if (!confirm('Mark this application as claimed? This will notify the applicant that they have successfully received the assistance.')) {
+        return;
+    }
+    
+    updateClaimStatus('claimed');
+}
+
+function markAsMissed() {
+    if (!confirm('Mark this claim as missed? This will update the status and may require rescheduling.')) {
+        return;
+    }
+    
+    updateClaimStatus('missed');
+}
+
+function updateClaimStatus(status) {
+    fetch(`/admin/applications/{{ application.id }}/update-claim-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            claim_status: status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessToast(`Claim status updated to: ${status}`);
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            alert('Error updating claim status: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating claim status. Please try again.');
+    });
+}
 </script>
+
+<!-- Claim Scheduling Modal -->
+<div class="modal fade" id="scheduleClaimModal" tabindex="-1" role="dialog" aria-labelledby="scheduleClaimModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="scheduleClaimModalLabel">
+                    <i class="fas fa-calendar-plus mr-2"></i>Schedule Financial Assistance Claim
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="claimDate">
+                                    <i class="fas fa-calendar mr-1"></i>Claim Date <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" class="form-control" id="claimDate" required>
+                                <small class="form-text text-muted">Select a future date for claiming</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="claimTime">
+                                    <i class="fas fa-clock mr-1"></i>Claim Time <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-control" id="claimTime" required>
+                                    <option value="09:00">9:00 AM</option>
+                                    <option value="10:00">10:00 AM</option>
+                                    <option value="11:00">11:00 AM</option>
+                                    <option value="13:00">1:00 PM</option>
+                                    <option value="14:00">2:00 PM</option>
+                                    <option value="15:00">3:00 PM</option>
+                                    <option value="16:00">4:00 PM</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="claimLocation">
+                            <i class="fas fa-map-marker-alt mr-1"></i>Claim Location
+                        </label>
+                        <input type="text" class="form-control" id="claimLocation" 
+                               placeholder="Enter the location where the beneficiary should claim">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="claimInstructions">
+                            <i class="fas fa-clipboard-list mr-1"></i>Special Instructions
+                        </label>
+                        <textarea class="form-control" id="claimInstructions" rows="3" 
+                                  placeholder="Enter any special instructions or requirements for claiming (optional)"></textarea>
+                        <small class="form-text text-muted">
+                            Example: "Bring original ID and this notification", "Come with family member", etc.
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Note:</strong> The applicant will be automatically notified of this schedule via their dashboard and email (if configured).
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="scheduleClaim()">
+                    <i class="fas fa-calendar-check mr-1"></i>Schedule Claim
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

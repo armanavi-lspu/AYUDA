@@ -38,17 +38,55 @@ def schedule():
                     'description': 'Complete and submit all required documents before this date'
                 })
         
-        # Add claiming date event (placeholder - currently using review_date + 7 days)
-        if app.application_status == 'approved' and app.review_date:
-            claim_date = app.review_date + timedelta(days=7)
+        # Add actual claiming date event if scheduled
+        if app.application_status == 'approved' and app.claim_date and app.claim_status in ['scheduled', 'claimed', 'missed']:
+            # Create a full datetime from claim_date and claim_time
+            claim_datetime = app.claim_date
+            if app.claim_time:
+                # Parse time and combine with date
+                try:
+                    time_parts = app.claim_time.split()
+                    time_str = time_parts[0]  # Get "09:00" from "09:00 AM"
+                    hour, minute = map(int, time_str.split(':'))
+                    
+                    # Handle AM/PM if present
+                    if len(time_parts) > 1 and time_parts[1].upper() == 'PM' and hour != 12:
+                        hour += 12
+                    elif len(time_parts) > 1 and time_parts[1].upper() == 'AM' and hour == 12:
+                        hour = 0
+                    
+                    claim_datetime = claim_datetime.replace(hour=hour, minute=minute)
+                except (ValueError, IndexError):
+                    pass  # Use claim_date as is if time parsing fails
+            
+            # Determine status badge and description based on claim_status
+            if app.claim_status == 'claimed':
+                status_text = 'claimed'
+                description = f'Assistance successfully claimed on {claim_datetime.strftime("%B %d, %Y")}'
+                title = 'Assistance Claimed ✓'
+            elif app.claim_status == 'missed':
+                status_text = 'missed'
+                description = 'You missed this claim appointment. Please contact the office to reschedule.'
+                title = 'Missed Claim Appointment'
+            else:  # scheduled
+                status_text = 'scheduled'
+                location_info = f" at {app.claim_location}" if app.claim_location else ""
+                instruction_info = f"\n\nInstructions: {app.claim_instructions}" if app.claim_instructions else ""
+                description = f'Visit the office{location_info} to claim your assistance{instruction_info}'
+                title = 'Assistance Claim Date'
+            
             schedule_events.append({
                 'type': 'claiming',
-                'title': f'Assistance Claim Date',
+                'title': title,
                 'program': app.program.program_name,
                 'application_id': app.id,
-                'date': claim_date,
-                'status': app.application_status,
-                'description': 'Visit the office to claim your assistance on this date'
+                'date': claim_datetime,
+                'status': status_text,
+                'claim_status': app.claim_status,
+                'claim_time': app.claim_time,
+                'claim_location': app.claim_location,
+                'claim_instructions': app.claim_instructions,
+                'description': description
             })
     
     # Sort events by date

@@ -608,3 +608,136 @@ def export_applications():
             'Content-Disposition': f'attachment; filename=applications_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
         }
     )
+
+
+@admin_bp.route('/applications/<int:application_id>/schedule-claim', methods=['POST'])
+@login_required
+@role_required('admin')
+def schedule_claim(application_id):
+    """Schedule claim date for approved financial assistance application"""
+    application = Applications.query.get_or_404(application_id)
+    
+    # Verify that application is eligible for scheduling
+    if application.application_status != 'approved':
+        return jsonify(success=False, message='Application must be approved before scheduling.')
+    
+    if application.program.program_type not in ['AICS', 'CAL']:
+        return jsonify(success=False, message='Claim scheduling is only available for AICS and CAL programs.')
+    
+    if not application.documents_complete:
+        return jsonify(success=False, message='All required documents must be verified before scheduling.')
+    
+    data = request.json or {}
+    claim_date_str = data.get('claim_date')
+    claim_time = data.get('claim_time')
+    claim_location = data.get('claim_location', 'MSWD Office, Municipal Building, Mabitac, Laguna')
+    claim_instructions = data.get('claim_instructions', '').strip()
+    
+    if not claim_date_str or not claim_time:
+        return jsonify(success=False, message='Claim date and time are required.')
+    
+    try:
+        # Parse the claim date
+        claim_date = datetime.strptime(claim_date_str, '%Y-%m-%d')
+        
+        # Ensure claim date is in the future
+        if claim_date.date() <= datetime.now().date():
+            return jsonify(success=False, message='Claim date must be in the future.')
+        
+        # Update application with claim schedule
+        application.claim_date = claim_date
+        application.claim_time = claim_time
+        application.claim_location = claim_location
+        application.claim_instructions = claim_instructions
+        application.claim_status = 'scheduled'
+        application.claim_scheduled_by = current_user.id
+        application.claim_scheduled_at = datetime.utcnow()
+        application.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Create notification for the applicant
+        notif_message = (
+            f'Your claim schedule for {application.program.program_name} has been set!\n\n'
+            f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
+            f'🕐 Time: {claim_time}\n'
+            f'📍 Location: {claim_location}\n'
+        )
+        if claim_instructions:
+            notif_message += f'📝 Instructions: {claim_instructions}\n'
+        
+        notif_message += '\nPlease be present on the scheduled date and time to claim your assistance.'
+        
+        notif = Notifications(
+            user_id=application.user_id,
+            notif_title='Claim Schedule Set',
+            notif_message=notif_message,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notif)
+        db.session.commit()
+        
+        return jsonify(success=True, message='Claim schedule saved successfully.')
+        
+    except ValueError as e:
+        return jsonify(success=False, message='Invalid date format.')
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error scheduling claim: {str(e)}')
+
+
+@admin_bp.route('/applications/<int:application_id>/update-claim-status', methods=['POST'])
+@login_required
+@role_required('admin')
+def update_claim_status(application_id):
+    """Update claim status (claimed, missed, etc.)"""
+    application = Applications.query.get_or_404(application_id)
+    
+    data = request.json or {}
+    new_status = data.get('claim_status')
+    
+    if not new_status or new_status not in ['scheduled', 'claimed', 'missed', 'not_scheduled']:
+        return jsonify(success=False, message='Invalid claim status.')
+    
+    try:
+        old_status = application.claim_status
+        application.claim_status = new_status
+        application.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Create appropriate notification
+        if new_status == 'claimed':
+            notif_message = (
+                f'Congratulations! Your financial assistance for {application.program.program_name} '
+                f'has been successfully claimed on {datetime.now().strftime("%B %d, %Y")}.\n\n'
+                f'Thank you for availing our services. We hope this assistance helps with your needs.'
+            )
+            notif_title = 'Assistance Successfully Claimed'
+        elif new_status == 'missed':
+            notif_message = (
+                f'You missed your scheduled claim date for {application.program.program_name} '
+                f'on {application.claim_date.strftime("%B %d, %Y") if application.claim_date else "the scheduled date"}.\n\n'
+                f'Please contact the MSWD office to reschedule your claim appointment.'
+            )
+            notif_title = 'Missed Claim Appointment'
+        else:
+            notif_message = f'Your claim status for {application.program.program_name} has been updated to: {new_status.replace("_", " ").title()}'
+            notif_title = 'Claim Status Updated'
+        
+        notif = Notifications(
+            user_id=application.user_id,
+            notif_title=notif_title,
+            notif_message=notif_message,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notif)
+        db.session.commit()
+        
+        return jsonify(success=True, message=f'Claim status updated to: {new_status}')
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error updating claim status: {str(e)}')

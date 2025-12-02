@@ -28,6 +28,7 @@ class User(db.Model, UserMixin):
     notifications = db.relationship('Notifications', backref='user', lazy=True, cascade='all, delete-orphan')
     applications = db.relationship('Applications', foreign_keys='Applications.user_id', backref='applicant', lazy=True)
     reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
+    scheduled_claims = db.relationship('Applications', foreign_keys='Applications.claim_scheduled_by', backref='claim_scheduler', lazy=True)
     community_profile = db.relationship('CommunityUsers', backref='user', uselist=False, cascade='all, delete-orphan')
     admin_profile = db.relationship('AdminUsers', backref='user', uselist=False, cascade='all, delete-orphan')
 
@@ -135,6 +136,16 @@ class Applications(db.Model):
     review_date = db.Column(db.DateTime, index=True)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     submission_deadline = db.Column(db.DateTime, index=True)  # Deadline for document submission
+    
+    # Claim scheduling fields
+    claim_date = db.Column(db.DateTime, index=True)  # Scheduled date for claiming assistance
+    claim_time = db.Column(db.String(10))  # Time slot (e.g., "09:00 AM", "02:00 PM")
+    claim_location = db.Column(db.String(255))  # Location for claiming (office address, etc.)
+    claim_instructions = db.Column(db.Text)  # Special instructions for claiming
+    claim_status = db.Column(db.String(20), default='not_scheduled', index=True)  # not_scheduled, scheduled, claimed, missed
+    claim_scheduled_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Admin who scheduled
+    claim_scheduled_at = db.Column(db.DateTime)  # When the claim was scheduled
+    
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -150,50 +161,7 @@ class Applications(db.Model):
     program = db.relationship('Programs', back_populates='applications')
     shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
     
-    @property
-    def documents_complete(self):
-        """Check if all mandatory documents are approved"""
-        if not self.document_checklist:
-            return False
-        
-        mandatory_items = []
-        for doc in self.document_checklist:
-            prog_req = db.session.query(ProgramRequirements).filter_by(
-                program_id=self.program_id,
-                requirement_id=doc.requirement_id,
-                is_mandatory=True
-            ).first()
-            if prog_req:
-                mandatory_items.append(doc)
-        
-        if not mandatory_items:
-            return True  # No mandatory items required
-        
-        return all(item.is_complete for item in mandatory_items)
-    
-    @property
-    def completion_percentage(self):
-        """Calculate requirement completion percentage"""
-        if not self.document_checklist:
-            return 0
-        
-        completed_count = sum(1 for item in self.document_checklist if item.is_complete)
-        return round((completed_count / len(self.document_checklist)) * 100)
-    
-    @property
-    def documents_list(self):
-        """Get only document requirements"""
-        return [item for item in self.document_checklist 
-                if item.requirement.requirement_type == 'document']
-    
-    @property
-    def qualifications_list(self):
-        """Get only qualification requirements"""
-        return [item for item in self.document_checklist 
-                if item.requirement.requirement_type == 'qualification']
-    
-    def __repr__(self):
-        return f'<Application {self.id}: {self.applicant.email} -> {self.program.program_name}>'
+    # Note: applicant, reviewer, and claim_scheduler relationships are defined in User model
     
     @property
     def documents_complete(self):
@@ -225,6 +193,18 @@ class Applications(db.Model):
         approved_count = sum(1 for doc in self.document_checklist 
                            if doc.submission_status == 'approved')
         return round((approved_count / len(self.document_checklist)) * 100)
+    
+    @property
+    def documents_list(self):
+        """Get only document requirements"""
+        return [item for item in self.document_checklist 
+                if item.requirement.requirement_type == 'document']
+    
+    @property
+    def qualifications_list(self):
+        """Get only qualification requirements"""
+        return [item for item in self.document_checklist 
+                if item.requirement.requirement_type == 'qualification']
     
     def __repr__(self):
         return f'<Application {self.id}: {self.applicant.email} -> {self.program.program_name}>'
