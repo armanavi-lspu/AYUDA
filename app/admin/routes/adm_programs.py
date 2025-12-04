@@ -125,11 +125,26 @@ def programs_index():
 @role_required('admin')
 def add_program():
     """Add a new program"""
+    if request.method == 'GET':
+        # Get all requirements for the form
+        requirements = Requirements.query.order_by(
+            Requirements.requirement_type,
+            Requirements.requirement_name
+        ).all()
+        return render_template('admin/add_program.html', 
+                             requirements=requirements,
+                             user=current_user)
+    
     if request.method == 'POST':
         program_name = request.form.get('program_name', '').strip()
         program_type = request.form.get('program_type', '').strip()
         program_period = request.form.get('program_period', '').strip()
         description = request.form.get('description', '').strip()
+        priority_groups = request.form.getlist('priority_group')  # Get selected priority groups
+        priority_group = ', '.join(priority_groups) if priority_groups else None  # Convert to comma-separated string
+        beneficiary_limit_str = request.form.get('beneficiary_limit', '').strip()
+        beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
+        income_range = request.form.get('income_range', '').strip() or None
         
         # Get selected requirements
         requirement_ids = request.form.getlist('requirements')
@@ -174,6 +189,9 @@ def add_program():
             program_name=program_name,
             program_type=program_type,
             program_period=program_period,
+            priority_group=priority_group,
+            beneficiary_limit=beneficiary_limit,
+            income_range=income_range,
             description=description,
             user_id=current_user.id,
             file_attachment_id=file_attachment.id if file_attachment else None,
@@ -203,27 +221,60 @@ def add_program():
             flash(f'Error creating program: {str(e)}', 'danger')
             return redirect(url_for('admin.adm_programs'))
         
-@admin_bp.route('/programs/edit/<int:id>', endpoint='edit_program', methods=['POST'])
+@admin_bp.route('/programs/edit/<int:id>', endpoint='edit_program', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def edit_program(id):
-    """Edit an existing program"""
-    program = Programs.query.get_or_404(id)
+    """View and edit an existing program"""
+    program = Programs.query.options(
+        db.joinedload(Programs.program_requirements)
+        .joinedload(ProgramRequirements.requirement),
+        db.joinedload(Programs.applications)  # Load applications for counting
+    ).get_or_404(id)
     
+    if request.method == 'GET':
+        # Get all requirements for the form
+        requirements = Requirements.query.order_by(
+            Requirements.requirement_type,
+            Requirements.requirement_name
+        ).all()
+        
+        # Get existing program requirements
+        existing_reqs = {pr.requirement_id: pr.is_mandatory for pr in program.program_requirements}
+        
+        # Add application and requirement counts
+        program.application_count = Applications.query.filter_by(program_id=program.id).count()
+        program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
+        
+        return render_template('admin/view_edit_program.html',
+                             program=program,
+                             requirements=requirements,
+                             existing_reqs=existing_reqs,
+                             user=current_user)
+    
+    # POST request - update program
     program_name = request.form.get('program_name', '').strip()
     program_type = request.form.get('program_type', '').strip()
     program_period = request.form.get('program_period', '').strip()
     description = request.form.get('description', '').strip()
+    priority_groups = request.form.getlist('priority_group')  # Get selected priority groups
+    priority_group = ', '.join(priority_groups) if priority_groups else None  # Convert to comma-separated string
+    beneficiary_limit_str = request.form.get('beneficiary_limit', '').strip()
+    beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
+    income_range = request.form.get('income_range', '').strip() or None
     
     # Validation
     if not program_name or not program_type or not program_period:
         flash('Program name, type, and period are required.', 'danger')
-        return redirect(url_for('admin.adm_programs'))
+        return redirect(url_for('admin.edit_program', id=id))
     
     # Update program
     program.program_name = program_name
     program.program_type = program_type
     program.program_period = program_period
+    program.priority_group = priority_group
+    program.beneficiary_limit = beneficiary_limit
+    program.income_range = income_range
     program.description = description
     
     try:
@@ -282,12 +333,12 @@ def edit_program(id):
         
         db.session.commit()
         flash(f'Program "{program_name}" updated successfully!', 'success')
+        return redirect(url_for('admin.edit_program', id=id))
         
     except Exception as e:
         db.session.rollback()
         flash(f'Error updating program: {str(e)}', 'danger')
-    
-    return redirect(url_for('admin.adm_programs'))
+        return redirect(url_for('admin.edit_program', id=id))
 
 @admin_bp.route('/programs/delete/<int:id>', endpoint='delete_program', methods=['POST'])
 @login_required

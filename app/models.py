@@ -44,6 +44,9 @@ class Programs(db.Model):
     program_name = db.Column(db.String(200), nullable=False)
     program_type = db.Column(db.String(50), nullable=False, index=True)  # Added index for type queries
     program_period = db.Column(db.String(50), nullable=False)
+    priority_group = db.Column(db.String(255))  # Target beneficiaries (e.g., "Low Income Families, Students, PWDs")
+    beneficiary_limit = db.Column(db.Integer)  # Maximum number of beneficiaries that can be accepted (NULL = unlimited)
+    income_range = db.Column(db.String(100))  # Target income level (e.g., "Below 15,000", "15,000 - 30,000")
     description = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))

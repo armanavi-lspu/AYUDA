@@ -79,6 +79,27 @@
                         <i class="fas fa-user-check text-warning mr-2"></i>
                         <strong>Qualifications:</strong> {{ qualification_requirements|length }} criteria
                     </li>
+                    {% if program.beneficiary_limit %}
+                    <li class="mb-2">
+                        <i class="fas fa-user-friends {% if is_full %}text-danger{% else %}text-primary{% endif %} mr-2"></i>
+                        <strong>Capacity:</strong> {{ approved_count }} / {{ program.beneficiary_limit }}
+                        {% if is_full %}
+                        <span class="badge badge-danger ml-2">FULL</span>
+                        {% endif %}
+                    </li>
+                    {% endif %}
+                    {% if program.priority_group %}
+                    <li class="mb-2">
+                        <i class="fas fa-bullseye text-info mr-2"></i>
+                        <strong>Priority:</strong> {{ program.priority_group }}
+                    </li>
+                    {% endif %}
+                    {% if program.income_range %}
+                    <li class="mb-2">
+                        <i class="fas fa-money-bill-wave text-success mr-2"></i>
+                        <strong>Target Income:</strong> {{ program.income_range }} monthly
+                    </li>
+                    {% endif %}
                 </ul>                    
             </div>
         </div>
@@ -256,6 +277,16 @@
         <div class="card shadow border-left-primary">
             <div class="card-body text-center">
                 <h5 class="font-weight-bold mb-3">Ready to Apply?</h5>
+                {% if is_full %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Program Full!</strong><br>
+                    This program has reached its maximum capacity of {{ program.beneficiary_limit }} beneficiaries.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-ban mr-2"></i>Applications Closed
+                </button>
+                {% else %}
                 <p class="text-muted small mb-3">Submit your application for this program</p>
                 <button type="button" 
                         class="btn btn-primary btn-lg btn-block" 
@@ -263,6 +294,7 @@
                         data-target="#confirmApplicationModal">
                     <i class="fas fa-paper-plane mr-2"></i>Apply Now
                 </button>
+                {% endif %}
             </div>
         </div>        
     </div>

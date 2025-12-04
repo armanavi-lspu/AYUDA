@@ -6,6 +6,63 @@ from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos
 from app.extensions import db
+import re
+
+
+def check_qualification(requirement, user_profile):
+    """Check if user meets a qualification requirement"""
+    if not user_profile:
+        return False
+    
+    req_name = requirement.requirement_name.lower()
+    req_desc = requirement.description.lower() if requirement.description else ''
+    combined = req_name + ' ' + req_desc
+    
+    # Age-based qualifications
+    if 'age' in combined or 'years old' in combined or 'senior' in combined:
+        if user_profile.age:
+            if 'senior' in combined or '60' in combined:
+                return user_profile.age >= 60
+            elif '18' in combined:
+                return user_profile.age >= 18
+            # Check for age range patterns
+            age_match = re.search(r'(\d+)[-\s](?:to|and)[-\s](\d+)', combined)
+            if age_match:
+                min_age, max_age = int(age_match.group(1)), int(age_match.group(2))
+                return min_age <= user_profile.age <= max_age
+    
+    # Employment status
+    if 'employed' in combined or 'employment' in combined:
+        if 'unemployed' in combined or 'not employed' in combined:
+            return not user_profile.is_currently_employed
+        else:
+            return user_profile.is_currently_employed
+    
+    # Student status
+    if 'student' in combined:
+        return user_profile.is_student
+    
+    # Solo parent
+    if 'solo parent' in combined or 'single parent' in combined:
+        return user_profile.is_solo_parent
+    
+    # PWD status
+    if 'pwd' in combined or 'disability' in combined or 'disabled' in combined:
+        return user_profile.is_pwd
+    
+    # Location-based
+    if 'resident' in combined or 'barangay' in combined or 'mabitac' in combined:
+        return user_profile.barangay is not None
+    
+    # Income-based
+    if 'income' in combined or 'indigent' in combined or 'poverty' in combined:
+        if user_profile.family_annual_income:
+            # Assuming low income threshold is 250,000 PHP per year
+            if 'low income' in combined or 'indigent' in combined:
+                return user_profile.family_annual_income <= 20000
+    
+    # Default: unable to determine
+    return None
 
 
 @admin_bp.route('/applications')
@@ -61,6 +118,46 @@ def applications():
     
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Check qualification requirements for each application
+    for app in pagination.items:
+        # Get qualification requirements for this program
+        qualification_reqs = db.session.query(Requirements).join(
+            ProgramRequirements,
+            (Requirements.id == ProgramRequirements.requirement_id) &
+            (ProgramRequirements.program_id == app.program_id)
+        ).filter(Requirements.requirement_type == 'qualification').all()
+        
+        # Get user profile
+        user_profile = app.applicant.community_profile
+        
+        # Check if user meets all qualifications
+        app.total_qualifications = len(qualification_reqs)
+        app.met_qualifications = 0
+        app.unknown_qualifications = 0
+        
+        if not qualification_reqs:
+            # No qualifications required
+            app.meets_all_qualifications = None
+        elif not user_profile:
+            # No profile data available
+            app.meets_all_qualifications = False
+        else:
+            # Check each qualification
+            for req in qualification_reqs:
+                result = check_qualification(req, user_profile)
+                if result is True:
+                    app.met_qualifications += 1
+                elif result is None:
+                    app.unknown_qualifications += 1
+            
+            # User meets all qualifications if they met all checkable ones
+            # and there are no unknown/undetermined qualifications
+            if app.unknown_qualifications == 0:
+                app.meets_all_qualifications = (app.met_qualifications == app.total_qualifications)
+            else:
+                # Some qualifications couldn't be determined
+                app.meets_all_qualifications = False if app.met_qualifications < app.total_qualifications else True
     
     # Get statistics
     total_apps = Applications.query.count()

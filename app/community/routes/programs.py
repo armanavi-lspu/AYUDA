@@ -146,7 +146,7 @@ def program_detail(program_id):
             if user_profile.family_annual_income:
                 # Assuming low income threshold is 250,000 PHP per year
                 if 'low income' in combined or 'indigent' in combined:
-                    return user_profile.family_annual_income <= 250000
+                    return user_profile.family_annual_income <= 20000
         
         # Default: unable to determine
         return None  # None means we can't auto-determine
@@ -172,11 +172,23 @@ def program_detail(program_id):
             req_data['is_qualified'] = meets_qualification
             qualification_requirements.append(req_data)
     
+    # Check if program has reached beneficiary limit
+    is_full = False
+    approved_count = 0
+    if program.beneficiary_limit:
+        approved_count = Applications.query.filter_by(
+            program_id=program_id,
+            application_status='approved'
+        ).count()
+        is_full = approved_count >= program.beneficiary_limit
+    
     return render_template('community/program_detail.html',
                          program=program,
                          document_requirements=document_requirements,
                          qualification_requirements=qualification_requirements,
-                         user_profile=user_profile)
+                         user_profile=user_profile,
+                         is_full=is_full,
+                         approved_count=approved_count)
     
 @community_bp.route('/program/<int:program_id>/apply', methods=['POST'])
 @login_required
@@ -194,6 +206,17 @@ def submit_application(program_id):
     if existing_application:
         flash('You already have a pending application for this program.', 'warning')
         return redirect(url_for('community.program_detail', program_id=program_id))
+    
+    # Check if program has reached beneficiary limit
+    if program.beneficiary_limit:
+        approved_count = Applications.query.filter_by(
+            program_id=program_id,
+            application_status='approved'
+        ).count()
+        
+        if approved_count >= program.beneficiary_limit:
+            flash(f'This program has reached its maximum capacity of {program.beneficiary_limit} beneficiaries. Applications are no longer being accepted.', 'warning')
+            return redirect(url_for('community.program_detail', program_id=program_id))
     
     # Create new application
     new_application = Applications(

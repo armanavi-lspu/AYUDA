@@ -140,13 +140,7 @@ def populate_dummy_data():
                     'type': 'AICS',
                     'period': 'Emergency',
                     'description': 'Provides financial support to families in need for burial and funeral services'
-                },
-                {
-                    'name': 'AKAP Partylist - Educational Assistance Program',
-                    'type': 'AICS',
-                    'period': 'Annual',
-                    'description': 'One time financial assistance program for elementary to college students'
-                },
+                },                
                 {
                     'name': 'Educational Assistance Program',
                     'type': 'AICS',
@@ -158,12 +152,6 @@ def populate_dummy_data():
                     'type': 'AICS',
                     'period': 'Ongoing',
                     'description': 'Healthcare support including medicine subsidies, hospital bills, and medical procedures'
-                },
-                {
-                    'name': 'Livelihood Development Program',
-                    'type': 'CAL',
-                    'period': 'Quarterly',
-                    'description': 'Skills training and business capital assistance for sustainable income generation'
                 },
                 {
                     'name': 'Fire Disaster',
@@ -182,19 +170,7 @@ def populate_dummy_data():
                     'type': 'CAL',
                     'period': 'Monthly',
                     'description': 'Support for microenterprise development and livelihood projects'
-                },            
-                {
-                    'name': 'Christmas Gift Giving Program',
-                    'type': 'AICS',
-                    'period': 'Seasonal',
-                    'description': 'Annual Christmas gift distribution for indigent families'
-                },
-                {
-                    'name': 'Back-to-School Assistance',
-                    'type': 'AICS',
-                    'period': 'Seasonal',
-                    'description': 'School supplies and uniform assistance distributed before school opening'
-                },
+                },                            
             ]
             
             programs = []
@@ -219,11 +195,11 @@ def populate_dummy_data():
             # Document Requirements
             document_requirements_data = [
                 {'name': 'Valid ID', 'description': 'Any government-issued ID (PhilID, Driver\'s License, Passport, etc.)'},
-                {'name': 'PSA Birth Certificate', 'description': 'Original copy from PSA (Philippine Statistics Authority)'},
+                {'name': 'PSA Birth Certificate', 'description': 'Photocopy of birth certificate from PSA (Philippine Statistics Authority)'},
                 {'name': 'Certificate of Enrollment', 'description': 'Current certificate of enrollment from school'},
                 {'name': 'Certificate of Registration (COR)', 'description': 'Certificate of Registration for current semester'},
                 {'name': 'Certificate of Grades (COG)', 'description': 'Latest grades from previous semester'},
-                {'name': 'Student ID', 'description': 'Valid student identification card'},
+                {'name': 'Student ID', 'description': 'Valid student identification card (School ID)'},
                 {'name': 'Barangay Report', 'description': 'Barangay report for disaster-affected applicants'},
                 {'name': 'Barangay Indigency Certificate', 'description': 'Certificate of Indigency from Barangay'},
                 {'name': 'Barangay Clearance', 'description': 'Barangay clearance certificate'},
@@ -257,12 +233,9 @@ def populate_dummy_data():
                 {'name': 'Indigent Family', 'description': 'Family identified as indigent by barangay'},
                 {'name': 'Person with Disability (PWD)', 'description': 'Registered PWD with valid ID'},
                 {'name': 'Senior Citizen', 'description': '60 years old and above with valid ID'},
-                {'name': 'Unemployed', 'description': 'Currently unemployed and seeking livelihood'},
                 {'name': 'Resident of Mabitac', 'description': 'Bonafide resident of Mabitac, Laguna'},
                 {'name': 'Fire Victim', 'description': 'Affected by fire incident (with barangay report)'},
                 {'name': 'Typhoon Victim', 'description': 'Affected by typhoon/calamity (with barangay report)'},
-                {'name': 'Family Member of Deceased', 'description': 'Immediate family member of the deceased'},
-                {'name': 'Medical Emergency', 'description': 'Experiencing medical emergency or critical illness'},
             ]
             
             qualification_requirements = []
@@ -311,24 +284,10 @@ def populate_dummy_data():
                         ('Barangay Indigency Certificate', False),
                     ],
                     'qualifications': [
-                        ('Family Member of Deceased', True),
                         ('Low Income Family', True),
                         ('Resident of Mabitac', True),
                     ]
-                },
-                'AKAP Partylist - Educational Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Student ID', True),
-                        ('Certificate of Enrollment', True),
-                        ('Certificate of Registration (COR)', True),
-                        ('Certificate of Grades (COG)', False),
-                    ],
-                    'qualifications': [
-                        ('Student', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
+                },                
                 'Educational Assistance Program': {
                     'documents': [
                         ('Valid ID', True),
@@ -357,19 +316,7 @@ def populate_dummy_data():
                         ('Resident of Mabitac', True),
                     ]
                 },
-                'Livelihood Development Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Clearance', True),
-                        ('Proof of Income', False),
-                        ('Proof of Business', False),
-                    ],
-                    'qualifications': [
-                        ('Unemployed', True),
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
+                
                 'Fire Disaster': {
                     'documents': [
                         ('Valid ID', True),
@@ -402,30 +349,7 @@ def populate_dummy_data():
                         ('Low Income Family', True),
                         ('Resident of Mabitac', True),
                     ]
-                },
-                'Christmas Gift Giving Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Indigency Certificate', True),
-                    ],
-                    'qualifications': [
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                'Back-to-School Assistance': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Student ID', True),
-                        ('Certificate of Enrollment', True),
-                        ('Barangay Indigency Certificate', True),
-                    ],
-                    'qualifications': [
-                        ('Student', True),
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
+                },                
             }
             
             # Assign requirements to each program

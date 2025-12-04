@@ -1,0 +1,860 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}{{ program.program_name }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .requirement-item {
+        padding: 8px;
+        border: 1px solid #e3e6f0;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        transition: background-color 0.2s;
+    }
+    
+    .requirement-item:hover {
+        background-color: #f8f9fc;
+    }
+    
+    .requirement-item label {
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+    
+    .requirements-list {
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .req-checkbox:checked ~ .custom-control-label {
+        color: #1cc88a;
+        font-weight: 600;
+    }
+    
+    .mandatory-checkbox:checked ~ .custom-control-label {
+        color: #e74a3b;
+        font-weight: 600;
+    }
+    
+    .add-req-form {
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .add-req-form .border {
+        border: 2px dashed #dee2e6 !important;
+    }
+    
+    .add-req-form input:focus,
+    .add-req-form textarea:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+    
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-2 text-gray-800">
+                <i class="fas fa-clipboard-list mr-2"></i>{{ program.program_name }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_programs') }}">Programs</a></li>
+                    <li class="breadcrumb-item active">{{ program.program_name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Programs
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4" id="programTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="view-tab" data-toggle="tab" href="#view" role="tab">
+                <i class="fas fa-eye mr-2"></i>View Details
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="edit-tab" data-toggle="tab" href="#edit" role="tab">
+                <i class="fas fa-edit mr-2"></i>Edit Program
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="programTabsContent">
+        <!-- View Tab -->
+        <div class="tab-pane fade show active" id="view" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Program Info Card -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-info text-white">
+                            <h6 class="m-0 font-weight-bold">Program Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card border-left-primary shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="text-primary font-weight-bold mb-2">
+                                                <i class="fas fa-tag mr-2"></i>Program Type
+                                            </h6>
+                                            <p class="mb-0">{{ program.program_type }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-left-success shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="text-success font-weight-bold mb-2">
+                                                <i class="fas fa-clock mr-2"></i>Program Period
+                                            </h6>
+                                            <p class="mb-0">{{ program.program_period }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if program.beneficiary_limit %}
+                            <div class="card mb-3 border-left-warning shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-warning font-weight-bold mb-2">
+                                        <i class="fas fa-user-friends mr-2"></i>Beneficiary Limit
+                                    </h6>
+                                    {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                                    <p class="mb-0">Maximum {{ program.beneficiary_limit }} beneficiaries</p>
+                                    <small class="text-muted">Current accepted: {{ approved_count }} / {{ program.beneficiary_limit }}</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if program.income_range %}
+                            <div class="card mb-3 border-left-success shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-success font-weight-bold mb-2">
+                                        <i class="fas fa-money-bill-wave mr-2"></i>Target Income Range
+                                    </h6>
+                                    <p class="mb-0">{{ program.income_range }} monthly</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if program.priority_group %}
+                            <div class="card mb-3 border-left-info shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-info font-weight-bold mb-2">
+                                        <i class="fas fa-users mr-2"></i>Priority Groups
+                                    </h6>
+                                    <p class="mb-0">{{ program.priority_group }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="card mb-3 border-0 bg-light">
+                                <div class="card-body">
+                                    <h6 class="font-weight-bold mb-2"><i class="fas fa-info-circle mr-2"></i>Description</h6>
+                                    <p class="mb-0 text-justify">{{ program.description or 'No description available.' }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if program.file_attachment %}
+                            <div class="card border-left-warning shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="font-weight-bold mb-2"><i class="fas fa-paperclip mr-2"></i>Attachment</h6>
+                                    <a href="{{ url_for('static', filename=program.file_attachment.file_path) }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download mr-2"></i>{{ program.file_attachment.filename }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Requirements Card -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-primary text-white">
+                            <h6 class="m-0 font-weight-bold">Program Requirements</h6>
+                        </div>
+                        <div class="card-body">
+                            {% set program_reqs = program.program_requirements %}
+                            {% if program_reqs %}
+                                <!-- Document Requirements -->
+                                {% set doc_reqs = [] %}
+                                {% for pr in program_reqs %}
+                                    {% if pr.requirement.requirement_type == 'document' %}
+                                        {% set _ = doc_reqs.append(pr) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if doc_reqs %}
+                                <h6 class="text-primary mb-3"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
+                                <ul class="list-group mb-3">
+                                    {% for pr in doc_reqs %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ pr.requirement.requirement_name }}</strong>
+                                            {% if pr.requirement.description %}
+                                                <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% if pr.is_mandatory %}
+                                            <span class="badge badge-danger">Mandatory</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Optional</span>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                                
+                                <!-- Qualification Requirements -->
+                                {% set qual_reqs = [] %}
+                                {% for pr in program_reqs %}
+                                    {% if pr.requirement.requirement_type == 'qualification' %}
+                                        {% set _ = qual_reqs.append(pr) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if qual_reqs %}
+                                <h6 class="text-success mb-3"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
+                                <ul class="list-group">
+                                    {% for pr in qual_reqs %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ pr.requirement.requirement_name }}</strong>
+                                            {% if pr.requirement.description %}
+                                                <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% if pr.is_mandatory %}
+                                            <span class="badge badge-danger">Mandatory</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Optional</span>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-muted mb-0">No requirements set for this program.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics Sidebar -->
+                <div class="col-lg-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-2 bg-success text-white">
+                            <h6 class="m-0 font-weight-bold">Statistics</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="text-center mb-2 pb-2 border-bottom">
+                                <i class="fas fa-users fa-2x text-primary mb-1"></i>
+                                <h5 class="font-weight-bold mb-0">{{ program.application_count or 0 }}</h5>
+                                <small class="text-muted">Total Applications</small>
+                            </div>
+                            <div class="text-center mb-2 pb-2 border-bottom">
+                                <i class="fas fa-check-circle fa-2x text-success mb-1"></i>
+                                <h5 class="font-weight-bold mb-0">
+                                    {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                                    {{ approved_count }}
+                                </h5>
+                                <small class="text-muted">Approved Applications</small>
+                            </div>
+                            <div class="text-center">
+                                <i class="fas fa-user-friends fa-2x {% if program.beneficiary_limit %}text-warning{% else %}text-secondary{% endif %} mb-1"></i>
+                                <h5 class="font-weight-bold mb-0">
+                                    {% if program.beneficiary_limit %}
+                                        {{ program.beneficiary_limit }}
+                                    {% else %}
+                                        <i class="fas fa-infinity"></i>
+                                    {% endif %}
+                                </h5>
+                                <small class="text-muted">Beneficiary Limit</small>
+                                {% if program.beneficiary_limit %}
+                                    {% set capacity_percent = (approved_count / program.beneficiary_limit * 100)|round|int %}
+                                    <div class="progress mt-1" style="height: 15px;">
+                                        <div class="progress-bar {% if capacity_percent >= 100 %}bg-danger{% elif capacity_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ [capacity_percent, 100]|min }}%;" 
+                                             aria-valuenow="{{ capacity_percent }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            <small>{{ capacity_percent }}%</small>
+                                        </div>
+                                    </div>
+                                    {% if capacity_percent >= 100 %}
+                                        <small class="text-danger font-weight-bold mt-1 d-block">
+                                            <i class="fas fa-exclamation-triangle"></i> Full
+                                        </small>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card shadow">
+                        <div class="card-header py-2 bg-warning text-white">
+                            <h6 class="m-0 font-weight-bold">Quick Actions</h6>
+                        </div>
+                        <div class="card-body p-3">                            
+                            <button class="btn btn-warning btn-block mb-2" onclick="$('#edit-tab').tab('show')">
+                                <i class="fas fa-edit mr-2"></i>Edit Program
+                            </button>
+                            <a href="{{ url_for('admin.applications', program=program.id) }}" class="btn btn-info btn-block mb-2">
+                                <i class="fas fa-list mr-2"></i>View Applicants
+                            </a>
+                            <button class="btn btn-danger btn-block" data-toggle="modal" data-target="#deleteModal">
+                                <i class="fas fa-trash mr-2"></i>Delete Program
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Tab -->
+        <div class="tab-pane fade" id="edit" role="tabpanel">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-warning text-white">
+                    <h6 class="m-0 font-weight-bold">Edit Program</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Program Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="program_name" value="{{ program.program_name }}" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Type <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="program_type" required>
+                                        <option value="AICS" {% if program.program_type=='AICS' %}selected{% endif %}>AICS</option>
+                                        <option value="ESA" {% if program.program_type=='ESA' %}selected{% endif %}>ESA</option>
+                                        <option value="SLP" {% if program.program_type=='SLP' %}selected{% endif %}>SLP</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Period <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="program_period" required>
+                                        <option value="Ongoing" {% if program.program_period=='Ongoing' %}selected{% endif %}>Ongoing</option>
+                                        <option value="Monthly" {% if program.program_period=='Monthly' %}selected{% endif %}>Monthly</option>
+                                        <option value="Quarterly" {% if program.program_period=='Quarterly' %}selected{% endif %}>Quarterly</option>
+                                        <option value="Semi-Annual" {% if program.program_period=='Semi-Annual' %}selected{% endif %}>Semi-Annual</option>
+                                        <option value="Annual" {% if program.program_period=='Annual' %}selected{% endif %}>Annual</option>
+                                        <option value="One-time" {% if program.program_period=='One-time' %}selected{% endif %}>One-time</option>
+                                        <option value="Emergency" {% if program.program_period=='Emergency' %}selected{% endif %}>Emergency</option>
+                                        <option value="Seasonal" {% if program.program_period=='Seasonal' %}selected{% endif %}>Seasonal</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Beneficiary Limit</label>
+                            <input type="number" class="form-control" name="beneficiary_limit" min="1" 
+                                   value="{{ program.beneficiary_limit if program.beneficiary_limit else '' }}"
+                                   placeholder="e.g., 100 (leave blank for unlimited)">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program. Leave blank for no limit.
+                                {% if program.applications and program.beneficiary_limit %}
+                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length %}
+                                    <br><strong class="text-info">Current accepted: {{ approved_count_edit }} / {{ program.beneficiary_limit }}</strong>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Target Income Range</label>
+                            <select class="form-control" name="income_range">
+                                <option value="">Select Income Range (Optional)</option>
+                                <option value="Below 10,000" {% if program.income_range == "Below 10,000" %}selected{% endif %}>Below ₱10,000</option>
+                                <option value="10,000 - 15,000" {% if program.income_range == "10,000 - 15,000" %}selected{% endif %}>₱10,000 - ₱15,000</option>
+                                <option value="15,001 - 20,000" {% if program.income_range == "15,001 - 20,000" %}selected{% endif %}>₱15,001 - ₱20,000</option>
+                                <option value="20,001 - 30,000" {% if program.income_range == "20,001 - 30,000" %}selected{% endif %}>₱20,001 - ₱30,000</option>
+                                <option value="30,001 - 50,000" {% if program.income_range == "30,001 - 50,000" %}selected{% endif %}>₱30,001 - ₱50,000</option>
+                                <option value="Above 50,000" {% if program.income_range == "Above 50,000" %}selected{% endif %}>Above ₱50,000</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Priority Groups (Target Beneficiaries)</label>
+                            {% set selected_groups = program.priority_group.split(', ') if program.priority_group else [] %}
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Low Income Families" id="editPriority1" {% if "Low Income Families" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority1">Low Income Families</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Students" id="editPriority2" {% if "Students" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority2">Students</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="PWDs (Persons with Disabilities)" id="editPriority3" {% if "PWDs (Persons with Disabilities)" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority3">PWDs (Persons with Disabilities)</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Senior Citizens" id="editPriority4" {% if "Senior Citizens" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority4">Senior Citizens</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Single Parents" id="editPriority5" {% if "Single Parents" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority5">Single Parents</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Indigent Families" id="editPriority6" {% if "Indigent Families" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority6">Indigent Families</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Unemployed Individuals" id="editPriority7" {% if "Unemployed Individuals" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority7">Unemployed Individuals</label>
+                                </div>
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Informal Settlers" id="editPriority8" {% if "Informal Settlers" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority8">Informal Settlers</label>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Select one or more priority groups. Leave unchecked if program is open to all.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea class="form-control" name="description" rows="4">{{ program.description }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Update Attachment (Optional)</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" name="attachment" id="editAttachment"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                <label class="custom-file-label" for="editAttachment">Choose new file...</label>
+                            </div>
+                            {% if program.file_attachment %}
+                            <small class="text-muted d-block mt-1">
+                                Current: {{ program.file_attachment.filename }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <!-- Requirements Section -->
+                        <div class="form-group">
+                            <label class="font-weight-bold mb-3">
+                                <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                            </label>
+                            
+                            <!-- Document Requirements Section -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-primary">
+                                            <i class="fas fa-file-alt mr-2"></i>Document Requirements
+                                        </h6>
+                                        <small class="text-muted">Select documents that applicants need to submit</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEditDocForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="editAddDocForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Document Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="editNewDocName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="editNewDocDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditDocForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 250px;" id="editDocumentReqsList">
+                                        {% if requirements %}
+                                            {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
+                                            {% if document_reqs %}
+                                                {% for req in document_reqs %}
+                                                <div class="requirement-item">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                               name="requirements" 
+                                                               value="{{ req.id }}" 
+                                                               id="editReq{{ req.id }}"
+                                                               {% if req.id in existing_reqs %}checked{% endif %}>
+                                                        <label class="custom-control-label" for="editReq{{ req.id }}">
+                                                            <strong>{{ req.requirement_name }}</strong>
+                                                            {% if req.description %}
+                                                                <br><small class="text-muted">{{ req.description }}</small>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="ml-4 mt-1">
+                                                        <div class="custom-control custom-checkbox">
+                                                            <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                                   name="mandatory_requirements" 
+                                                                   value="{{ req.id }}" 
+                                                                   id="editMandatory{{ req.id }}"
+                                                                   {% if req.id in existing_reqs %}
+                                                                       {% if existing_reqs[req.id] %}checked{% endif %}
+                                                                   {% else %}disabled{% endif %}>
+                                                            <label class="custom-control-label text-danger" for="editMandatory{{ req.id }}">
+                                                                <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Qualification Requirements Section -->
+                            <div class="card">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-success">
+                                            <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+                                        </h6>
+                                        <small class="text-muted">Select qualifications that applicants must meet</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleEditQualForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="editAddQualForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Qualification Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="editNewQualName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="editNewQualDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditQualForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 250px;" id="editQualificationReqsList">
+                                        {% if requirements %}
+                                            {% set qualification_reqs = requirements|selectattr('requirement_type', 'equalto', 'qualification')|list %}
+                                            {% if qualification_reqs %}
+                                                {% for req in qualification_reqs %}
+                                                <div class="requirement-item">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                               name="requirements" 
+                                                               value="{{ req.id }}" 
+                                                               id="editReq{{ req.id }}"
+                                                               {% if req.id in existing_reqs %}checked{% endif %}>
+                                                        <label class="custom-control-label" for="editReq{{ req.id }}">
+                                                            <strong>{{ req.requirement_name }}</strong>
+                                                            {% if req.description %}
+                                                                <br><small class="text-muted">{{ req.description }}</small>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="ml-4 mt-1">
+                                                        <div class="custom-control custom-checkbox">
+                                                            <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                                                   name="mandatory_requirements" 
+                                                                   value="{{ req.id }}" 
+                                                                   id="editMandatory{{ req.id }}"
+                                                                   {% if req.id in existing_reqs %}
+                                                                       {% if existing_reqs[req.id] %}checked{% endif %}
+                                                                   {% else %}disabled{% endif %}>
+                                                            <label class="custom-control-label text-danger" for="editMandatory{{ req.id }}">
+                                                                <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="text-right">
+                            <button type="button" class="btn btn-secondary" onclick="$('#view-tab').tab('show')">
+                                <i class="fas fa-times mr-1"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save mr-1"></i>Update Program
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<!-- Delete Program Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash mr-2"></i>Delete Program
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle mr-2"></i>Warning!</h5>
+                    <p class="mb-0">This action cannot be undone. All data associated with this program will be permanently deleted.</p>
+                </div>
+                
+                <p class="mb-3">Are you sure you want to delete this program?</p>
+                <p class="font-weight-bold text-danger">"{{ program.program_name }}"</p>
+                
+                <div class="card bg-light mt-3">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-3">This will also delete:</h6>
+                        <ul class="mb-0">
+                            <li>{{ program.application_count }} application(s)</li>
+                            <li>{{ program.requirement_count }} requirement link(s)</li>
+                            <li>All associated data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="{{ url_for('admin.delete_program', id=program.id) }}" class="d-inline">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure? This cannot be undone!')">
+                        <i class="fas fa-trash mr-1"></i>Delete Program
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleEditDocForm() {
+        const form = document.getElementById('editAddDocForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewDocName').focus();
+        }
+    }
+    
+    function toggleEditQualForm() {
+        const form = document.getElementById('editAddQualForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewQualName').focus();
+        }
+    }
+    
+    function addNewRequirementEdit(type) {
+        const nameField = type === 'document' ? 'editNewDocName' : 'editNewQualName';
+        const descField = type === 'document' ? 'editNewDocDesc' : 'editNewQualDesc';
+        const listId = type === 'document' ? 'editDocumentReqsList' : 'editQualificationReqsList';
+        
+        const name = document.getElementById(nameField).value.trim();
+        const description = document.getElementById(descField).value.trim();
+        
+        if (!name) {
+            alert('Requirement name is required!');
+            document.getElementById(nameField).focus();
+            return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+        
+        fetch('{{ url_for("admin.add_requirement_ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: name,
+                requirement_type: type,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const list = document.getElementById(listId);
+                const emptyMsg = list.querySelector('.text-center.text-muted');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+                
+                const reqItem = document.createElement('div');
+                reqItem.className = 'requirement-item';
+                reqItem.innerHTML = `
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                               name="requirements" 
+                               value="${data.requirement.id}" 
+                               id="editReq${data.requirement.id}">
+                        <label class="custom-control-label" for="editReq${data.requirement.id}">
+                            <strong>${data.requirement.name}</strong>
+                            ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
+                        </label>
+                    </div>
+                    <div class="ml-4 mt-1">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input mandatory-checkbox" 
+                                   name="mandatory_requirements" 
+                                   value="${data.requirement.id}" 
+                                   id="editMandatory${data.requirement.id}" disabled>
+                            <label class="custom-control-label text-danger" for="editMandatory${data.requirement.id}">
+                                <small><i class="fas fa-exclamation-circle"></i> Mark as Mandatory</small>
+                            </label>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(reqItem);
+                setupRequirementCheckbox(data.requirement.id);
+                
+                document.getElementById(nameField).value = '';
+                document.getElementById(descField).value = '';
+                if (type === 'document') {
+                    toggleEditDocForm();
+                } else {
+                    toggleEditQualForm();
+                }
+                
+                showToast('Success! Requirement added.', 'success');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the requirement.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+    
+    function setupRequirementCheckbox(reqId) {
+        const checkbox = document.querySelector(`.req-checkbox[value="${reqId}"]`);
+        const mandatoryCheckbox = document.getElementById('editMandatory' + reqId);
+        
+        if (checkbox && mandatoryCheckbox) {
+            checkbox.addEventListener('change', function() {
+                if (!this.checked) {
+                    mandatoryCheckbox.checked = false;
+                    mandatoryCheckbox.disabled = true;
+                } else {
+                    mandatoryCheckbox.disabled = false;
+                }
+            });
+        }
+    }
+    
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        toast.innerHTML = `
+            <i class="fas fa-check-circle mr-2"></i>${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
+    document.querySelectorAll('.custom-file-input').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+    
+    document.querySelectorAll('.req-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const reqId = this.value;
+            const mandatoryCheckbox = document.getElementById('editMandatory' + reqId);
+            
+            if (mandatoryCheckbox) {
+                if (!this.checked) {
+                    mandatoryCheckbox.checked = false;
+                    mandatoryCheckbox.disabled = true;
+                } else {
+                    mandatoryCheckbox.disabled = false;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

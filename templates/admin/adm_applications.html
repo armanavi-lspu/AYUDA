@@ -173,6 +173,7 @@
                             <th>Applicant</th>
                             <th>Program</th>
                             <th>Status</th>
+                            <th>Qualifications</th>
                             <th>Progress</th>
                             <th>Application Date</th>
                             <th>Review Date</th>
@@ -205,6 +206,25 @@
                                     {% endif %}
                                 </td>
                                 <td>
+                                    {% if app.meets_all_qualifications == None %}
+                                        <span class="badge badge-secondary" title="No qualifications required">
+                                            <i class="fas fa-minus"></i> N/A
+                                        </span>
+                                    {% elif app.meets_all_qualifications %}
+                                        <span class="badge badge-success" title="Meets all {{ app.total_qualifications }} qualification(s)">
+                                            <i class="fas fa-check-circle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
+                                        </span>
+                                    {% elif app.met_qualifications == 0 %}
+                                        <span class="badge badge-danger" title="Does not meet qualifications ({{ app.met_qualifications }} of {{ app.total_qualifications }})">
+                                            <i class="fas fa-times-circle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-warning" title="Partially meets qualifications ({{ app.met_qualifications }} of {{ app.total_qualifications }})">
+                                            <i class="fas fa-exclamation-triangle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <div class="d-flex align-items-center">
                                         <div class="progress flex-grow-1 progress-sm mr-2">
                                             <div class="progress-bar bg-success" 
@@ -229,7 +249,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-5">
+                                <td colspan="9" class="text-center text-muted py-5">
                                     <i class="fas fa-inbox fa-3x mb-3"></i>
                                     <p>No applications found</p>
                                 </td>
