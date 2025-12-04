@@ -2,6 +2,8 @@ from app.extensions import db
 from flask_login import UserMixin
 from datetime import datetime
 from sqlalchemy.sql import func
+import secrets
+import string
 
 
 class JsonSerializableMixin:
@@ -146,6 +148,12 @@ class Applications(db.Model):
     claim_scheduled_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Admin who scheduled
     claim_scheduled_at = db.Column(db.DateTime)  # When the claim was scheduled
     
+    # Verification code for document submission
+    verification_code = db.Column(db.String(20), unique=True, index=True)  # Unique code for verification
+    code_generated_at = db.Column(db.DateTime)  # When code was generated
+    code_used_at = db.Column(db.DateTime)  # When code was used
+    documents_submitted_at = db.Column(db.DateTime)  # When documents were physically submitted
+    
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -205,6 +213,18 @@ class Applications(db.Model):
         """Get only qualification requirements"""
         return [item for item in self.document_checklist 
                 if item.requirement.requirement_type == 'qualification']
+    
+    def generate_verification_code(self):
+        """Generate a unique verification code for document submission"""
+        while True:
+            # Generate 8-character alphanumeric code (uppercase letters and digits)
+            code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+            # Check if code already exists
+            existing = Applications.query.filter_by(verification_code=code).first()
+            if not existing:
+                self.verification_code = code
+                self.code_generated_at = datetime.utcnow()
+                return code
     
     def __repr__(self):
         return f'<Application {self.id}: {self.applicant.email} -> {self.program.program_name}>'
@@ -292,12 +312,14 @@ class CommunityUsers(db.Model):
     birth_year = db.Column(db.Integer)
     barangay = db.Column(db.String(100), index=True)  
     sitio = db.Column(db.String(100))
-    municipality = db.Column(db.String(100))
+    address = db.Column(db.Text)
+    municipality = db.Column(db.String(100), default='Mabitac')
     is_currently_employed = db.Column(db.Boolean, default=False, index=True) 
     occupation = db.Column(db.String(100))
     is_student = db.Column(db.Boolean, default=False, index=True)  
     is_solo_parent = db.Column(db.Boolean, default=False, index=True) 
     is_pwd = db.Column(db.Boolean, default=False, index=True)  
+    disability_type = db.Column(db.String(100))
     family_annual_income = db.Column(db.Numeric(12, 2), index=True)  
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

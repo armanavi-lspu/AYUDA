@@ -741,3 +741,64 @@ def update_claim_status(application_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=f'Error updating claim status: {str(e)}')
+
+
+@admin_bp.route('/applications/<int:application_id>/slip')
+@login_required
+@role_required('admin')
+def application_slip(application_id):
+    """Display printable application slip with verification code - Admin only"""
+    application = Applications.query.get_or_404(application_id)
+    
+    # Only allow slip printing for approved applications
+    if application.application_status != 'approved':
+        flash('Application slip can only be printed for approved applications.', 'warning')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    # Generate verification code if not already generated
+    if not application.verification_code:
+        application.generate_verification_code()
+        db.session.commit()
+    
+    # Get applicant details
+    applicant = User.query.get(application.user_id)
+    community_user = CommunityUsers.query.filter_by(user_id=applicant.id).first()
+    
+    # Format full address
+    address_parts = []
+    if community_user.address:
+        address_parts.append(community_user.address)
+    if community_user.sitio:
+        address_parts.append(community_user.sitio)
+    if community_user.barangay:
+        address_parts.append(f"Brgy. {community_user.barangay}")
+    if community_user.municipality:
+        address_parts.append(community_user.municipality)
+    
+    full_address = ', '.join(address_parts) if address_parts else 'N/A'
+    
+    # Get program and requirements - filter for document-type only
+    program = application.program
+    program_requirements = db.session.query(
+        ProgramRequirements,
+        Requirements
+    ).join(
+        Requirements, ProgramRequirements.requirement_id == Requirements.id
+    ).filter(
+        ProgramRequirements.program_id == application.program_id,
+        Requirements.requirement_type == 'document'
+    ).order_by(
+        ProgramRequirements.is_mandatory.desc(),
+        Requirements.requirement_name
+    ).all()
+    
+    return render_template(
+        'admin/application_slip.html',
+        application=application,
+        applicant=applicant,
+        community_user=community_user,
+        full_address=full_address,
+        program=program,
+        program_requirements=program_requirements,
+        user=current_user
+    )

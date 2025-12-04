@@ -52,4 +52,5 @@ def format_date(timestamp):
     elif diff.days < 7:
         return timestamp.strftime('%a, %I:%M %p')
     else:
-        return timestamp.strftime('%b %d, %Y %I:%M %p')
+        return timestamp.strftime('%b %d, %Y %I:%M %p') 
+    

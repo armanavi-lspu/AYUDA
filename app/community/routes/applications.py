@@ -135,35 +135,57 @@ def download_document(doc_id):
 @login_required
 @role_required('community')
 def application_slip(application_id):
-    """Display printable application slip - only available after admin approval"""    
-    application = Applications.query.filter_by(
-        id=application_id,
-        user_id=current_user.id
-    ).first_or_404()
+    """Application slip viewing is disabled for community users"""    
+    flash('Application slips can only be obtained from the MSWD Office. Please submit your documents to receive your application slip with verification code.', 'info')
+    return redirect(url_for('community.application_detail', application_id=application_id))
+
+
+@community_bp.route('/verify-code', methods=['GET', 'POST'])
+@login_required
+@role_required('community')
+def verify_code():
+    """Verify application code from physical slip"""
+    if request.method == 'POST':
+        code = request.form.get('verification_code', '').strip().upper()
+        
+        if not code:
+            flash('Please enter a verification code.', 'warning')
+            return render_template('community/verify_code.html', user=current_user)
+        
+        # Find application by verification code
+        application = Applications.query.filter_by(
+            verification_code=code,
+            user_id=current_user.id
+        ).first()
+        
+        if not application:
+            flash('Invalid verification code or the code does not belong to your account.', 'danger')
+            return render_template('community/verify_code.html', user=current_user)
+        
+        # Check if code has already been used
+        if application.code_used_at:
+            flash(f'This verification code has already been used on {application.code_used_at.strftime("%B %d, %Y at %I:%M %p")}.', 'warning')
+            return redirect(url_for('community.application_detail', application_id=application.id))
+        
+        # Mark code as used and update application status
+        try:
+            application.code_used_at = datetime.utcnow()
+            application.documents_submitted_at = datetime.utcnow()
+            
+            # Update all document statuses to pending for review
+            for doc in application.document_checklist:
+                if doc.submission_status in ['not_submitted', 'returned']:
+                    doc.submission_status = 'pending'
+                    doc.submitted_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            flash(f'Verification successful! Your documents for {application.program.program_name} are now marked as submitted and pending review.', 'success')
+            return redirect(url_for('community.application_detail', application_id=application.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error processing verification: {str(e)}', 'danger')
+            return render_template('community/verify_code.html', user=current_user)
     
-    # Only allow access to application slip if application is approved
-    if application.application_status != 'approved':
-        flash('Application slip is only available after your application has been approved by the admin.', 'warning')
-        return redirect(url_for('community.application_detail', application_id=application_id))
-    
-    # Get requirements for this application - FIXED QUERY
-    requirements = db.session.query(
-        Requirements,
-        ProgramRequirements.is_mandatory
-    ).join(
-        ApplicationDocuments,
-        Requirements.id == ApplicationDocuments.requirement_id
-    ).join(
-        ProgramRequirements,
-        (Requirements.id == ProgramRequirements.requirement_id) &
-        (ProgramRequirements.program_id == application.program_id)
-    ).filter(
-        ApplicationDocuments.application_id == application_id
-    ).all()
-    
-    return render_template(
-        'community/application_slip.html',
-        application=application,
-        requirements=requirements,
-        user=current_user
-    )
+    return render_template('community/verify_code.html', user=current_user)

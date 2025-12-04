@@ -1,0 +1,330 @@
+{% extends "admin/admin_base.html" %}
+
+{% block title %}Application Slip - {{ application.program.program_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    @page {
+        size: 210mm 150mm;
+        margin: 0;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        .slip-container {
+            box-shadow: none !important;
+            border: 1px solid #000 !important;
+            margin: 0 !important;
+            width: 210mm;
+            height: 99mm;
+            padding: 4mm !important;
+        }
+    }
+    
+    .slip-container {
+        width: 210mm;
+        height: 99mm;
+        margin: 10px auto;
+        background: white;
+        padding: 4mm;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        border: 1px solid #ccc;
+        font-size: 8pt;
+        line-height: 1.2;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+    
+    .slip-header {
+        text-align: center;
+        margin-bottom: 2mm;
+        padding-bottom: 2mm;
+        border-bottom: 1px solid #000;
+    }
+    
+    .slip-header h2 {
+        font-size: 11pt;
+        font-weight: bold;
+        margin: 0 0 1mm 0;
+        color: #000;
+    }
+    
+    .slip-header h4 {
+        font-size: 9pt;
+        margin: 0 0 1mm 0;
+        font-weight: 600;
+    }
+    
+    .slip-header p {
+        margin: 0;
+        font-size: 7pt;
+        line-height: 1.1;
+    }
+    
+    .content-flex {
+        display: flex;
+        gap: 3mm;
+    }
+    
+    .left-col {
+        flex: 1;
+    }
+    
+    .right-col {
+        width: 40mm;
+        flex-shrink: 0;
+    }
+    
+    .info-section {
+        margin-bottom: 2mm;
+    }
+    
+    .info-section h5 {
+        font-size: 8pt;
+        font-weight: bold;
+        margin: 0 0 1mm 0;
+        padding: 1mm 2mm;
+        background: #f0f0f0;
+        border-left: 2px solid #000;
+    }
+    
+    .info-row {
+        display: flex;
+        padding: 0.5mm 0;
+        font-size: 7pt;
+        line-height: 1.1;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        width: 22mm;
+        flex-shrink: 0;
+    }
+    
+    .info-value {
+        flex-grow: 1;
+        word-break: break-word;
+    }
+    
+    .requirements-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 7pt;
+    }
+    
+    .requirements-table th {
+        background: #e0e0e0;
+        padding: 1mm;
+        text-align: left;
+        font-weight: 600;
+        border: 1px solid #999;
+    }
+    
+    .requirements-table td {
+        padding: 0.8mm 1mm;
+        border: 1px solid #ccc;
+    }
+    
+    .verification-code-box {
+        background: #fffacd;
+        border: 2px solid #000;
+        padding: 2mm;
+        text-align: center;
+        margin-bottom: 2mm;
+    }
+    
+    .verification-code-box h4 {
+        font-size: 8pt;
+        margin: 0 0 1mm 0;
+        font-weight: bold;
+    }
+    
+    .verification-code {
+        font-size: 14pt;
+        font-weight: bold;
+        letter-spacing: 2px;
+        font-family: 'Courier New', monospace;
+        padding: 1mm 2mm;
+        background: white;
+        border: 1px solid #000;
+        display: inline-block;
+        margin: 1mm 0;
+    }
+    
+    .instructions-box {
+        background: #f9f9f9;
+        border: 1px solid #ccc;
+        padding: 2mm;
+        font-size: 6.5pt;
+        line-height: 1.2;
+    }
+    
+    .instructions-box h5 {
+        font-size: 7pt;
+        margin: 0 0 1mm 0;
+        font-weight: bold;
+    }
+    
+    .instructions-box ol {
+        margin: 0;
+        padding-left: 4mm;
+    }
+    
+    .instructions-box li {
+        margin-bottom: 0.5mm;
+    }
+    
+    .footer-text {
+        text-align: center;
+        font-size: 6pt;
+        color: #666;
+        margin-top: 1mm;
+        padding-top: 1mm;
+        border-top: 1px solid #ccc;
+    }
+    
+    .print-button {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Print Button -->
+    <div class="no-print mb-3">        
+        <a href="{{ url_for('admin.view_application', application_id=application.id) }}" class="btn btn-secondary ml-2">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Application
+        </a>
+    </div>
+    
+    <!-- Application Slip -->
+    <div class="slip-container">
+        <!-- Header -->
+        <div class="slip-header">
+            <h2>AYUDA - MSWD OFFICE</h2>
+            <h4>APPLICATION SLIP</h4>
+            <p><strong>{{ application.program.program_name }}</strong> | App #{{ application.id }}</p>
+        </div>
+        
+        <div class="content-flex">
+            <!-- Left Column: Applicant Info & Documents -->
+            <div class="left-col">
+                <!-- Applicant Information -->
+                <div class="info-section">
+                    <h5>Application Information</h5>
+                    <div class="info-row">
+                        <div class="info-label">Name:</div>
+                        <div class="info-value">{{ applicant.first_name }} {{ applicant.middle_name or '' }} {{ applicant.last_name }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Email:</div>
+                        <div class="info-value">{{ applicant.email }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Mobile:</div>
+                        <div class="info-value">{{ community_user.mobile_no or 'N/A' }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Address:</div>
+                        <div class="info-value">{{ full_address }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Age:</div>
+                        <div class="info-value">{{ community_user.age }}</div>
+                    </div>
+                
+                    <div class="info-row">
+                        <div class="info-label">Category:</div>
+                        <div class="info-value">{{ application.program.category }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Applied:</div>
+                        <div class="info-value">{{ application.application_date.strftime('%b %d, %Y') }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Approved:</div>
+                        <div class="info-value">{{ application.review_date.strftime('%b %d, %Y') if application.review_date else 'N/A' }}</div>
+                    </div>
+                    {% if application.submission_deadline %}
+                    <div class="info-row">
+                        <div class="info-label">Deadline:</div>
+                        <div class="info-value"><strong>{{ application.submission_deadline.strftime('%b %d, %Y') }}</strong></div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Required Documents -->
+                <div class="info-section">
+                    <h5>Required Documents</h5>
+                    <table class="requirements-table">
+                        <thead>
+                            <tr>
+                                <th>Document Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prog_req, req in program_requirements %}
+                            <tr>
+                                <td>{{ req.requirement_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Right Column: Verification Code & Instructions -->
+            <div class="right-col">
+                <!-- Verification Code -->
+                <div class="verification-code-box">
+                    <h4>VERIFICATION CODE</h4>
+                    <div class="verification-code">{{ application.verification_code }}</div>
+                    <p style="margin: 1mm 0 0 0; font-size: 6pt;">{{ application.code_generated_at.strftime('%b %d, %Y') if application.code_generated_at else 'N/A' }}</p>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="instructions-box">
+                    <h5>Reminders & Instructions</h5>
+                    <ol>
+                        <li>Enter code in system to confirm submission</li>
+                        <li>Immediately comply with the feedback of admin in the system</li>
+                        <li>Always keep a photocopy of this slip</li>
+                        <li>Bring this slip when claiming your financial assistance</li>
+                        
+                        {% if application.submission_deadline %}<li>Submit before {{ application.submission_deadline.strftime('%b %d, %Y') }}</li>{% endif %}
+                    </ol>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer-text">
+            Official document from AYUDA - Municipal Social Welfare and Development Office
+        </div>
+    </div>
+    
+    <!-- Floating Print Button -->
+    <button onclick="window.print()" class="btn btn-primary btn-lg print-button no-print shadow-lg">
+        <i class="fas fa-print mr-2"></i>Print Slip
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-print dialog on page load (optional)
+    // window.onload = function() { window.print(); }
+</script>
+{% endblock %}
