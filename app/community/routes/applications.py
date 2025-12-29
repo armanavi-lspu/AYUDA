@@ -76,12 +76,13 @@ def application_detail(application_id):
         user_id=current_user.id
     ).first_or_404()
     
-    # Get document checklist with requirement details
-    documents = db.session.query(
+    # Get all requirements with their details
+    all_requirements = db.session.query(
         ApplicationDocuments,
         ProgramRequirements.is_mandatory,
         Requirements.requirement_name,
-        Requirements.description
+        Requirements.description,
+        Requirements.requirement_type
     ).join(
         Requirements,
         ApplicationDocuments.requirement_id == Requirements.id
@@ -93,12 +94,24 @@ def application_detail(application_id):
         ApplicationDocuments.application_id == application_id
     ).all()
     
+    # Separate documents and qualifications
+    document_requirements = []
+    qualification_requirements = []
+    
+    for doc, is_mandatory, req_name, description, req_type in all_requirements:
+        if req_type == 'document':
+            document_requirements.append((doc, is_mandatory, req_name, description))
+        elif req_type == 'qualification':
+            qualification_requirements.append((doc, is_mandatory, req_name, description))
+    
     return render_template(
         'community/application_details.html',
         application=application,
-        documents=documents,
+        document_requirements=document_requirements,
+        qualification_requirements=qualification_requirements,
         datetime=datetime,
-        user=current_user
+        user=current_user,
+        today=datetime.utcnow().date()
     )
 
 

@@ -121,3 +121,4 @@ class Announcements(db.Model):
 - External links open in new tabs for better user experience
 - Program links are displayed prominently with gradient backgrounds
 - The feature is backward compatible - existing announcements without links still work normally
+

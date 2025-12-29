@@ -138,6 +138,38 @@
                                 </div>
                             </div>
                             
+                            {% if program.start_date or program.end_date %}
+                            <div class="card mb-3 border-left-info shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-info font-weight-bold mb-2">
+                                        <i class="fas fa-calendar-alt mr-2"></i>Program Duration
+                                    </h6>
+                                    <div class="row">
+                                        {% if program.start_date %}
+                                        <div class="col-md-6">
+                                            <p class="mb-0"><strong>Start Date:</strong></p>
+                                            <p class="mb-0">{{ program.start_date.strftime('%B %d, %Y') }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% if program.end_date %}
+                                        <div class="col-md-6">
+                                            <p class="mb-0"><strong>End Date / Deadline:</strong></p>
+                                            <p class="mb-0">{{ program.end_date.strftime('%B %d, %Y') }}</p>
+                                            {% set days_remaining = (program.end_date - today).days if program.end_date > today else 0 %}
+                                            {% if days_remaining > 0 %}
+                                            <small class="text-success"><i class="fas fa-check-circle"></i> {{ days_remaining }} days remaining</small>
+                                            {% elif days_remaining == 0 %}
+                                            <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Ends today</small>
+                                            {% else %}
+                                            <small class="text-danger"><i class="fas fa-times-circle"></i> Ended {{ (today - program.end_date).days }} days ago</small>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
                             {% if program.beneficiary_limit %}
                             <div class="card mb-3 border-left-warning shadow-sm">
                                 <div class="card-body">
@@ -377,6 +409,31 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Program Duration Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Start Date</label>
+                                    <input type="date" class="form-control" name="start_date" id="editStartDate"
+                                           value="{{ program.start_date.strftime('%Y-%m-%d') if program.start_date else '' }}">
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> When the program begins accepting applications
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program End Date / Deadline</label>
+                                    <input type="date" class="form-control" name="end_date" id="editEndDate"
+                                           value="{{ program.end_date.strftime('%Y-%m-%d') if program.end_date else '' }}">
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> Last day for application/document submission
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="form-group">
                             <label>Beneficiary Limit</label>
                             <input type="number" class="form-control" name="beneficiary_limit" min="1" 
@@ -840,6 +897,36 @@
             label.textContent = fileName;
         });
     });
+    
+    // Date validation for edit form
+    const editStartDate = document.getElementById('editStartDate');
+    const editEndDate = document.getElementById('editEndDate');
+    
+    if (editStartDate && editEndDate) {
+        // Validate end date is after start date
+        editStartDate.addEventListener('change', function() {
+            if (this.value && editEndDate.value && editEndDate.value < this.value) {
+                alert('End date must be after start date');
+                editEndDate.value = '';
+            }
+            if (this.value) {
+                editEndDate.setAttribute('min', this.value);
+            }
+        });
+        
+        editEndDate.addEventListener('change', function() {
+            if (editStartDate.value && this.value && this.value < editStartDate.value) {
+                alert('End date must be after start date');
+                this.value = '';
+            }
+        });
+    }
+
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });   
     
     document.querySelectorAll('.req-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', function() {

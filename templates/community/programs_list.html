@@ -47,14 +47,33 @@
                     
                     <div class="mb-2">
                         {% if program.beneficiary_limit %}
-                        <span class="badge badge-warning mr-1">
-                            <i class="fas fa-user-friends mr-1"></i>Limited to {{ program.beneficiary_limit }} beneficiaries
+                        {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                        {% set is_full = approved_count >= program.beneficiary_limit %}
+                        <span class="badge {% if is_full %}badge-danger{% else %}badge-warning{% endif %} mr-1">
+                            <i class="fas fa-user-friends mr-1"></i>
+                            {% if is_full %}FULL{% else %}{{ program.beneficiary_limit - approved_count }} slots left{% endif %}
                         </span>
                         {% endif %}
                         {% if program.income_range %}
                         <span class="badge badge-success mr-1">
                             <i class="fas fa-money-bill-wave mr-1"></i>{{ program.income_range }}
                         </span>
+                        {% endif %}
+                        {% if program.end_date %}
+                        {% set days_left = (program.end_date - today).days if program.end_date > today else 0 %}
+                        {% if days_left > 0 %}
+                        <span class="badge badge-info mr-1">
+                            <i class="fas fa-clock mr-1"></i>{{ days_left }} days left
+                        </span>
+                        {% elif days_left == 0 %}
+                        <span class="badge badge-warning mr-1">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>Ends today!
+                        </span>
+                        {% else %}
+                        <span class="badge badge-danger mr-1">
+                            <i class="fas fa-times-circle mr-1"></i>Ended
+                        </span>
+                        {% endif %}
                         {% endif %}
                     </div>
                     {% if program.priority_group %}
@@ -66,7 +85,16 @@
                     {% endif %}
                     
                     <div class="mb-3">
-                        <small class="text-muted">
+                        {% if program.start_date or program.end_date %}
+                        <small class="text-muted d-block">
+                            <i class="fas fa-calendar-alt mr-1"></i>
+                            <strong>Duration:</strong>
+                            {% if program.start_date %}{{ program.start_date.strftime('%b %d, %Y') }}{% endif %}
+                            {% if program.start_date and program.end_date %} - {% endif %}
+                            {% if program.end_date %}{{ program.end_date.strftime('%b %d, %Y') }}{% endif %}
+                        </small>
+                        {% endif %}
+                        <small class="text-muted d-block">
                             <i class="far fa-calendar-alt mr-1"></i>
                             Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}
                         </small>

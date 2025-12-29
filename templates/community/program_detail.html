@@ -100,6 +100,7 @@
                         <strong>Target Income:</strong> {{ program.income_range }} monthly
                     </li>
                     {% endif %}
+                    
                 </ul>                    
             </div>
         </div>
@@ -156,9 +157,63 @@
                 <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>Program Description</h5>
             </div>
             <div class="card-body">
-                <p class="text-justify">{{ program.description or 'No description available.' }}</p>
+                <p class="text-justify mb-0">{{ program.description or 'No description available.' }}</p>
+            </div>
+        </div>       
+        
+        
+        <!-- Additional Program Details Card -->
+        {% if program.priority_group or program.income_range or program.beneficiary_limit %}
+        <div class="card shadow mb-4 info-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-bullseye mr-2"></i>Target Beneficiaries</h5>
+            </div>
+            <div class="card-body">
+                {% if program.priority_group %}
+                <div class="mb-3">
+                    <h6 class="text-primary font-weight-bold mb-2">
+                        <i class="fas fa-users mr-2"></i>Priority Groups
+                    </h6>
+                    <p class="mb-0">{{ program.priority_group }}</p>
+                    <small class="text-muted">These groups receive preferential consideration</small>
+                </div>
+                {% endif %}
+                {% if program.income_range %}
+                <div class="mb-3">
+                    <h6 class="text-success font-weight-bold mb-2">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Target Income Range
+                    </h6>
+                    <p class="mb-0">{{ program.income_range }} monthly household income</p>
+                    <small class="text-muted">Applicants within this income bracket are eligible</small>
+                </div>
+                {% endif %}
+                {% if program.beneficiary_limit %}
+                <div>
+                    <h6 class="text-warning font-weight-bold mb-2">
+                        <i class="fas fa-user-friends mr-2"></i>Beneficiary Capacity
+                    </h6>
+                    <p class="mb-2">Maximum of <strong>{{ program.beneficiary_limit }}</strong> beneficiaries can be accepted</p>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar {% if is_full %}bg-danger{% elif approved_count > program.beneficiary_limit * 0.8 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ (approved_count / program.beneficiary_limit * 100)|round|int }}%">
+                            {{ approved_count }} / {{ program.beneficiary_limit }}
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        {% if is_full %}
+                            <i class="fas fa-exclamation-triangle text-danger mr-1"></i>Program is currently at full capacity
+                        {% elif approved_count > program.beneficiary_limit * 0.8 %}
+                            <i class="fas fa-info-circle text-warning mr-1"></i>Limited slots remaining
+                        {% else %}
+                            <i class="fas fa-check-circle text-success mr-1"></i>Slots still available
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
             </div>
         </div>
+        {% endif %}
 
         <!-- Requirements Cards -->
         <!-- Qualification Requirements Card -->
@@ -245,6 +300,92 @@
 
     <!-- Right Column: Application Form & Actions -->
     <div class="col-lg-4">
+        <!-- Program Duration Card -->
+        {% if program.start_date or program.end_date %}
+        <div class="card shadow mb-4 border-left-warning">
+            <div class="card-header bg-warning text-white">
+                <h6 class="mb-0"><i class="fas fa-calendar-alt mr-2"></i>Program Duration</h6>
+            </div>
+            <div class="card-body">
+                {% if program.start_date %}
+                <div class="mb-3">
+                    <h6 class="text-primary font-weight-bold mb-2">
+                        <i class="fas fa-play-circle mr-2"></i>Start Date
+                    </h6>
+                    <p class="mb-0 h5">{{ program.start_date.strftime('%B %d, %Y') }}</p>
+                    <small class="text-muted">Program begins</small>
+                </div>
+                {% endif %}
+                {% if program.end_date %}
+                <div class="mb-3">
+                    <h6 class="text-danger font-weight-bold mb-2">
+                        <i class="fas fa-stop-circle mr-2"></i>End Date / Deadline
+                    </h6>
+                    <p class="mb-0 h5">{{ program.end_date.strftime('%B %d, %Y') }}</p>
+                    <small class="text-muted">Last day for submissions</small>
+                </div>
+                {% endif %}
+                {% if program.end_date %}
+                {% set days_remaining = (program.end_date - today).days if program.end_date > today else 0 %}
+                <div class="alert {% if days_remaining > 7 %}alert-info{% elif days_remaining > 0 %}alert-warning{% else %}alert-danger{% endif %} mb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if days_remaining > 0 %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-clock mr-2"></i>
+                                <strong>{{ days_remaining }}</strong> day{{ 's' if days_remaining != 1 else '' }} left
+                            </h6>
+                            <small>Apply before deadline</small>
+                            {% elif days_remaining == 0 %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <strong>Ends Today!</strong>
+                            </h6>
+                            <small>Last day to apply</small>
+                            {% else %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                <strong>Ended</strong>
+                            </h6>
+                            <small>Deadline passed</small>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if days_remaining > 7 %}
+                            <span class="badge badge-info badge-pill" style="font-size: 1.5rem; padding: 0.5rem 1rem;">{{ days_remaining }}</span>
+                            {% elif days_remaining > 0 %}
+                            <span class="badge badge-warning badge-pill" style="font-size: 1.5rem; padding: 0.5rem 1rem;">{{ days_remaining }}</span>
+                            {% else %}
+                            <span class="badge badge-danger badge-pill" style="font-size: 1rem; padding: 0.5rem 1rem;">Closed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if program.beneficiary_limit %}
+                <hr class="my-3">
+                <div class="text-center">
+                    <h6 class="text-muted mb-2">Capacity</h6>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar {% if is_full %}bg-danger{% elif approved_count > program.beneficiary_limit * 0.8 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ (approved_count / program.beneficiary_limit * 100)|round|int }}%">
+                            {{ approved_count }} / {{ program.beneficiary_limit }}
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        {% if is_full %}
+                        <i class="fas fa-exclamation-triangle text-danger mr-1"></i>Program Full
+                        {% else %}
+                        <i class="fas fa-users mr-1"></i>{{ program.beneficiary_limit - approved_count }} slots available
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Application Form Card -->
         <div class="card shadow mb-4 attachment-card">
             <div class="card-header bg-info text-white">

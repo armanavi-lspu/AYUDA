@@ -117,7 +117,8 @@ def programs_index():
         program_types=[t[0] for t in program_types],
         program_periods=[p[0] for p in program_periods],
         requirements=all_requirements,  # Add this line
-        user=current_user
+        user=current_user,
+        today=datetime.utcnow().date()
     )
 
 @admin_bp.route('/programs/add', endpoint='add_program', methods=['GET', 'POST'])
@@ -146,6 +147,12 @@ def add_program():
         beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
         income_range = request.form.get('income_range', '').strip() or None
         
+        # Get duration fields
+        start_date_str = request.form.get('start_date', '').strip()
+        end_date_str = request.form.get('end_date', '').strip()
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        
         # Get selected requirements
         requirement_ids = request.form.getlist('requirements')
         mandatory_requirements = request.form.getlist('mandatory_requirements')
@@ -154,6 +161,11 @@ def add_program():
         if not program_name or not program_type or not program_period:
             flash('Program name, type, and period are required.', 'danger')
             return redirect(url_for('admin.adm_programs'))
+        
+        # Validate date range
+        if start_date and end_date and end_date < start_date:
+            flash('Program end date must be after start date.', 'danger')
+            return redirect(url_for('admin.add_program'))
         
         # Handle file upload
         file_attachment = None
@@ -192,6 +204,8 @@ def add_program():
             priority_group=priority_group,
             beneficiary_limit=beneficiary_limit,
             income_range=income_range,
+            start_date=start_date,
+            end_date=end_date,
             description=description,
             user_id=current_user.id,
             file_attachment_id=file_attachment.id if file_attachment else None,
@@ -250,7 +264,8 @@ def edit_program(id):
                              program=program,
                              requirements=requirements,
                              existing_reqs=existing_reqs,
-                             user=current_user)
+                             user=current_user,
+                             today=datetime.utcnow().date())
     
     # POST request - update program
     program_name = request.form.get('program_name', '').strip()
@@ -263,9 +278,20 @@ def edit_program(id):
     beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
     income_range = request.form.get('income_range', '').strip() or None
     
+    # Get duration fields
+    start_date_str = request.form.get('start_date', '').strip()
+    end_date_str = request.form.get('end_date', '').strip()
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+    
     # Validation
     if not program_name or not program_type or not program_period:
         flash('Program name, type, and period are required.', 'danger')
+        return redirect(url_for('admin.edit_program', id=id))
+    
+    # Validate date range
+    if start_date and end_date and end_date < start_date:
+        flash('Program end date must be after start date.', 'danger')
         return redirect(url_for('admin.edit_program', id=id))
     
     # Update program
@@ -275,6 +301,8 @@ def edit_program(id):
     program.priority_group = priority_group
     program.beneficiary_limit = beneficiary_limit
     program.income_range = income_range
+    program.start_date = start_date
+    program.end_date = end_date
     program.description = description
     
     try:

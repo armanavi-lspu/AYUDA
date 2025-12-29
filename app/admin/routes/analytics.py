@@ -116,6 +116,20 @@ def analytics_recommend():
         barangays=[b[0] for b in barangays]
     )
 
+@admin_bp.route('/api/program/<int:program_id>/parameters')
+@login_required
+@role_required('admin')
+def api_get_program_parameters(program_id):
+    """API endpoint to fetch program parameters for auto-fill"""
+    program = Programs.query.get_or_404(program_id)
+    
+    return jsonify({
+        'success': True,
+        'priority_group': program.priority_group,
+        'income_range': program.income_range,
+        'beneficiary_limit': program.beneficiary_limit
+    })
+
 @admin_bp.route('/api/analytics/applicants-timeseries')
 @login_required
 @role_required('admin')
@@ -250,6 +264,7 @@ def api_arima_forecast():
     # Get parameters
     months = request.args.get('months', 12, type=int)
     forecast_periods = request.args.get('forecast_periods', 6, type=int)
+    force_arima = request.args.get('force_arima', 'false').lower() == 'true'
     
     # Limit forecast periods for stability
     forecast_periods = min(forecast_periods, 12)
@@ -269,8 +284,8 @@ def api_arima_forecast():
     labels = [d.month.strftime('%B %Y') for d in historical_data if d.month]
     values = [d.count for d in historical_data]
     
-    # Generate ARIMA forecast
-    forecast_result = arima_forecast(values, labels, periods=forecast_periods)
+    # Generate ARIMA forecast with force mode
+    forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
     
     return jsonify({
         'historical': {
@@ -278,7 +293,10 @@ def api_arima_forecast():
             'values': values
         },
         'forecast': forecast_result,
-        'model': forecast_result.get('model', 'unknown')
+        'model': forecast_result.get('model', 'unknown'),
+        'data_points': len(values),
+        'force_arima_mode': force_arima,
+        'arima_error': forecast_result.get('arima_error', None)
     })
 
 @admin_bp.route('/api/analytics/program-forecast')
@@ -305,3 +323,59 @@ def api_program_forecast():
     forecast_result = forecast_program_growth(program_data, growth_rate)
     
     return jsonify(forecast_result)
+
+@admin_bp.route('/api/analytics/test-arima')
+@login_required
+@role_required('admin')
+def api_test_arima():
+    """Test endpoint to validate ARIMA model performance"""
+    # Get all historical data
+    all_data = db.session.query(
+        func.date_trunc('month', Applications.application_date).label('month'),
+        func.count(Applications.id).label('count')
+    ).group_by('month').order_by('month').all()
+    
+    labels = [d.month.strftime('%B %Y') for d in all_data if d.month]
+    values = [d.count for d in all_data]
+    
+    # Test with different configurations
+    results = {}
+    
+    # Test 1: Standard ARIMA (12 months minimum)
+    forecast_12 = arima_forecast(values, labels, periods=6, force_arima=False)
+    results['standard_12mo'] = {
+        'model': forecast_12.get('model'),
+        'success': forecast_12.get('success'),
+        'data_points': len(values),
+        'error': forecast_12.get('arima_error')
+    }
+    
+    # Test 2: Forced ARIMA mode
+    forecast_forced = arima_forecast(values, labels, periods=6, force_arima=True)
+    results['forced_mode'] = {
+        'model': forecast_forced.get('model'),
+        'success': forecast_forced.get('success'),
+        'data_points': len(values),
+        'error': forecast_forced.get('arima_error')
+    }
+    
+    # Test 3: Last 6 months only
+    if len(values) >= 6:
+        forecast_6 = arima_forecast(values[-6:], labels[-6:], periods=3, force_arima=False)
+        results['last_6mo'] = {
+            'model': forecast_6.get('model'),
+            'success': forecast_6.get('success'),
+            'data_points': 6,
+            'error': forecast_6.get('arima_error')
+        }
+    
+    return jsonify({
+        'total_data_points': len(values),
+        'date_range': f"{labels[0]} to {labels[-1]}" if labels else "No data",
+        'tests': results,
+        'recommendations': {
+            'min_points_for_arima': 12,
+            'min_points_for_seasonality': 36,
+            'current_status': 'ARIMA ready' if len(values) >= 12 else 'Need more data'
+        }
+    })

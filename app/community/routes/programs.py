@@ -72,7 +72,8 @@ def programs_by_category(category):
                          programs=programs,
                          category=category,
                          category_name=category_names[category],
-                         total_programs=len(programs))
+                         total_programs=len(programs),
+                         today=datetime.utcnow().date())
 
 @community_bp.route('/program/<int:program_id>')
 @login_required
@@ -188,7 +189,8 @@ def program_detail(program_id):
                          qualification_requirements=qualification_requirements,
                          user_profile=user_profile,
                          is_full=is_full,
-                         approved_count=approved_count)
+                         approved_count=approved_count,
+                         today=datetime.utcnow().date())
     
 @community_bp.route('/program/<int:program_id>/apply', methods=['POST'])
 @login_required

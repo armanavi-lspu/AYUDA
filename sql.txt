@@ -64,6 +64,22 @@ CREATE TABLE applications (
     review_date TIMESTAMP,
     reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     submission_deadline TIMESTAMP, -- NEW: Deadline for document submission
+    
+    -- Claim scheduling fields
+    claim_date TIMESTAMP, -- Scheduled date for claiming assistance
+    claim_time VARCHAR(10), -- Time slot (e.g., "09:00 AM", "02:00 PM")
+    claim_location VARCHAR(255), -- Location for claiming (office address, etc.)
+    claim_instructions TEXT, -- Special instructions for claiming
+    claim_status VARCHAR(20) DEFAULT 'not_scheduled', -- not_scheduled, scheduled, claimed, missed
+    claim_scheduled_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who scheduled
+    claim_scheduled_at TIMESTAMP, -- When the claim was scheduled
+    
+    -- Verification code for document submission (from migration: add_verification_code_fields.py)
+    verification_code VARCHAR(20) UNIQUE, -- Unique code for verification
+    code_generated_at TIMESTAMP, -- When code was generated
+    code_used_at TIMESTAMP, -- When code was used
+    documents_submitted_at TIMESTAMP, -- When documents were physically submitted
+    
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -76,7 +92,10 @@ CREATE INDEX idx_applications_status ON applications(application_status);
 CREATE INDEX idx_applications_date ON applications(application_date DESC);
 CREATE INDEX idx_applications_reviewed_by ON applications(reviewed_by);
 CREATE INDEX idx_applications_review_date ON applications(review_date);
-CREATE INDEX idx_applications_submission_deadline ON applications(submission_deadline); -- NEW: Index for deadline queries
+CREATE INDEX idx_applications_submission_deadline ON applications(submission_deadline);
+CREATE INDEX idx_verification_code ON applications(verification_code);  -- NEW: From migration
+CREATE INDEX idx_applications_claim_date ON applications(claim_date);  -- NEW: For claim scheduling
+CREATE INDEX idx_applications_claim_status ON applications(claim_status);  -- NEW: For claim status filtering
 -- Composite indexes for common query patterns
 CREATE INDEX idx_app_user_date ON applications(user_id, application_date);
 CREATE INDEX idx_app_program_status ON applications(program_id, application_status);
@@ -150,6 +169,7 @@ CREATE TABLE community_users (
     is_student BOOLEAN DEFAULT FALSE,
     is_solo_parent BOOLEAN DEFAULT FALSE,
     is_pwd BOOLEAN DEFAULT FALSE,
+    disability_type VARCHAR(100),  -- Type of disability (e.g., 'Physical', 'Hearing', 'Visual', etc.) - from migration: add_disability_type_field.py
     family_annual_income DECIMAL(12,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

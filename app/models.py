@@ -47,6 +47,8 @@ class Programs(db.Model):
     priority_group = db.Column(db.String(255))  # Target beneficiaries (e.g., "Low Income Families, Students, PWDs")
     beneficiary_limit = db.Column(db.Integer)  # Maximum number of beneficiaries that can be accepted (NULL = unlimited)
     income_range = db.Column(db.String(100))  # Target income level (e.g., "Below 15,000", "15,000 - 30,000")
+    start_date = db.Column(db.Date)  # Program start date (optional, especially for one-time/time-bound programs)
+    end_date = db.Column(db.Date)  # Program end date / deadline for document submission (optional)
     description = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))

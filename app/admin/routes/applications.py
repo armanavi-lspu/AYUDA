@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, redirect, url_for, request, flash, send_file
+from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
@@ -408,6 +408,161 @@ def update_application_status(application_id):
             return jsonify(success=False, message=str(e)), 500
         
         return redirect(url_for('admin.view_application', application_id=application_id))
+
+
+@admin_bp.route('/applications/bulk-approve', methods=['POST'])
+@login_required
+@role_required('admin')
+def bulk_approve_applications():
+    """Approve multiple applications at once"""
+    try:
+        data = request.get_json()
+        application_ids = data.get('application_ids', [])
+        
+        if not application_ids:
+            return jsonify(success=False, message='No applications selected'), 400
+        
+        approved_count = 0
+        errors = []
+        undo_data = []  # Store data for undo
+        notification_ids = []  # Track created notifications
+        
+        for app_id in application_ids:
+            try:
+                application = Applications.query.get(app_id)
+                
+                if not application:
+                    errors.append(f'Application #{app_id} not found')
+                    continue
+                
+                if application.application_status != 'pending':
+                    errors.append(f'Application #{app_id} is not pending')
+                    continue
+                
+                # Store previous state for undo
+                undo_data.append({
+                    'id': application.id,
+                    'previous_status': application.application_status,
+                    'previous_reviewed_by': application.reviewed_by,
+                    'previous_review_date': application.review_date.isoformat() if application.review_date else None,
+                    'user_id': application.user_id,
+                    'program_name': application.program.program_name
+                })
+                
+                # Update application status
+                application.application_status = 'approved'
+                application.reviewed_by = current_user.id
+                application.review_date = datetime.utcnow()
+                application.updated_at = datetime.utcnow()
+                
+                # Create notification for applicant
+                notification = Notifications(
+                    user_id=application.user_id,
+                    notif_title='Application Approved',
+                    notif_message=f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
+                    is_read=False,
+                    created_at=datetime.utcnow()
+                )
+                
+                db.session.add(notification)
+                db.session.flush()  # Get notification ID
+                notification_ids.append(notification.id)
+                
+                approved_count += 1
+                
+            except Exception as e:
+                errors.append(f'Error processing application #{app_id}: {str(e)}')
+                continue
+        
+        db.session.commit()
+        
+        # Store undo data in session
+        if undo_data:
+            session['bulk_approval_undo'] = {
+                'undo_data': undo_data,
+                'notification_ids': notification_ids,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        
+        message = f'Successfully approved {approved_count} application(s).'
+        if errors:
+            message += f' {len(errors)} error(s): ' + '; '.join(errors[:3])
+        
+        return jsonify(
+            success=True,
+            approved_count=approved_count,
+            message=message,
+            errors=errors,
+            can_undo=len(undo_data) > 0
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error: {str(e)}'), 500
+
+
+@admin_bp.route('/applications/bulk-approve/undo', methods=['POST'])
+@login_required
+@role_required('admin')
+def undo_bulk_approve():
+    """Undo the last bulk approval action"""
+    try:
+        undo_info = session.get('bulk_approval_undo')
+        
+        if not undo_info:
+            return jsonify(success=False, message='No recent approval to undo'), 400
+        
+        # Check if undo data is still valid (within reasonable time)
+        timestamp = datetime.fromisoformat(undo_info['timestamp'])
+        if (datetime.utcnow() - timestamp).total_seconds() > 300:  # 5 minutes
+            session.pop('bulk_approval_undo', None)
+            return jsonify(success=False, message='Undo period has expired'), 400
+        
+        undo_data = undo_info['undo_data']
+        notification_ids = undo_info['notification_ids']
+        reverted_count = 0
+        
+        # Revert applications to previous state
+        for item in undo_data:
+            application = Applications.query.get(item['id'])
+            if application:
+                application.application_status = item['previous_status']
+                application.reviewed_by = item['previous_reviewed_by']
+                application.review_date = datetime.fromisoformat(item['previous_review_date']) if item['previous_review_date'] else None
+                application.updated_at = datetime.utcnow()
+                reverted_count += 1
+        
+        # Delete the approval notifications
+        for notif_id in notification_ids:
+            notification = Notifications.query.get(notif_id)
+            if notification:
+                db.session.delete(notification)
+        
+        # Create undo notification for applicants
+        for item in undo_data:
+            undo_notification = Notifications(
+                user_id=item['user_id'],
+                notif_title='Application Status Update',
+                notif_message=f'Your application for {item["program_name"]} is back under review.',
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(undo_notification)
+        
+        db.session.commit()
+        
+        # Clear undo data from session
+        session.pop('bulk_approval_undo', None)
+        
+        return jsonify(
+            success=True,
+            reverted_count=reverted_count,
+            message=f'Successfully reverted {reverted_count} application(s) to pending status.'
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error: {str(e)}'), 500
 
 
 @admin_bp.route('/applications/<int:application_id>/documents/<int:doc_id>/update', methods=['POST'])
@@ -899,3 +1054,147 @@ def application_slip(application_id):
         program_requirements=program_requirements,
         user=current_user
     )
+
+
+@admin_bp.route('/applications/bulk-update-status', methods=['POST'])
+@login_required
+@role_required('admin')
+def bulk_update_status():
+    """Update status of multiple applications at once"""
+    try:
+        data = request.get_json()
+        application_ids = data.get('application_ids', [])
+        new_status = data.get('new_status', '')
+        remarks = data.get('remarks', '').strip()
+        
+        if not application_ids or not new_status:
+            return jsonify(success=False, message='Missing required parameters'), 400
+        
+        if new_status not in ['pending', 'approved', 'rejected', 'on-hold']:
+            return jsonify(success=False, message='Invalid status'), 400
+        
+        updated_count = 0
+        errors = []
+        
+        status_messages = {
+            'approved': 'Your application has been approved! You can now download your application slip.',
+            'rejected': 'Your application has been reviewed and unfortunately was not approved.',
+            'on-hold': 'Your application has been placed on hold. Please check the remarks for more information.',
+            'pending': 'Your application is under review.'
+        }
+        
+        for app_id in application_ids:
+            try:
+                application = Applications.query.get(app_id)
+                
+                if not application:
+                    errors.append(f'Application #{app_id} not found')
+                    continue
+                
+                # Update application status
+                application.application_status = new_status
+                application.reviewed_by = current_user.id
+                application.review_date = datetime.utcnow()
+                application.updated_at = datetime.utcnow()
+                
+                # Update remarks if provided
+                if remarks:
+                    application.remarks = remarks
+                
+                # Create notification
+                notif_message = status_messages.get(new_status, 'Your application status has been updated.')
+                if remarks:
+                    notif_message += f'\n\nAdmin Remarks: {remarks}'
+                
+                notification = Notifications(
+                    user_id=application.user_id,
+                    notif_title=f'Application {new_status.replace("-", " ").title()}',
+                    notif_message=f'{notif_message}\n\nProgram: {application.program.program_name}',
+                    is_read=False,
+                    created_at=datetime.utcnow()
+                )
+                
+                db.session.add(notification)
+                updated_count += 1
+                
+            except Exception as e:
+                errors.append(f'Error processing application #{app_id}: {str(e)}')
+                continue
+        
+        db.session.commit()
+        
+        message = f'Successfully updated {updated_count} application(s) to {new_status}.'
+        if errors:
+            message += f' {len(errors)} error(s) occurred.'
+        
+        return jsonify(
+            success=True,
+            updated_count=updated_count,
+            message=message,
+            errors=errors
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error: {str(e)}'), 500
+
+
+@admin_bp.route('/applications/send-bulk-notification', methods=['POST'])
+@login_required
+@role_required('admin')
+def send_bulk_notification():
+    """Send notification to multiple applicants about schedule/release"""
+    try:
+        data = request.get_json()
+        application_ids = data.get('application_ids', [])
+        title = data.get('title', '').strip()
+        message = data.get('message', '').strip()
+        schedule = data.get('schedule', '').strip()
+        location = data.get('location', '').strip()
+        
+        if not application_ids or not title or not message:
+            return jsonify(success=False, message='Missing required parameters'), 400
+        
+        sent_count = 0
+        errors = []
+        
+        for app_id in application_ids:
+            try:
+                application = Applications.query.get(app_id)
+                
+                if not application:
+                    errors.append(f'Application #{app_id} not found')
+                    continue
+                
+                # Create notification
+                notification = Notifications(
+                    user_id=application.user_id,
+                    notif_title=title,
+                    notif_message=message,
+                    is_read=False,
+                    created_at=datetime.utcnow()
+                )
+                
+                db.session.add(notification)
+                sent_count += 1
+                
+            except Exception as e:
+                errors.append(f'Error sending to application #{app_id}: {str(e)}')
+                continue
+        
+        db.session.commit()
+        
+        message_result = f'Successfully sent notification to {sent_count} applicant(s).'
+        if errors:
+            message_result += f' {len(errors)} error(s) occurred.'
+        
+        return jsonify(
+            success=True,
+            sent_count=sent_count,
+            message=message_result,
+            errors=errors
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error: {str(e)}'), 500

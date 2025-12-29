@@ -928,6 +928,42 @@
     </div>
   </div>
 </div>
+
+<!-- Document Action Confirmation Modal -->
+<div class="modal fade" id="documentActionModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header" id="docModalHeader">
+        <h5 class="modal-title font-weight-bold" id="docModalTitle">
+          <i class="fas fa-check-circle mr-2"></i>Confirm Document Action
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="docModalMessage"></div>
+        <div id="docModalFeedbackSection" style="display: none;">
+          <hr>
+          <div class="form-group">
+            <label class="font-weight-bold">Admin Notes / Feedback:</label>
+            <textarea class="form-control" id="docModalFeedback" rows="4" 
+                      placeholder="Enter feedback for the applicant (optional for complete, required for incomplete with feedback)..."></textarea>
+            <small class="text-muted">This will be visible to the applicant.</small>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          <i class="fas fa-times mr-1"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-primary" id="docModalConfirmBtn">
+          <i class="fas fa-check mr-1"></i>Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -1082,14 +1118,124 @@ function updateSelectedCount() {
 }
 
 // Toggle Document Complete/Incomplete
+let pendingDocumentAction = null;
+
 function toggleDocumentComplete(docId, isComplete) {
-    if (!confirm(`Mark this document as ${isComplete ? 'Complete' : 'Incomplete'}?`)) {
-        // Revert checkbox
-        const checkbox = document.getElementById(`completeSwitch${docId}`);
-        if (checkbox) {
-            checkbox.checked = !isComplete;
+    // Revert checkbox immediately (will be set again if confirmed)
+    const checkbox = document.getElementById(`completeSwitch${docId}`);
+    if (checkbox) {
+        checkbox.checked = !isComplete;
+    }
+    
+    // Show confirmation modal
+    showDocumentActionModal(docId, isComplete);
+}
+
+function showDocumentActionModal(docId, isComplete) {
+    const modal = $('#documentActionModal');
+    const header = document.getElementById('docModalHeader');
+    const title = document.getElementById('docModalTitle');
+    const message = document.getElementById('docModalMessage');
+    const feedbackSection = document.getElementById('docModalFeedbackSection');
+    const feedback = document.getElementById('docModalFeedback');
+    const confirmBtn = document.getElementById('docModalConfirmBtn');
+    
+    // Reset feedback
+    feedback.value = '';
+    feedbackSection.style.display = 'none';
+    
+    // Configure modal based on action
+    if (isComplete) {
+        header.className = 'modal-header bg-success text-white';
+        title.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Mark Document as Complete';
+        message.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong>Confirm Completion</strong>
+            </div>
+            <p>Are you sure you want to mark this document as <strong>Complete</strong>?</p>
+            <p class="mb-0 text-muted">This indicates that the document has been verified and meets all requirements.</p>
+        `;
+        feedbackSection.style.display = 'block';
+        confirmBtn.className = 'btn btn-success';
+        confirmBtn.innerHTML = '<i class="fas fa-check mr-1"></i>Mark Complete';
+    } else {
+        header.className = 'modal-header bg-warning text-white';
+        title.innerHTML = '<i class="fas fa-exclamation-circle mr-2"></i>Mark Document as Incomplete';
+        message.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <strong>Confirm Incomplete Status</strong>
+            </div>
+            <p>Are you sure you want to mark this document as <strong>Incomplete</strong>?</p>
+            <p class="mb-0 text-muted">The applicant will be notified to resubmit or provide additional information.</p>
+        `;
+        feedbackSection.style.display = 'block';
+        confirmBtn.className = 'btn btn-warning';
+        confirmBtn.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>Mark Incomplete';
+    }
+    
+    // Store pending action
+    pendingDocumentAction = {
+        docId: docId,
+        isComplete: isComplete,
+        requireFeedback: false
+    };
+    
+    modal.modal('show');
+}
+
+// Document modal confirm button handler
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('docModalConfirmBtn').onclick = function() {
+        if (!pendingDocumentAction) return;
+        
+        if (pendingDocumentAction.isSaveFeedback) {
+            // Close modal
+            $('#documentActionModal').modal('hide');
+            
+            // Execute save feedback
+            executeSaveFeedback(
+                pendingDocumentAction.docId,
+                pendingDocumentAction.isComplete,
+                pendingDocumentAction.notes
+            );
+            
+            pendingDocumentAction = null;
+        } else {
+            const feedback = document.getElementById('docModalFeedback').value.trim();
+            
+            // Close modal
+            $('#documentActionModal').modal('hide');
+            
+            // Execute the action
+            executeDocumentAction(
+                pendingDocumentAction.docId, 
+                pendingDocumentAction.isComplete,
+                feedback
+            );
+            
+            pendingDocumentAction = null;
         }
-        return;
+    };
+    
+    // Handle modal cancel - revert checkbox
+    $('#documentActionModal').on('hidden.bs.modal', function () {
+        if (pendingDocumentAction && !pendingDocumentAction.isSaveFeedback) {
+            const checkbox = document.getElementById(`completeSwitch${pendingDocumentAction.docId}`);
+            if (checkbox) {
+                checkbox.checked = !pendingDocumentAction.isComplete;
+            }
+            pendingDocumentAction = null;
+        }
+    });
+});
+
+function executeDocumentAction(docId, isComplete, notes) {
+    // Set checkbox to correct state
+    const checkbox = document.getElementById(`completeSwitch${docId}`);
+    if (checkbox) {
+        checkbox.checked = isComplete;
     }
     
     fetch(`/admin/applications/{{ application.id }}/documents/${docId}/update`, {
@@ -1099,8 +1245,8 @@ function toggleDocumentComplete(docId, isComplete) {
         },
         body: JSON.stringify({
             is_complete: isComplete,
-            notes: '',
-            admin_feedback: ''
+            notes: notes,
+            admin_feedback: notes
         })
     })
     .then(response => response.json())
@@ -1166,10 +1312,97 @@ function saveFeedback(docId) {
         return;
     }
     
+    // Show confirmation modal
+    showSaveFeedbackModal(docId, notes);
+}
+
+function showSaveFeedbackModal(docId, notes) {
+    const modal = $('#documentActionModal');
+    const header = document.getElementById('docModalHeader');
+    const title = document.getElementById('docModalTitle');
+    const message = document.getElementById('docModalMessage');
+    const feedbackSection = document.getElementById('docModalFeedbackSection');
+    const feedback = document.getElementById('docModalFeedback');
+    const confirmBtn = document.getElementById('docModalConfirmBtn');
+    
     // Get current completion status
     const checkbox = document.getElementById(`completeSwitch${docId}`);
     const isComplete = checkbox ? checkbox.checked : false;
     
+    // Configure modal
+    header.className = 'modal-header bg-info text-white';
+    title.innerHTML = '<i class="fas fa-save mr-2"></i>Save Admin Notes';
+    message.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-clipboard-check mr-2"></i>
+            <strong>Confirm Feedback Submission</strong>
+        </div>
+        <p>Are you sure you want to save these admin notes?</p>
+        <p class="mb-2"><strong>Current Status:</strong> ${isComplete ? '<span class="badge badge-success">Complete</span>' : '<span class="badge badge-warning">Incomplete</span>'}</p>
+        <div class="alert alert-light mb-0">
+            <small class="font-weight-bold">Feedback Preview:</small>
+            <div class="mt-1" style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em;">${notes}</div>
+        </div>
+    `;
+    feedbackSection.style.display = 'none';
+    confirmBtn.className = 'btn btn-info';
+    confirmBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Save Notes';
+    
+    // Store pending action
+    pendingDocumentAction = {
+        docId: docId,
+        isComplete: isComplete,
+        notes: notes,
+        isSaveFeedback: true
+    };
+    
+    modal.modal('show');
+}
+
+function showSaveFeedbackModal(docId, notes) {
+    const modal = $('#documentActionModal');
+    const header = document.getElementById('docModalHeader');
+    const title = document.getElementById('docModalTitle');
+    const message = document.getElementById('docModalMessage');
+    const feedbackSection = document.getElementById('docModalFeedbackSection');
+    const feedback = document.getElementById('docModalFeedback');
+    const confirmBtn = document.getElementById('docModalConfirmBtn');
+    
+    // Get current completion status
+    const checkbox = document.getElementById(`completeSwitch${docId}`);
+    const isComplete = checkbox ? checkbox.checked : false;
+    
+    // Configure modal
+    header.className = 'modal-header bg-info text-white';
+    title.innerHTML = '<i class="fas fa-save mr-2"></i>Save Admin Notes';
+    message.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-clipboard-check mr-2"></i>
+            <strong>Confirm Feedback Submission</strong>
+        </div>
+        <p>Are you sure you want to save these admin notes?</p>
+        <p class="mb-2"><strong>Current Status:</strong> ${isComplete ? '<span class="badge badge-success">Complete</span>' : '<span class="badge badge-warning">Incomplete</span>'}</p>
+        <div class="alert alert-light mb-0">
+            <small class="font-weight-bold">Feedback Preview:</small>
+            <div class="mt-1" style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em;">${notes}</div>
+        </div>
+    `;
+    feedbackSection.style.display = 'none';
+    confirmBtn.className = 'btn btn-info';
+    confirmBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Save Notes';
+    
+    // Store pending action
+    pendingDocumentAction = {
+        docId: docId,
+        isComplete: isComplete,
+        notes: notes,
+        isSaveFeedback: true
+    };
+    
+    modal.modal('show');
+}
+
+function executeSaveFeedback(docId, isComplete, notes) {
     fetch(`/admin/applications/{{ application.id }}/documents/${docId}/update`, {
         method: 'POST',
         headers: {

@@ -385,79 +385,76 @@ def populate_dummy_data():
             db.session.commit()
             print(f"✅ Assigned {requirements_assigned} requirements to programs\n")
             
-            # 6. Create Applications (distributed from January to October)
-            print("📝 Creating applications (January - October 2025)...")
-            
+            # 6. Create Applications (distributed January - December, larger volume for ARIMA)
+            print("📝 Creating applications (Jan - Dec 2025, high volume for ARIMA)...")
+
             applications_created = 0
             current_year = 2025
-            
-            # Create applications from January to October
-            for month in range(1, 11):  # January (1) to October (10)
-                # Define month boundaries
+
+            # Heavier monthly volumes with seasonality (more in Q2/Q4)
+            monthly_volume_plan = {
+                1: (120, 180),  2: (130, 190),  3: (180, 240),
+                4: (220, 300),  5: (280, 360),  6: (320, 420),
+                7: (260, 340),  8: (300, 420),  9: (340, 460),
+                10: (380, 520), 11: (420, 560), 12: (460, 620),
+            }
+
+            for month in range(1, 13):  # Jan (1) to Dec (12)
+                # Month boundaries
                 start_date = datetime(current_year, month, 1)
-                
-                # Get last day of month
-                if month in [1, 3, 5, 7, 8, 10]:
+
+                # Last day
+                if month in [1, 3, 5, 7, 8, 10, 12]:
                     last_day = 31
-                elif month in [4, 6, 9]:
+                elif month in [4, 6, 9, 11]:
                     last_day = 30
-                else:  # February
+                else:  # Feb
                     last_day = 28
-                
+
                 end_date = datetime(current_year, month, last_day, 23, 59, 59)
                 days_in_month = last_day
-                
-                # Vary applications per month (more in recent months)
-                if month >= 8:  # August to October
-                    num_applications = random.randint(18, 28)
-                elif month >= 5:  # May to July
-                    num_applications = random.randint(12, 22)
-                else:  # January to April
-                    num_applications = random.randint(8, 15)
-                
+
+                # Randomized volume with plan ranges
+                low, high = monthly_volume_plan[month]
+                num_applications = random.randint(low, high)
+
                 for _ in range(num_applications):
                     user = random.choice(community_users)
                     program = random.choice(programs)
-                    
-                    # Random date within the month
-                    days_offset = random.randint(0, days_in_month - 1)
-                    hours_offset = random.randint(8, 17)  # Business hours
-                    minutes_offset = random.randint(0, 59)
-                    
-                    application_date = start_date + timedelta(
-                        days=days_offset,
-                        hours=hours_offset,
-                        minutes=minutes_offset
-                    )
-                    
-                    # Create application with varied statuses (more realistic)
-                    # Older applications are more likely to be processed
-                    if application_date < datetime(current_year, 8, 1):
-                        # Applications before August have higher chance of being processed
+
+                    # Random business-time application within the month
+                    day = random.randint(1, days_in_month)
+                    hour = random.randint(8, 17)
+                    minute = random.randint(0, 59)
+                    application_date = datetime(current_year, month, day, hour, minute)
+
+                    # Status distribution with realistic processing drift
+                    if month <= 6:  # Older months more processed
                         status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                        status_weights = [0.2, 0.5, 0.2, 0.1]  # 50% approved for older apps
-                    else:
-                        # Recent applications mostly pending
-                        status_choices = ['pending', 'approved', 'rejected', 'under_review'] 
-                        status_weights = [0.7, 0.1, 0.1, 0.1]  # 70% pending for recent apps
-                    
+                        status_weights = [0.15, 0.55, 0.15, 0.15]
+                    elif month <= 9:
+                        status_choices = ['pending', 'approved', 'rejected', 'under_review']
+                        status_weights = [0.45, 0.30, 0.10, 0.15]
+                    else:  # Recent months mostly pending/under_review
+                        status_choices = ['pending', 'approved', 'rejected', 'under_review']
+                        status_weights = [0.65, 0.10, 0.10, 0.15]
+
                     application_status = np.random.choice(status_choices, p=status_weights)
-                    
+
                     application = Applications(
                         user_id=user.id,
                         program_id=program.id,
                         application_date=application_date,
                         application_status=application_status
                     )
-                    
                     db.session.add(application)
                     applications_created += 1
-            
+
             db.session.commit()
-            print(f"✅ Created {applications_created} applications (January - October {current_year})\n")
+            print(f"✅ Created {applications_created} applications (Jan–Dec {current_year}) for ARIMA\n")
             
             # Print summary
-            print("="*70)
+            print("="*70)  
             print("📊 DATA SUMMARY")
             print("="*70)
             print(f"✅ Admin Users: 1")

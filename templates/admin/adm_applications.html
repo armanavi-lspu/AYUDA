@@ -161,14 +161,40 @@
 
     <!-- Applications Table -->
     <div class="card shadow">
-        <div class="card-header py-3">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Applications List</h6>
+            <div id="bulkActionsBar" style="display: none;">
+                <span id="selectedCount" class="text-white mr-3 font-weight-bold">0 selected</span>
+                <div class="btn-group mr-2" role="group">
+                    <button type="button" class="btn btn-sm btn-success" onclick="bulkUpdateStatus('approved')">
+                        <i class="fas fa-check mr-1"></i>Approve
+                    </button>
+                    <button type="button" class="btn btn-sm btn-warning" onclick="bulkUpdateStatus('pending')">
+                        <i class="fas fa-clock mr-1"></i>Pending
+                    </button>
+                    <button type="button" class="btn btn-sm btn-info" onclick="bulkUpdateStatus('on-hold')">
+                        <i class="fas fa-pause mr-1"></i>On Hold
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="bulkUpdateStatus('rejected')">
+                        <i class="fas fa-times mr-1"></i>Reject
+                    </button>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="scheduleNotification()">
+                    <i class="fas fa-bell mr-1"></i>Schedule Notification
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times mr-1"></i>Clear
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead class="thead-light">
                         <tr>
+                            <th width="30">
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                            </th>
                             <th>ID</th>
                             <th>Applicant</th>
                             <th>Program</th>
@@ -184,6 +210,11 @@
                         {% if applications %}
                             {% for app in applications %}
                             <tr class="application-row">
+                                <td>
+                                    <input type="checkbox" class="app-checkbox" value="{{ app.id }}" 
+                                           data-status="{{ app.application_status }}"
+                                           onchange="updateBulkActions()">
+                                </td>
                                 <td class="font-weight-bold">#{{ app.id }}</td>
                                 <td>
                                     <div class="font-weight-bold">
@@ -249,7 +280,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-5">
+                                <td colspan="10" class="text-center text-muted py-5">
                                     <i class="fas fa-inbox fa-3x mb-3"></i>
                                     <p>No applications found</p>
                                 </td>
@@ -360,4 +391,688 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Bulk Approval Confirmation Modal -->
+<div class="modal fade" id="bulkApprovalModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle mr-2"></i>Confirm Bulk Approval
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer" id="modalFooter">
+                <!-- Buttons will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.app-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.app-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAll = document.getElementById('selectAll');
+    
+    if (count > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCount.textContent = count + ' selected';
+    } else {
+        bulkActionsBar.style.display = 'none';
+        selectAll.checked = false;
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.app-checkbox');
+    if (allCheckboxes.length > 0) {
+        selectAll.checked = count === allCheckboxes.length;
+    }
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.app-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateBulkActions();
+}
+
+function bulkUpdateStatus(newStatus) {
+    const checkboxes = document.querySelectorAll('.app-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one application.');
+        return;
+    }
+    
+    // Gather application data
+    const selectedApps = [];
+    let qualifiedCount = 0;
+    let notQualifiedCount = 0;
+    let unknownCount = 0;
+    
+    checkboxes.forEach(cb => {
+        const row = cb.closest('tr');
+        const appId = cb.value;
+        const currentStatus = cb.dataset.status;
+        const applicantName = row.querySelector('td:nth-child(3) .font-weight-bold').textContent.trim();
+        const programName = row.querySelector('td:nth-child(4) .badge').textContent.trim();
+        const qualBadge = row.querySelector('td:nth-child(6) .badge');
+        
+        let qualificationStatus = 'unknown';
+        if (qualBadge) {
+            if (qualBadge.classList.contains('badge-success')) {
+                qualificationStatus = 'qualified';
+                qualifiedCount++;
+            } else if (qualBadge.classList.contains('badge-danger')) {
+                qualificationStatus = 'not_qualified';
+                notQualifiedCount++;
+            } else if (qualBadge.classList.contains('badge-warning')) {
+                qualificationStatus = 'partially_qualified';
+                notQualifiedCount++;
+            } else if (qualBadge.classList.contains('badge-secondary')) {
+                qualificationStatus = 'no_requirements';
+                unknownCount++;
+            }
+        }
+        
+        selectedApps.push({
+            id: appId,
+            name: applicantName,
+            program: programName,
+            qualificationStatus: qualificationStatus,
+            currentStatus: currentStatus
+        });
+    });
+    
+    // Show confirmation modal
+    showBulkStatusModal(selectedApps, newStatus, qualifiedCount, notQualifiedCount, unknownCount);
+}
+
+function scheduleNotification() {
+    const checkboxes = document.querySelectorAll('.app-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one application.');
+        return;
+    }
+    
+    // Get application IDs and applicant names
+    const selectedApps = [];
+    checkboxes.forEach(cb => {
+        const row = cb.closest('tr');
+        const appId = cb.value;
+        const applicantName = row.querySelector('td:nth-child(3) .font-weight-bold').textContent.trim();
+        const programName = row.querySelector('td:nth-child(4) .badge').textContent.trim();
+        
+        selectedApps.push({
+            id: appId,
+            name: applicantName,
+            program: programName
+        });
+    });
+    
+    showScheduleNotificationModal(selectedApps);
+}
+
+function showBulkStatusModal(selectedApps, newStatus, qualifiedCount, notQualifiedCount, unknownCount) {
+    const modalContent = document.getElementById('modalContent');
+    const modalFooter = document.getElementById('modalFooter');
+    
+    const statusNames = {
+        'approved': { name: 'Approved', icon: 'check-circle', class: 'success' },
+        'rejected': { name: 'Rejected', icon: 'times-circle', class: 'danger' },
+        'pending': { name: 'Pending', icon: 'clock', class: 'warning' },
+        'on-hold': { name: 'On Hold', icon: 'pause-circle', class: 'info' }
+    };
+    
+    const statusInfo = statusNames[newStatus];
+    let contentHtml = '';
+    
+    // Warning for approving unqualified applicants
+    if (newStatus === 'approved' && notQualifiedCount > 0) {
+        contentHtml += `
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle mr-2"></i>Warning: Unqualified Applicants</h6>
+                <p class="mb-0">
+                    <strong>${notQualifiedCount}</strong> selected applicant(s) do not meet all qualification requirements.
+                </p>
+            </div>
+        `;
+    }
+    
+    // Summary
+    contentHtml += `
+        <div class="mb-3">
+            <h6 class="font-weight-bold">Update ${selectedApps.length} application(s) to: 
+                <span class="badge badge-${statusInfo.class}">
+                    <i class="fas fa-${statusInfo.icon} mr-1"></i>${statusInfo.name}
+                </span>
+            </h6>
+            ${newStatus === 'approved' ? `
+                <ul class="mb-0 small">
+                    <li class="text-success"><strong>Fully Qualified:</strong> ${qualifiedCount}</li>
+                    <li class="text-danger"><strong>Not/Partially Qualified:</strong> ${notQualifiedCount}</li>
+                    ${unknownCount > 0 ? `<li class="text-secondary"><strong>No Requirements:</strong> ${unknownCount}</li>` : ''}
+                </ul>
+            ` : ''}
+        </div>
+    `;
+    
+    // Applications list
+    contentHtml += '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">';
+    contentHtml += '<table class="table table-sm table-bordered">';
+    contentHtml += '<thead class="thead-light"><tr><th>ID</th><th>Applicant</th><th>Program</th><th>Current</th></tr></thead>';
+    contentHtml += '<tbody>';
+    
+    selectedApps.forEach(app => {
+        const currentStatusBadges = {
+            'approved': '<span class="badge badge-success">Approved</span>',
+            'rejected': '<span class="badge badge-danger">Rejected</span>',
+            'pending': '<span class="badge badge-warning">Pending</span>',
+            'on-hold': '<span class="badge badge-info">On Hold</span>'
+        };
+        
+        contentHtml += `
+            <tr>
+                <td>#${app.id}</td>
+                <td>${app.name}</td>
+                <td><small>${app.program}</small></td>
+                <td>${currentStatusBadges[app.currentStatus] || app.currentStatus}</td>
+            </tr>
+        `;
+    });
+    
+    contentHtml += '</tbody></table></div>';
+    
+    // Optional remarks field
+    contentHtml += `
+        <div class="form-group mt-3">
+            <label class="font-weight-bold">Remarks / Feedback (Optional):</label>
+            <textarea id="bulkRemarksText" class="form-control" rows="3" 
+                      placeholder="Add a message for the applicants..."></textarea>
+            <small class="text-muted">This will be visible to all selected applicants</small>
+        </div>
+    `;
+    
+    modalContent.innerHTML = contentHtml;
+    
+    // Store data
+    window.bulkStatusData = {
+        applicationIds: selectedApps.map(app => app.id),
+        newStatus: newStatus
+    };
+    
+    // Build footer
+    let footerHtml = '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>';
+    footerHtml += `
+        <button type="button" class="btn btn-${statusInfo.class}" onclick="confirmBulkStatusUpdate()">
+            <i class="fas fa-${statusInfo.icon} mr-1"></i>Update Status
+        </button>
+    `;
+    
+    modalFooter.innerHTML = footerHtml;
+    
+    // Show modal
+    $('#bulkApprovalModal .modal-title').html(`<i class="fas fa-${statusInfo.icon} mr-2"></i>Confirm Bulk Status Update`);
+    $('#bulkApprovalModal').modal('show');
+}
+
+function confirmBulkStatusUpdate() {
+    const remarks = document.getElementById('bulkRemarksText').value.trim();
+    const data = window.bulkStatusData;
+    
+    // Close modal
+    $('#bulkApprovalModal').modal('hide');
+    
+    // Show loading
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+    overlay.innerHTML = '<div class="spinner-border text-light" style="width: 3rem; height: 3rem;"><span class="sr-only">Processing...</span></div>';
+    document.body.appendChild(overlay);
+    
+    // Send bulk update request
+    fetch('{{ url_for("admin.bulk_update_status") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            application_ids: data.applicationIds,
+            new_status: data.newStatus,
+            remarks: remarks
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(overlay);
+        if (result.success) {
+            alert(result.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (result.message || 'Failed to update status'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(overlay);
+        alert('Error: ' + error.message);
+    });
+}
+
+function showScheduleNotificationModal(selectedApps) {
+    const modalContent = document.getElementById('modalContent');
+    const modalFooter = document.getElementById('modalFooter');
+    
+    let contentHtml = `
+        <div class="mb-3">
+            <h6 class="font-weight-bold">Send Notification to ${selectedApps.length} Applicant(s)</h6>
+            <p class="text-muted mb-0">Schedule a notification about financial assistance release</p>
+        </div>
+        
+        <div class="form-group">
+            <label class="font-weight-bold">Notification Title: <span class="text-danger">*</span></label>
+            <input type="text" id="notifTitle" class="form-control" 
+                   value="Financial Assistance Release Schedule" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="font-weight-bold">Message: <span class="text-danger">*</span></label>
+            <textarea id="notifMessage" class="form-control" rows="5" required
+                      placeholder="Enter notification message...">Your financial assistance is scheduled for release. Please proceed to the MSWD Office during the scheduled date with your application slip and valid ID.</textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="font-weight-bold">Schedule Date & Time: <span class="text-danger">*</span></label>
+            <input type="datetime-local" id="notifSchedule" class="form-control" required>
+        </div>
+        
+        <div class="form-group">
+            <label class="font-weight-bold">Release Location:</label>
+            <input type="text" id="notifLocation" class="form-control" 
+                   value="MSWD Office, Municipal Hall of Mabitac" placeholder="Optional">
+        </div>
+        
+        <div class="alert alert-info mb-0">
+            <small><i class="fas fa-info-circle mr-1"></i>Selected applicants will be notified about the schedule</small>
+        </div>
+        
+        <div class="table-responsive mt-3" style="max-height: 200px; overflow-y: auto;">
+            <table class="table table-sm table-bordered">
+                <thead class="thead-light"><tr><th>ID</th><th>Applicant</th><th>Program</th></tr></thead>
+                <tbody>
+    `;
+    
+    selectedApps.forEach(app => {
+        contentHtml += `
+            <tr>
+                <td>#${app.id}</td>
+                <td>${app.name}</td>
+                <td><small>${app.program}</small></td>
+            </tr>
+        `;
+    });
+    
+    contentHtml += '</tbody></table></div>';
+    
+    modalContent.innerHTML = contentHtml;
+    
+    // Store data
+    window.scheduleNotifData = {
+        applicationIds: selectedApps.map(app => app.id)
+    };
+    
+    // Set minimum datetime to now
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('notifSchedule').min = now.toISOString().slice(0, 16);
+    document.getElementById('notifSchedule').value = now.toISOString().slice(0, 16);
+    
+    // Build footer
+    let footerHtml = '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>';
+    footerHtml += `
+        <button type="button" class="btn btn-primary" onclick="confirmScheduleNotification()">
+            <i class="fas fa-paper-plane mr-1"></i>Send Notification
+        </button>
+    `;
+    
+    modalFooter.innerHTML = footerHtml;
+    
+    // Show modal
+    $('#bulkApprovalModal .modal-title').html('<i class="fas fa-bell mr-2"></i>Schedule Notification');
+    $('#bulkApprovalModal').modal('show');
+}
+
+function confirmScheduleNotification() {
+    const title = document.getElementById('notifTitle').value.trim();
+    const message = document.getElementById('notifMessage').value.trim();
+    const schedule = document.getElementById('notifSchedule').value;
+    const location = document.getElementById('notifLocation').value.trim();
+    
+    if (!title || !message || !schedule) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+    
+    // Close modal
+    $('#bulkApprovalModal').modal('hide');
+    
+    // Build full message
+    let fullMessage = message;
+    if (location) {
+        fullMessage += `\n\nLocation: ${location}`;
+    }
+    fullMessage += `\n\nScheduled Date: ${new Date(schedule).toLocaleString()}`;
+    
+    // Show loading
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+    overlay.innerHTML = '<div class="spinner-border text-light" style="width: 3rem; height: 3rem;"><span class="sr-only">Sending...</span></div>';
+    document.body.appendChild(overlay);
+    
+    // Send notification request
+    fetch('{{ url_for("admin.send_bulk_notification") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            application_ids: window.scheduleNotifData.applicationIds,
+            title: title,
+            message: fullMessage,
+            schedule: schedule,
+            location: location
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.body.removeChild(overlay);
+        if (result.success) {
+            alert(result.message);
+            clearSelection();
+        } else {
+            alert('Error: ' + (result.message || 'Failed to send notification'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(overlay);
+        alert('Error: ' + error.message);
+    });
+}
+
+function showApprovalModal(selectedApps, qualifiedCount, notQualifiedCount, unknownCount) {
+    const modalContent = document.getElementById('modalContent');
+    const modalFooter = document.getElementById('modalFooter');
+    
+    let contentHtml = '';
+    
+    // Warning message if there are unqualified applicants
+    if (notQualifiedCount > 0) {
+        contentHtml += `
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle mr-2"></i>Warning: Unqualified Applicants Detected</h6>
+                <p class="mb-0">
+                    <strong>${notQualifiedCount}</strong> of the selected applicants do not meet all qualification requirements. 
+                    Are you sure you want to approve them?
+                </p>
+            </div>
+        `;
+    }
+    
+    // Summary
+    contentHtml += `
+        <div class="mb-3">
+            <h6 class="font-weight-bold">Summary:</h6>
+            <ul class="mb-0">
+                <li><strong>Total Selected:</strong> ${selectedApps.length} application(s)</li>
+                <li class="text-success"><strong>Fully Qualified:</strong> ${qualifiedCount}</li>
+                <li class="text-danger"><strong>Not/Partially Qualified:</strong> ${notQualifiedCount}</li>
+                ${unknownCount > 0 ? `<li class="text-secondary"><strong>No Requirements:</strong> ${unknownCount}</li>` : ''}
+            </ul>
+        </div>
+    `;
+    
+    // Applications list
+    contentHtml += '<div class="table-responsive" style="max-height: 300px; overflow-y: auto;">';
+    contentHtml += '<table class="table table-sm table-bordered">';
+    contentHtml += '<thead class="thead-light"><tr><th>ID</th><th>Applicant</th><th>Program</th><th>Status</th></tr></thead>';
+    contentHtml += '<tbody>';
+    
+    selectedApps.forEach(app => {
+        let statusBadge = '';
+        if (app.qualificationStatus === 'qualified') {
+            statusBadge = '<span class="badge badge-success"><i class="fas fa-check"></i> Qualified</span>';
+        } else if (app.qualificationStatus === 'not_qualified') {
+            statusBadge = '<span class="badge badge-danger"><i class="fas fa-times"></i> Not Qualified</span>';
+        } else if (app.qualificationStatus === 'partially_qualified') {
+            statusBadge = '<span class="badge badge-warning"><i class="fas fa-exclamation"></i> Partial</span>';
+        } else if (app.qualificationStatus === 'no_requirements') {
+            statusBadge = '<span class="badge badge-secondary">N/A</span>';
+        }
+        
+        contentHtml += `
+            <tr>
+                <td>#${app.id}</td>
+                <td>${app.name}</td>
+                <td><small>${app.program}</small></td>
+                <td>${statusBadge}</td>
+            </tr>
+        `;
+    });
+    
+    contentHtml += '</tbody></table></div>';
+    
+    modalContent.innerHTML = contentHtml;
+    
+    // Store selected apps globally for modal button handlers
+    window.bulkApprovalData = {
+        allIds: selectedApps.map(app => app.id),
+        qualifiedIds: selectedApps.filter(app => app.qualificationStatus === 'qualified').map(app => app.id)
+    };
+    
+    // Build footer buttons
+    let footerHtml = '<button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>';
+    
+    // If there are qualified applicants and some unqualified, show "Approve Qualified Only" button
+    if (qualifiedCount > 0 && notQualifiedCount > 0) {
+        footerHtml += `
+            <button type="button" class="btn btn-primary" onclick="confirmBulkApproval('qualified')">
+                <i class="fas fa-check mr-1"></i>Approve Qualified Only (${qualifiedCount})
+            </button>
+        `;
+    }
+    
+    // Always show "Approve All" button
+    const btnClass = notQualifiedCount > 0 ? 'btn-warning' : 'btn-success';
+    footerHtml += `
+        <button type="button" class="${btnClass}" onclick="confirmBulkApproval('all')">
+            <i class="fas fa-check-double mr-1"></i>Approve All (${selectedApps.length})
+        </button>
+    `;
+    
+    modalFooter.innerHTML = footerHtml;
+    
+    // Show modal
+    $('#bulkApprovalModal').modal('show');
+}
+
+function confirmBulkApproval(approvalType) {
+    // Close modal
+    $('#bulkApprovalModal').modal('hide');
+    
+    // Determine which IDs to approve
+    let applicationIds;
+    let qualifiedOnly = false;
+    
+    if (approvalType === 'qualified') {
+        applicationIds = window.bulkApprovalData.qualifiedIds;
+        qualifiedOnly = true;
+    } else {
+        applicationIds = window.bulkApprovalData.allIds;
+    }
+    
+    if (applicationIds.length === 0) {
+        alert('No applications to approve.');
+        return;
+    }
+    
+    // Show loading overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+    overlay.innerHTML = '<div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status"><span class="sr-only">Processing...</span></div>';
+    document.body.appendChild(overlay);
+    
+    // Send bulk approve request
+    fetch('{{ url_for("admin.bulk_approve_applications") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            application_ids: applicationIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.body.removeChild(overlay);
+        
+        if (data.success) {
+            const message = qualifiedOnly 
+                ? `Successfully approved ${applicationIds.length} qualified application(s).` 
+                : `Successfully approved ${applicationIds.length} application(s).`;
+            
+            // Show undo toast if undo is available
+            if (data.can_undo) {
+                showUndoToast(message, applicationIds.length);
+            } else {
+                alert(message);
+                location.reload();
+            }
+        } else {
+            alert('Error: ' + (data.message || 'Failed to approve applications'));
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(overlay);
+        alert('Error: ' + error.message);
+    });
+}
+
+function showUndoToast(message, count) {
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('undoToastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'undoToastContainer';
+        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast
+    const toastId = 'undoToast_' + Date.now();
+    const toast = document.createElement('div');
+    toast.id = toastId;
+    toast.className = 'alert alert-success alert-dismissible fade show';
+    toast.style.cssText = 'min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+    toast.innerHTML = `
+        <strong><i class="fas fa-check-circle mr-2"></i>${message}</strong>
+        <div class="mt-2">
+            <button type="button" class="btn btn-sm btn-warning mr-2" onclick="performUndo()">
+                <i class="fas fa-undo mr-1"></i>Undo
+            </button>
+            <small class="text-muted">Auto-dismissing in <span id="undoCountdown">5</span>s</small>
+        </div>
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Countdown timer
+    let countdown = 5;
+    const countdownEl = document.getElementById('undoCountdown');
+    const countdownInterval = setInterval(() => {
+        countdown--;
+        if (countdownEl) {
+            countdownEl.textContent = countdown;
+        }
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            $(toast).alert('close');
+            setTimeout(() => {
+                location.reload();
+            }, 300);
+        }
+    }, 1000);
+    
+    // Store countdown interval for cleanup
+    window.undoCountdownInterval = countdownInterval;
+    
+    // Handle manual close
+    $(toast).on('closed.bs.alert', function () {
+        clearInterval(countdownInterval);
+        if (!window.undoPerformed) {
+            location.reload();
+        }
+    });
+}
+
+function performUndo() {
+    // Clear countdown
+    if (window.undoCountdownInterval) {
+        clearInterval(window.undoCountdownInterval);
+    }
+    
+    // Mark that undo is being performed
+    window.undoPerformed = true;
+    
+    // Show loading
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+    overlay.innerHTML = '<div class="spinner-border text-light" style="width: 3rem; height: 3rem;" role="status"></div>';
+    document.body.appendChild(overlay);
+    
+    // Send undo request
+    fetch('{{ url_for("admin.undo_bulk_approve") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.body.removeChild(overlay);
+        
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to undo approval'));
+            window.undoPerformed = false;
+        }
+    })
+    .catch(error => {
+        document.body.removeChild(overlay);
+        alert('Error: ' + error.message);
+        window.undoPerformed = false;
+    });
+}
+</script>
+
 {% endblock %}

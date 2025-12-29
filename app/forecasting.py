@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import warnings
+import os
 
 # Suppress warnings from statsmodels during model fitting
 warnings.filterwarnings('ignore', category=UserWarning)
@@ -15,6 +16,9 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 # Constants for simple linear forecast confidence intervals
 CONFIDENCE_LOWER_MULTIPLIER = 0.8
 CONFIDENCE_UPPER_MULTIPLIER = 1.2
+
+# Force ARIMA override (set env var FORECAST_FORCE_ARIMA=true or query param)
+FORCE_ARIMA_MODE = os.environ.get('FORECAST_FORCE_ARIMA', 'false').lower() == 'true'
 
 
 def prepare_time_series_data(labels, values):
@@ -26,7 +30,7 @@ def prepare_time_series_data(labels, values):
         values: List of numeric values corresponding to each label
         
     Returns:
-        pandas Series with datetime index
+        pandas Series with datetime index, properly sorted and gap-filled
     """
     if not labels or not values or len(labels) != len(values):
         return None
@@ -49,46 +53,76 @@ def prepare_time_series_data(labels, values):
     
     # Create pandas Series with datetime index
     series = pd.Series(values, index=pd.DatetimeIndex(dates))
+    
+    # Sort by index and set monthly frequency
     series = series.sort_index()
+    series = series.asfreq('MS')  # Month Start frequency
+    
+    # Fill gaps with interpolation
+    if series.isnull().any():
+        series = series.interpolate(method='linear', limit_direction='both')
+        # If still has NaN (e.g., at edges), forward/backward fill
+        series = series.fillna(method='ffill').fillna(method='bfill')
     
     return series
 
 
-def arima_forecast(historical_data, historical_labels, periods=6):
+def arima_forecast(historical_data, historical_labels, periods=6, force_arima=None):
     """
-    Generate forecasts using ARIMA model.
+    Generate forecasts using ARIMA model with improved robustness.
     
     Args:
         historical_data: List of historical values
         historical_labels: List of date labels for historical data
         periods: Number of future periods to forecast (default: 6)
+        force_arima: Override to force ARIMA mode (default: None, uses env var)
         
     Returns:
         dict with forecast_labels, forecast_values, confidence_lower, confidence_upper
     """
+    # Check force mode
+    force_mode = force_arima if force_arima is not None else FORCE_ARIMA_MODE
+    
     try:
         from statsmodels.tsa.arima.model import ARIMA
+        from statsmodels.tools.sm_exceptions import ConvergenceWarning
+        warnings.filterwarnings('ignore', category=ConvergenceWarning)
     except ImportError:
         # Fallback to simple linear forecast if statsmodels is not available
         return simple_linear_forecast(historical_data, historical_labels, periods)
     
-    # Need at least 3 data points for ARIMA
-    if not historical_data or len(historical_data) < 3:
-        return simple_linear_forecast(historical_data, historical_labels, periods)
+    # Minimum data points: need at least 12 for monthly seasonality (1 year)
+    min_points = 6 if force_mode else 12
+    if not historical_data or len(historical_data) < min_points:
+        if force_mode:
+            print(f"⚠️ FORCE_ARIMA mode: only {len(historical_data)} points, proceeding anyway")
+        else:
+            return simple_linear_forecast(historical_data, historical_labels, periods)
     
-    # Prepare time series
+    # Prepare time series with gap filling
     series = prepare_time_series_data(historical_labels, historical_data)
     
     if series is None:
         return simple_linear_forecast(historical_data, historical_labels, periods)
     
     try:
-        # Fit ARIMA model with order (1, 1, 1) - a commonly stable configuration
-        # p=1: One autoregressive term
-        # d=1: First-order differencing for stationarity
-        # q=1: One moving average term
-        model = ARIMA(series, order=(1, 1, 1))
-        fitted_model = model.fit()
+        # Determine seasonality: 12 for monthly data (need ≥36 points for 3 cycles)
+        seasonal_order = (0, 0, 0, 0)  # No seasonality by default
+        if len(series) >= 36:
+            seasonal_order = (1, 1, 1, 12)  # Seasonal ARIMA with 12-month period
+        
+        # Fit ARIMA model with relaxed constraints for better convergence
+        # order=(1, 1, 1): Standard ARIMA configuration
+        model = ARIMA(
+            series, 
+            order=(1, 1, 1),
+            seasonal_order=seasonal_order,
+            enforce_stationarity=False,  # Relax stationarity constraint
+            enforce_invertibility=False  # Relax invertibility constraint
+        )
+        
+        # Fit with default method (powell is more stable than lbfgs)
+        fitted_model = model.fit(maxiter=300, disp=False)
         
         # Generate forecast
         forecast_result = fitted_model.get_forecast(steps=periods)
@@ -111,18 +145,70 @@ def arima_forecast(historical_data, historical_labels, periods=6):
         confidence_lower = [max(0, round(v)) for v in confidence_lower]
         confidence_upper = [max(0, round(v)) for v in confidence_upper]
         
+        model_name = f"ARIMA(1,1,1)"
+        if seasonal_order != (0, 0, 0, 0):
+            model_name += f"x{seasonal_order}12"
+        
         return {
             'forecast_labels': forecast_labels,
             'forecast_values': forecast_values,
             'confidence_lower': confidence_lower,
             'confidence_upper': confidence_upper,
-            'model': 'ARIMA(1,1,1)',
-            'success': True
+            'model': model_name,
+            'success': True,
+            'data_points': len(series)
         }
         
     except Exception as e:
-        # If ARIMA fails, fall back to simpler forecast
-        return simple_linear_forecast(historical_data, historical_labels, periods)
+        # Try fallback configurations
+        print(f"⚠️ Initial ARIMA(1,1,1) failed: {str(e)}")
+        
+        # Fallback 1: Try simpler order (0, 1, 0) - random walk with drift
+        try:
+            print("  → Trying simpler ARIMA(0,1,0)...")
+            model = ARIMA(
+                series, 
+                order=(0, 1, 0),
+                seasonal_order=(0, 0, 0, 0),
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+            fitted_model = model.fit(maxiter=200, disp=False)
+            
+            forecast_result = fitted_model.get_forecast(steps=periods)
+            forecast_values = forecast_result.predicted_mean.tolist()
+            conf_int = forecast_result.conf_int(alpha=0.05)
+            confidence_lower = conf_int.iloc[:, 0].tolist()
+            confidence_upper = conf_int.iloc[:, 1].tolist()
+            
+            last_date = series.index[-1]
+            forecast_labels = []
+            for i in range(1, periods + 1):
+                next_date = last_date + pd.DateOffset(months=i)
+                forecast_labels.append(next_date.strftime('%b %Y'))
+            
+            forecast_values = [max(0, round(v)) for v in forecast_values]
+            confidence_lower = [max(0, round(v)) for v in confidence_lower]
+            confidence_upper = [max(0, round(v)) for v in confidence_upper]
+            
+            print("  ✓ Fallback ARIMA(0,1,0) succeeded")
+            return {
+                'forecast_labels': forecast_labels,
+                'forecast_values': forecast_values,
+                'confidence_lower': confidence_lower,
+                'confidence_upper': confidence_upper,
+                'model': 'ARIMA(0,1,0) - Fallback',
+                'success': True,
+                'data_points': len(series)
+            }
+        except Exception as e2:
+            print(f"  ✗ Fallback failed: {str(e2)}")
+        
+        # Fallback 2: Linear regression if all ARIMA fails
+        print("  → Falling back to linear forecast")
+        fallback = simple_linear_forecast(historical_data, historical_labels, periods)
+        fallback['arima_error'] = str(e)
+        return fallback
 
 
 def simple_linear_forecast(historical_data, historical_labels, periods=6):

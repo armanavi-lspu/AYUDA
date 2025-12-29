@@ -115,7 +115,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Program Period <span class="text-danger">*</span></label>
-                                <select class="form-control" name="program_period" required>
+                                <select class="form-control" name="program_period" id="programPeriod" required>
                                     <option value="">Select Period</option>
                                     <option value="Ongoing">Ongoing</option>
                                     <option value="Monthly">Monthly</option>
@@ -126,6 +126,28 @@
                                     <option value="Emergency">Emergency</option>
                                     <option value="Seasonal">Seasonal</option>
                                 </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Program Duration Fields -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program Start Date</label>
+                                <input type="date" class="form-control" name="start_date" id="startDate">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> When the program begins accepting applications (optional)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program End Date / Deadline</label>
+                                <input type="date" class="form-control" name="end_date" id="endDate">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Last day for application/document submission (optional but recommended for one-time programs)
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -546,8 +568,25 @@
         });
     });
     
+    // Date validation
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const programPeriodSelect = document.getElementById('programPeriod');
+    
+    // Highlight duration fields for one-time programs
+    programPeriodSelect.addEventListener('change', function() {
+        const durationRow = startDateInput.closest('.row');
+        if (this.value === 'One-time') {
+    document.querySelectorAll('.custom-file-input').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+    
     document.querySelectorAll('.req-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
+        checkbox.addEventListe ner('change', function() {
             const reqId = this.value;
             const mandatoryCheckbox = document.getElementById('addMandatory' + reqId);
             
@@ -560,6 +599,47 @@
                 }
             }
         });
+    });
+    
+    // Date validation
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const programPeriodSelect = document.getElementById('programPeriod');
+    
+    // Highlight duration fields for one-time programs
+    programPeriodSelect.addEventListener('change', function() {
+        const durationRow = startDateInput.closest('.row');
+        if (this.value === 'One-time') {
+            durationRow.classList.add('border', 'border-warning', 'rounded', 'p-2', 'bg-light');
+            endDateInput.closest('.form-group').querySelector('label').innerHTML = 
+                'Program End Date / Deadline <span class="badge badge-warning">Recommended</span>';
+        } else {
+            durationRow.classList.remove('border', 'border-warning', 'rounded', 'p-2', 'bg-light');
+            endDateInput.closest('.form-group').querySelector('label').innerHTML = 
+                'Program End Date / Deadline';
+        }
+    });
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    startDateInput.setAttribute('min', today);
+    
+    // Validate end date is after start date
+    startDateInput.addEventListener('change', function() {
+        if (this.value) {
+            endDateInput.setAttribute('min', this.value);
+            if (endDateInput.value && endDateInput.value < this.value) {
+                endDateInput.value = '';
+                alert('End date must be after start date');
+            }
+        }
+    });
+    
+    endDateInput.addEventListener('change', function() {
+        if (startDateInput.value && this.value && this.value < startDateInput.value) {
+            this.value = '';
+            alert('End date must be after start date');
+        }
     });
 </script>
 {% endblock %}
