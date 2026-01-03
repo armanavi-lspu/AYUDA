@@ -4,120 +4,20 @@
 {% block extra_css %}
 <style>
     .signup-container {
-        max-width: 800px;
+        max-width: 600px;
         margin: 0 auto;
     }
-    
-    /* Progress Bar Styles */
-    .progress-bar-container {
-        margin-bottom: 2rem;
-    }
-    
-    .step-indicator {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-    
-    .step {
-        flex: 1;
-        text-align: center;
-        position: relative;
-    }
-    
-    .step-number {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #e9ecef;
-        color: #6c757d;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-        transition: all 0.3s ease;
-    }
-    
-    .step.active .step-number {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        transform: scale(1.1);
-    }
-    
-    .step.completed .step-number {
-        background: #28a745;
-        color: white;
-    }
-    
-    .step-title {
-        font-size: 0.875rem;
-        color: #6c757d;
-    }
-    
-    .step.active .step-title {
-        color: #667eea;
-        font-weight: 600;
-    }
-    
-    /* Form Step Styles */
-    .form-step {
-        display: none;
-        animation: fadeIn 0.5s;
-    }
-    
-    .form-step.active {
-        display: block;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
+
     .form-section {
         background: #f8f9fc;
         padding: 2rem;
         border-radius: 8px;
         margin-bottom: 1.5rem;
     }
-    
+
     .required-field::after {
         content: " *";
         color: #e74a3b;
-    }
-    
-    .form-navigation {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-    }
-    
-    .btn-step {
-        min-width: 120px;
-    }
-
-    /* Conditional Input Styles */
-    .conditional-input {
-        margin-left: 2rem;
-        margin-top: 0.5rem;
-        display: none;
-        animation: slideDown 0.3s ease;
-    }
-
-    .conditional-input.show {
-        display: block;
-    }
-
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
     }
 
     .bg-gradient-primary {
@@ -130,25 +30,15 @@
         color: white !important;
     }
 
-    /* Enhanced Bootstrap Validation Styles */
-    .was-validated .form-control:invalid,
+    /* Form Control Validation */
+    .form-control:invalid,
     .form-control.is-invalid {
         border-color: #dc3545;
-        padding-right: calc(1.5em + 0.75rem);
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right calc(0.375em + 0.1875rem) center;
-        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
     }
 
-    .was-validated .form-control:valid,
+    .form-control:valid,
     .form-control.is-valid {
         border-color: #28a745;
-        padding-right: calc(1.5em + 0.75rem);
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right calc(0.375em + 0.1875rem) center;
-        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
     }
 
     .invalid-feedback,
@@ -176,6 +66,23 @@
     .form-control.is-valid ~ .valid-feedback {
         display: block;
     }
+
+    .date-input-wrapper {
+        position: relative;
+    }
+
+    .date-input-wrapper input[type="date"] {
+        padding-right: 40px;
+    }
+
+    .calendar-icon {
+        position: absolute;
+        right: 12px;
+        top: 38px;
+        pointer-events: none;
+        color: #667eea;
+        font-size: 1.2rem;
+    }
 </style>
 {% endblock %}
 
@@ -188,333 +95,140 @@
                 <h2 class="text-left mb-2">
                     <i class="fas fa-user-plus mr-2"></i>Create Your Account
                 </h2>
-                <p class="text-left mb-0">Join AYUDA Community Program</p>
+                <p class="text-left mb-0">Join <strong> AYUDA </strong> Community Program</p>
             </div>
 
             <div class="card-body p-4">
-                <!-- Progress Indicator -->
-                <div class="progress-bar-container">
-                    <div class="step-indicator">
-                        <div class="step active" data-step="1">
-                            <div class="step-number">1</div>
-                            <div class="step-title">Account</div>
-                        </div>
-                        <div class="step" data-step="2">
-                            <div class="step-number">2</div>
-                            <div class="step-title">Personal</div>
-                        </div>
-                        <div class="step" data-step="3">
-                            <div class="step-number">3</div>
-                            <div class="step-title">Address</div>
-                        </div>
-                        <div class="step" data-step="4">
-                            <div class="step-number">4</div>
-                            <div class="step-title">Details</div>
-                        </div>
-                        <div class="step" data-step="5">
-                            <div class="step-number">5</div>
-                            <div class="step-title">Review</div>
-                        </div>
-                    </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-primary" id="progressBar" role="progressbar" style="width: 20%"></div>
-                    </div>
-                </div>
+                <h5 class="mb-4"><i class="fas mr-2"></i> Please fill out the necessary information below</h5>
 
-                <!-- Multi-Step Form -->
-                <form method="POST" id="multiStepForm" novalidate>
-                    <!-- Step 1: Account Information -->
-                    <div class="form-step active" data-step="1">
-                        <div class="form-section">
-                            <h5 class="mb-4"><i class="fas fa-shield-alt mr-2"></i>Account Information</h5>
-                            
-                            <div class="form-group">
-                                <label for="email" class="required-field">Email Address</label>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       placeholder="juan.delacruz123@gmail.com" required>
-                                <div class="invalid-feedback">
-                                    Please provide a valid email address.
-                                </div>
-                                <div class="valid-feedback">
-                                    Email looks good!
-                                </div>
-                                <small class="form-text text-muted">We'll use this for account verification</small>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="password1" class="required-field">Password</label>
-                                        <input type="password" class="form-control" id="password1" 
-                                               name="password1" placeholder="Min. 7 characters" 
-                                               minlength="7" required>
-                                        <div class="invalid-feedback">
-                                            Password must be at least 7 characters long.
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Strong password!
-                                        </div>
+                <!-- Sign Up Form -->
+                <form method="POST" id="signUpForm" novalidate>
+                    <div class="form-section">
+
+                        <div class="row">
+                            <!-- First Name -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="firstName" class="required-field">First Name</label>
+                                    <input type="text" class="form-control" id="firstName" 
+                                           name="firstName" placeholder="Juan" 
+                                           pattern="[A-Za-z\s]+" required>
+                                    <div class="invalid-feedback">
+                                        Please provide your first name (letters only).
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="password2" class="required-field">Confirm Password</label>
-                                        <input type="password" class="form-control" id="password2" 
-                                               name="password2" placeholder="Re-enter password" required>
-                                        <div class="invalid-feedback" id="password2Feedback">
-                                            Passwords must match.
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Passwords match!
-                                        </div>
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="lastName" class="required-field">Last Name</label>
+                                    <input type="text" class="form-control" id="lastName" 
+                                           name="lastName" placeholder="Dela Cruz" 
+                                           pattern="[A-Za-z\s]+" required>
+                                    <div class="invalid-feedback">
+                                        Please provide your last name (letters only).
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Step 2: Personal Information -->
-                    <div class="form-step" data-step="2">
-                        <div class="form-section">
-                            <h5 class="mb-4"><i class="fas fa-user mr-2"></i>Personal Information</h5>
-                            
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="firstName" class="required-field">First Name</label>
-                                        <input type="text" class="form-control" id="firstName" 
-                                               name="firstName" pattern="[A-Za-z\s]+" required>
-                                        <div class="invalid-feedback">
-                                            Please provide your first name (letters only).
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Looks good!
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="middleName">Middle Name</label>
-                                        <input type="text" class="form-control" id="middleName" 
-                                               name="middleName" pattern="[A-Za-z\s]*">
-                                        <div class="invalid-feedback">
-                                            Letters only.
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="lastName" class="required-field">Last Name</label>
-                                        <input type="text" class="form-control" id="lastName" 
-                                               name="lastName" pattern="[A-Za-z\s]+" required>
-                                        <div class="invalid-feedback">
-                                            Please provide your last name (letters only).
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Looks good!
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="birthDate" class="required-field">Birth Date</label>
-                                        <input type="date" class="form-control" id="birthDate" 
-                                               name="birthDate" required>
-                                        <div class="invalid-feedback">
-                                            Please provide your birth date.
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Valid date!
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="mobileNo" class="required-field">Mobile Number</label>
-                                        <input type="tel" class="form-control" id="mobileNo" 
-                                               name="mobileNo" placeholder="09xxxxxxxxx" 
-                                               pattern="09[0-9]{9}" required>
-                                        <div class="invalid-feedback">
-                                            Please provide a valid Philippine mobile number (09xxxxxxxxx).
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Valid mobile number!
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Address Information -->
-                    <div class="form-step" data-step="3">
-                        <div class="form-section">
-                            <h5 class="mb-4"><i class="fas fa-map-marker-alt mr-2"></i>Address Information</h5>
-                            
-                            <div class="form-group">
-                                <label for="municipality">Municipality</label>
-                                <input type="text" class="form-control" id="municipality" 
-                                    name="municipality" value="Mabitac" readonly
-                                />
-                                <label for="barangay" class="required-field">Barangay</label>
-                                <select class="form-control" id="barangay" name="barangay" required>
-                                    <option value="">Select Barangay</option>
-                                    <option value="Amuyong">Amuyong</option>
-                                    <option value="Bayanihan">Bayanihan</option>
-                                    <option value="Lambac">Lambac</option>
-                                    <option value="Libis">Libis</option>
-                                    <option value="Lucong">Lucong</option>
-                                    <option value="Matalatala">Matalatala</option>
-                                    <option value="Nanguma">Nanguma</option>
-                                    <option value="Numero">Numero</option>
-                                    <option value="Paagahan">Paagahan</option>
-                                    <option value="Bayanihan (Pob.)">Bayanihan (Pob.)</option>
-                                    <option value="Libis (Pob.)">Libis (Pob.)</option>
-                                    <option value="Maligaya (Pob.)">Maligaya (Pob.)</option>
-                                    <option value="Masikap (Pob.)">Masikap (Pob.)</option>
-                                    <option value="Pag-asa (Pob.)">Pag-asa (Pob.)</option>
-                                    <option value="Sinagtala (Pob.)">Sinagtala (Pob.)</option>
-                                </select>
-                                <div class="invalid-feedback">
-                                    Please select your barangay.
-                                </div>
-                                <div class="valid-feedback">
-                                    Barangay selected!
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="sitio">Sitio/Purok</label>
-                                <input type="text" class="form-control" id="sitio" name="sitio" 
-                                       placeholder="e.g., Purok 1, Sitio Maligaya">
-                                <small class="form-text text-muted">Optional: Enter your Sitio or Purok</small>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="address" class="required-field">Complete Address</label>
-                                <textarea class="form-control" id="address" name="address" 
-                                          rows="3" placeholder="House No., Street Name, Purok/Sitio, Barangay" 
-                                          minlength="10" required></textarea>
-                                <div class="invalid-feedback">
-                                    Please provide your complete address (at least 10 characters).
-                                </div>
-                                <div class="valid-feedback">
-                                    Address looks complete!
-                                </div>
-                                <small class="form-text text-muted">Example: Blk 5 Lot 12, Rizal Street</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 4: Additional Details -->
-                    <div class="form-step" data-step="4">
-                        <div class="form-section">
-                            <h5 class="mb-4"><i class="fas fa-info-circle mr-2"></i>Additional Details</h5>
-                            
-                            <div class="form-group">
-                                <div class="custom-control custom-checkbox mb-3">
-                                    <input type="checkbox" class="custom-control-input" 
-                                           id="isEmployed" name="isEmployed" onchange="toggleEmploymentInput()">
-                                    <label class="custom-control-label" for="isEmployed">
-                                        <i class="fas fa-briefcase mr-1"></i> I am currently employed
-                                    </label>
-                                </div>
-                                <div id="occupationContainer" class="conditional-input">
-                                    <div class="form-group">
-                                        <label for="occupation" class="required-field">Current Occupation</label>
-                                        <input type="text" class="form-control" id="occupation" 
-                                               name="occupation" placeholder="e.g., Teacher, Driver, Vendor">
-                                        <div class="invalid-feedback">
-                                            Please specify your occupation.
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Occupation noted!
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="custom-control custom-checkbox mb-3">
-                                    <input type="checkbox" class="custom-control-input" 
-                                           id="isStudent" name="isStudent">
-                                    <label class="custom-control-label" for="isStudent">
-                                        <i class="fas fa-graduation-cap mr-1"></i> I am a student
-                                    </label>
-                                </div>
-                                
-                                <div class="custom-control custom-checkbox mb-3">
-                                    <input type="checkbox" class="custom-control-input" 
-                                           id="isSoloParent" name="isSoloParent">
-                                    <label class="custom-control-label" for="isSoloParent">
-                                        <i class="fas fa-heart mr-1"></i> I am a solo parent
-                                    </label>
-                                </div>
-
-                                <div class="custom-control custom-checkbox mb-3">
-                                    <input type="checkbox" class="custom-control-input" 
-                                           id="isPWD" name="isPWD" onchange="togglePWDInput()">
-                                    <label class="custom-control-label" for="isPWD">
-                                        <i class="fas fa-wheelchair mr-1"></i> I am a Person with Disability (PWD)
-                                    </label>
-                                </div>
-                                <div id="disabilityContainer" class="conditional-input">
-                                    <div class="form-group">
-                                        <label for="disabilityType" class="required-field">Type of Disability</label>
-                                        <input type="text" class="form-control" id="disabilityType" 
-                                               name="disabilityType" placeholder="Please specify your disability">
-                                        <div class="invalid-feedback">
-                                            Please specify your disability type.
-                                        </div>
-                                        <div class="valid-feedback">
-                                            Information noted!
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="form-group mt-4">
-                                    <label for="familyIncome">Annual Family Income (Optional)</label>
-                                    <input type="number" class="form-control" id="familyIncome" 
-                                           name="familyIncome" placeholder="₱0" min="0">
-                                    <small class="form-text text-muted">This helps us better assess your eligibility for programs</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 5: Review & Submit -->
-                    <div class="form-step" data-step="5">
-                        <div class="form-section">
-                            <h5 class="mb-4"><i class="fas fa-check-circle mr-2"></i>Review Your Information</h5>
-                            <div id="reviewContent"></div>
-                        </div>
-                        
+                        <!-- Birthdate with Calendar Picker -->
                         <div class="form-group">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" 
-                                       id="agreeTerms" name="agreeTerms" required>
-                                <label class="custom-control-label" for="agreeTerms">
-                                    I agree to the <a href="/privacy" target="_blank">Terms and Conditions</a>
-                                </label>
-                                <div class="invalid-feedback">
-                                    You must agree before submitting.
-                                </div>
+                            <label for="birthDate" class="required-field">Birth Date</label>
+                            <div class="date-input-wrapper">
+                                <input type="date" class="form-control" id="birthDate" 
+                                       name="birthDate" required>
+                                <i class="fas calendar-icon"></i>
+                            </div>
+                            <div class="invalid-feedback" id="birthDateFeedback">
+                                Please select a valid birth date.
+                            </div>                            
+                        </div>
+
+                        <!-- Gender -->
+                        <div class="form-group">
+                            <label for="gender" class="required-field">Gender</label>
+                            <select class="form-control" id="gender" name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select your gender.
+                            </div>
+                        </div>
+
+                    <!-- Email and Password Section -->
+                    
+                        <!-- Email -->
+                        <div class="form-group">
+                            <label for="email" class="required-field">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="juan.delacruz@gmail.com" required>
+                            <div class="invalid-feedback">
+                                Please provide a valid email address.
+                            </div>
+                            <div class="valid-feedback">
+                                Email is valid!
+                            </div>
+                            <small class="form-text text-muted">We'll use this for account verification</small>
+                        </div>
+
+                        <!-- New Password -->
+                        <div class="form-group">
+                            <label for="password" class="required-field">New Password</label>
+                            <input type="password" class="form-control" id="password" 
+                                   name="password" placeholder="Min. 8 characters" 
+                                   minlength="8" required>
+                            <div class="invalid-feedback">
+                                Password must be at least 8 characters long.
+                            </div>
+                            <div class="valid-feedback">
+                                Strong password!
+                            </div>
+                        </div>
+
+                        <!-- Confirm Password -->
+                        <div class="form-group">
+                            <label for="confirmPassword" class="required-field">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" 
+                                   name="confirmPassword" placeholder="Re-enter password" required>
+                            <div class="invalid-feedback">
+                                Passwords must match.
+                            </div>
+                            <div class="valid-feedback">
+                                Passwords match!
                             </div>
                         </div>
                     </div>
 
-                    <!-- Navigation Buttons -->
-                    <div class="form-navigation">
-                        <button type="button" class="btn btn-secondary btn-step" id="prevBtn" style="display: none;">
-                            <i class="fas fa-arrow-left mr-2"></i>Previous
-                        </button>
-                        <button type="button" class="btn btn-primary btn-step" id="nextBtn">
-                            Next<i class="fas fa-arrow-right ml-2"></i>
-                        </button>
-                        <button type="submit" class="btn btn-success btn-step" id="submitBtn" style="display: none;">
+                    <!-- Terms and Submit 
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" 
+                                   id="agreeTerms" name="agreeTerms" required>
+                            <label class="custom-control-label" for="agreeTerms">
+                                I agree to the <a href="/privacy" target="_blank">Terms and Conditions</a>
+                            </label>
+                            <div class="invalid-feedback">
+                                You must agree before submitting.
+                            </div>
+                        </div>
+                    </div>
+                    -->
+                    <!-- Submit Button -->
+                    <div class="d-flex justify-content-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-check mr-2"></i>Create Account
                         </button>
+                    </div>
+
+                    <!-- Login Link -->
+                    <div class="text-center mt-3">
+                        <p>Already have an account? <a href="/auth/login">Login here</a></p>
                     </div>
                 </form>
             </div>
@@ -523,19 +237,12 @@
 </div>
 
 <script>
-// Multi-Step Form Logic
-let currentStep = 1;
-const totalSteps = 5;
-
 document.addEventListener('DOMContentLoaded', function() {
-    const nextBtn = document.getElementById('nextBtn');
-    const prevBtn = document.getElementById('prevBtn');
-    const submitBtn = document.getElementById('submitBtn');
-    const form = document.getElementById('multiStepForm');
+    const form = document.getElementById('signUpForm');
     
     // Real-time validation for password matching
-    document.getElementById('password2').addEventListener('input', function() {
-        const pwd1 = document.getElementById('password1').value;
+    document.getElementById('confirmPassword').addEventListener('input', function() {
+        const pwd1 = document.getElementById('password').value;
         const pwd2 = this.value;
         
         if (pwd2 && pwd1 !== pwd2) {
@@ -547,47 +254,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Real-time validation for birth date (must be at least 18 years old)
     document.getElementById('birthDate').addEventListener('change', function() {
-        const birthDate = new Date(this.value);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        
-        if (age < 18) {
-            this.setCustomValidity('You must be at least 18 years old');
-            this.classList.add('is-invalid');
-        } else {
-            this.setCustomValidity('');
-            this.classList.remove('is-invalid');
-        }
+        validateAge();
     });
-    
-    nextBtn.addEventListener('click', function() {
-        if (validateStep(currentStep)) {
-            if (currentStep === 4) {
-                displayReview();
-            }
-            if (currentStep < totalSteps) {
-                currentStep++;
-                showStep(currentStep);
-            }
-        }
-    });
-    
-    prevBtn.addEventListener('click', function() {
-        if (currentStep > 1) {
-            currentStep--;
-            showStep(currentStep);
-        }
-    });
-    
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        if (!validateStep(currentStep)) {
+        // Validate password match
+        const pwd1 = document.getElementById('password');
+        const pwd2 = document.getElementById('confirmPassword');
+        
+        if (pwd1.value !== pwd2.value) {
+            pwd2.setCustomValidity('Passwords must match');
+            pwd2.classList.add('is-invalid');
+        } else {
+            pwd2.setCustomValidity('');
+        }
+
+        // Validate age
+        if (!validateAge()) {
             return false;
         }
         
@@ -602,199 +287,37 @@ document.addEventListener('DOMContentLoaded', function() {
         // Submit the form
         this.submit();
     });
+
+    function validateAge() {
+        const birthDateInput = document.getElementById('birthDate').value;
+
+        if (!birthDateInput) {
+            return true;
+        }
+
+        const birthDate = new Date(birthDateInput);
+        const today = new Date();
+        
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        const dateInput = document.getElementById('birthDate');
+        
+        if (age < 18) {
+            dateInput.setCustomValidity('You must be at least 18 years old');
+            dateInput.classList.add('is-invalid');
+            document.getElementById('birthDateFeedback').textContent = 'You must be at least 18 years old';
+            return false;
+        } else {
+            dateInput.setCustomValidity('');
+            dateInput.classList.remove('is-invalid');
+            return true;
+        }
+    }
 });
-
-function showStep(step) {
-    // Hide all steps
-    document.querySelectorAll('.form-step').forEach(el => {
-        el.classList.remove('active');
-    });
-    
-    // Show current step
-    document.querySelector(`.form-step[data-step="${step}"]`).classList.add('active');
-    
-    // Update progress indicator
-    document.querySelectorAll('.step').forEach((el, index) => {
-        el.classList.remove('active', 'completed');
-        if (index + 1 < step) {
-            el.classList.add('completed');
-        } else if (index + 1 === step) {
-            el.classList.add('active');
-        }
-    });
-    
-    // Update progress bar
-    const progress = (step / totalSteps) * 100;
-    document.getElementById('progressBar').style.width = progress + '%';
-    
-    // Update buttons
-    document.getElementById('prevBtn').style.display = step === 1 ? 'none' : 'block';
-    document.getElementById('nextBtn').style.display = step === totalSteps ? 'none' : 'block';
-    document.getElementById('submitBtn').style.display = step === totalSteps ? 'block' : 'none';
-    
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function validateStep(step) {
-    const currentStepElement = document.querySelector(`.form-step[data-step="${step}"]`);
-    const inputs = currentStepElement.querySelectorAll('input, select, textarea');
-    
-    let isValid = true;
-    
-    inputs.forEach(input => {
-        // Skip validation for hidden conditional inputs
-        if (input.closest('.conditional-input') && !input.closest('.conditional-input').classList.contains('show')) {
-            input.removeAttribute('required');
-            return;
-        }
-        
-        // Check validity
-        if (!input.checkValidity()) {
-            input.classList.add('is-invalid');
-            input.classList.remove('is-valid');
-            isValid = false;
-        } else if (input.value.trim() !== '' || input.hasAttribute('required')) {
-            input.classList.remove('is-invalid');
-            input.classList.add('is-valid');
-        }
-    });
-    
-    // Special validation for password match
-    if (step === 1) {
-        const pwd1 = document.getElementById('password1');
-        const pwd2 = document.getElementById('password2');
-        
-        if (pwd1.value !== pwd2.value) {
-            pwd2.setCustomValidity('Passwords must match');
-            pwd2.classList.add('is-invalid');
-            pwd2.classList.remove('is-valid');
-            isValid = false;
-        } else {
-            pwd2.setCustomValidity('');
-            if (pwd2.value) {
-                pwd2.classList.remove('is-invalid');
-                pwd2.classList.add('is-valid');
-            }
-        }
-        
-        if (pwd1.value.length < 7) {
-            pwd1.classList.add('is-invalid');
-            pwd1.classList.remove('is-valid');
-            isValid = false;
-        }
-    }
-
-    // Validate conditional fields in step 4
-    if (step === 4) {
-        const isEmployed = document.getElementById('isEmployed').checked;
-        const occupation = document.getElementById('occupation');
-        
-        if (isEmployed) {
-            occupation.setAttribute('required', 'required');
-            if (!occupation.value.trim()) {
-                occupation.classList.add('is-invalid');
-                occupation.classList.remove('is-valid');
-                isValid = false;
-            } else {
-                occupation.classList.remove('is-invalid');
-                occupation.classList.add('is-valid');
-            }
-        } else {
-            occupation.removeAttribute('required');
-            occupation.classList.remove('is-invalid', 'is-valid');
-        }
-
-        const isPWD = document.getElementById('isPWD').checked;
-        const disabilityType = document.getElementById('disabilityType');
-        
-        if (isPWD) {
-            disabilityType.setAttribute('required', 'required');
-            if (!disabilityType.value.trim()) {
-                disabilityType.classList.add('is-invalid');
-                disabilityType.classList.remove('is-valid');
-                isValid = false;
-            } else {
-                disabilityType.classList.remove('is-invalid');
-                disabilityType.classList.add('is-valid');
-            }
-        } else {
-            disabilityType.removeAttribute('required');
-            disabilityType.classList.remove('is-invalid', 'is-valid');
-        }
-    }
-    
-    if (!isValid) {
-        // Focus on first invalid input
-        const firstInvalid = currentStepElement.querySelector('.is-invalid');
-        if (firstInvalid) {
-            firstInvalid.focus();
-        }
-    }
-    
-    return isValid;
-}
-
-function toggleEmploymentInput() {
-    const checkbox = document.getElementById('isEmployed');
-    const container = document.getElementById('occupationContainer');
-    const input = document.getElementById('occupation');
-    
-    if (checkbox.checked) {
-        container.classList.add('show');
-        input.setAttribute('required', 'required');
-        setTimeout(() => input.focus(), 300);
-    } else {
-        container.classList.remove('show');
-        input.removeAttribute('required');
-        input.value = '';
-        input.classList.remove('is-invalid', 'is-valid');
-    }
-}
-
-function togglePWDInput() {
-    const checkbox = document.getElementById('isPWD');
-    const container = document.getElementById('disabilityContainer');
-    const input = document.getElementById('disabilityType');
-    
-    if (checkbox.checked) {
-        container.classList.add('show');
-        input.setAttribute('required', 'required');
-        setTimeout(() => input.focus(), 300);
-    } else {
-        container.classList.remove('show');
-        input.removeAttribute('required');
-        input.value = '';
-        input.classList.remove('is-invalid', 'is-valid');
-    }
-}
-
-function displayReview() {
-    const reviewContent = document.getElementById('reviewContent');
-    const formData = {
-        'Email': document.getElementById('email').value,
-        'Name': `${document.getElementById('firstName').value} ${document.getElementById('middleName').value} ${document.getElementById('lastName').value}`.trim(),
-        'Birth Date': document.getElementById('birthDate').value,
-        'Mobile': document.getElementById('mobileNo').value,
-        'Barangay': document.getElementById('barangay').value,
-        'Sitio/Purok': document.getElementById('sitio').value || 'N/A',
-        'Address': document.getElementById('address').value,
-        'Employed': document.getElementById('isEmployed').checked ? 'Yes' : 'No',
-        'Occupation': document.getElementById('occupation').value || 'N/A',
-        'Student': document.getElementById('isStudent').checked ? 'Yes' : 'No',
-        'Solo Parent': document.getElementById('isSoloParent').checked ? 'Yes' : 'No',
-        'PWD': document.getElementById('isPWD').checked ? 'Yes' : 'No',
-        'Disability Type': document.getElementById('disabilityType').value || 'N/A',
-        'Family Income': document.getElementById('familyIncome').value ? '₱' + Number(document.getElementById('familyIncome').value).toLocaleString() : 'Not provided'
-    };
-    
-    let html = '<div class="table-responsive"><table class="table table-bordered table-striped">';
-    for (const [key, value] of Object.entries(formData)) {
-        html += `<tr><th style="width: 30%;">${key}</th><td>${value}</td></tr>`;
-    }
-    html += '</table></div>';
-    
-    reviewContent.innerHTML = html;
-}
 </script>
 {% endblock %}

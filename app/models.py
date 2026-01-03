@@ -315,6 +315,7 @@ class CommunityUsers(db.Model):
     birth_month = db.Column(db.Integer)
     birth_day = db.Column(db.Integer)
     birth_year = db.Column(db.Integer)
+    gender = db.Column(db.String(50))
     barangay = db.Column(db.String(100), index=True)  
     sitio = db.Column(db.String(100))
     address = db.Column(db.Text)
