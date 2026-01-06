@@ -157,6 +157,70 @@
         </div>
     </div>  
               
+    <!-- Profile Completion Alert -->
+    {% if completion and not completion.is_complete %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #f6c23e;">
+                <div class="d-flex align-items-center">
+                    <div class="mr-3">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="alert-heading mb-2">
+                            <i class="fas fa-user-edit mr-2"></i>Complete Your Profile
+                        </h5>
+                        <p class="mb-2">
+                            Your profile is <strong>{{ completion.percentage }}% complete</strong>. 
+                            Please complete all required fields to apply for assistance programs.
+                        </p>
+                        <p class="mb-2 text-muted">
+                            <strong>Missing fields ({{ completion.missing_count }}):</strong>
+                            {{ completion.missing_fields|join(', ') }}
+                        </p>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ completion.percentage }}%;" 
+                                 aria-valuenow="{{ completion.percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <a href="{{ url_for('community.edit_profile') }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit mr-1"></i>Complete Profile Now
+                        </a>
+                    </div>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif completion and completion.is_complete %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #1cc88a;">
+                <div class="d-flex align-items-center">
+                    <div class="mr-3">
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="alert-heading mb-1">
+                            <i class="fas fa-user-check mr-2"></i>Profile Complete!
+                        </h5>
+                        <p class="mb-0">
+                            Your profile is <strong>{{ completion.percentage }}% complete</strong>. 
+                            You can now apply for all available assistance programs!
+                        </p>
+                    </div>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Bootstrap Statistics Cards with Enhanced Interactivity -->
     <div class="row mb-4">
@@ -242,8 +306,9 @@
                             <div class="h3 mb-0 font-weight-bold text-danger" id="announcementsCount"><strong>{{ new_announcements }}</strong></div>
                             {% if new_announcements > 0 %}
                             <div class="mt-1">
-                                    <a href="{{ url_for('community.announcements') }}" class="text-xs font-weight-light text-danger">
+                                <a href="{{ url_for('community.announcements') }}" class="text-xs font-weight-light text-danger">
                                     <i class="fas fa-bell mr-1"></i>New updates
+                                </a>
                             </div>
                             {% endif %}
                         </div>

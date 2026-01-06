@@ -427,6 +427,18 @@
                 <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
                     <i class="fas fa-ban mr-2"></i>Applications Closed
                 </button>
+                {% elif completion and not completion.is_complete %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-user-edit mr-2"></i>
+                    <strong>Complete Your Profile First!</strong><br>
+                    Your profile is {{ completion.percentage }}% complete. You need to complete all required fields to apply.
+                    <br><br>
+                    <strong>Missing fields ({{ completion.missing_count }}):</strong><br>
+                    <small>{{ completion.missing_fields|join(', ') }}</small>
+                </div>
+                <a href="{{ url_for('community.edit_profile') }}" class="btn btn-warning btn-lg btn-block">
+                    <i class="fas fa-edit mr-2"></i>Complete Profile to Apply
+                </a>
                 {% else %}
                 <p class="text-muted small mb-3">Submit your application for this program</p>
                 <button type="button" 

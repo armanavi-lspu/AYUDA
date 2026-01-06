@@ -1,0 +1,431 @@
+{% extends "community/community_base.html" %}
+{% block title %}My Profile - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #667eea;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        margin: 0 auto 1rem;
+    }
+    
+    .info-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        transition: transform 0.3s ease;
+    }
+    
+    .info-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: #3a3b45;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e3e6f0;
+    }
+    
+    .info-value:last-child {
+        border-bottom: none;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-yes {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-no {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #3a3b45;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #667eea;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Profile Header -->
+<div class="profile-header">
+    <div class="container">
+        <div class="text-center">
+            <div class="profile-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2 class="mb-2">{{ user.first_name }} {{ user.middle_name or '' }} {{ user.last_name }}</h2>
+            <p class="mb-3 text-white-50">
+                <i class="fas fa-envelope mr-2"></i>{{ user.email }}
+            </p>
+            
+            <!-- Profile Completion Progress -->
+            {% if completion %}
+            <div class="mb-3">
+                <div class="progress mx-auto" style="height: 25px; max-width: 400px; background: rgba(255,255,255,0.2);">
+                    <div class="progress-bar {% if completion.is_complete %}bg-success{% else %}bg-warning{% endif %}" 
+                         role="progressbar" 
+                         style="width: {{ completion.percentage }}%;" 
+                         aria-valuenow="{{ completion.percentage }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <strong>{{ completion.percentage }}% Complete</strong>
+                    </div>
+                </div>
+                <small class="d-block mt-2 text-white-50">
+                    {% if completion.is_complete %}
+                        <i class="fas fa-check-circle mr-1"></i>Your profile is complete!
+                    {% else %}
+                        <i class="fas fa-info-circle mr-1"></i>{{ completion.missing_count }} required fields remaining
+                    {% endif %}
+                </small>
+            </div>
+            {% endif %}
+            
+            <a href="{{ url_for('community.edit_profile') }}" class="btn btn-light btn-lg">
+                <i class="fas fa-edit mr-2"></i>Edit Profile
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="container pb-5">
+    
+    <!-- Profile Completion Details -->
+    {% if completion and not completion.is_complete %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning" style="border-left: 5px solid #f6c23e;">
+                <h5 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Complete Your Profile to Apply for Programs
+                </h5>
+                <p class="mb-2">
+                    You need to complete the following required fields before you can submit applications:
+                </p>
+                <ul class="mb-3">
+                    {% for field in completion.missing_fields %}
+                    <li>{{ field }}</li>
+                    {% endfor %}
+                </ul>
+                <a href="{{ url_for('community.edit_profile') }}" class="btn btn-warning">
+                    <i class="fas fa-edit mr-2"></i>Complete Profile Now
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <!-- Personal Information -->
+        <div class="col-lg-6 mb-4">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="section-title">
+                        <i class="fas fa-user-circle mr-2"></i>Personal Information
+                    </h5>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Full Name</div>
+                        <div class="info-value">
+                            {{ user.first_name }} {{ user.middle_name or '' }} {{ user.last_name }}
+                        </div>
+                    </div>
+                    
+                    {% if profile %}
+                    <div class="mb-3">
+                        <div class="info-label">Age</div>
+                        <div class="info-value">
+                            {{ profile.age or 'Not specified' }} years old
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Gender</div>
+                        <div class="info-value">
+                            {{ profile.gender or 'Not specified' }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Date of Birth</div>
+                        <div class="info-value">
+                            {% if profile.birth_month and profile.birth_day and profile.birth_year %}
+                                {{ profile.birth_month }}/{{ profile.birth_day }}/{{ profile.birth_year }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Mobile Number</div>
+                        <div class="info-value">
+                            {{ profile.mobile_no or 'Not specified' }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Email Address</div>
+                        <div class="info-value">
+                            {{ user.email }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Address Information -->
+        <div class="col-lg-6 mb-4">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="section-title">
+                        <i class="fas fa-map-marker-alt mr-2"></i>Address Information
+                    </h5>
+                    
+                    {% if profile %}
+                    <div class="mb-3">
+                        <div class="info-label">Barangay</div>
+                        <div class="info-value">
+                            {{ profile.barangay or 'Not specified' }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Sitio</div>
+                        <div class="info-value">
+                            {{ profile.sitio or 'Not specified' }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Municipality</div>
+                        <div class="info-value">
+                            {{ profile.municipality or 'Mabitac' }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Complete Address</div>
+                        <div class="info-value">
+                            {{ profile.address or 'Not specified' }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No address information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Employment & Education -->
+        <div class="col-lg-6 mb-4">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="section-title">
+                        <i class="fas fa-briefcase mr-2"></i>Employment & Education
+                    </h5>
+                    
+                    {% if profile %}
+                    <div class="mb-3">
+                        <div class="info-label">Employment Status</div>
+                        <div class="info-value">
+                            {% if profile.is_currently_employed %}
+                                <span class="status-badge status-yes">
+                                    <i class="fas fa-check-circle mr-1"></i>Employed
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-no">
+                                    <i class="fas fa-times-circle mr-1"></i>Unemployed
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Occupation</div>
+                        <div class="info-value">
+                            {{ profile.occupation or 'Not specified' }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Student Status</div>
+                        <div class="info-value">
+                            {% if profile.is_student %}
+                                <span class="status-badge status-yes">
+                                    <i class="fas fa-check-circle mr-1"></i>Currently a Student
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-no">
+                                    <i class="fas fa-times-circle mr-1"></i>Not a Student
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Family Annual Income</div>
+                        <div class="info-value">
+                            {% if profile.family_annual_income %}
+                                ₱ {{ "{:,.2f}".format(profile.family_annual_income) }}
+                            {% else %}
+                                Not specified
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No employment information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Special Categories -->
+        <div class="col-lg-6 mb-4">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="section-title">
+                        <i class="fas fa-heart mr-2"></i>Special Categories
+                    </h5>
+                    
+                    {% if profile %}
+                    <div class="mb-3">
+                        <div class="info-label">Solo Parent</div>
+                        <div class="info-value">
+                            {% if profile.is_solo_parent %}
+                                <span class="status-badge status-yes">
+                                    <i class="fas fa-check-circle mr-1"></i>Yes
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-no">
+                                    <i class="fas fa-times-circle mr-1"></i>No
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="info-label">Person with Disability (PWD)</div>
+                        <div class="info-value">
+                            {% if profile.is_pwd %}
+                                <span class="status-badge status-yes">
+                                    <i class="fas fa-check-circle mr-1"></i>Yes
+                                </span>
+                            {% else %}
+                                <span class="status-badge status-no">
+                                    <i class="fas fa-times-circle mr-1"></i>No
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if profile.is_pwd and profile.disability_type %}
+                    <div class="mb-3">
+                        <div class="info-label">Disability Type</div>
+                        <div class="info-value">
+                            {{ profile.disability_type }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted">No special category information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Information -->
+        <div class="col-lg-12 mb-4">
+            <div class="card info-card">
+                <div class="card-body">
+                    <h5 class="section-title">
+                        <i class="fas fa-info-circle mr-2"></i>Account Information
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Account Created</div>
+                            <div class="info-value">
+                                {{ user.created_at.strftime('%B %d, %Y at %I:%M %p') if user.created_at else 'Not available' }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Last Activity</div>
+                            <div class="info-value">
+                                {{ user.last_activity.strftime('%B %d, %Y at %I:%M %p') if user.last_activity else 'Not available' }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Account Type</div>
+                            <div class="info-value">
+                                <span class="badge badge-primary">Community User</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">User ID</div>
+                            <div class="info-value">
+                                #{{ user.id }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('community.edit_profile') }}" class="btn btn-primary btn-lg mr-2">
+                <i class="fas fa-edit mr-2"></i>Edit Profile
+            </a>
+            <a href="{{ url_for('community.settings') }}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-cog mr-2"></i>Settings
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

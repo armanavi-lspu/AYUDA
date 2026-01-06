@@ -4,7 +4,7 @@ from app.community import community_bp
 from datetime import datetime
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
 from werkzeug.utils import secure_filename
 import os
@@ -183,6 +183,9 @@ def program_detail(program_id):
         ).count()
         is_full = approved_count >= program.beneficiary_limit
     
+    # Get profile completion status
+    completion_data = calculate_profile_completion(current_user)
+    
     return render_template('community/program_detail.html',
                          program=program,
                          document_requirements=document_requirements,
@@ -190,6 +193,7 @@ def program_detail(program_id):
                          user_profile=user_profile,
                          is_full=is_full,
                          approved_count=approved_count,
+                         completion=completion_data,
                          today=datetime.utcnow().date())
     
 @community_bp.route('/program/<int:program_id>/apply', methods=['POST'])
@@ -198,6 +202,12 @@ def program_detail(program_id):
 def submit_application(program_id):
     """Create an application for a program"""
     program = Programs.query.get_or_404(program_id)
+    
+    # Check if profile is complete before allowing application
+    completion_data = calculate_profile_completion(current_user)
+    if not completion_data['is_complete']:
+        flash(f'Please complete your profile before applying for programs. You have {completion_data["missing_count"]} required fields missing.', 'warning')
+        return redirect(url_for('community.edit_profile'))
     
     # Check if user already has a pending application
     existing_application = Applications.query.filter_by(

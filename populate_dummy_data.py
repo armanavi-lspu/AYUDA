@@ -77,7 +77,7 @@ def populate_dummy_data():
                           'Castillo', 'Morales', 'Diaz', 'Pren']
             
             community_users = []
-            for i in range(50):  # Create 50 community users
+            for i in range(20):  # Create 20 community users (reduced from 50)
                 first_name = random.choice(first_names)
                 last_name = random.choice(last_names)
                 
@@ -92,6 +92,9 @@ def populate_dummy_data():
                 if today.month < birth_month or (today.month == birth_month and today.day < birth_day):
                     age -= 1
                 
+                # Determine gender
+                gender = random.choice(['Male', 'Female', 'Other'])
+                
                 user = User(
                     email=f'user{i+1}@test.com',
                     password_hash=generate_password_hash('password123'),
@@ -103,7 +106,19 @@ def populate_dummy_data():
                 db.session.add(user)
                 db.session.flush()
                 
-                # Create community profile matching your model structure
+                # Generate occupation if employed
+                occupations = ['Farmer', 'Driver', 'Store Owner', 'Teacher', 'Security Guard', 
+                              'Factory Worker', 'Carpenter', 'Electrician', 'Unemployed']
+                is_employed = random.choice([True, False])
+                occupation = random.choice(occupations) if is_employed else 'Unemployed'
+                
+                # Check disability status and type
+                is_pwd = random.choice([True, False]) if random.random() < 0.1 else False
+                disability_types = ['Visual Impairment', 'Hearing Impairment', 'Physical Disability', 
+                                   'Mental/Psychosocial', 'Speech Impairment']
+                disability_type = random.choice(disability_types) if is_pwd else None
+                
+                # Create community profile matching updated model structure
                 community_profile = CommunityUsers(
                     user_id=user.id,
                     age=age,
@@ -111,13 +126,17 @@ def populate_dummy_data():
                     birth_month=birth_month,
                     birth_day=birth_day,
                     birth_year=birth_year,
+                    gender=gender,
                     barangay=random.choice(barangays),
                     sitio=random.choice(sitios),
+                    address=f'{random.randint(1, 999)} Main St, {random.choice(sitios)}',
                     municipality='Mabitac',
-                    is_currently_employed=random.choice([True, False]),
+                    is_currently_employed=is_employed,
+                    occupation=occupation,
                     is_student=random.choice([True, False]) if age < 25 else False,
                     is_solo_parent=random.choice([True, False]) if age > 20 else False,
-                    is_pwd=random.choice([True, False]) if random.random() < 0.1 else False,  # 10% chance of being PWD
+                    is_pwd=is_pwd,
+                    disability_type=disability_type,
                     family_annual_income=random.randint(50000, 300000)
                 )
                 db.session.add(community_profile)
@@ -385,25 +404,23 @@ def populate_dummy_data():
             db.session.commit()
             print(f"✅ Assigned {requirements_assigned} requirements to programs\n")
             
-            # 6. Create Applications (distributed January - December, larger volume for ARIMA)
-            print("📝 Creating applications (Jan - Dec 2025, high volume for ARIMA)...")
+            # 6. Create Applications (reduced volume to stay under 60 total)
+            print("📝 Creating applications...")
 
             applications_created = 0
             current_year = 2025
 
-            # Heavier monthly volumes with seasonality (more in Q2/Q4)
-            monthly_volume_plan = {
-                1: (120, 180),  2: (130, 190),  3: (180, 240),
-                4: (220, 300),  5: (280, 360),  6: (320, 420),
-                7: (260, 340),  8: (300, 420),  9: (340, 460),
-                10: (380, 520), 11: (420, 560), 12: (460, 620),
-            }
+            # Create 30 applications (reduced from thousands)
+            num_applications = 30
 
-            for month in range(1, 13):  # Jan (1) to Dec (12)
-                # Month boundaries
-                start_date = datetime(current_year, month, 1)
+            for i in range(num_applications):
+                user = random.choice(community_users)
+                program = random.choice(programs)
 
-                # Last day
+                # Random month from Jan-Dec 2025
+                month = random.randint(1, 12)
+                
+                # Last day of month
                 if month in [1, 3, 5, 7, 8, 10, 12]:
                     last_day = 31
                 elif month in [4, 6, 9, 11]:
@@ -411,47 +428,35 @@ def populate_dummy_data():
                 else:  # Feb
                     last_day = 28
 
-                end_date = datetime(current_year, month, last_day, 23, 59, 59)
-                days_in_month = last_day
+                # Random business-time application within the month
+                day = random.randint(1, last_day)
+                hour = random.randint(8, 17)
+                minute = random.randint(0, 59)
+                application_date = datetime(current_year, month, day, hour, minute)
 
-                # Randomized volume with plan ranges
-                low, high = monthly_volume_plan[month]
-                num_applications = random.randint(low, high)
+                # Status distribution
+                status_choices = ['pending', 'approved', 'rejected', 'under_review']
+                status_weights = [0.40, 0.30, 0.10, 0.20]
+                application_status = np.random.choice(status_choices, p=status_weights)
 
-                for _ in range(num_applications):
-                    user = random.choice(community_users)
-                    program = random.choice(programs)
-
-                    # Random business-time application within the month
-                    day = random.randint(1, days_in_month)
-                    hour = random.randint(8, 17)
-                    minute = random.randint(0, 59)
-                    application_date = datetime(current_year, month, day, hour, minute)
-
-                    # Status distribution with realistic processing drift
-                    if month <= 6:  # Older months more processed
-                        status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                        status_weights = [0.15, 0.55, 0.15, 0.15]
-                    elif month <= 9:
-                        status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                        status_weights = [0.45, 0.30, 0.10, 0.15]
-                    else:  # Recent months mostly pending/under_review
-                        status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                        status_weights = [0.65, 0.10, 0.10, 0.15]
-
-                    application_status = np.random.choice(status_choices, p=status_weights)
-
-                    application = Applications(
-                        user_id=user.id,
-                        program_id=program.id,
-                        application_date=application_date,
-                        application_status=application_status
-                    )
-                    db.session.add(application)
-                    applications_created += 1
+                # Create application with new fields
+                application = Applications(
+                    user_id=user.id,
+                    program_id=program.id,
+                    application_date=application_date,
+                    application_status=application_status,
+                    claim_status='not_scheduled'  # Added new field
+                )
+                
+                # Add verification code for some approved applications
+                if application_status == 'approved' and random.random() < 0.5:
+                    application.generate_verification_code()
+                
+                db.session.add(application)
+                applications_created += 1
 
             db.session.commit()
-            print(f"✅ Created {applications_created} applications (Jan–Dec {current_year}) for ARIMA\n")
+            print(f"✅ Created {applications_created} applications\n")
             
             # Print summary
             print("="*70)  
@@ -479,8 +484,8 @@ def populate_dummy_data():
                 print(f"   • {status.upper()}: {count} ({percentage:.1f}%)")
             
             print("\n📅 MONTHLY APPLICATION DISTRIBUTION:")
-            month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
-            for month in range(1, 11):
+            month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            for month in range(1, 13):
                 count = Applications.query.filter(
                     db.func.extract('month', Applications.application_date) == month,
                     db.func.extract('year', Applications.application_date) == current_year
@@ -517,9 +522,11 @@ def populate_dummy_data():
             employed_count = CommunityUsers.query.filter_by(is_currently_employed=True).count()
             student_count = CommunityUsers.query.filter_by(is_student=True).count()
             solo_parent_count = CommunityUsers.query.filter_by(is_solo_parent=True).count()
+            pwd_count = CommunityUsers.query.filter_by(is_pwd=True).count()
             print(f"   • Employed: {employed_count}")
             print(f"   • Students: {student_count}")
             print(f"   • Solo Parents: {solo_parent_count}")
+            print(f"   • PWD: {pwd_count}")
             
             avg_income = db.session.query(func.avg(CommunityUsers.family_annual_income)).scalar()
             print(f"   • Average Family Income: ₱{avg_income:,.2f}")
@@ -546,7 +553,7 @@ def populate_dummy_data():
             print("="*70)
             print("\n📝 Login credentials:")
             print("   Admin: MSWDMabitac@gmail.com / MabitacMSWD_2025")
-            print("   Users: user1@test.com to user50@test.com / password123")
+            print("   Users: user1@test.com to user20@test.com / password123")
             
             return True
         

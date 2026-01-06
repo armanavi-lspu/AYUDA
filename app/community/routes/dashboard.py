@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.community import community_bp
 from app.models import Applications, Announcements, Programs
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
 from datetime import datetime, timedelta, date
 
@@ -12,6 +12,9 @@ from datetime import datetime, timedelta, date
 @role_required('community')
 def dashboard():
     """Community dashboard with real-time data"""
+    
+    # Get profile completion status
+    completion_data = calculate_profile_completion(current_user)
     
     # Get user's application statistics
     total_applications = Applications.query.filter_by(user_id=current_user.id).count()
@@ -93,4 +96,5 @@ def dashboard():
                          recent_applications=recent_applications,
                          recent_announcements=recent_announcements,
                          upcoming_events=upcoming_events,
-                         today=today)
+                         today=today,
+                         completion=completion_data)
