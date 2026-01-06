@@ -118,6 +118,19 @@ def populate_dummy_data():
                                    'Mental/Psychosocial', 'Speech Impairment']
                 disability_type = random.choice(disability_types) if is_pwd else None
                 
+                # Generate family annual income within valid range (0 - 10,000,000)
+                # Most families: 30,000 - 300,000
+                # Low-income families (70%): 30,000 - 150,000
+                # Middle-income families (25%): 150,001 - 400,000
+                # Higher-income families (5%): 400,001 - 800,000
+                income_bracket = random.random()
+                if income_bracket < 0.70:
+                    family_income = random.randint(30000, 150000)
+                elif income_bracket < 0.95:
+                    family_income = random.randint(150001, 400000)
+                else:
+                    family_income = random.randint(400001, 800000)
+                
                 # Create community profile matching updated model structure
                 community_profile = CommunityUsers(
                     user_id=user.id,
@@ -137,7 +150,7 @@ def populate_dummy_data():
                     is_solo_parent=random.choice([True, False]) if age > 20 else False,
                     is_pwd=is_pwd,
                     disability_type=disability_type,
-                    family_annual_income=random.randint(50000, 300000)
+                    family_annual_income=family_income
                 )
                 db.session.add(community_profile)
                 community_users.append(user)

@@ -67,13 +67,25 @@ def edit_profile():
                 community_profile.is_pwd = request.form.get('is_pwd') == 'on'
                 community_profile.disability_type = request.form.get('disability_type', '').strip() if community_profile.is_pwd else None
                 
-                # Parse family annual income
+                # Parse family annual income with validation
                 income_str = request.form.get('family_annual_income', '').strip()
                 if income_str:
                     try:
-                        community_profile.family_annual_income = float(income_str.replace(',', ''))
+                        # Remove commas and convert to float
+                        income_value = float(income_str.replace(',', ''))
+                        
+                        # Validate income range
+                        if income_value < 0:
+                            flash('Family annual income cannot be negative.', 'error')
+                            return redirect(url_for('community.edit_profile'))
+                        elif income_value > 10000000:  # 10 million max
+                            flash('Family annual income exceeds maximum allowed value (₱10,000,000).', 'error')
+                            return redirect(url_for('community.edit_profile'))
+                        
+                        community_profile.family_annual_income = income_value
                     except ValueError:
-                        pass
+                        flash('Invalid income format. Please enter a valid number.', 'error')
+                        return redirect(url_for('community.edit_profile'))
                 
                 # Calculate age from birth date
                 if community_profile.birth_year:
