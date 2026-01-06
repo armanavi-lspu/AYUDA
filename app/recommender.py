@@ -194,8 +194,17 @@ class BeneficiaryRecommender:
         for b in beneficiaries:
             score = 0.0
             
-            # Income score - lower income = higher score
-            income = float(b.get('family_annual_income', 0) or 0)
+            # Income score - lower income = higher score (with validation)
+            try:
+                income = float(b.get('family_annual_income', 0) or 0)
+                # Validate and clamp income to valid range
+                if income < 0:
+                    income = 0
+                elif income > 10000000:
+                    income = 10000000
+            except (ValueError, TypeError):
+                income = 0
+            
             income_score = 1 - ((income - min_income) / income_range) if income_range > 0 else 0.5
             score += priority_weights.get('low_income', 0.3) * income_score
             
@@ -228,7 +237,7 @@ class BeneficiaryRecommender:
 def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
                        solo_parent_priority=False, student_priority=False,
                        pwd_priority=False, priority_barangays=None,
-                       min_income=0, max_income=999999999):
+                       min_income=0, max_income=10000000):
     """
     Main function to generate beneficiary recommendations.
     
@@ -240,8 +249,8 @@ def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
         student_priority: Whether to prioritize students
         pwd_priority: Whether to prioritize PWDs
         priority_barangays: List of barangays to filter by
-        min_income: Minimum income filter
-        max_income: Maximum income filter
+        min_income: Minimum income filter (default: 0, max: 10,000,000)
+        max_income: Maximum income filter (default: 10,000,000)
         
     Returns:
         List of recommended beneficiaries with scores
@@ -249,13 +258,29 @@ def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
     if not beneficiaries_data:
         return []
     
+    # Validate income range parameters
+    min_income = max(0, min(min_income, 10000000))  # Clamp between 0 and 10M
+    max_income = max(0, min(max_income, 10000000))  # Clamp between 0 and 10M
+    
+    # Ensure min <= max
+    if min_income > max_income:
+        min_income, max_income = 0, 10000000  # Reset to defaults if invalid
+    
     # Apply basic filters
     filtered = []
     for b in beneficiaries_data:
-        income = float(b.get('family_annual_income', 0) or 0)
-        
-        # Income filter
-        if income < min_income or income > max_income:
+        try:
+            income = float(b.get('family_annual_income', 0) or 0)
+            
+            # Validate income value
+            if income < 0 or income > 10000000:
+                income = 0  # Default to 0 if invalid
+            
+            # Income filter
+            if income < min_income or income > max_income:
+                continue
+        except (ValueError, TypeError):
+            # Skip if income cannot be converted to float
             continue
         
         # Barangay filter - if priority_barangays is provided, filter by them

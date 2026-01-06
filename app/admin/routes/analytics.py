@@ -174,13 +174,45 @@ def api_generate_recommendations():
     """
     data = request.get_json()
     
-    # Extract parameters
+    # Extract parameters with validation
     program_id = data.get('program_id')
-    max_beneficiaries = int(data.get('max_beneficiaries', 50))
+    
+    try:
+        max_beneficiaries = int(data.get('max_beneficiaries', 50))
+        if max_beneficiaries < 1:
+            return jsonify({'success': False, 'message': 'Max beneficiaries must be at least 1'}), 400
+        if max_beneficiaries > 1000:
+            return jsonify({'success': False, 'message': 'Max beneficiaries cannot exceed 1000'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid max_beneficiaries value'}), 400
+    
     # priority_barangays is a list of barangay names; empty list means include all barangays
     priority_barangays = data.get('priority_barangays', [])
-    min_income = float(data.get('min_income', 0) or 0)
-    max_income = float(data.get('max_income', 999999999) or 999999999)
+    
+    # Validate income range with comprehensive error handling
+    try:
+        min_income = float(data.get('min_income', 0) or 0)
+        max_income = float(data.get('max_income', 10000000) or 10000000)
+        
+        # Validate min_income
+        if min_income < 0:
+            return jsonify({'success': False, 'message': 'Minimum income cannot be negative'}), 400
+        if min_income > 10000000:
+            return jsonify({'success': False, 'message': 'Minimum income exceeds maximum allowed value (₱10,000,000)'}), 400
+        
+        # Validate max_income
+        if max_income < 0:
+            return jsonify({'success': False, 'message': 'Maximum income cannot be negative'}), 400
+        if max_income > 10000000:
+            return jsonify({'success': False, 'message': 'Maximum income exceeds maximum allowed value (₱10,000,000)'}), 400
+        
+        # Validate range logic
+        if min_income > max_income:
+            return jsonify({'success': False, 'message': 'Minimum income cannot be greater than maximum income'}), 400
+            
+    except (ValueError, TypeError) as e:
+        return jsonify({'success': False, 'message': f'Invalid income range format: {str(e)}'}), 400
+    
     solo_parent_priority = data.get('solo_parent_priority', False)
     student_priority = data.get('student_priority', False)
     pwd_priority = data.get('pwd_priority', False)
@@ -205,7 +237,7 @@ def api_generate_recommendations():
     
     all_users = query.all()
     
-    # Convert to list of dictionaries for the recommender
+    # Convert to list of dictionaries for the recommender with income validation
     beneficiaries_data = [
         {
             'user_id': u.id,
@@ -214,7 +246,7 @@ def api_generate_recommendations():
             'email': u.email,
             'age': u.age,
             'barangay': u.barangay,
-            'family_annual_income': float(u.family_annual_income) if u.family_annual_income else 0,
+            'family_annual_income': float(u.family_annual_income) if u.family_annual_income and 0 <= u.family_annual_income <= 10000000 else 0,
             'is_solo_parent': u.is_solo_parent,
             'is_student': u.is_student,
             'is_pwd': u.is_pwd,

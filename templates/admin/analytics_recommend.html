@@ -155,14 +155,21 @@
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
                                            id="min_income" name="min_income" 
-                                           placeholder="Min" value="0">
+                                           placeholder="Min" value="0"
+                                           min="0" max="10000000" step="1000"
+                                           title="Enter minimum income (₱0 - ₱10,000,000)">
+                                    <small class="form-text text-muted">Min: ₱0</small>
                                 </div>
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
                                            id="max_income" name="max_income" 
-                                           placeholder="Max" value="999999999">
+                                           placeholder="Max" value="10000000"
+                                           min="0" max="10000000" step="1000"
+                                           title="Enter maximum income (₱0 - ₱10,000,000)">
+                                    <small class="form-text text-muted">Max: ₱10,000,000</small>
                                 </div>
                             </div>
+                            <small class="form-text text-muted">Set income range to filter beneficiaries</small>
                         </div>
 
                         <!-- Priority Checkboxes -->
@@ -373,13 +380,44 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
         selectedBarangays.push(checkbox.value);
     });
     
+    // Validate income range
+    const minIncome = parseFloat(document.getElementById('min_income').value) || 0;
+    const maxIncome = parseFloat(document.getElementById('max_income').value) || 10000000;
+    
+    // Income validation
+    if (minIncome < 0) {
+        alert('Minimum income cannot be negative.');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    if (maxIncome < 0) {
+        alert('Maximum income cannot be negative.');
+        document.getElementById('max_income').focus();
+        return;
+    }
+    if (minIncome > 10000000) {
+        alert('Minimum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    if (maxIncome > 10000000) {
+        alert('Maximum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('max_income').focus();
+        return;
+    }
+    if (minIncome > maxIncome) {
+        alert('Minimum income cannot be greater than maximum income.');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    
     // Collect form data
     const formData = {
         program_id: document.getElementById('program_id').value,
         max_beneficiaries: document.getElementById('max_beneficiaries').value,
         priority_barangays: selectedBarangays,
-        min_income: document.getElementById('min_income').value,
-        max_income: document.getElementById('max_income').value,
+        min_income: minIncome,
+        max_income: maxIncome,
         solo_parent_priority: document.getElementById('solo_parent_priority').checked,
         student_priority: document.getElementById('student_priority').checked,
         pwd_priority: document.getElementById('pwd_priority').checked
