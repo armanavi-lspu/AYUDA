@@ -1,5 +1,6 @@
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
+from datetime import datetime
 from app.extensions import socketio, db
 from app.models import Notifications
 
@@ -47,7 +48,6 @@ def send_notification_to_user(user_id, notification_data):
 
 def broadcast_dashboard_update(role=None):
     """Broadcast dashboard statistics update"""
-    from datetime import datetime
     room = f'role_{role}' if role else None
     socketio.emit('dashboard_update', {'timestamp': datetime.utcnow().isoformat()}, room=room)
 

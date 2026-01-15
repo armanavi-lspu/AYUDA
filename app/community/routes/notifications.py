@@ -79,13 +79,16 @@ def create_notification(user_id, title, message):
     """
     # Import here to avoid circular import
     from app.socketio_events import send_notification_to_user
+    from datetime import datetime
     
-    # Create new notification
+    # Create new notification with explicit timestamp
+    created_at = datetime.utcnow()
     notification = Notifications(
         user_id=user_id,
         notif_title=title,
         notif_message=message,
-        is_read=False
+        is_read=False,
+        created_at=created_at
     )
     
     db.session.add(notification)
@@ -94,12 +97,12 @@ def create_notification(user_id, title, message):
     # Clean up old notifications after creating new one
     cleanup_old_notifications(user_id)
     
-    # Send real-time notification
+    # Send real-time notification with the timestamp we already have
     notification_data = {
         'id': notification.id,
         'title': title,
         'message': message,
-        'created_at': notification.created_at.isoformat()
+        'created_at': created_at.isoformat()
     }
     send_notification_to_user(user_id, notification_data)
     
