@@ -77,6 +77,9 @@ def create_notification(user_id, title, message):
     Helper function to create a notification with automatic cleanup.
     Use this instead of creating Notifications directly.
     """
+    # Import here to avoid circular import
+    from app.socketio_events import send_notification_to_user
+    
     # Create new notification
     notification = Notifications(
         user_id=user_id,
@@ -90,6 +93,15 @@ def create_notification(user_id, title, message):
     
     # Clean up old notifications after creating new one
     cleanup_old_notifications(user_id)
+    
+    # Send real-time notification
+    notification_data = {
+        'id': notification.id,
+        'title': title,
+        'message': message,
+        'created_at': notification.created_at.isoformat()
+    }
+    send_notification_to_user(user_id, notification_data)
     
     return notification
 

@@ -393,6 +393,18 @@ def update_application_status(application_id):
         db.session.add(notification)
         db.session.commit()
         
+        # Send real-time notification
+        from app.socketio_events import send_notification_to_user, broadcast_dashboard_update
+        send_notification_to_user(application.user_id, {
+            'id': notification.id,
+            'title': notification.notif_title,
+            'message': notification.notif_message,
+            'created_at': notification.created_at.isoformat()
+        })
+        
+        # Broadcast dashboard update to admins
+        broadcast_dashboard_update('admin')
+        
         flash(f'Application status updated to {new_status.replace("_", " ").title()}.', 'success')
         
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -475,6 +487,24 @@ def bulk_approve_applications():
                 continue
         
         db.session.commit()
+        
+        # Send real-time notifications for each approved application
+        from app.socketio_events import send_notification_to_user, broadcast_dashboard_update
+        for app_data in undo_data:
+            notif = Notifications.query.filter_by(
+                user_id=app_data['user_id']
+            ).order_by(Notifications.created_at.desc()).first()
+            
+            if notif:
+                send_notification_to_user(app_data['user_id'], {
+                    'id': notif.id,
+                    'title': notif.notif_title,
+                    'message': notif.notif_message,
+                    'created_at': notif.created_at.isoformat()
+                })
+        
+        # Broadcast dashboard update
+        broadcast_dashboard_update('admin')
         
         # Store undo data in session
         if undo_data:

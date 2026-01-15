@@ -2,7 +2,7 @@ from flask import Flask
 from pathlib import Path
 from flask_login import LoginManager
 from config import Config
-from app.extensions import db
+from app.extensions import db, socketio
 
 def create_app():
     root_path = Path(__file__).parent.parent
@@ -13,6 +13,7 @@ def create_app():
     
     app.config.from_object(Config)
     db.init_app(app)
+    socketio.init_app(app)
 
     # Import and register blueprints
     from .auth.auth import auth_bp
@@ -37,5 +38,8 @@ def create_app():
     @login_manager.user_loader
     def load_user(id):
         return User.query.get(int(id))
+    
+    # Register SocketIO events
+    from app import socketio_events
 
     return app
