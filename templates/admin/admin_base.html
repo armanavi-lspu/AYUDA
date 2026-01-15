@@ -1051,7 +1051,7 @@
     <script src="{{ url_for('static', filename='js/UI.js') }}"></script>
     
     <!-- Socket.IO Client -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/cIvLMPB9g3FBK0gqDCWJxV5g5bFQkX7Z4tKOLVJaZlNwTHIoKlrMxlSJFHMjCj1" crossorigin="anonymous"></script>
     
     <script>
         // Initialize Socket.IO connection for real-time updates
@@ -1100,36 +1100,49 @@
         
         // Function to show toast notifications
         function showNotificationToast(title, message) {
-            const toastHtml = `
-                <div class="toast-notification" style="position: fixed; top: 80px; right: 20px; z-index: 9999; 
-                     background: white; border-left: 4px solid #4e73df; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                     border-radius: 8px; padding: 15px 20px; min-width: 300px; max-width: 400px; 
-                     animation: slideInRight 0.3s ease-out;">
-                    <div style="display: flex; align-items: start; gap: 12px;">
-                        <i class="fas fa-bell" style="color: #4e73df; font-size: 20px; margin-top: 2px;"></i>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${title}</div>
-                            <div style="font-size: 14px; color: #666;">${message}</div>
-                        </div>
-                        <button onclick="this.parentElement.parentElement.remove()" 
-                                style="background: none; border: none; color: #999; cursor: pointer; font-size: 20px; padding: 0; line-height: 1;">
-                            ×
-                        </button>
-                    </div>
-                </div>
-            `;
-            
+            // Create toast element using DOM API
             const toast = document.createElement('div');
-            toast.innerHTML = toastHtml;
-            document.body.appendChild(toast.firstElementChild);
+            toast.className = 'toast-notification';
+            toast.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; ' +
+                'background: white; border-left: 4px solid #4e73df; box-shadow: 0 4px 12px rgba(0,0,0,0.15); ' +
+                'border-radius: 8px; padding: 15px 20px; min-width: 300px; max-width: 400px; ' +
+                'animation: slideInRight 0.3s ease-out;';
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'display: flex; align-items: start; gap: 12px;';
+            
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-bell';
+            icon.style.cssText = 'color: #4e73df; font-size: 20px; margin-top: 2px;';
+            
+            const content = document.createElement('div');
+            content.style.flex = '1';
+            
+            const titleEl = document.createElement('div');
+            titleEl.textContent = title;
+            titleEl.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
+            
+            const messageEl = document.createElement('div');
+            messageEl.textContent = message;
+            messageEl.style.cssText = 'font-size: 14px; color: #666;';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = 'background: none; border: none; color: #999; cursor: pointer; font-size: 20px; padding: 0; line-height: 1;';
+            closeBtn.onclick = function() { toast.remove(); };
+            
+            content.appendChild(titleEl);
+            content.appendChild(messageEl);
+            container.appendChild(icon);
+            container.appendChild(content);
+            container.appendChild(closeBtn);
+            toast.appendChild(container);
+            document.body.appendChild(toast);
             
             // Auto-remove after 5 seconds
             setTimeout(() => {
-                const toastEl = document.querySelector('.toast-notification');
-                if (toastEl) {
-                    toastEl.style.animation = 'slideOutRight 0.3s ease-in';
-                    setTimeout(() => toastEl.remove(), 300);
-                }
+                toast.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
             }, 5000);
         }
         

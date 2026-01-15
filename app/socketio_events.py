@@ -47,8 +47,9 @@ def send_notification_to_user(user_id, notification_data):
 
 def broadcast_dashboard_update(role=None):
     """Broadcast dashboard statistics update"""
+    from datetime import datetime
     room = f'role_{role}' if role else None
-    socketio.emit('dashboard_update', {'timestamp': str(db.func.now())}, room=room)
+    socketio.emit('dashboard_update', {'timestamp': datetime.utcnow().isoformat()}, room=room)
 
 def send_application_update(user_id, application_data):
     """Send real-time application status update to user"""
