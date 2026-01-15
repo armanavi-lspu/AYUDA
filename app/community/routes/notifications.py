@@ -5,6 +5,7 @@ from app.utils import role_required
 from app.models import Notifications
 from app.extensions import db
 from sqlalchemy import desc
+from datetime import datetime
 
 @community_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
 @login_required
@@ -77,9 +78,8 @@ def create_notification(user_id, title, message):
     Helper function to create a notification with automatic cleanup.
     Use this instead of creating Notifications directly.
     """
-    # Import here to avoid circular import
+    # Import here to avoid circular import with socketio_events
     from app.socketio_events import send_notification_to_user
-    from datetime import datetime
     
     # Create new notification with explicit timestamp
     created_at = datetime.utcnow()

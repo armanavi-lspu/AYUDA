@@ -138,7 +138,22 @@ if __name__ == '__main__':
 1. **Authentication**: Only authenticated users can connect to SocketIO
 2. **Room-Based Access**: Users are automatically assigned to user-specific and role-specific rooms
 3. **Message Validation**: All incoming messages should be validated
-4. **CORS**: Update CORS settings for production to restrict origins
+4. **CORS**: ⚠️ **IMPORTANT**: Update CORS settings for production to restrict origins
+   ```python
+   # In app/extensions.py - Update for production:
+   socketio = SocketIO(cors_allowed_origins=["https://your-domain.com"])
+   ```
+5. **CDN Security**: ⚠️ **IMPORTANT**: For production, add Subresource Integrity (SRI) to CDN scripts
+   - Generate SRI hash for Socket.IO CDN: https://www.srihash.org/
+   - Add `integrity` attribute to script tags in base templates
+   - Example: `<script src="..." integrity="sha384-..." crossorigin="anonymous"></script>`
+
+### Production Security Checklist
+- [ ] Update CORS origins in `app/extensions.py` to specific domain(s)
+- [ ] Add SRI integrity hash to Socket.IO CDN script tags
+- [ ] Review and test real-time functionality over HTTPS
+- [ ] Monitor WebSocket connections for unusual activity
+- [ ] Set up rate limiting for SocketIO events if needed
 
 ## Browser Compatibility
 
