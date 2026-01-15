@@ -1379,6 +1379,146 @@
 
     <!-- Flash Messages Auto-dismiss Script -->
     <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    
+    <!-- Socket.IO Client -->
+    <!-- Note: For production, add integrity hash for SRI validation -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
+    
+    <script>
+        // Initialize Socket.IO connection for real-time updates
+        const socket = io();
+        
+        socket.on('connect', function() {
+            console.log('Connected to real-time server');
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from real-time server');
+        });
+        
+        // Handle real-time notifications
+        socket.on('new_notification', function(data) {
+            console.log('New notification received:', data);
+            
+            // Update notification badge count
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                const currentCount = parseInt(badge.textContent) || 0;
+                badge.textContent = currentCount + 1;
+                badge.style.display = 'inline-block';
+            }
+            
+            // Show toast notification
+            showNotificationToast(data.title, data.message);
+            
+            // Reload notifications dropdown if it exists
+            if (typeof loadNotifications === 'function') {
+                loadNotifications();
+            }
+        });
+        
+        // Handle application status updates
+        socket.on('application_update', function(data) {
+            console.log('Application update received:', data);
+            
+            // Show notification about the update
+            showNotificationToast('Application Update', data.message || 'Your application status has been updated');
+            
+            // Reload page data if on applications page
+            if (window.location.pathname.includes('/application')) {
+                setTimeout(() => location.reload(), 2000);
+            }
+        });
+        
+        // Handle dashboard updates
+        socket.on('dashboard_update', function(data) {
+            console.log('Dashboard update received');
+            
+            // Reload dashboard data if on dashboard page
+            if (window.location.pathname.includes('/dashboard')) {
+                if (typeof loadDashboardData === 'function') {
+                    loadDashboardData();
+                }
+            }
+        });
+        
+        // Function to show toast notifications
+        function showNotificationToast(title, message) {
+            // Create toast element using DOM API
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; ' +
+                'background: white; border-left: 4px solid #6f42c1; box-shadow: 0 4px 12px rgba(0,0,0,0.15); ' +
+                'border-radius: 8px; padding: 15px 20px; min-width: 300px; max-width: 400px; ' +
+                'animation: slideInRight 0.3s ease-out;';
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'display: flex; align-items: start; gap: 12px;';
+            
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-bell';
+            icon.style.cssText = 'color: #6f42c1; font-size: 20px; margin-top: 2px;';
+            
+            const content = document.createElement('div');
+            content.style.flex = '1';
+            
+            const titleEl = document.createElement('div');
+            titleEl.textContent = title;
+            titleEl.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
+            
+            const messageEl = document.createElement('div');
+            messageEl.textContent = message;
+            messageEl.style.cssText = 'font-size: 14px; color: #666;';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = 'background: none; border: none; color: #999; cursor: pointer; font-size: 20px; padding: 0; line-height: 1;';
+            closeBtn.onclick = function() { toast.remove(); };
+            
+            content.appendChild(titleEl);
+            content.appendChild(messageEl);
+            container.appendChild(icon);
+            container.appendChild(content);
+            container.appendChild(closeBtn);
+            toast.appendChild(container);
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+        
+        // Add animation styles
+        if (!document.querySelector('#toast-animations')) {
+            const style = document.createElement('style');
+            style.id = 'toast-animations';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                @keyframes slideOutRight {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(400px);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    </script>
 
     <script>
         // Mobile sidebar toggle

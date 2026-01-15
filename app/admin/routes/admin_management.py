@@ -149,6 +149,18 @@ def add_admin():
         
         db.session.commit()
         
+        # Send real-time notification
+        from app.socketio_events import send_notification_to_user, broadcast_dashboard_update
+        send_notification_to_user(new_admin.id, {
+            'id': notification.id,
+            'title': notification.notif_title,
+            'message': notification.notif_message,
+            'created_at': notification.created_at.isoformat()
+        })
+        
+        # Broadcast dashboard update to admins
+        broadcast_dashboard_update('admin')
+        
         flash(f'Admin account created successfully for {first_name} {last_name}. Temporary password: {temp_password}', 'success')
         
         # Log activity (outline)

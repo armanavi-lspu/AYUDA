@@ -178,13 +178,22 @@ def reset_user_password(user_id):
         # Create notification for user
         notification = Notifications(
             user_id=user_id,
-            title='Password Reset',
-            message=f'Your password has been reset by an administrator. Your new temporary password is: {new_password}. Please change it after logging in.',
-            notification_type='system',
+            notif_title='Password Reset',
+            notif_message=f'Your password has been reset by an administrator. Your new temporary password is: {new_password}. Please change it after logging in.',
+            is_read=False,
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
         db.session.commit()
+        
+        # Send real-time notification
+        from app.socketio_events import send_notification_to_user
+        send_notification_to_user(user_id, {
+            'id': notification.id,
+            'title': notification.notif_title,
+            'message': notification.notif_message,
+            'created_at': notification.created_at.isoformat()
+        })
         
         flash(f'Password reset successfully for {community_user.first_name} {community_user.last_name}. New password: {new_password}', 'success')
     except Exception as e:
