@@ -960,6 +960,15 @@ def schedule_claim(application_id):
         db.session.add(notif)
         db.session.commit()
         
+        # Send real-time notification
+        from app.socketio_events import send_notification_to_user
+        send_notification_to_user(application.user_id, {
+            'id': notif.id,
+            'title': notif.notif_title,
+            'message': notif.notif_message,
+            'created_at': notif.created_at.isoformat()
+        })
+        
         return jsonify(success=True, message='Claim schedule saved successfully.')
         
     except ValueError as e:
