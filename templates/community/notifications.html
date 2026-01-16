@@ -1,0 +1,316 @@
+{% extends "community/community_base.html" %}
+{% block title %}Notifications - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Minimal Custom Styles - Rest uses Bootstrap */
+    .notifications-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .notifications-header {
+        border-radius: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        margin-bottom: 2rem;
+    }
+
+    .notifications-header h1 {
+        margin-bottom: 0.5rem;
+    }
+
+    .notifications-header p {
+        margin-bottom: 1.5rem;
+    }
+
+    .notification-card.unread {
+        background: #f8f9fc;
+        border-left: 4px solid #667eea;
+    }
+
+    .notification-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+    }
+
+    .notification-icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+    }
+
+    .notification-icon.success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .notification-icon.danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+    }
+
+    .notification-icon.warning {
+        background: linear-gradient(135deg, #f6c23e 0%, #fd7e14 100%);
+    }
+
+    .notification-icon.info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .unread-indicator {
+        width: 8px;
+        height: 8px;
+        background: #667eea;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-left: 0.5rem;
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; transform: translateX(-20px); }
+    }
+
+    .fade-out {
+        animation: fadeOut 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('community.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Notifications</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="notifications-header text-white p-5">
+        <h1 class="fs-3 fw-bold">
+            <i class="fas fa-bell me-2"></i>Notifications
+        </h1>
+        <p class="opacity-75 mb-0">Track and manage all your important notifications and reminders</p>
+        <div class="d-flex flex-wrap gap-4 mt-3">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-envelope"></i>
+                <span><strong>{{ total_count }}</strong> Total</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-star"></i>
+                <span><strong>{{ unread_count }}</strong> Unread</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    {% if unread_count > 0 %}
+    <div class="mb-4">
+        <button class="btn btn-primary" onclick="markAllAsRead()" title="Mark all notifications as read">
+            <i class="fas fa-check-double me-2"></i>Mark All as Read
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="d-flex flex-wrap gap-2 mb-5">
+        <a href="{{ url_for('community.notifications', status='all', page=1) }}" 
+           class="btn btn-outline-primary {% if status_filter == 'all' %}active{% endif %}">
+            <i class="fas fa-inbox me-1"></i>All
+        </a>
+        <a href="{{ url_for('community.notifications', status='unread', page=1) }}" 
+           class="btn btn-outline-primary {% if status_filter == 'unread' %}active{% endif %}">
+            <i class="fas fa-star me-1"></i>Unread
+        </a>
+        <a href="{{ url_for('community.notifications', status='read', page=1) }}" 
+           class="btn btn-outline-primary {% if status_filter == 'read' %}active{% endif %}">
+            <i class="fas fa-check me-1"></i>Read
+        </a>
+        {% if unread_count == 0 and total_count > 0 %}
+        <button class="btn btn-outline-danger ms-auto" onclick="deleteAllReadNotifications()">
+            <i class="fas fa-trash me-1"></i>Delete Read
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Notification Card -->
+    {% for notification in notifications %}
+    <div class="card mb-4 {% if not notification.is_read %}border-start border-4 border-primary{% endif %}" 
+         data-notification-id="{{ notification.id }}"
+         {% if not notification.is_read %}style="background: #f8f9fc;"{% endif %}>
+        <div class="card-body p-4">
+            <div class="d-flex gap-3">
+                <!-- Icon -->
+                <div class="notification-icon d-flex align-items-center justify-content-center rounded-circle {{ notification.icon_type or 'info' }}" 
+                     style="color: white; font-size: 1.2rem;">
+                    <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0 d-flex align-items-center">
+                            {{ notification.notif_title }}
+                            {% if not notification.is_read %}
+                            <span class="unread-indicator"></span>
+                            {% endif %}
+                        </h5>
+                        <small class="text-muted text-nowrap ms-3">
+                            {{ moment(notification.created_at).fromNow() if moment else notification.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                        </small>
+                    </div>
+
+                    <p class="card-text text-muted mb-3">{{ notification.notif_message }}</p>
+
+                    <!-- Actions -->
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if notification.get_url() %}
+                        <a href="{{ notification.get_url() }}" class="btn btn-sm btn-info">
+                            <i class="fas fa-arrow-right me-1"></i>View Details
+                        </a>
+                        {% endif %}
+
+                        {% if not notification.is_read %}
+                        <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead({{ notification.id }})">
+                            <i class="fas fa-check me-1"></i>Mark as Read
+                        </button>
+                        {% endif %}
+
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteNotification({{ notification.id }})">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <!-- Empty State -->
+    {% if not notifications %}
+        <div class="text-center py-5 bg-light border border-2 border-dashed rounded">
+            <i class="fas fa-bell-slash d-block mb-3" style="font-size: 3rem; color: #dee2e6;"></i>
+            <h4 class="text-muted mb-2">No Notifications</h4>
+            {% if status_filter == 'unread' %}
+                <p class="text-secondary mb-0">You're all caught up! No unread notifications.</p>
+            {% elif status_filter == 'read' %}
+                <p class="text-secondary mb-0">No read notifications to display.</p>
+            {% else %}
+                <p class="text-secondary mb-0">You don't have any notifications yet. Check back later!</p>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if paginated.pages > 1 %}
+    <nav class="mt-5" aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if paginated.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('community.notifications', page=paginated.prev_num, status=status_filter) }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for page_num in paginated.iter_pages(left_edge=1, left_margin=1, right_margin=1, right_edge=1) %}
+                {% if page_num %}
+                    {% if page_num == paginated.page %}
+                    <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('community.notifications', page=page_num, status=status_filter) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if paginated.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('community.notifications', page=paginated.next_num, status=status_filter) }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function markAsRead(notificationId) {
+        fetch(`/community/notifications/${notificationId}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (card) {
+                    card.classList.remove('border-start', 'border-4', 'border-primary');
+                    card.style.background = '';
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function markAllAsRead() {
+        if (!confirm('Mark all notifications as read?')) return;
+        
+        fetch('/community/notifications/mark-all-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) location.reload();
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function deleteNotification(notificationId) {
+        if (!confirm('Delete this notification?')) return;
+        
+        fetch(`/community/notifications/${notificationId}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const card = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                if (card) {
+                    card.classList.add('fade-out');
+                    setTimeout(() => card.remove(), 300);
+                }
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function deleteAllReadNotifications() {
+        if (!confirm('Delete all read notifications? This action cannot be undone.')) return;
+        
+        fetch('/community/notifications/delete-all-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${data.count} notifications deleted`);
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+{% endblock %}

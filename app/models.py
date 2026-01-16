@@ -300,7 +300,27 @@ class Notifications(db.Model):
     notif_title = db.Column(db.String(255), nullable=False)
     notif_message = db.Column(db.Text, nullable=False)
     is_read = db.Column(db.Boolean, default=False, index=True)
+    related_id = db.Column(db.Integer, nullable=True)  # ID of related resource (application, announcement, etc.)
+    related_type = db.Column(db.String(50), nullable=True)  # Type: 'application', 'announcement', 'program', etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def get_url(self):
+        """Generate the appropriate URL for this notification based on its type"""
+        if not self.related_type or not self.related_id:
+            return None
+            
+        if self.related_type == 'application':
+            return f'/community/applications/{self.related_id}'
+        elif self.related_type == 'announcement':
+            return f'/community/announcements/{self.related_id}'
+        elif self.related_type == 'program':
+            return f'/community/programs/{self.related_id}'
+        elif self.related_type == 'schedule':
+            return '/community/schedule'
+        elif self.related_type == 'profile':
+            return '/community/profile'
+        else:
+            return None
     
     def __repr__(self):
         return f'<Notification {self.notif_title}>'
@@ -311,11 +331,11 @@ class CommunityUsers(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  
     age = db.Column(db.Integer, nullable=False, index=True)  
+    gender = db.Column(db.String(20))  # Male, Female, Other
     mobile_no = db.Column(db.String(20))
     birth_month = db.Column(db.Integer)
     birth_day = db.Column(db.Integer)
     birth_year = db.Column(db.Integer)
-    gender = db.Column(db.String(50))
     barangay = db.Column(db.String(100), index=True)  
     sitio = db.Column(db.String(100))
     address = db.Column(db.Text)

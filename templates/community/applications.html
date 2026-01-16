@@ -329,8 +329,20 @@
                             {% endif %}
                             {% if application.application_status == 'rejected' or application.remarks %}
                             <!-- Note: This route might not exist, check your routes -->
-                            <button class="btn btn-outline-warning btn-block" disabled>
+                            <button class="btn btn-outline-warning btn-block mb-2" disabled>
                                 <i class="fas fa-edit mr-2"></i>Edit Application (Coming Soon)
+                            </button>
+                            {% endif %}
+                            <!-- Cancel Button -->
+                            {% if application.application_status != 'approved' %}
+                            <button type="button" 
+                                    class="btn btn-danger btn-block btn-sm"
+                                    data-toggle="modal" 
+                                    data-target="#cancelApplicationModal"
+                                    data-app-id="{{ application.id }}"
+                                    data-app-name="{{ application.program.program_name if application.program else 'Unknown Program' }}"
+                                    title="Cancel and delete this application">
+                                <i class="fas fa-times mr-1"></i>Cancel Application
                             </button>
                             {% endif %}
                         </div>
@@ -522,6 +534,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 50);
         }
     });
+    
+    // Handle cancel application modal
+    $('#cancelApplicationModal').on('show.bs.modal', function (event) {
+        const button = $(event.relatedTarget);
+        const appId = button.data('app-id');
+        const appName = button.data('app-name');
+        
+        // Update modal with application details
+        const modal = $(this);
+        modal.find('#cancelApplicationName').text(appName);
+        
+        // Update form action
+        const form = modal.find('form');
+        form.attr('action', `/community/applications/${appId}/cancel`);
+    });
             
     // Initialize Bootstrap tooltips if available
     if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
@@ -529,4 +556,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Cancel Application Modal -->
+<div class="modal fade" id="cancelApplicationModal" tabindex="-1" role="dialog" aria-labelledby="cancelApplicationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="cancelApplicationLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Cancel Application
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                <p class="mb-2">
+                    Are you sure you want to cancel your application for <strong id="cancelApplicationName">Program</strong>?
+                </p>
+                <p class="mb-0 text-danger font-weight-bold">
+                    <i class="fas fa-trash mr-1"></i>This will permanently delete:
+                </p>
+                <ul class="text-danger mt-2 mb-3">
+                    <li>Your application and all submitted data</li>
+                    <li>All uploaded documents</li>
+                    <li>All shelter photos (if applicable)</li>
+                    <li>Your application slip (if issued)</li>
+                </ul>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle mr-1"></i>You can always reapply for this program later.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>No, Keep Application
+                </button>
+                <form method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash mr-1"></i>Yes, Cancel Application
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

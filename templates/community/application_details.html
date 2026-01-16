@@ -661,12 +661,66 @@
     </div>
 </div>
 
-<!-- Back Button -->
+<!-- Back Button & Cancel Application -->
 <div class="row mt-4">
     <div class="col-12">
-        <a href="{{ url_for('community.applications') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i>Back to My Applications
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('community.applications') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>Back to My Applications
+            </a>
+            {% if application.application_status != 'approved' %}
+            <button type="button" class="btn btn-danger ml-auto" data-toggle="modal" data-target="#cancelApplicationModal">
+                <i class="fas fa-times mr-2"></i>Cancel Application
+            </button>
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<!-- Cancel Application Modal -->
+<div class="modal fade" id="cancelApplicationModal" tabindex="-1" role="dialog" aria-labelledby="cancelApplicationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="cancelApplicationLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Cancel Application
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                <p class="mb-2">
+                    Are you sure you want to cancel your application for <strong>{{ application.program.program_name }}</strong>?
+                </p>
+                <p class="mb-0 text-danger font-weight-bold">
+                    <i class="fas fa-trash mr-1"></i>This will permanently delete:
+                </p>
+                <ul class="text-danger mt-2 mb-3">
+                    <li>Your application and all submitted data</li>
+                    <li>All uploaded documents</li>
+                    <li>All shelter photos (if applicable)</li>
+                    <li>Your application slip (if issued)</li>
+                </ul>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle mr-1"></i>You can always reapply for this program later.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>No, Keep Application
+                </button>
+                <form method="POST" action="{{ url_for('community.cancel_application', application_id=application.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash mr-1"></i>Yes, Cancel Application
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

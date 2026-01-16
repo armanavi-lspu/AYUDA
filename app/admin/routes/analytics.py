@@ -16,7 +16,7 @@ import json
 @role_required('admin')
 def analytics():
     """Main analytics dashboard"""
-    return render_template('admin/analytics.html', user=current_user)
+    return render_template('admin/analytics_analysis.html', user=current_user)
 
 @admin_bp.route('/adm_analytics/analysis')
 @login_required

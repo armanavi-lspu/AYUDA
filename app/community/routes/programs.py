@@ -257,7 +257,9 @@ def submit_application(program_id):
         user_id=current_user.id,
         notif_title='Application Submitted',
         notif_message=f'Your application for {program.program_name} has been created. Application ID: {new_application.id}',
-        is_read=False
+        is_read=False,
+        related_id=new_application.id,
+        related_type='application'
     )
     db.session.add(notification)
     db.session.commit()

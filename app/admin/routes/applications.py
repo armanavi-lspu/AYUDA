@@ -387,6 +387,8 @@ def update_application_status(application_id):
             notif_title=f'Application Status Update',
             notif_message=notif_message,
             is_read=False,
+            related_id=application.id,
+            related_type='application',
             created_at=datetime.utcnow()
         )
         
@@ -461,6 +463,8 @@ def bulk_approve_applications():
                     notif_title='Application Approved',
                     notif_message=f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
                     is_read=False,
+                    related_id=application.id,
+                    related_type='application',
                     created_at=datetime.utcnow()
                 )
                 
@@ -724,6 +728,8 @@ def verify_all_shelter_photos(application_id):
             notif_title='Shelter Photos Update',
             notif_message=notif_msg,
             is_read=False,
+            related_id=application.id,
+            related_type='application',
             created_at=datetime.utcnow()
         )
         
@@ -778,6 +784,8 @@ def verify_shelter_photo(photo_id):
             notif_title='Shelter Photo Update',
             notif_message=notif_msg,
             is_read=False,
+            related_id=photo.application_id,
+            related_type='application',
             created_at=datetime.utcnow()
         )
         
@@ -1111,6 +1119,8 @@ def bulk_update_status():
                     notif_title=f'Application {new_status.replace("-", " ").title()}',
                     notif_message=f'{notif_message}\n\nProgram: {application.program.program_name}',
                     is_read=False,
+                    related_id=application.id,
+                    related_type='application',
                     created_at=datetime.utcnow()
                 )
                 
@@ -1172,6 +1182,8 @@ def send_bulk_notification():
                     notif_title=title,
                     notif_message=message,
                     is_read=False,
+                    related_id=application.id,
+                    related_type='application',
                     created_at=datetime.utcnow()
                 )
                 

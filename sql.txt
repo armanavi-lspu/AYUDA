@@ -148,6 +148,8 @@ CREATE TABLE notifications (
     notif_title VARCHAR(255) NOT NULL,
     notif_message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
+    related_id INTEGER, -- ID of related resource (application, announcement, etc.)
+    related_type VARCHAR(50), -- Type: 'application', 'announcement', 'program', 'schedule', 'profile', etc.
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -155,6 +157,7 @@ CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX idx_notifications_related ON notifications(related_type, related_id);
 
 -- Create community_users table
 CREATE TABLE community_users (

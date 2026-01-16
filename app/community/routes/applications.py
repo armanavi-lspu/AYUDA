@@ -202,3 +202,49 @@ def verify_code():
             return render_template('community/verify_code.html', user=current_user)
     
     return render_template('community/verify_code.html', user=current_user)
+
+@community_bp.route('/applications/<int:application_id>/cancel', methods=['POST'])
+@login_required
+@role_required('community')
+def cancel_application(application_id):
+    """Cancel and completely delete an application with all associated data"""
+    try:
+        # Get the application and verify user owns it
+        application = Applications.query.filter_by(
+            id=application_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        program_name = application.program.program_name
+        
+        # Delete all application documents and their files
+        app_docs = ApplicationDocuments.query.filter_by(application_id=application_id).all()
+        for doc in app_docs:
+            if doc.file_path and os.path.exists(doc.file_path):
+                try:
+                    os.remove(doc.file_path)
+                except:
+                    pass
+            db.session.delete(doc)
+        
+        # Delete all shelter photos and their files
+        if application.shelter_photos:
+            for photo in application.shelter_photos:
+                if photo.photo_path and os.path.exists(photo.photo_path):
+                    try:
+                        os.remove(photo.photo_path)
+                    except:
+                        pass
+                db.session.delete(photo)
+        
+        # Delete the application itself
+        db.session.delete(application)
+        db.session.commit()
+        
+        flash(f'Your application for {program_name} has been cancelled and permanently deleted.', 'success')
+        return redirect(url_for('community.applications'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error cancelling application: {str(e)}', 'danger')
+        return redirect(url_for('community.application_detail', application_id=application_id))

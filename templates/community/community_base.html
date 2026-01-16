@@ -648,10 +648,6 @@
             height: 8px;
         }
         
-        /* ============================================
-           UTILITIES
-           ============================================ */
-        
         .shadow-sm { box-shadow: var(--shadow-sm) !important; }
         .shadow { box-shadow: var(--shadow) !important; }
         .shadow-lg { box-shadow: var(--shadow-lg) !important; }
@@ -721,10 +717,6 @@
             box-shadow: var(--shadow);
         }
         
-        /* ============================================
-           RESPONSIVE ADJUSTMENTS
-           ============================================ */
-        
         @media (max-width: 768px) {
             .page-header-gradient {
                 border-radius: 0 0 15px 15px;
@@ -745,49 +737,10 @@
             }
         }
         
-        /* ============================================
-           NOTIFICATION STYLES (Keep existing)
-           ============================================ */
-            padding-top: 100px;
-            background-color: #ffffffff;
-            width: 250px;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.25);
-        }
-        
-        .sidebar .nav-link {
-            color: #495057;
-            padding: 15px 20px;
-            border-radius: 10;
-        }
-        
-        .sidebar .nav-link:hover {
-            color: #fff;
-            background-color: #495057;
-        }
-        
-        .sidebar .nav-link.active {
-            color: #fff;
-            background-color: #495057;
-        }
-        
-        .content-wrapper {
-            margin-left: 250px;
-            padding-top: 60px;
-        }
-        
-        .top-navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            height: 60px;
-        }
-        
         /* Enhanced Notification Dropdown Styles */
         .notification-dropdown {
-            width: 380px;
-            max-height: 450px;
+            width: 500px;
+            max-height: 600px;
             padding: 0;
             border: none;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.07);
@@ -807,6 +760,17 @@
             }
         }
         
+        @keyframes bellRing {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+            20%, 40%, 60%, 80% { transform: rotate(10deg); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
         .notification-header {
             background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
             color: white;
@@ -815,17 +779,6 @@
             border-bottom: none;
             position: relative;
             overflow: hidden;
-        }
-        
-        .notification-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.1;
         }
         
         .notification-header-content {
@@ -849,12 +802,6 @@
             animation: bellRing 2s ease-in-out infinite;
         }
         
-        @keyframes bellRing {
-            0%, 100% { transform: rotate(0deg); }
-            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
-            20%, 40%, 60%, 80% { transform: rotate(10deg); }
-        }
-        
         .mark-all-btn {
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
@@ -874,7 +821,7 @@
         }
         
         .notification-list {
-            max-height: 340px;
+            max-height: 480px;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -951,7 +898,7 @@
         }
         
         .notification-icon.success {
-            background: linear-gradient(135deg, #4caf50, #388e3c);
+            background: linear-gradient(135deg, #388e3c, #388e3c);
             color: white;
         }
         
@@ -1017,17 +964,6 @@
             animation: pulse 2s ease-in-out infinite;
         }
         
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.7;
-                transform: scale(1.1);
-            }
-        }
-        
         .notification-footer {
             padding: 12px 20px;
             background: linear-gradient(90deg, #f8f9fa, #e9ecef);
@@ -1073,15 +1009,6 @@
             border: 2px solid white;
             box-shadow: 0 2px 8px rgba(255, 71, 87, 0.3);
             animation: bounce 1s ease-in-out infinite;
-        }
-        
-        @keyframes bounce {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.1);
-            }
         }
         
         .empty-notifications {
@@ -1157,6 +1084,20 @@
                 transform: none !important;
             }
         }
+        
+        .profile-status-widget {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .profile-status-widget h6 {
+            font-size: 0.85rem;
+        }
+        
+        .profile-progress {
+            height: 20px;
+        }
     </style>
     
     <title>{% block title %}Community Portal{% endblock %}</title>
@@ -1164,7 +1105,7 @@
 <body>
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
-        <a class="navbar-brand navbar-brand-elegant" href="/about">AYUDA</a>        
+        <a class="navbar-brand navbar-brand-elegant px-5" href="/about">AYUDA</a>        
         <!-- Mobile menu toggle -->
         <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#sidebarMenu">
             <span class="navbar-toggler-icon"></span>
@@ -1198,13 +1139,15 @@
                         </div>
                     </div>
                     
-                    <div class="notification-list">
+                    <div class="notification-list overflow-auto">
                         {% if notifications %}
                             {% for notification in notifications %}
-                            <div class="notification-item {% if not notification.is_read %}unread{% endif %}" 
-                                 onclick="markAsRead({{ notification.id }})" 
-                                 data-notification-id="{{ notification.id }}"
-                                 title="Click to mark as read">
+                            <a href="{{ notification.get_url() or '#' }}" 
+                               class="notification-item {% if not notification.is_read %}unread{% endif %} text-decoration-none"
+                               onclick="markAsRead({{ notification.id }})"
+                               data-notification-id="{{ notification.id }}"
+                               style="display: block; color: inherit;"
+                               title="Click to view details">
                                 
                                 <div class="notification-icon {{ notification.icon_type or 'info' }}">
                                     <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
@@ -1229,7 +1172,7 @@
                                     {{ notification.category.title() }}
                                 </span>
                                 {% endif %}
-                            </div>
+                            </a>
                             {% endfor %}
                         {% else %}
                         <div class="empty-notifications">
@@ -1238,8 +1181,17 @@
                             <p class="text-muted">You're all caught up! 🎉</p>
                         </div>
                         {% endif %}
-                    </div>                 
+                    </div>
                     
+                    <!-- Notification Footer -->
+                    <div class="notification-footer">
+                        <a href="{{ url_for('community.notifications') }}" title="View all notifications">
+                            <i class="fas fa-list mr-1"></i>View All Notifications
+                            {% if unread_notifications_count > 0 %}
+                            <span class="badge badge-primary">{{ unread_notifications_count }}</span>
+                            {% endif %}
+                        </a>
+                    </div>
                 </div>
             </div>
             

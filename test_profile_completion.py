@@ -4,7 +4,7 @@ Test profile completion functionality.
 """
 
 from app import create_app
-from app.profile_completion import calculate_profile_completion
+from app.utils import calculate_profile_completion
 from app.models import User
 
 def test_profile_completion():
