@@ -235,6 +235,7 @@ def submit_application(program_id):
         user_id=current_user.id,
         program_id=program_id,
         application_status='pending',
+        document_upload_status='pending',  # Set initial upload status
         application_date=datetime.utcnow()
     )
     
@@ -256,7 +257,7 @@ def submit_application(program_id):
     notification = Notifications(
         user_id=current_user.id,
         notif_title='Application Submitted',
-        notif_message=f'Your application for {program.program_name} has been created. Application ID: {new_application.id}',
+        notif_message=f'Your application for {program.program_name} has been created. Please upload your documents for initial verification.',
         is_read=False,
         related_id=new_application.id,
         related_type='application'
@@ -264,10 +265,10 @@ def submit_application(program_id):
     db.session.add(notification)
     db.session.commit()
     
-    flash('Application submitted! Please wait for admin approval to receive your application slip.', 'success')
+    flash('Application submitted! Please upload your documents for initial verification before proceeding to physical submission.', 'success')
     
-    # Redirect to application details page (not slip - slip is only available after approval)
-    return redirect(url_for('community.application_detail', application_id=new_application.id))
+    # Redirect to document upload page
+    return redirect(url_for('community.upload_documents', application_id=new_application.id))
 
 @community_bp.route('/application/<int:application_id>/upload-shelter-photos', methods=['POST'])
 @login_required

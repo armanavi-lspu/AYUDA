@@ -4,14 +4,14 @@
 {% block extra_css %}
 <style>
     .application-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
         border-radius: 10px;
         padding: 2rem;
         color: white;
         margin-bottom: 2rem;
     }
     .info-card {
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #0032A0;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     .info-card:hover {
@@ -132,6 +132,28 @@
                         <p class="mb-0">{{ application.application_date.strftime('%B %d, %Y at %I:%M %p') if application.application_date else 'N/A' }}</p>
                     </div>
                     <div class="col-md-6 mb-3">
+                        <strong class="text-muted">Document Upload Status:</strong>
+                        <p class="mb-0">
+                            {% if application.document_upload_status == 'pending' %}
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-clock mr-1"></i>Pending Upload
+                                </span>
+                            {% elif application.document_upload_status == 'uploaded' %}
+                                <span class="badge badge-info">
+                                    <i class="fas fa-check mr-1"></i>Under Review
+                                </span>
+                            {% elif application.document_upload_status == 'verified' %}
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check-circle mr-1"></i>Verified
+                                </span>
+                            {% elif application.document_upload_status == 'rejected' %}
+                                <span class="badge badge-danger">
+                                    <i class="fas fa-times-circle mr-1"></i>Needs Revision
+                                </span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
                         <strong class="text-muted">Review Date:</strong>
                         <p class="mb-0">{{ application.review_date.strftime('%B %d, %Y at %I:%M %p') if application.review_date else 'Pending review' }}</p>
                     </div>
@@ -185,6 +207,60 @@
                 </div>
             </div>
         </div>
+
+        <!-- Document Upload Alert -->
+        {% if application.document_upload_status == 'pending' %}
+        <div class="alert alert-warning shadow-sm mb-4" style="border-left: 5px solid #ffc107;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h5 class="mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Action Required: Upload Documents</h5>
+                    <p class="mb-0">Please upload your documents for initial verification before proceeding to physical submission at the MSWD office.</p>
+                </div>
+                <a href="{{ url_for('community.upload_documents', application_id=application.id) }}" 
+                   class="btn btn-warning btn-lg ml-3">
+                    <i class="fas fa-cloud-upload-alt mr-2"></i>Upload Now
+                </a>
+            </div>
+        </div>
+        {% elif application.document_upload_status == 'rejected' %}
+        <div class="alert alert-danger shadow-sm mb-4" style="border-left: 5px solid #dc3545;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h5 class="mb-2"><i class="fas fa-times-circle mr-2"></i>Documents Need Revision</h5>
+                    <p class="mb-0">Some of your documents were rejected. Please review the feedback and upload corrected documents.</p>
+                </div>
+                <a href="{{ url_for('community.upload_documents', application_id=application.id) }}" 
+                   class="btn btn-danger btn-lg ml-3">
+                    <i class="fas fa-redo mr-2"></i>Resubmit
+                </a>
+            </div>
+        </div>
+        {% elif application.document_upload_status == 'uploaded' %}
+        <div class="alert alert-info shadow-sm mb-4" style="border-left: 5px solid #17a2b8;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h5 class="mb-2"><i class="fas fa-clock mr-2"></i>Documents Under Review</h5>
+                    <p class="mb-0">Your documents are currently being reviewed by our team. We'll notify you once the review is complete.</p>
+                </div>
+                <a href="{{ url_for('community.upload_documents', application_id=application.id) }}" 
+                   class="btn btn-outline-info btn-lg ml-3">
+                    <i class="fas fa-eye mr-2"></i>View Uploads
+                </a>
+            </div>
+        </div>
+        {% elif application.document_upload_status == 'verified' %}
+        <div class="alert alert-success shadow-sm mb-4" style="border-left: 5px solid #28a745;">
+            <div class="d-flex align-items-center">
+                <div class="mr-3">
+                    <i class="fas fa-check-circle fa-3x text-success"></i>
+                </div>
+                <div>
+                    <h5 class="mb-2"><i class="fas fa-thumbs-up mr-2"></i>Documents Verified!</h5>
+                    <p class="mb-0">Your documents have been reviewed and approved. You may now proceed to physical submission at the MSWD office with your application slip.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Program Duration Card -->
         {% if application.program.start_date or application.program.end_date %}

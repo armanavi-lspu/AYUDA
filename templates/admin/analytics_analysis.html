@@ -27,15 +27,27 @@
     .stat-card {
         border-left: 4px solid;
         transition: transform 0.2s ease;
+        opacity: 0;
+        animation: fadeInUp 0.6s ease forwards;
     }
     .stat-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
     }
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+    
     .chart-container {
         position: relative;
         height: 400px;
         margin-bottom: 2rem;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    .chart-container.loaded {
+        animation: fadeInUp 0.8s ease forwards;
     }
     .forecast-badge {
         background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
@@ -53,6 +65,55 @@
     .no-data-message i {
         opacity: 0.5;
     }
+    
+    /* Chart card animations */
+    .chart-card {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    .chart-card.animate {
+        animation: fadeInUp 0.8s ease forwards;
+    }
+    .chart-card:nth-child(1) { animation-delay: 0.5s; }
+    .chart-card:nth-child(2) { animation-delay: 0.6s; }
+    .chart-card:nth-child(3) { animation-delay: 0.7s; }
+    .chart-card:nth-child(4) { animation-delay: 0.8s; }
+    .chart-card:nth-child(5) { animation-delay: 0.9s; }
+    
+    /* Loading spinner for charts */
+    .chart-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 10;
+    }
+    .chart-loading .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #4e73df;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
     @media print {
         .analytics-nav, .btn { display: none; }
     }
@@ -177,7 +238,7 @@
     <!-- Chart Section -->
     <div class="row">
         <!-- Applicants Over Time -->
-        <div class="col-12 mb-4">
+        <div class="col-12 mb-4 chart-card">
             <div class="card shadow">
                 <div class="card-header bg-white py-3">
                     <div class="row align-items-center">
@@ -196,7 +257,11 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
+                    <div class="chart-container" id="timeSeriesContainer">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
                         <canvas id="applicantsTimeSeriesChart"></canvas>
                     </div>
                 </div>
@@ -204,7 +269,7 @@
         </div>
 
         <!-- Applications by Program Type -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-6 mb-4 chart-card">
             <div class="card shadow h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
@@ -212,7 +277,11 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container" style="height: 350px;">
+                    <div class="chart-container" id="programTypeContainer" style="height: 350px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
                         <canvas id="programTypeChart"></canvas>
                     </div>
                 </div>
@@ -220,7 +289,7 @@
         </div>
 
         <!-- Applicants by Barangay -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-6 mb-4 chart-card">
             <div class="card shadow h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
@@ -228,7 +297,11 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container" style="height: 350px;">
+                    <div class="chart-container" id="barangayContainer" style="height: 350px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
                         <canvas id="barangayChart"></canvas>
                     </div>
                 </div>
@@ -276,14 +349,47 @@
 <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
 <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
 
+<!-- DEBUG: Show raw data (remove in production) -->
+<div class="card mt-4 border-warning" style="display: none;" id="debugData">
+    <div class="card-header bg-warning text-white">
+        <h6 class="mb-0"><i class="fas fa-bug"></i> Debug Information</h6>
+    </div>
+    <div class="card-body">
+        <h6>Applicants Over Time Data:</h6>
+        <pre id="debugTime" class="bg-light p-2" style="max-height: 150px; overflow-y: auto; font-size: 0.8rem;"></pre>
+        
+        <h6>Applications By Type Data:</h6>
+        <pre id="debugType" class="bg-light p-2" style="max-height: 150px; overflow-y: auto; font-size: 0.8rem;"></pre>
+        
+        <h6>Applicants By Barangay Data:</h6>
+        <pre id="debugBarangay" class="bg-light p-2" style="max-height: 150px; overflow-y: auto; font-size: 0.8rem;"></pre>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Load Chart.js with specific version for compatibility -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 
 <script>
+// Check if Chart.js loaded successfully
+if (typeof Chart === 'undefined') {
+    console.error('❌ Chart.js failed to load!');
+    alert('Chart library failed to load. Please check your internet connection.');
+} else {
+    console.log('✅ Chart.js loaded successfully, version:', Chart.version);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Analytics page loaded');
+    console.log('📊 Analytics page loaded');
+    
+    // Trigger chart card animations
+    setTimeout(() => {
+        document.querySelectorAll('.chart-card').forEach(card => {
+            card.classList.add('animate');
+        });
+    }, 100);
     
     /**
      * Helper function to build forecast data array for Chart.js
@@ -299,146 +405,241 @@ document.addEventListener('DOMContentLoaded', function() {
         return [...nullsForHistorical, lastValue, ...forecastData];
     }
     
-    // Parse data from hidden script tags
-    const applicantsOverTimeData = JSON.parse(document.getElementById('applicants-over-time-data').textContent);
-    const applicationsByTypeData = JSON.parse(document.getElementById('applications-by-type-data').textContent);
-    const applicantsByBarangayData = JSON.parse(document.getElementById('applicants-by-barangay-data').textContent);
+    /**
+     * Remove loading spinner and show chart with animation
+     */
+    function showChart(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const loader = container.querySelector('.chart-loading');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 300);
+            }
+            container.classList.add('loaded');
+        }
+    }
     
-    console.log('Applicants Over Time:', applicantsOverTimeData);
-    console.log('Applications By Type:', applicationsByTypeData);
-    console.log('Applicants By Barangay:', applicantsByBarangayData);
+    // Parse data from hidden script tags with error handling
+    let applicantsOverTimeData, applicationsByTypeData, applicantsByBarangayData;
+    
+    try {
+        const timeDataElement = document.getElementById('applicants-over-time-data');
+        const typeDataElement = document.getElementById('applications-by-type-data');
+        const barangayDataElement = document.getElementById('applicants-by-barangay-data');
+        
+        console.log('🔍 Checking for data elements...');
+        console.log('   Time element:', timeDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Type element:', typeDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Barangay element:', barangayDataElement ? '✅ Found' : '❌ Missing');
+        
+        if (!timeDataElement || !typeDataElement || !barangayDataElement) {
+            console.error('❌ ERROR: Required data elements not found in DOM!');
+            console.error('   This means data is not being passed from Flask backend.');
+            console.error('   Check that analytics_analysis route is passing all JSON variables:');
+            console.error('   - applicants_over_time_json');
+            console.error('   - applications_by_type_json');
+            console.error('   - applicants_by_barangay_json');
+            alert('Error: Chart data not found. Please check server logs.');
+            return;
+        }
+        
+        console.log('📦 Parsing JSON data...');
+        applicantsOverTimeData = JSON.parse(timeDataElement.textContent);
+        applicationsByTypeData = JSON.parse(typeDataElement.textContent);
+        applicantsByBarangayData = JSON.parse(barangayDataElement.textContent);
+        
+        console.log('✅ Data loaded successfully');
+        console.log('Applicants Over Time:', applicantsOverTimeData);
+        console.log('Applications By Type:', applicationsByTypeData);
+        console.log('Applicants By Barangay:', applicantsByBarangayData);
+        
+        // Show debug panel with data
+        const debugPanel = document.getElementById('debugData');
+        if (debugPanel) {
+            debugPanel.style.display = 'block';
+            document.getElementById('debugTime').textContent = JSON.stringify(applicantsOverTimeData, null, 2);
+            document.getElementById('debugType').textContent = JSON.stringify(applicationsByTypeData, null, 2);
+            document.getElementById('debugBarangay').textContent = JSON.stringify(applicantsByBarangayData, null, 2);
+        }
+        
+        // Validate data structure
+        if (!applicantsOverTimeData.labels || !applicantsOverTimeData.data) {
+            console.error('ERROR: Invalid applicantsOverTimeData structure');
+            return;
+        }
+        if (!applicationsByTypeData.labels || !applicationsByTypeData.data) {
+            console.error('ERROR: Invalid applicationsByTypeData structure');
+            return;
+        }
+        if (!applicantsByBarangayData.labels || !applicantsByBarangayData.data) {
+            console.error('ERROR: Invalid applicantsByBarangayData structure');
+            return;
+        }
+        
+    } catch (error) {
+        console.error('ERROR parsing data:', error);
+        return;
+    }
     
     // 1. Applicants Time Series Chart
     const timeSeriesCtx = document.getElementById('applicantsTimeSeriesChart');
     if (timeSeriesCtx) {
-        new Chart(timeSeriesCtx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: applicantsOverTimeData.labels,
-                datasets: [{
-                    label: 'Number of Applicants',
-                    data: applicantsOverTimeData.data,
-                    borderColor: 'rgb(78, 115, 223)',
-                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3,
-                    pointBackgroundColor: 'rgb(78, 115, 223)',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false
-                    }
+        console.log('Creating Applicants Time Series Chart...');
+        try {
+            new Chart(timeSeriesCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: applicantsOverTimeData.labels,
+                    datasets: [{
+                        label: 'Number of Applicants',
+                        data: applicantsOverTimeData.data,
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+            console.log('✅ Time Series Chart created');
+            showChart('timeSeriesContainer');
+        } catch (error) {
+            console.error('❌ Error creating Time Series Chart:', error);
+        }
+    } else {
+        console.error('❌ Time Series Chart canvas not found');
     }
     
     // 2. Program Type Pie Chart
     const programTypeCtx = document.getElementById('programTypeChart');
     if (programTypeCtx) {
-        new Chart(programTypeCtx.getContext('2d'), {
-            type: 'pie',
-            data: {
-                labels: applicationsByTypeData.labels,
-                datasets: [{
-                    data: applicationsByTypeData.data,
-                    backgroundColor: [
-                        'rgba(78, 115, 223, 0.8)',
-                        'rgba(28, 200, 138, 0.8)',
-                        'rgba(54, 185, 204, 0.8)',
-                        'rgba(246, 194, 62, 0.8)',
-                        'rgba(231, 74, 59, 0.8)',
-                        'rgba(133, 135, 150, 0.8)'
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            padding: 15,
-                            font: {
-                                size: 12
+        console.log('Creating Program Type Pie Chart...');
+        try {
+            new Chart(programTypeCtx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: applicationsByTypeData.labels,
+                    datasets: [{
+                        data: applicationsByTypeData.data,
+                        backgroundColor: [
+                            'rgba(78, 115, 223, 0.8)',
+                            'rgba(28, 200, 138, 0.8)',
+                            'rgba(54, 185, 204, 0.8)',
+                            'rgba(246, 194, 62, 0.8)',
+                            'rgba(231, 74, 59, 0.8)',
+                            'rgba(133, 135, 150, 0.8)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
                             }
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.parsed || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return `${label}: ${value} (${percentage}%)`;
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+            console.log('✅ Program Type Chart created');
+            showChart('programTypeContainer');
+        } catch (error) {
+            console.error('❌ Error creating Program Type Chart:', error);
+        }
+    } else {
+        console.error('❌ Program Type Chart canvas not found');
     }
     
     // 3. Barangay Bar Chart
     const barangayCtx = document.getElementById('barangayChart');
     if (barangayCtx) {
-        new Chart(barangayCtx.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: applicantsByBarangayData.labels,
-                datasets: [{
-                    label: 'Number of Applicants',
-                    data: applicantsByBarangayData.data,
-                    backgroundColor: 'rgba(54, 185, 204, 0.6)',
-                    borderColor: 'rgba(54, 185, 204, 1)',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: {
-                    legend: {
-                        display: false
-                    }
+        console.log('Creating Barangay Bar Chart...');
+        try {
+            new Chart(barangayCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: applicantsByBarangayData.labels,
+                    datasets: [{
+                        label: 'Number of Applicants',
+                        data: applicantsByBarangayData.data,
+                        backgroundColor: 'rgba(54, 185, 204, 0.6)',
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        borderWidth: 2
+                    }]
                 },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+            console.log('✅ Barangay Chart created');
+            showChart('barangayContainer');
+        } catch (error) {
+            console.error('❌ Error creating Barangay Chart:', error);
+        }
+    } else {
+        console.error('❌ Barangay Chart canvas not found');
     }
     
     // 4. Forecast: Applicants Over Time - Using ARIMA from backend

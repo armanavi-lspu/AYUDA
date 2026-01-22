@@ -12,9 +12,9 @@
 
     /* Header Gradient */
     .page-header-gradient {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #cfd8ff 0%, #002270 100%);
         border-radius: 0 0 20px 20px;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
     }
     .stats-card { 
         transition: all 0.3s ease; 
@@ -64,7 +64,7 @@
     }
     
     .welcome-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #cfd8ff 0%, #002270 100%);
         color: white;
         border: none;
     }
@@ -104,7 +104,7 @@
     }
     
     .event-date-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
         color: white;
         border-radius: 8px;
         padding: 8px 12px;
@@ -196,10 +196,10 @@
             </div>
         </div>
     </div>
-    {% elif completion and completion.is_complete %}
+    {% elif completion and completion.is_complete and not current_user.profile_complete_alert_dismissed %}
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #1cc88a;">
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #1cc88a;" id="profileCompleteAlert">
                 <div class="d-flex align-items-center">
                     <div class="mr-3">
                         <i class="fas fa-check-circle fa-2x text-success"></i>
@@ -213,8 +213,8 @@
                             You can now apply for all available assistance programs!
                         </p>
                     </div>
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                    <button type="button" class="btn btn-success btn-sm" id="dismissProfileAlert">
+                        <i class="fas fa-check mr-1"></i>Okay, don't show again
                     </button>
                 </div>
             </div>
@@ -680,6 +680,34 @@ document.addEventListener('DOMContentLoaded', function() {
         location.reload();
     }, 300000); // 5 minutes
     {% endif %}
+    
+    // Handle profile complete alert dismissal
+    const dismissBtn = document.getElementById('dismissProfileAlert');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function() {
+            fetch('{{ url_for("community.dismiss_profile_alert") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Fade out the alert
+                    const alert = document.getElementById('profileCompleteAlert');
+                    alert.style.transition = 'opacity 0.5s ease';
+                    alert.style.opacity = '0';
+                    setTimeout(() => {
+                        alert.remove();
+                    }, 500);
+                }
+            })
+            .catch(error => {
+                console.error('Error dismissing alert:', error);
+            });
+        });
+    }
 });
 
 // Add CSS for ripple animation

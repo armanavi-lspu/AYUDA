@@ -47,9 +47,9 @@
         }
         
         :root {
-            /* Primary Purple Gradient Colors */
-            --primary-color: #667eea;
-            --primary-dark: #764ba2;
+            /* Primary Blue Theme Colors */
+            --primary-color: #0032A0;
+            --primary-dark: #002270;
             --secondary-color: #6c757d;
             --success-color: #1cc88a;
             --info-color: #36b9cc;
@@ -65,7 +65,7 @@
             --shadow-lg: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.175);
             
             /* Gradients */
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-primary: linear-gradient(135deg, #0032A0 0%, #002270 100%);
             --gradient-success: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             --gradient-info: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
             --gradient-warning: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
@@ -144,7 +144,7 @@
         .sidebar .nav-link.active {
             color: #fff;
             background: var(--gradient-primary);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 50, 160, 0.3);
         }
         
         .sidebar .nav-link i {
@@ -165,7 +165,7 @@
             right: 0;
             z-index: 1000;
             height: 60px;
-            background: white;
+            background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
         }
         
@@ -186,7 +186,7 @@
         .page-header-gradient {
             background: var(--gradient-primary);
             border-radius: 0 0 20px 20px;
-            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
             color: white;
             padding: 2rem;
             margin-bottom: 2rem;
@@ -337,7 +337,7 @@
         .content-card:hover {
             transform: translateY(-5px);
             border-left-color: var(--primary-color);
-            box-shadow: 0 0.5rem 1rem rgba(102, 126, 234, 0.15);
+            box-shadow: 0 0.5rem 1rem rgba(0, 50, 160, 0.15);
         }
         
         /* Application Cards */
@@ -378,13 +378,13 @@
         
         .btn-primary {
             background: var(--gradient-primary);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 50, 160, 0.3);
             color: white;
         }
         
         .btn-primary:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            background: linear-gradient(135deg, #002270 0%, #0032A0 100%);
+            box-shadow: 0 4px 15px rgba(0, 50, 160, 0.4);
             color: white;
         }
         
@@ -1086,9 +1086,9 @@
         }
         
         .profile-status-widget {
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            background: linear-gradient(135deg, rgba(0, 50, 160, 0.1) 0%, rgba(0, 34, 112, 0.1) 100%);
             border-radius: 10px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #0032A0;
         }
         
         .profile-status-widget h6 {
@@ -1105,7 +1105,7 @@
 <body>
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
-        <a class="navbar-brand navbar-brand-elegant px-5" href="/about">AYUDA</a>        
+        <a class="navbar-brand navbar-brand-elegant px-2" href="/about">AYUDA</a>        
         <!-- Mobile menu toggle -->
         <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#sidebarMenu">
             <span class="navbar-toggler-icon"></span>
@@ -1149,22 +1149,25 @@
                                style="display: block; color: inherit;"
                                title="Click to view details">
                                 
-                                <div class="notification-icon {{ notification.icon_type or 'info' }}">
-                                    <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
-                                </div>
-                                
-                                <div class="notification-content">
-                                    <div class="notification-title">{{ notification.notif_title }}</div>
-                                    <div class="notification-message">{{ notification.notif_message | truncate(100) }}</div>
-                                    <div class="notification-time">
-                                        <i class="fas fa-clock"></i>
-                                        {{ moment(notification.created_at).fromNow() if moment else notification.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                <div class="d-flex align-items-center ">
+                                    <!-- Icon centered -->
+                                    <div class="notification-icon {{ notification.icon_type or 'info' }} flex-shrink-0 d-flex align-items-center justify-content-center">
+                                        <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
                                     </div>
+                                    
+                                    <div class="notification-content flex-grow-1 ms-5">
+                                        <div class="notification-title">{{ notification.notif_title }}</div>
+                                        <div class="notification-message">{{ notification.notif_message | truncate(100) }}</div>
+                                        <div class="notification-time">
+                                            <i class="fas fa-clock"></i>
+                                            {{ moment(notification.created_at).fromNow() if moment else notification.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if not notification.is_read %}
+                                    <div class="notification-unread-indicator flex-shrink-0"></div>
+                                    {% endif %}
                                 </div>
-                                
-                                {% if not notification.is_read %}
-                                <div class="notification-unread-indicator"></div>
-                                {% endif %}
                                 
                                 <!-- Category Badge (optional) -->
                                 {% if notification.category %}
@@ -1250,7 +1253,7 @@
             </ul>
             
             <!-- Profile Completion Widget -->
-            <div class="mt-4 p-3" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); border-radius: 10px; border-left: 4px solid #667eea;">
+            <div class="mt-4 p-3" id="profileCompletionContainer" style="background: linear-gradient(135deg, rgba(0, 50, 160, 0.1) 0%, rgba(0, 34, 112, 0.1) 100%); border-radius: 10px; border-left: 4px solid #0032A0;">
                 <h6 class="font-weight-bold mb-2" style="font-size: 0.85rem;">
                     <i class="fas fa-user-circle mr-1"></i>Profile Status
                 </h6>
@@ -1264,7 +1267,6 @@
                             <small class="font-weight-bold">0%</small>
                         </div>
                     </div>
-                    <!-- Hide Widget if value is 100% -->
                     
                     <p class="small text-muted mb-2" id="profileStatus">Loading...</p>
                     <a href="{{ url_for('community.profile') }}" class="btn btn-sm btn-outline-primary btn-block">
@@ -1290,7 +1292,7 @@
     {% if messages %}
     <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
         {% for category, message in messages %}
-        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
             <div class="d-flex align-items-center">
                 {% if category == 'success' %}
                 <i class="fas fa-check-circle mr-2"></i>
@@ -1324,8 +1326,8 @@
       crossorigin="anonymous"
     ></script>
     <script
-      src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
-      integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
       crossorigin="anonymous"
     ></script>
 
@@ -1459,6 +1461,7 @@
                 .then(data => {
                     const progressBar = document.querySelector('#profileCompletionWidget .progress-bar');
                     const statusText = document.getElementById('profileStatus');
+                    const container = document.getElementById('profileCompletionContainer');
                     
                     if (progressBar && statusText) {
                         // Update progress bar
@@ -1471,6 +1474,11 @@
                             progressBar.classList.remove('bg-gradient-primary', 'bg-warning');
                             progressBar.classList.add('bg-success');
                             statusText.innerHTML = '<i class="fas fa-check-circle text-success mr-1"></i>Profile Complete!';
+                            
+                            // Hide the widget when profile is 100% complete
+                            if (container && data.percentage === 100) {
+                                container.style.display = 'none';
+                            }
                         } else {
                             progressBar.classList.remove('bg-success', 'bg-gradient-primary');
                             progressBar.classList.add('bg-warning');

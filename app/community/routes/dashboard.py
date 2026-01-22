@@ -1,4 +1,4 @@
-from flask import render_template
+from flask import render_template, jsonify
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.models import Applications, Announcements, Programs
@@ -98,3 +98,16 @@ def dashboard():
                          upcoming_events=upcoming_events,
                          today=today,
                          completion=completion_data)
+
+@community_bp.route('/dismiss-profile-alert', methods=['POST'])
+@login_required
+@role_required('community')
+def dismiss_profile_alert():
+    """Dismiss the profile completion alert permanently"""
+    try:
+        current_user.profile_complete_alert_dismissed = True
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Alert dismissed successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

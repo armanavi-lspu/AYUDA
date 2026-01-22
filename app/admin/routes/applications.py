@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.utils import role_required
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads
 from app.extensions import db
 import re
 
@@ -322,6 +322,20 @@ def view_application(application_id):
     
     from datetime import timedelta
     
+    # Get uploaded documents for this application
+    uploaded_documents = db.session.query(
+        ApplicationDocumentUploads,
+        Requirements
+    ).join(
+        Requirements,
+        ApplicationDocumentUploads.requirement_id == Requirements.id
+    ).filter(
+        ApplicationDocumentUploads.application_id == application_id
+    ).all()
+    
+    # Map uploaded documents by requirement_id for easy lookup
+    uploads_by_requirement = {upload.requirement_id: upload for upload, _ in uploaded_documents}
+    
     # Calculate date values for deadline picker
     today = datetime.utcnow()
     min_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -332,6 +346,7 @@ def view_application(application_id):
         application=application,
         document_requirements=document_requirements,
         qualification_requirements=qualification_requirements,
+        uploads_by_requirement=uploads_by_requirement,
         min_date=min_date,
         default_deadline=default_deadline,
         datetime=datetime,
@@ -1195,6 +1210,109 @@ def send_bulk_notification():
                 continue
         
         db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'sent_count': sent_count,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/applications/<int:application_id>/verify-upload/<int:upload_id>', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_uploaded_document(application_id, upload_id):
+    """Verify or reject an uploaded document"""
+    upload = ApplicationDocumentUploads.query.filter_by(
+        id=upload_id,
+        application_id=application_id
+    ).first_or_404()
+    
+    try:
+        verification_status = request.form.get('verification_status')  # 'approved' or 'rejected'
+        admin_feedback = request.form.get('admin_feedback', '').strip()
+        
+        if verification_status not in ['approved', 'rejected']:
+            return jsonify(success=False, message='Invalid verification status'), 400
+        
+        # Update upload record
+        upload.verification_status = verification_status
+        upload.admin_feedback = admin_feedback
+        upload.verified_by = current_user.id
+        upload.verified_at = datetime.utcnow()
+        
+        # Check if all mandatory documents are verified
+        application = upload.application
+        program_requirements = db.session.query(
+            Requirements,
+            ProgramRequirements.is_mandatory
+        ).join(
+            ProgramRequirements,
+            Requirements.id == ProgramRequirements.requirement_id
+        ).filter(
+            ProgramRequirements.program_id == application.program_id,
+            Requirements.requirement_type == 'document'
+        ).all()
+        
+        mandatory_req_ids = [req.id for req, is_mandatory in program_requirements if is_mandatory]
+        
+        # Get all uploads for mandatory documents
+        mandatory_uploads = ApplicationDocumentUploads.query.filter(
+            ApplicationDocumentUploads.application_id == application_id,
+            ApplicationDocumentUploads.requirement_id.in_(mandatory_req_ids)
+        ).all()
+        
+        # Check if all mandatory documents are uploaded and approved
+        all_approved = all(
+            upload.verification_status == 'approved' 
+            for upload in mandatory_uploads
+        ) and len(mandatory_uploads) == len(mandatory_req_ids)
+        
+        any_rejected = any(
+            upload.verification_status == 'rejected' 
+            for upload in mandatory_uploads
+        )
+        
+        # Update application document_upload_status
+        if all_approved:
+            application.document_upload_status = 'verified'
+            
+            # Notify user that documents are verified
+            notification = Notifications(
+                user_id=application.user_id,
+                notif_title='Documents Verified',
+                notif_message=f'Your documents for {application.program.program_name} have been verified. You may now proceed to physical submission at the MSWD office.',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+        elif any_rejected:
+            application.document_upload_status = 'rejected'
+            
+            # Notify user about rejected documents
+            notification = Notifications(
+                user_id=application.user_id,
+                notif_title='Document Revision Required',
+                notif_message=f'Some documents for {application.program.program_name} need revision. Please check the feedback and resubmit.',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+        
+        db.session.commit()
+        
+        flash(f'Document {verification_status} successfully!', 'success')
+        return jsonify(success=True, message=f'Document {verification_status}')
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=str(e)), 500
         
         message_result = f'Successfully sent notification to {sent_count} applicant(s).'
         if errors:

@@ -22,6 +22,7 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, index=True) # 'admin' or 'community'
     profile_pic = db.Column(db.String(255))
     last_activity = db.Column(db.DateTime)
+    profile_complete_alert_dismissed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
         
     # Relationships
@@ -139,6 +140,7 @@ class Applications(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)
     application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    document_upload_status = db.Column(db.String(20), default='pending', index=True)  # 'pending', 'uploaded', 'verified', 'rejected'
     application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     review_date = db.Column(db.DateTime, index=True)
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -171,6 +173,7 @@ class Applications(db.Model):
     
     # Relationships
     document_checklist = db.relationship('ApplicationDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
+    document_uploads = db.relationship('ApplicationDocumentUploads', backref='application', lazy=True, cascade='all, delete-orphan')
     program = db.relationship('Programs', back_populates='applications')
     shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
     
@@ -273,6 +276,41 @@ class ApplicationDocuments(db.Model):
     
     def __repr__(self):
         return f'<ApplicationDocument {self.id}: {self.requirement.requirement_name} ({self.requirement.requirement_type}) - {self.submission_status}>'
+
+class ApplicationDocumentUploads(db.Model):
+    """Store uploaded documents for initial verification before physical submission"""
+    __tablename__ = 'application_document_uploads'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False, index=True)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer)
+    file_type = db.Column(db.String(100))
+    verification_status = db.Column(db.String(20), default='pending', index=True)  # 'pending', 'approved', 'rejected'
+    admin_feedback = db.Column(db.Text)  # Feedback from admin review
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    verified_at = db.Column(db.DateTime)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    requirement = db.relationship('Requirements')
+    verifier = db.relationship('User', backref='verified_uploads', foreign_keys=[verified_by])
+    
+    @property
+    def is_mandatory(self):
+        """Check if this requirement is mandatory for the program"""
+        prog_req = db.session.query(ProgramRequirements).filter_by(
+            program_id=self.application.program_id,
+            requirement_id=self.requirement_id
+        ).first()
+        return prog_req.is_mandatory if prog_req else False
+    
+    def __repr__(self):
+        return f'<ApplicationDocumentUpload {self.id}: {self.requirement.requirement_name} - {self.verification_status}>'
+
 class FileAttachment(db.Model):
     __tablename__ = 'file_attachment'
     
