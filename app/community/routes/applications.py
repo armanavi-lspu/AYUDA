@@ -219,14 +219,19 @@ def cancel_application(application_id):
         
         program_name = application.program.program_name
         
-        # Delete all application documents and their files
+        # Delete all uploaded document files (ApplicationDocumentUploads has file_path)
+        if application.document_uploads:
+            for upload in application.document_uploads:
+                if upload.file_path and os.path.exists(upload.file_path):
+                    try:
+                        os.remove(upload.file_path)
+                    except:
+                        pass
+                db.session.delete(upload)
+        
+        # Delete application document checklist entries (no files, just status tracking)
         app_docs = ApplicationDocuments.query.filter_by(application_id=application_id).all()
         for doc in app_docs:
-            if doc.file_path and os.path.exists(doc.file_path):
-                try:
-                    os.remove(doc.file_path)
-                except:
-                    pass
             db.session.delete(doc)
         
         # Delete all shelter photos and their files
@@ -261,6 +266,11 @@ def upload_documents(application_id):
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
+    
+    # Check if online upload is enabled for this program
+    if not application.program.allow_online_upload:
+        flash('Online document upload is not available for this program. Please submit your documents physically at the MSWD office.', 'info')
+        return redirect(url_for('community.application_details', application_id=application_id))
     
     # Get document requirements for this program (exclude qualifications)
     program_requirements = db.session.query(
@@ -412,6 +422,11 @@ def submit_documents(application_id):
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
+    
+    # Check if online upload is enabled for this program
+    if not application.program.allow_online_upload:
+        flash('Online document upload is not available for this program.', 'warning')
+        return redirect(url_for('community.application_details', application_id=application_id))
     
     try:
         # Get document requirements for this program

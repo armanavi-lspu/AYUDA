@@ -7,6 +7,8 @@ from app.utils import role_required
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads
 from app.extensions import db
 import re
+from PIL import Image, ImageDraw, ImageFont
+import io
 
 
 def check_qualification(requirement, user_profile):
@@ -63,6 +65,42 @@ def check_qualification(requirement, user_profile):
     
     # Default: unable to determine
     return None
+
+
+def check_all_qualifications(application):
+    """
+    Check if an applicant meets all qualification requirements for a program.
+    Returns: (meets_all: bool, met_requirements: list, unmet_requirements: list)
+    """
+    program = application.program
+    user = application.applicant
+    user_profile = user.community_profile if user else None
+    
+    met_requirements = []
+    unmet_requirements = []
+    
+    # Get all qualification requirements for the program
+    program_requirements = ProgramRequirements.query.filter_by(
+        program_id=program.id
+    ).join(Requirements).filter(
+        Requirements.requirement_type == 'qualification',
+        ProgramRequirements.is_mandatory == True
+    ).all()
+    
+    for prog_req in program_requirements:
+        requirement = prog_req.requirement
+        result = check_qualification(requirement, user_profile)
+        
+        if result is True:
+            met_requirements.append(requirement.requirement_name)
+        elif result is False:
+            unmet_requirements.append(requirement.requirement_name)
+        # If None, we can't determine - treat as met (benefit of doubt)
+        else:
+            met_requirements.append(f"{requirement.requirement_name} (unverified)")
+    
+    meets_all = len(unmet_requirements) == 0
+    return meets_all, met_requirements, unmet_requirements
 
 
 @admin_bp.route('/applications')
@@ -164,7 +202,8 @@ def applications():
     pending_apps = Applications.query.filter_by(application_status='pending').count()
     approved_apps = Applications.query.filter_by(application_status='approved').count()
     rejected_apps = Applications.query.filter_by(application_status='rejected').count()
-    on_hold_apps = Applications.query.filter_by(application_status='on-hold').count()
+    on_hold_apps = Applications.query.filter_by(application_status='on_hold').count()
+    completed_apps = Applications.query.filter_by(application_status='completed').count()
     
     # Get all programs for filter dropdown
     programs = Programs.query.filter_by(is_active=True).order_by(Programs.program_name).all()
@@ -178,6 +217,7 @@ def applications():
         approved_apps=approved_apps,
         rejected_apps=rejected_apps,
         on_hold_apps=on_hold_apps,
+        completed_apps=completed_apps,
         programs=programs,
         user=current_user
     )
@@ -431,7 +471,7 @@ def update_application_status(application_id):
 @login_required
 @role_required('admin')
 def bulk_approve_applications():
-    """Approve multiple applications at once"""
+    """Approve multiple applications at once - checks qualification requirements"""
     try:
         data = request.get_json()
         application_ids = data.get('application_ids', [])
@@ -440,9 +480,11 @@ def bulk_approve_applications():
             return jsonify(success=False, message='No applications selected'), 400
         
         approved_count = 0
+        on_hold_count = 0
         errors = []
         undo_data = []  # Store data for undo
         notification_ids = []  # Track created notifications
+        unqualified_applicants = []  # Track applicants who don't meet qualifications
         
         for app_id in application_ids:
             try:
@@ -452,9 +494,12 @@ def bulk_approve_applications():
                     errors.append(f'Application #{app_id} not found')
                     continue
                 
-                if application.application_status != 'pending':
+                if application.application_status not in ['pending', 'submitted']:
                     errors.append(f'Application #{app_id} is not pending')
                     continue
+                
+                # Check if applicant meets all qualification requirements
+                meets_all, met_reqs, unmet_reqs = check_all_qualifications(application)
                 
                 # Store previous state for undo
                 undo_data.append({
@@ -466,32 +511,88 @@ def bulk_approve_applications():
                     'program_name': application.program.program_name
                 })
                 
-                # Update application status
-                application.application_status = 'approved'
-                application.reviewed_by = current_user.id
-                application.review_date = datetime.utcnow()
-                application.updated_at = datetime.utcnow()
-                
-                # Create notification for applicant
-                notification = Notifications(
-                    user_id=application.user_id,
-                    notif_title='Application Approved',
-                    notif_message=f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
-                    is_read=False,
-                    related_id=application.id,
-                    related_type='application',
-                    created_at=datetime.utcnow()
-                )
-                
-                db.session.add(notification)
-                db.session.flush()  # Get notification ID
-                notification_ids.append(notification.id)
-                
-                approved_count += 1
+                if meets_all:
+                    # Approve the application
+                    application.application_status = 'approved'
+                    application.reviewed_by = current_user.id
+                    application.review_date = datetime.utcnow()
+                    application.updated_at = datetime.utcnow()
+                    
+                    # Create notification for approved applicant
+                    notification = Notifications(
+                        user_id=application.user_id,
+                        notif_title='Application Approved',
+                        notif_message=f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.',
+                        is_read=False,
+                        related_id=application.id,
+                        related_type='application',
+                        created_at=datetime.utcnow()
+                    )
+                    
+                    db.session.add(notification)
+                    db.session.flush()
+                    notification_ids.append(notification.id)
+                    approved_count += 1
+                else:
+                    # Put on hold - does not meet all qualifications
+                    application.application_status = 'on_hold'
+                    application.reviewed_by = current_user.id
+                    application.review_date = datetime.utcnow()
+                    application.updated_at = datetime.utcnow()
+                    application.remarks = f"Does not meet qualification requirements: {', '.join(unmet_reqs)}"
+                    
+                    # Create notification for on-hold applicant
+                    notification = Notifications(
+                        user_id=application.user_id,
+                        notif_title='Application On Hold',
+                        notif_message=f'Your application for {application.program.program_name} has been put on hold for review. Some qualification requirements need verification.',
+                        is_read=False,
+                        related_id=application.id,
+                        related_type='application',
+                        created_at=datetime.utcnow()
+                    )
+                    
+                    db.session.add(notification)
+                    db.session.flush()
+                    notification_ids.append(notification.id)
+                    on_hold_count += 1
+                    
+                    # Track for admin notification
+                    applicant_name = f"{application.applicant.first_name} {application.applicant.last_name}"
+                    unqualified_applicants.append({
+                        'app_id': application.id,
+                        'name': applicant_name,
+                        'program': application.program.program_name,
+                        'unmet_requirements': unmet_reqs
+                    })
                 
             except Exception as e:
                 errors.append(f'Error processing application #{app_id}: {str(e)}')
                 continue
+        
+        # Notify all admins about unqualified applicants
+        if unqualified_applicants:
+            admin_users = User.query.filter_by(role='admin').all()
+            
+            # Build notification message
+            unqualified_summary = []
+            for uq in unqualified_applicants[:5]:  # Limit to first 5 in message
+                unqualified_summary.append(f"• {uq['name']} (#{uq['app_id']}) - Missing: {', '.join(uq['unmet_requirements'][:2])}")
+            
+            summary_text = '\n'.join(unqualified_summary)
+            if len(unqualified_applicants) > 5:
+                summary_text += f"\n... and {len(unqualified_applicants) - 5} more"
+            
+            for admin in admin_users:
+                admin_notification = Notifications(
+                    user_id=admin.id,
+                    notif_title='Applicants Need Manual Review',
+                    notif_message=f'{len(unqualified_applicants)} applicant(s) do not meet all qualification requirements and have been put on hold:\n{summary_text}',
+                    is_read=False,
+                    related_type='admin_alert',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(admin_notification)
         
         db.session.commit()
         
@@ -503,15 +604,17 @@ def bulk_approve_applications():
                 'timestamp': datetime.utcnow().isoformat()
             }
         
-        message = f'Successfully approved {approved_count} application(s).'
+        message = f'Processed {len(application_ids)} application(s): {approved_count} approved, {on_hold_count} put on hold.'
         if errors:
             message += f' {len(errors)} error(s): ' + '; '.join(errors[:3])
         
         return jsonify(
             success=True,
             approved_count=approved_count,
+            on_hold_count=on_hold_count,
             message=message,
             errors=errors,
+            unqualified_count=len(unqualified_applicants),
             can_undo=len(undo_data) > 0
         )
         
@@ -889,7 +992,7 @@ def export_applications():
 @login_required
 @role_required('admin')
 def schedule_claim(application_id):
-    """Schedule claim date for approved financial assistance application"""
+    """Schedule claim date for approved financial assistance application and mark as completed"""
     application = Applications.query.get_or_404(application_id)
     
     # Verify that application is eligible for scheduling
@@ -929,11 +1032,15 @@ def schedule_claim(application_id):
         application.claim_scheduled_at = datetime.utcnow()
         application.updated_at = datetime.utcnow()
         
+        # Mark application as COMPLETED once release is scheduled
+        application.application_status = 'completed'
+        
         db.session.commit()
         
         # Create notification for the applicant
         notif_message = (
-            f'Your claim schedule for {application.program.program_name} has been set!\n\n'
+            f'🎉 Great news! Your application for {application.program.program_name} is now COMPLETED!\n\n'
+            f'Your financial assistance release has been scheduled:\n\n'
             f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
             f'🕐 Time: {claim_time}\n'
             f'📍 Location: {claim_location}\n'
@@ -941,11 +1048,11 @@ def schedule_claim(application_id):
         if claim_instructions:
             notif_message += f'📝 Instructions: {claim_instructions}\n'
         
-        notif_message += '\nPlease be present on the scheduled date and time to claim your assistance.'
+        notif_message += '\nPlease be present on the scheduled date and time to claim your assistance. Bring your valid ID and application slip.'
         
         notif = Notifications(
             user_id=application.user_id,
-            notif_title='Claim Schedule Set',
+            notif_title='Application Completed - Release Scheduled',
             notif_message=notif_message,
             is_read=False,
             created_at=datetime.utcnow()
@@ -953,13 +1060,13 @@ def schedule_claim(application_id):
         db.session.add(notif)
         db.session.commit()
         
-        return jsonify(success=True, message='Claim schedule saved successfully.')
+        return jsonify(success=True, message='Release scheduled successfully! Application marked as completed.')
         
     except ValueError as e:
         return jsonify(success=False, message='Invalid date format.')
     except Exception as e:
         db.session.rollback()
-        return jsonify(success=False, message=f'Error scheduling claim: {str(e)}')
+        return jsonify(success=False, message=f'Error scheduling release: {str(e)}')
 
 
 @admin_bp.route('/applications/<int:application_id>/update-claim-status', methods=['POST'])
@@ -1328,3 +1435,117 @@ def verify_uploaded_document(application_id, upload_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=f'Error: {str(e)}'), 500
+
+@admin_bp.route('/generate-beneficiaries-list')
+@login_required
+@role_required('admin')
+def generate_beneficiaries_list():
+    """Generate a JPG image of approved beneficiaries list"""
+    try:
+        # Get all approved applications with user and community profile data
+        approved_applications = Applications.query.filter_by(
+            application_status='approved'
+        ).join(
+            User, Applications.user_id == User.id
+        ).join(
+            CommunityUsers, User.id == CommunityUsers.user_id
+        ).order_by(Applications.id).all()
+        
+        if not approved_applications:
+            flash('No approved applications found.', 'warning')
+            return redirect(url_for('admin.applications'))
+        
+        # Create image with table
+        # Calculate dimensions based on number of rows
+        row_height = 40
+        header_height = 60
+        padding = 40
+        num_rows = len(approved_applications)
+        
+        img_width = 800
+        img_height = header_height + (num_rows * row_height) + padding * 2
+        
+        # Create white background
+        img = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(img)
+        
+        # Try to use a nice font, fallback to default
+        try:
+            title_font = ImageFont.truetype("arial.ttf", 24)
+            header_font = ImageFont.truetype("arialbd.ttf", 16)
+            cell_font = ImageFont.truetype("arial.ttf", 14)
+        except:
+            title_font = ImageFont.load_default()
+            header_font = ImageFont.load_default()
+            cell_font = ImageFont.load_default()
+        
+        # Title
+        title = "LIST OF APPROVED BENEFICIARIES"
+        title_bbox = draw.textbbox((0, 0), title, font=title_font)
+        title_width = title_bbox[2] - title_bbox[0]
+        draw.text(((img_width - title_width) / 2, padding), title, fill='black', font=title_font)
+        
+        # Table headers
+        y_offset = padding + 40
+        col_widths = [120, 400, 240]  # Application #, Name, Barangay
+        col_positions = [40, 160, 560]
+        
+        # Draw header background
+        draw.rectangle([30, y_offset, img_width - 30, y_offset + 40], fill='#0032A0')
+        
+        # Header text
+        headers = ['Application #', 'Name', 'Barangay']
+        for i, header in enumerate(headers):
+            draw.text((col_positions[i], y_offset + 12), header, fill='white', font=header_font)
+        
+        y_offset += 40
+        
+        # Draw table rows
+        for idx, app in enumerate(approved_applications):
+            # Alternate row colors
+            if idx % 2 == 0:
+                draw.rectangle([30, y_offset, img_width - 30, y_offset + row_height], fill='#f8f9fc')
+            
+            # Application number
+            draw.text((col_positions[0], y_offset + 12), f"#{app.id}", fill='black', font=cell_font)
+            
+            # Full name
+            full_name = f"{app.applicant.first_name} {app.applicant.middle_name or ''} {app.applicant.last_name}".strip()
+            # Truncate if too long
+            if len(full_name) > 40:
+                full_name = full_name[:37] + "..."
+            draw.text((col_positions[1], y_offset + 12), full_name, fill='black', font=cell_font)
+            
+            # Barangay
+            barangay = app.applicant.community_profile.barangay if app.applicant.community_profile else 'N/A'
+            draw.text((col_positions[2], y_offset + 12), barangay, fill='black', font=cell_font)
+            
+            y_offset += row_height
+        
+        # Draw table border
+        draw.rectangle([30, padding + 40, img_width - 30, y_offset], outline='#dee2e6', width=2)
+        
+        # Add footer with generation date
+        footer_text = f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+        footer_bbox = draw.textbbox((0, 0), footer_text, font=cell_font)
+        footer_width = footer_bbox[2] - footer_bbox[0]
+        draw.text(((img_width - footer_width) / 2, y_offset + 20), footer_text, fill='gray', font=cell_font)
+        
+        # Save to BytesIO object
+        img_io = io.BytesIO()
+        img.save(img_io, 'JPEG', quality=95)
+        img_io.seek(0)
+        
+        # Generate filename with timestamp
+        filename = f"beneficiaries_list_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        
+        return send_file(
+            img_io,
+            mimetype='image/jpeg',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'Error generating beneficiaries list: {str(e)}', 'error')
+        return redirect(url_for('admin.applications'))

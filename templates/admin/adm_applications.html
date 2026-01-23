@@ -41,10 +41,15 @@
             <h1 class="font-weight-bold mb-2">Applications Management</h1>
             <p class="text-muted mb-0">Review and manage community program applications</p>
         </div>
-        <div>
+        <div class="d-flex gap-2">
             <a href="{{ url_for('admin.export_applications', status=request.args.get('status', ''), program=request.args.get('program', '')) }}" 
                class="btn btn-success">
                 <i class="fas fa-file-export mr-2"></i>Export to CSV
+            </a>
+            <a href="{{ url_for('admin.generate_beneficiaries_list') }}" 
+               class="btn btn-info ml-2"
+               title="Generate list of approved beneficiaries">
+                <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
             </a>
         </div>
     </div>
@@ -95,6 +100,15 @@
                 </div>
             </div>
         </div>
+
+        <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-secondary shadow stats-card h-100" style="border-left-color: #6f42c1 !important;">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-uppercase mb-2" style="color: #6f42c1;">Completed</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ completed_apps }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Filters -->
@@ -120,7 +134,8 @@
                             <option value="pending" {% if request.args.get('status')=='pending' %}selected{% endif %}>Pending</option>
                             <option value="approved" {% if request.args.get('status')=='approved' %}selected{% endif %}>Approved</option>
                             <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>Rejected</option>
-                            <option value="on-hold" {% if request.args.get('status')=='on-hold' %}selected{% endif %}>On Hold</option>
+                            <option value="on_hold" {% if request.args.get('status')=='on_hold' %}selected{% endif %}>On Hold</option>
+                            <option value="completed" {% if request.args.get('status')=='completed' %}selected{% endif %}>Completed</option>
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
@@ -232,8 +247,10 @@
                                         <span class="badge badge-success status-badge">Approved</span>
                                     {% elif app.application_status == 'rejected' %}
                                         <span class="badge badge-danger status-badge">Rejected</span>
-                                    {% elif app.application_status == 'on-hold' %}
+                                    {% elif app.application_status == 'on_hold' %}
                                         <span class="badge badge-info status-badge">On Hold</span>
+                                    {% elif app.application_status == 'completed' %}
+                                        <span class="badge status-badge" style="background-color: #6f42c1; color: white;">Completed</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -952,13 +969,19 @@ function confirmBulkApproval(approvalType) {
         document.body.removeChild(overlay);
         
         if (data.success) {
-            const message = qualifiedOnly 
-                ? `Successfully approved ${applicationIds.length} qualified application(s).` 
-                : `Successfully approved ${applicationIds.length} application(s).`;
+            // Build message based on auto-qualification results
+            let message = '';
+            if (data.on_hold_count > 0) {
+                message = `Processed ${applicationIds.length} application(s): ${data.approved_count} approved, ${data.on_hold_count} put on hold (did not meet qualifications).`;
+            } else {
+                message = qualifiedOnly 
+                    ? `Successfully approved ${data.approved_count} qualified application(s).` 
+                    : `Successfully approved ${data.approved_count} application(s).`;
+            }
             
             // Show undo toast if undo is available
             if (data.can_undo) {
-                showUndoToast(message, applicationIds.length);
+                showUndoToast(message, data.approved_count, data.on_hold_count);
             } else {
                 alert(message);
                 location.reload();
@@ -973,7 +996,7 @@ function confirmBulkApproval(approvalType) {
     });
 }
 
-function showUndoToast(message, count) {
+function showUndoToast(message, approvedCount, onHoldCount) {
     // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('undoToastContainer');
     if (!toastContainer) {
@@ -983,14 +1006,27 @@ function showUndoToast(message, count) {
         document.body.appendChild(toastContainer);
     }
     
-    // Create toast
+    // Create toast - use warning color if there are on-hold applications
+    const toastClass = onHoldCount > 0 ? 'alert-warning' : 'alert-success';
     const toastId = 'undoToast_' + Date.now();
     const toast = document.createElement('div');
     toast.id = toastId;
-    toast.className = 'alert alert-success alert-dismissible fade show';
+    toast.className = 'alert ' + toastClass + ' alert-dismissible fade show';
     toast.style.cssText = 'min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+    
+    let detailHtml = '';
+    if (onHoldCount > 0) {
+        detailHtml = `
+            <div class="small mt-1">
+                <span class="text-success"><i class="fas fa-check"></i> ${approvedCount} approved</span> | 
+                <span class="text-warning"><i class="fas fa-pause"></i> ${onHoldCount} on hold</span>
+            </div>
+        `;
+    }
+    
     toast.innerHTML = `
-        <strong><i class="fas fa-check-circle mr-2"></i>${message}</strong>
+        <strong><i class="fas ${onHoldCount > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i>${message}</strong>
+        ${detailHtml}
         <div class="mt-2">
             <button type="button" class="btn btn-sm btn-warning mr-2" onclick="performUndo()">
                 <i class="fas fa-undo mr-1"></i>Undo

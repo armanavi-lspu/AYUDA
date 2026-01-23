@@ -55,6 +55,7 @@ class Programs(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True, index=True)  # NEW: Track active programs
+    allow_online_upload = db.Column(db.Boolean, default=True)  # Enable/disable online document submission
     
     # Relationships
     applications = db.relationship('Applications', back_populates='program', lazy=True)

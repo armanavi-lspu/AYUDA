@@ -38,8 +38,8 @@ def schedule():
                     'description': 'Complete and submit all required documents before this date'
                 })
         
-        # Add actual claiming date event if scheduled
-        if app.application_status == 'approved' and app.claim_date and app.claim_status in ['scheduled', 'claimed', 'missed']:
+        # Add actual claiming date event if scheduled (for approved or completed applications)
+        if app.application_status in ['approved', 'completed'] and app.claim_date:
             # Create a full datetime from claim_date and claim_time
             claim_datetime = app.claim_date
             if app.claim_time:
@@ -59,21 +59,19 @@ def schedule():
                 except (ValueError, IndexError):
                     pass  # Use claim_date as is if time parsing fails
             
-            # Determine status badge and description based on claim_status
-            if app.claim_status == 'claimed':
-                status_text = 'claimed'
-                description = f'Assistance successfully claimed on {claim_datetime.strftime("%B %d, %Y")}'
-                title = 'Assistance Claimed ✓'
-            elif app.claim_status == 'missed':
-                status_text = 'missed'
-                description = 'You missed this claim appointment. Please contact the office to reschedule.'
-                title = 'Missed Claim Appointment'
-            else:  # scheduled
+            # For completed applications, show as scheduled release
+            if app.application_status == 'completed':
+                status_text = 'completed'
+                location_info = f" at {app.claim_location}" if app.claim_location else ""
+                instruction_info = f"\n\nInstructions: {app.claim_instructions}" if app.claim_instructions else ""
+                description = f'Your application is complete! Visit the office{location_info} to claim your assistance{instruction_info}'
+                title = 'Scheduled Release Date ✓'
+            else:
                 status_text = 'scheduled'
                 location_info = f" at {app.claim_location}" if app.claim_location else ""
                 instruction_info = f"\n\nInstructions: {app.claim_instructions}" if app.claim_instructions else ""
                 description = f'Visit the office{location_info} to claim your assistance{instruction_info}'
-                title = 'Assistance Claim Date'
+                title = 'Assistance Release Date'
             
             schedule_events.append({
                 'type': 'claiming',

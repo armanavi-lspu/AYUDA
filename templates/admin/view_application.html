@@ -667,56 +667,57 @@
     </div>
 </div>
 
-<!-- Financial Assistance Claim Scheduling Section -->
+<!-- Financial Assistance Release Scheduling Section -->
 {% if application.application_status == 'approved' and application.program.program_type in ['AICS', 'CAL'] and application.documents_complete %}
 <div class="card shadow mb-4" id="claimScheduleCard">
     <div class="card-header bg-gradient-primary text-white py-3">
         <div class="d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold">
-                <i class="fas fa-calendar-alt mr-2"></i>Financial Assistance Claim Schedule
+                <i class="fas fa-calendar-alt mr-2"></i>Schedule Release of Financial Assistance
             </h6>
-            <div>
-                {% if application.claim_status == 'scheduled' %}
-                <span class="badge badge-success">
-                    <i class="fas fa-check-circle mr-1"></i>Scheduled
-                </span>
-                {% elif application.claim_status == 'claimed' %}
-                <span class="badge badge-info">
-                    <i class="fas fa-hand-holding-usd mr-1"></i>Claimed
-                </span>
-                {% elif application.claim_status == 'missed' %}
-                <span class="badge badge-warning">
-                    <i class="fas fa-exclamation-triangle mr-1"></i>Missed
-                </span>
-                {% else %}
-                <span class="badge badge-secondary">
-                    <i class="fas fa-clock mr-1"></i>Not Scheduled
-                </span>
-                {% endif %}
-            </div>
+            <span class="badge badge-secondary">
+                <i class="fas fa-clock mr-1"></i>Pending Schedule
+            </span>
         </div>
     </div>
     <div class="card-body">
-        {% if application.claim_status == 'not_scheduled' or not application.claim_date %}
-        <!-- Not yet scheduled -->
         <div class="alert alert-info">
             <i class="fas fa-info-circle mr-2"></i>
             <strong>Ready for Scheduling</strong><br>
-            All required documents have been verified. You can now schedule the claim date for this financial assistance.
+            All required documents have been verified. Schedule the release date to complete this application.
         </div>
         <button type="button" class="btn btn-primary btn-lg" onclick="showScheduleModal()">
-            <i class="fas fa-calendar-plus mr-2"></i>Schedule Claim Date
+            <i class="fas fa-calendar-plus mr-2"></i>Schedule Release Date
         </button>
-        
-        {% else %}
-        <!-- Already scheduled -->
+    </div>
+</div>
+{% endif %}
+
+<!-- Completed Application - Show Release Schedule -->
+{% if application.application_status == 'completed' and application.claim_date %}
+<div class="card shadow mb-4 border-success">
+    <div class="card-header bg-success text-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-check-circle mr-2"></i>Application Completed - Release Scheduled
+            </h6>
+            <span class="badge badge-light text-success">
+                <i class="fas fa-check-circle mr-1"></i>Completed
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-success mb-4">
+            <i class="fas fa-trophy mr-2"></i>
+            <strong>This application has been completed!</strong> The financial assistance release has been scheduled.
+        </div>
         <div class="row">
             <div class="col-md-6">
-                <h6 class="font-weight-bold mb-3">Scheduled Claim Details</h6>
+                <h6 class="font-weight-bold mb-3">Scheduled Release Details</h6>
                 <table class="table table-sm table-borderless">
                     <tr>
-                        <td class="text-muted" width="40%">Claim Date:</td>
-                        <td class="font-weight-bold">{{ application.claim_date.strftime('%A, %B %d, %Y') if application.claim_date else 'Not set' }}</td>
+                        <td class="text-muted" width="40%">Release Date:</td>
+                        <td class="font-weight-bold text-success">{{ application.claim_date.strftime('%A, %B %d, %Y') if application.claim_date else 'Not set' }}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Time:</td>
@@ -747,26 +748,8 @@
                     {{ application.claim_instructions }}
                 </div>
                 {% endif %}
-                
-                <div class="mt-4">
-                    {% if application.claim_status in ['scheduled', 'missed'] %}
-                    <button type="button" class="btn btn-warning btn-sm mr-2" onclick="showRescheduleModal()">
-                        <i class="fas fa-edit mr-1"></i>Reschedule
-                    </button>
-                    {% endif %}
-                    
-                    {% if application.claim_status == 'scheduled' %}
-                    <button type="button" class="btn btn-success btn-sm mr-2" onclick="markAsClaimed()">
-                        <i class="fas fa-check mr-1"></i>Mark as Claimed
-                    </button>
-                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="markAsMissed()">
-                        <i class="fas fa-times mr-1"></i>Mark as Missed
-                    </button>
-                    {% endif %}
-                </div>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -1733,7 +1716,7 @@ function scheduleClaim() {
     const claimInstructions = document.getElementById('claimInstructions').value;
     
     if (!claimDate || !claimTime) {
-        alert('Please select both date and time for the claim schedule.');
+        alert('Please select both date and time for the release schedule.');
         return;
     }
     
@@ -1761,17 +1744,17 @@ function scheduleClaim() {
     .then(data => {
         if (data.success) {
             $('#scheduleClaimModal').modal('hide');
-            showSuccessToast('Claim schedule saved successfully!');
+            showSuccessToast('Release scheduled! Application marked as completed.');
             setTimeout(() => {
                 location.reload();
             }, 1500);
         } else {
-            alert('Error scheduling claim: ' + data.message);
+            alert('Error scheduling release: ' + data.message);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error scheduling claim. Please try again.');
+        alert('Error scheduling release. Please try again.');
     });
 }
 
@@ -1889,13 +1872,13 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
 }
 </script>
 
-<!-- Claim Scheduling Modal -->
+<!-- Release Scheduling Modal -->
 <div class="modal fade" id="scheduleClaimModal" tabindex="-1" role="dialog" aria-labelledby="scheduleClaimModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="scheduleClaimModalLabel">
-                    <i class="fas fa-calendar-plus mr-2"></i>Schedule Financial Assistance Claim
+                    <i class="fas fa-calendar-plus mr-2"></i>Schedule Release of Financial Assistance
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -1907,16 +1890,16 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="claimDate">
-                                    <i class="fas fa-calendar mr-1"></i>Claim Date <span class="text-danger">*</span>
+                                    <i class="fas fa-calendar mr-1"></i>Release Date <span class="text-danger">*</span>
                                 </label>
                                 <input type="date" class="form-control" id="claimDate" required>
-                                <small class="form-text text-muted">Select a future date for claiming</small>
+                                <small class="form-text text-muted">Select a future date for releasing assistance</small>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="claimTime">
-                                    <i class="fas fa-clock mr-1"></i>Claim Time <span class="text-danger">*</span>
+                                    <i class="fas fa-clock mr-1"></i>Release Time <span class="text-danger">*</span>
                                 </label>
                                 <select class="form-control" id="claimTime" required>
                                     <option value="09:00">9:00 AM</option>
@@ -1933,7 +1916,7 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
                     
                     <div class="form-group">
                         <label for="claimLocation">
-                            <i class="fas fa-map-marker-alt mr-1"></i>Claim Location
+                            <i class="fas fa-map-marker-alt mr-1"></i>Release Location
                         </label>
                         <input type="text" class="form-control" id="claimLocation" 
                                placeholder="Enter the location where the beneficiary should claim">
@@ -1944,15 +1927,16 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
                             <i class="fas fa-clipboard-list mr-1"></i>Special Instructions
                         </label>
                         <textarea class="form-control" id="claimInstructions" rows="3" 
-                                  placeholder="Enter any special instructions or requirements for claiming (optional)"></textarea>
+                                  placeholder="Enter any special instructions or requirements (optional)"></textarea>
                         <small class="form-text text-muted">
-                            Example: "Bring original ID and this notification", "Come with family member", etc.
+                            Example: "Bring original ID and application slip", "Come with family member", etc.
                         </small>
                     </div>
                     
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>Note:</strong> The applicant will be automatically notified of this schedule via their dashboard and email (if configured).
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <strong>Note:</strong> Once scheduled, this application will be marked as <strong>COMPLETED</strong>. 
+                        The applicant will be notified of the release schedule.
                     </div>
                 </form>
             </div>
@@ -1960,8 +1944,8 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-primary" onclick="scheduleClaim()">
-                    <i class="fas fa-calendar-check mr-1"></i>Schedule Claim
+                <button type="button" class="btn btn-success" onclick="scheduleClaim()">
+                    <i class="fas fa-calendar-check mr-1"></i>Schedule & Complete
                 </button>
             </div>
         </div>

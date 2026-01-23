@@ -153,6 +153,9 @@ def add_program():
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
         
+        # Get online upload setting
+        allow_online_upload = request.form.get('allow_online_upload') == 'on'
+        
         # Get selected requirements
         requirement_ids = request.form.getlist('requirements')
         mandatory_requirements = request.form.getlist('mandatory_requirements')
@@ -209,7 +212,8 @@ def add_program():
             description=description,
             user_id=current_user.id,
             file_attachment_id=file_attachment.id if file_attachment else None,
-            date=datetime.utcnow()
+            date=datetime.utcnow(),
+            allow_online_upload=allow_online_upload
         )
         
         try:
@@ -284,6 +288,9 @@ def edit_program(id):
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
     
+    # Get online upload setting
+    allow_online_upload = request.form.get('allow_online_upload') == 'on'
+    
     # Validation
     if not program_name or not program_type or not program_period:
         flash('Program name, type, and period are required.', 'danger')
@@ -304,6 +311,7 @@ def edit_program(id):
     program.start_date = start_date
     program.end_date = end_date
     program.description = description
+    program.allow_online_upload = allow_online_upload
     
     try:
         # Handle file upload
