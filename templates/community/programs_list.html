@@ -1,35 +1,38 @@
 {% extends "community/community_base.html" %}
 {% block title %}{{ category_name }} - AYUDA{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Header Gradient */
+    .page-header-gradient {
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        color: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
-<div class="row mb-4">
-    <div class="col-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}">Programs</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ category_name }}</li>
-            </ol>
-        </nav>
-        <h1 class="h3 mb-0">{{ category_name }}</h1>
-        <p class="text-muted">Browse available {{ category }} programs</p>
-    </div>
-</div>
-
-<!-- Statistics Card -->
-<div class="row mb-4">
-    <div class="col-lg-12">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Programs in this Category</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programs }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
-                    </div>
-                </div>
+<div class="page-header-gradient py-4 px-4 mb-4">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb bg-transparent p-0 mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}" class="text-white-50">Programs</a></li>
+                    <li class="breadcrumb-item text-white active" aria-current="page">{{ category_name }}</li>
+                </ol>
+            </nav>
+            <h2 class="mb-2 text-white">
+                <i class="fas fa-folder-open mr-2"></i>{{ category_name }}
+            </h2>
+            <p class="mb-0 text-white opacity-75">Browse available {{ category }} programs</p>
+        </div>
+        <div class="col-lg-4 text-lg-right">
+            <div class="text-white">
+                <div style="font-size: 2rem; font-weight: bold;">{{ total_programs }}</div>
+                <div style="font-size: 0.9rem; opacity: 0.8;">Programs Available</div>
             </div>
         </div>
     </div>
@@ -46,6 +49,12 @@
                     <p class="card-text text-muted">{{ program.description }}</p>
                     
                     <div class="mb-2">
+                        {% set is_closed = program.end_date and program.end_date < today %}
+                        {% if is_closed %}
+                        <span class="badge badge-dark mr-1">
+                            <i class="fas fa-lock mr-1"></i>Closed
+                        </span>
+                        {% endif %}
                         {% if program.beneficiary_limit %}
                         {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
                         {% set is_full = approved_count >= program.beneficiary_limit %}
@@ -59,8 +68,8 @@
                             <i class="fas fa-money-bill-wave mr-1"></i>{{ program.income_range }}
                         </span>
                         {% endif %}
-                        {% if program.end_date %}
-                        {% set days_left = (program.end_date - today).days if program.end_date > today else 0 %}
+                        {% if program.end_date and not is_closed %}
+                        {% set days_left = (program.end_date - today).days %}
                         {% if days_left > 0 %}
                         <span class="badge badge-info mr-1">
                             <i class="fas fa-clock mr-1"></i>{{ days_left }} days left
@@ -68,10 +77,6 @@
                         {% elif days_left == 0 %}
                         <span class="badge badge-warning mr-1">
                             <i class="fas fa-exclamation-triangle mr-1"></i>Ends today!
-                        </span>
-                        {% else %}
-                        <span class="badge badge-danger mr-1">
-                            <i class="fas fa-times-circle mr-1"></i>Ended
                         </span>
                         {% endif %}
                         {% endif %}
@@ -100,10 +105,16 @@
                         </small>
                     </div>
                     
+                    {% if is_closed %}
+                    <button class="btn btn-secondary btn-sm" disabled>
+                        <i class="fas fa-lock mr-1"></i>Closed
+                    </button>
+                    {% else %}
                     <a href="{{ url_for('community.program_detail', program_id=program.id) }}" 
                        class="btn btn-primary btn-sm">
                         <i class="fas fa-info-circle mr-1"></i>View Details
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

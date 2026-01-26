@@ -30,6 +30,24 @@
     .progress-sm {
         height: 8px;
     }
+    
+    /* Progress bar animation */
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+    
+    /* Progress color indicators */
+    .progress-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+    }
+    .progress-indicator.complete { background-color: #28a745; }
+    .progress-indicator.high { background-color: #17a2b8; }
+    .progress-indicator.medium { background-color: #ffc107; }
+    .progress-indicator.low { background-color: #dc3545; }
 </style>
 {% endblock %}
 
@@ -245,12 +263,16 @@
                                         <span class="badge badge-warning status-badge">Pending</span>
                                     {% elif app.application_status == 'approved' %}
                                         <span class="badge badge-success status-badge">Approved</span>
+                                        <br><small class="text-success"><i class="fas fa-hand-holding-usd"></i> Ready for Release</small>
                                     {% elif app.application_status == 'rejected' %}
                                         <span class="badge badge-danger status-badge">Rejected</span>
                                     {% elif app.application_status == 'on_hold' %}
                                         <span class="badge badge-info status-badge">On Hold</span>
                                     {% elif app.application_status == 'completed' %}
                                         <span class="badge status-badge" style="background-color: #6f42c1; color: white;">Completed</span>
+                                        {% if app.claim_date %}
+                                        <br><small class="text-muted"><i class="fas fa-calendar-check"></i> {{ app.claim_date.strftime('%b %d') }}</small>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
@@ -274,11 +296,18 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="progress flex-grow-1 progress-sm mr-2">
-                                            <div class="progress-bar bg-success" 
+                                        <div class="progress flex-grow-1 progress-sm mr-2" style="height: 10px;">
+                                            <div class="progress-bar 
+                                                {% if app.completion_percentage == 100 %}bg-success
+                                                {% elif app.completion_percentage >= 50 %}bg-info
+                                                {% else %}bg-warning{% endif %}" 
                                                  style="width: {{ app.completion_percentage }}%"></div>
                                         </div>
+                                        {% if app.completion_percentage == 100 %}
+                                        <span class="badge badge-success badge-pill"><i class="fas fa-check"></i></span>
+                                        {% else %}
                                         <small class="text-muted">{{ app.completion_percentage }}%</small>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>

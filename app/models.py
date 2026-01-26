@@ -203,13 +203,20 @@ class Applications(db.Model):
     
     @property
     def completion_percentage(self):
-        """Calculate document completion percentage"""
+        """Calculate document completion percentage (excludes qualification requirements)"""
         if not self.document_checklist:
             return 0
         
-        approved_count = sum(1 for doc in self.document_checklist 
+        # Only count document type requirements, not qualifications
+        document_items = [item for item in self.document_checklist 
+                         if item.requirement.requirement_type == 'document']
+        
+        if not document_items:
+            return 100  # No documents required means 100% complete
+        
+        approved_count = sum(1 for doc in document_items 
                            if doc.submission_status == 'approved')
-        return round((approved_count / len(self.document_checklist)) * 100)
+        return round((approved_count / len(document_items)) * 100)
     
     @property
     def documents_list(self):

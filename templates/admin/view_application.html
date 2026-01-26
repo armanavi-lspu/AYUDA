@@ -237,11 +237,21 @@
                         <tr>
                             <td class="text-muted">Completion:</td>
                             <td>
-                                <div class="progress" style="height: 20px;">
-                                    <div class="progress-bar bg-success" 
-                                         style="width: {{ application.completion_percentage }}%">
-                                        {{ application.completion_percentage }}%
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1" style="height: 20px;">
+                                        <div class="progress-bar 
+                                            {% if application.completion_percentage == 100 %}bg-success
+                                            {% elif application.completion_percentage >= 50 %}bg-info
+                                            {% else %}bg-warning{% endif %}" 
+                                             style="width: {{ application.completion_percentage }}%">
+                                            {{ application.completion_percentage }}%
+                                        </div>
                                     </div>
+                                    {% if application.completion_percentage == 100 %}
+                                    <span class="badge badge-success ml-2"><i class="fas fa-check-circle"></i> Complete</span>
+                                    {% elif application.completion_percentage < 100 %}
+                                    <small class="text-muted ml-2">{{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }}/{{ document_requirements|length }} verified</small>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -363,13 +373,17 @@
                             <span class="text-danger">Rejected</span>
                         {% endif %}
                     </span>
-                    <span class="badge badge-light">
-                        <i class="fas fa-check-double mr-1"></i>
+                    <span class="badge 
+                        {% if application.completion_percentage == 100 %}badge-success
+                        {% elif application.completion_percentage >= 50 %}badge-info
+                        {% else %}badge-warning{% endif %}">
+                        <i class="fas fa-{% if application.completion_percentage == 100 %}check-circle{% else %}tasks{% endif %} mr-1"></i>
                         {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Verified
+                        ({{ application.completion_percentage }}%)
                     </span>
                 </div>
             </div>
-            {% if application.application_status != 'approved' %}
+            {% if application.application_status != 'approved' and application.application_status != 'completed' %}
             <div class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="top:0; left:0; background:rgba(255,255,255,0.7); z-index:10;backdrop-filter: blur(2px);">
                 <div class="text-center">
                     <i class="fas fa-lock fa-2x text-secondary mb-2"></i>
@@ -665,30 +679,145 @@
             </div>
         </div>
     </div>
-</div>
 
 <!-- Financial Assistance Release Scheduling Section -->
-{% if application.application_status == 'approved' and application.program.program_type in ['AICS', 'CAL'] and application.documents_complete %}
-<div class="card shadow mb-4" id="claimScheduleCard">
-    <div class="card-header bg-gradient-primary text-white py-3">
+{% if application.application_status == 'approved' %}
+<div class="card shadow mb-4 border-left-success border-4" id="claimScheduleCard">
+    <div class="card-header bg-success text-white py-3">
         <div class="d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold">
-                <i class="fas fa-calendar-alt mr-2"></i>Schedule Release of Financial Assistance
+                <i class="fas fa-check-circle mr-2"></i>Application Approved - Ready for Release
             </h6>
-            <span class="badge badge-secondary">
-                <i class="fas fa-clock mr-1"></i>Pending Schedule
+            <span class="badge badge-light text-success">
+                <i class="fas fa-hand-holding-usd mr-1"></i>Awaiting Schedule
             </span>
         </div>
     </div>
     <div class="card-body">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle mr-2"></i>
-            <strong>Ready for Scheduling</strong><br>
-            All required documents have been verified. Schedule the release date to complete this application.
+        <div class="row">
+            <div class="col-md-8">
+                <div class="alert alert-success mb-3">
+                    <h5 class="alert-heading mb-2">
+                        <i class="fas fa-trophy mr-2"></i>Congratulations! This application has been approved.
+                    </h5>
+                    <p class="mb-0">
+                        {% if application.documents_complete %}
+                        All required documents have been verified. You can now schedule the release date to complete this application.
+                        {% else %}
+                        <span class="text-warning"><i class="fas fa-exclamation-triangle mr-1"></i>Note:</span> 
+                        Some documents are still pending verification. Complete document verification before scheduling release.
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-3"><i class="fas fa-tasks mr-2"></i>Next Steps:</h6>
+                        <ol class="mb-0 pl-3">
+                            <li class="mb-2">
+                                <strong>Print Application Slip</strong> - Give to the applicant as proof of approval
+                                <a href="{{ url_for('admin.application_slip', application_id=application.id) }}" 
+                                   class="btn btn-sm btn-outline-primary ml-2" target="_blank">
+                                    <i class="fas fa-print mr-1"></i>Print Slip
+                                </a>
+                            </li>
+                            <li class="mb-2">
+                                <strong>Notify Applicant</strong> - Inform them their application is approved and they can get their stub
+                                <button type="button" class="btn btn-sm btn-outline-info ml-2" onclick="sendApprovalNotification()">
+                                    <i class="fas fa-bell mr-1"></i>Send Notification
+                                </button>
+                            </li>
+                            <li class="mb-2">
+                                <strong>Schedule Release</strong> - Set the date when the applicant can claim their financial assistance
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white text-center">
+                        <i class="fas fa-calendar-alt mr-2"></i>Schedule Release
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-plus fa-3x text-primary mb-3"></i>
+                        <p class="text-muted small mb-3">Set the release date to mark this application as completed</p>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" onclick="showScheduleModal()" 
+                                {% if not application.documents_complete %}disabled{% endif %}>
+                            <i class="fas fa-calendar-check mr-2"></i>Schedule Now
+                        </button>
+                        {% if not application.documents_complete %}
+                        <small class="text-danger mt-2 d-block">
+                            <i class="fas fa-exclamation-circle mr-1"></i>Complete document verification first
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-        <button type="button" class="btn btn-primary btn-lg" onclick="showScheduleModal()">
-            <i class="fas fa-calendar-plus mr-2"></i>Schedule Release Date
-        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Completed Application - Without Release Schedule (Auto-completed) -->
+{% if application.application_status == 'completed' and not application.claim_date %}
+<div class="card shadow mb-4 border-success border-4" id="completedNoScheduleCard">
+    <div class="card-header bg-success text-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-check-circle mr-2"></i>Application Completed - Ready for Release Scheduling
+            </h6>
+            <span class="badge badge-light text-success">
+                <i class="fas fa-trophy mr-1"></i>100% Complete
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="alert alert-success mb-3">
+                    <h5 class="alert-heading mb-2">
+                        <i class="fas fa-trophy mr-2"></i>All Requirements Verified!
+                    </h5>
+                    <p class="mb-0">
+                        This application has been automatically marked as <strong>COMPLETED</strong> because all requirements have been verified and approved.
+                        The applicant has been notified.
+                    </p>
+                </div>
+                
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-3"><i class="fas fa-tasks mr-2"></i>Next Steps:</h6>
+                        <ol class="mb-0 pl-3">
+                            <li class="mb-2">
+                                <strong>Print Application Slip</strong> - Give to the applicant as proof of completion
+                                <a href="{{ url_for('admin.application_slip', application_id=application.id) }}" 
+                                   class="btn btn-sm btn-outline-primary ml-2" target="_blank">
+                                    <i class="fas fa-print mr-1"></i>Print Slip
+                                </a>
+                            </li>
+                            <li class="mb-2">
+                                <strong>Schedule Release</strong> - Set the date when the applicant can claim their financial assistance
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white text-center">
+                        <i class="fas fa-calendar-alt mr-2"></i>Schedule Release
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-plus fa-3x text-primary mb-3"></i>
+                        <p class="text-muted small mb-3">Set the release date to finalize this application</p>
+                        <button type="button" class="btn btn-primary btn-lg btn-block" onclick="showScheduleModal()">
+                            <i class="fas fa-calendar-check mr-2"></i>Schedule Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -918,6 +1047,8 @@
     </div>
 </div>
 {% endif %}
+
+</div> <!-- End container-fluid -->
 
 <!-- Status Update Modal (opened after selecting from dropdown) -->
 <div class="modal fade" id="statusRemarksModal" tabindex="-1">
@@ -1322,9 +1453,16 @@ function executeDocumentAction(docId, isComplete, notes) {
             // Show success message
             showSuccessToast(`Document marked as ${isComplete ? 'Complete' : 'Incomplete'}`);
             
+            // Check if application was auto-completed (100% and approved)
+            if (data.application_completed) {
+                setTimeout(() => {
+                    alert('🎉 All requirements verified!\n\nThis application has been automatically marked as COMPLETED.\nThe applicant has been notified.');
+                    location.reload();
+                }, 1000);
+            }
             // Check if all documents are now complete and show scheduling option
-            {% if application.program.program_type in ['AICS', 'CAL'] and application.application_status == 'approved' %}
-            if (isComplete && data.completion_percentage === 100) {
+            {% if application.application_status == 'approved' %}
+            else if (isComplete && data.completion_percentage === 100) {
                 setTimeout(() => {
                     const shouldSchedule = confirm(
                         'All required documents are now complete!\n\n' +
@@ -1346,9 +1484,11 @@ function executeDocumentAction(docId, isComplete, notes) {
             }
             {% else %}
             // Reload after short delay
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            else {
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
             {% endif %}
         } else {
             alert('Error updating document: ' + data.message);
@@ -1755,6 +1895,32 @@ function scheduleClaim() {
     .catch(error => {
         console.error('Error:', error);
         alert('Error scheduling release. Please try again.');
+    });
+}
+
+// Send approval notification to applicant
+function sendApprovalNotification() {
+    if (!confirm('Send notification to the applicant about their approved application?\n\nThis will inform them that their application is approved and they can get their claim stub/slip from the MSWD Office.')) {
+        return;
+    }
+    
+    fetch(`/admin/applications/{{ application.id }}/send-approval-notification`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessToast('Notification sent to applicant successfully!');
+        } else {
+            alert('Error sending notification: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error sending notification. Please try again.');
     });
 }
 

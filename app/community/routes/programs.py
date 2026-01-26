@@ -203,6 +203,11 @@ def submit_application(program_id):
     """Create an application for a program"""
     program = Programs.query.get_or_404(program_id)
     
+    # Check if program application period has ended
+    if program.end_date and program.end_date < datetime.utcnow().date():
+        flash(f'The application period for this program ended on {program.end_date.strftime("%B %d, %Y")}. Applications are no longer being accepted.', 'danger')
+        return redirect(url_for('community.program_detail', program_id=program_id))
+    
     # Check if profile is complete before allowing application
     completion_data = calculate_profile_completion(current_user)
     if not completion_data['is_complete']:

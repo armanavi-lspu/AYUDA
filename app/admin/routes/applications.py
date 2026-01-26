@@ -719,25 +719,33 @@ def admin_update_document(application_id, doc_id):
         app_doc.verified_at = datetime.utcnow()
         app_doc.updated_at = datetime.utcnow()
         
-        # Check if all mandatory documents are complete
         application = app_doc.application
-        mandatory_docs = []
-        for doc in application.document_checklist:
-            prog_req = db.session.query(ProgramRequirements).filter_by(
-                program_id=application.program_id,
-                requirement_id=doc.requirement_id,
-                is_mandatory=True
-            ).first()
-            if prog_req:
-                mandatory_docs.append(doc)
         
-        # Auto-update application status if all mandatory docs are complete
-        if mandatory_docs:
-            all_complete = all(doc.submission_status == 'approved' for doc in mandatory_docs)
-            if all_complete and application.application_status == 'pending':
-                application.application_status = 'approved'
-                application.reviewed_by = current_user.id
-                application.review_date = datetime.utcnow()
+        # Auto-complete application if 100% completion (all documents approved)
+        completion_pct = application.completion_percentage
+        if completion_pct == 100 and application.documents_complete and application.application_status not in ['completed', 'rejected']:
+            application.application_status = 'completed'
+            application.updated_at = datetime.utcnow()
+            
+            # Create notification for the applicant
+            completion_notif = Notifications(
+                user_id=application.user_id,
+                notif_title='🎉 Application Completed!',
+                notif_message=(
+                    f'Congratulations! Your application for {application.program.program_name} is now COMPLETE!\n\n'
+                    f'📋 Application ID: #{application.id}\n'
+                    f'✅ All requirements have been verified and approved.\n\n'
+                    f'📍 Next Steps:\n'
+                    f'• Visit the MSWD Office to get your Application Slip/Stub\n'
+                    f'• Bring a valid ID when claiming your stub\n'
+                    f'• Wait for the scheduled release date notification\n\n'
+                    f'Location: MSWD Office, Municipal Building, Mabitac, Laguna\n'
+                    f'Office Hours: Monday-Friday, 8:00 AM - 5:00 PM'
+                ),
+                is_read=False,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(completion_notif)
         
         db.session.commit()
 
@@ -757,7 +765,8 @@ def admin_update_document(application_id, doc_id):
         return jsonify(
             success=True, 
             is_complete=is_complete,
-            completion_percentage=application.completion_percentage
+            completion_percentage=application.completion_percentage,
+            application_completed=(application.application_status == 'completed')
         )
         
     except Exception as e:
@@ -992,15 +1001,16 @@ def export_applications():
 @login_required
 @role_required('admin')
 def schedule_claim(application_id):
-    """Schedule claim date for approved financial assistance application and mark as completed"""
+    """Schedule claim date for approved/completed financial assistance application"""
     application = Applications.query.get_or_404(application_id)
     
-    # Verify that application is eligible for scheduling
-    if application.application_status != 'approved':
-        return jsonify(success=False, message='Application must be approved before scheduling.')
+    # Verify that application is eligible for scheduling (approved or completed without schedule)
+    if application.application_status not in ['approved', 'completed']:
+        return jsonify(success=False, message='Application must be approved or completed before scheduling.')
     
-    if application.program.program_type not in ['AICS', 'CAL']:
-        return jsonify(success=False, message='Claim scheduling is only available for AICS and CAL programs.')
+    # Removed restriction - scheduling now available for all program types
+    # if application.program.program_type not in ['AICS', 'CAL']:
+    #     return jsonify(success=False, message='Claim scheduling is only available for AICS and CAL programs.')
     
     if not application.documents_complete:
         return jsonify(success=False, message='All required documents must be verified before scheduling.')
@@ -1032,19 +1042,32 @@ def schedule_claim(application_id):
         application.claim_scheduled_at = datetime.utcnow()
         application.updated_at = datetime.utcnow()
         
-        # Mark application as COMPLETED once release is scheduled
+        # Mark application as COMPLETED once release is scheduled (if not already)
+        was_already_completed = (application.application_status == 'completed')
         application.application_status = 'completed'
         
         db.session.commit()
         
         # Create notification for the applicant
-        notif_message = (
-            f'🎉 Great news! Your application for {application.program.program_name} is now COMPLETED!\n\n'
-            f'Your financial assistance release has been scheduled:\n\n'
-            f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
-            f'🕐 Time: {claim_time}\n'
-            f'📍 Location: {claim_location}\n'
-        )
+        if was_already_completed:
+            notif_message = (
+                f'📅 Release Date Scheduled!\n\n'
+                f'Your financial assistance for {application.program.program_name} has been scheduled for release:\n\n'
+                f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
+                f'🕐 Time: {claim_time}\n'
+                f'📍 Location: {claim_location}\n'
+            )
+            notif_title = 'Release Date Scheduled'
+        else:
+            notif_message = (
+                f'🎉 Great news! Your application for {application.program.program_name} is now COMPLETED!\n\n'
+                f'Your financial assistance release has been scheduled:\n\n'
+                f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
+                f'🕐 Time: {claim_time}\n'
+                f'📍 Location: {claim_location}\n'
+            )
+            notif_title = 'Application Completed - Release Scheduled'
+            
         if claim_instructions:
             notif_message += f'📝 Instructions: {claim_instructions}\n'
         
@@ -1052,7 +1075,7 @@ def schedule_claim(application_id):
         
         notif = Notifications(
             user_id=application.user_id,
-            notif_title='Application Completed - Release Scheduled',
+            notif_title=notif_title,
             notif_message=notif_message,
             is_read=False,
             created_at=datetime.utcnow()
@@ -1060,13 +1083,56 @@ def schedule_claim(application_id):
         db.session.add(notif)
         db.session.commit()
         
-        return jsonify(success=True, message='Release scheduled successfully! Application marked as completed.')
+        return jsonify(success=True, message='Release scheduled successfully!')
         
     except ValueError as e:
         return jsonify(success=False, message='Invalid date format.')
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=f'Error scheduling release: {str(e)}')
+
+
+@admin_bp.route('/applications/<int:application_id>/send-approval-notification', methods=['POST'])
+@login_required
+@role_required('admin')
+def send_approval_notification(application_id):
+    """Send notification to applicant that their application is approved and ready for release"""
+    application = Applications.query.get_or_404(application_id)
+    
+    # Verify that application is approved
+    if application.application_status != 'approved':
+        return jsonify(success=False, message='Application must be approved to send this notification.')
+    
+    try:
+        # Create notification for the applicant
+        notif_message = (
+            f'🎉 Congratulations! Your application for {application.program.program_name} has been APPROVED!\n\n'
+            f'📋 Application ID: #{application.id}\n'
+            f'📅 Application Date: {application.application_date.strftime("%B %d, %Y") if application.application_date else "N/A"}\n\n'
+            f'✅ Next Steps:\n'
+            f'1. Visit the MSWD Office to get your Application Slip/Stub\n'
+            f'2. Bring a valid ID when claiming your stub\n'
+            f'3. Wait for the scheduled release date notification\n\n'
+            f'📍 Location: MSWD Office, Municipal Building, Mabitac, Laguna\n'
+            f'🕐 Office Hours: Monday-Friday, 8:00 AM - 5:00 PM\n\n'
+            f'Please keep your Application Slip/Stub safe as you will need it to claim your financial assistance.'
+        )
+        
+        notif = Notifications(
+            user_id=application.user_id,
+            notif_title='Application Approved - Get Your Claim Stub',
+            notif_message=notif_message,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notif)
+        db.session.commit()
+        
+        return jsonify(success=True, message='Approval notification sent to applicant successfully!')
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error sending notification: {str(e)}')
 
 
 @admin_bp.route('/applications/<int:application_id>/update-claim-status', methods=['POST'])
@@ -1412,29 +1478,47 @@ def verify_uploaded_document(application_id, upload_id):
             )
             db.session.add(notification)
         
+        # Auto-complete application if 100% completion (all documents approved)
+        completion_pct = application.completion_percentage
+        if completion_pct == 100 and application.documents_complete and application.application_status not in ['completed', 'rejected']:
+            application.application_status = 'completed'
+            application.updated_at = datetime.utcnow()
+            
+            # Create notification for the applicant
+            completion_notif = Notifications(
+                user_id=application.user_id,
+                notif_title='🎉 Application Completed!',
+                notif_message=(
+                    f'Congratulations! Your application for {application.program.program_name} is now COMPLETE!\n\n'
+                    f'📋 Application ID: #{application.id}\n'
+                    f'✅ All requirements have been verified and approved.\n\n'
+                    f'📍 Next Steps:\n'
+                    f'• Visit the MSWD Office to get your Application Slip/Stub\n'
+                    f'• Bring a valid ID when claiming your stub\n'
+                    f'• Wait for the scheduled release date notification\n\n'
+                    f'Location: MSWD Office, Municipal Building, Mabitac, Laguna\n'
+                    f'Office Hours: Monday-Friday, 8:00 AM - 5:00 PM'
+                ),
+                is_read=False,
+                related_id=application_id,
+                related_type='application',
+                created_at=datetime.utcnow()
+            )
+            db.session.add(completion_notif)
+        
         db.session.commit()
         
         flash(f'Document {verification_status} successfully!', 'success')
-        return jsonify(success=True, message=f'Document {verification_status}')
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(success=False, message=str(e)), 500
-        
-        message_result = f'Successfully sent notification to {sent_count} applicant(s).'
-        if errors:
-            message_result += f' {len(errors)} error(s) occurred.'
-        
         return jsonify(
-            success=True,
-            sent_count=sent_count,
-            message=message_result,
-            errors=errors
+            success=True, 
+            message=f'Document {verification_status}',
+            application_completed=(application.application_status == 'completed')
         )
         
     except Exception as e:
         db.session.rollback()
-        return jsonify(success=False, message=f'Error: {str(e)}'), 500
+        return jsonify(success=False, message=str(e)), 500
+
 
 @admin_bp.route('/generate-beneficiaries-list')
 @login_required
