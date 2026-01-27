@@ -844,8 +844,23 @@ def verify_all_shelter_photos(application_id):
         
         # Create notification for applicant
         if action == 'approve':
-            flash_msg = 'All shelter photos approved successfully. Shelter requirement marked as qualified.'
-            notif_msg = f'All your shelter photos have been approved for {application.program.program_name} application. Your shelter requirement is now qualified.'
+            # For ESA programs, after photos are approved, update application to 'approved'
+            # so admin can set document submission deadline
+            if application.program.program_type == 'ESA':
+                application.application_status = 'approved'
+                application.reviewed_by = current_user.id
+                application.review_date = datetime.utcnow()
+                application.updated_at = datetime.utcnow()
+                flash_msg = 'Shelter photos approved! Application status updated to APPROVED. You can now set a document submission deadline.'
+                notif_msg = (
+                    f'Great news! Your shelter photos for {application.program.program_name} have been approved!\n\n'
+                    f'📸 Shelter verification: PASSED\n\n'
+                    f'Please wait for the admin to set a deadline for document submission. '
+                    f'You will be notified of the required documents and submission deadline.'
+                )
+            else:
+                flash_msg = 'All shelter photos approved successfully. Shelter requirement marked as qualified.'
+                notif_msg = f'All your shelter photos have been approved for {application.program.program_name} application. Your shelter requirement is now qualified.'
         else:
             flash_msg = 'All shelter photos rejected.'
             notif_msg = f'Your shelter photos for {application.program.program_name} application were rejected. Please check admin notes and resubmit new photos.'
@@ -926,6 +941,182 @@ def verify_shelter_photo(photo_id):
         flash(f'Error updating shelter photo: {str(e)}', 'danger')
     
     return redirect(url_for('admin.view_application', application_id=photo.application_id))
+
+
+# ===================== CAL (Capital Assistance for Livelihood) Document Verification =====================
+
+from app.models import CALDocuments
+
+@admin_bp.route('/application/<int:application_id>/verify-cal-documents', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_all_cal_documents(application_id):
+    """Verify or reject both CAL documents (Certificate and Proposal)"""
+    application = Applications.query.get_or_404(application_id)
+    
+    action = request.form.get('action')  # 'approve' or 'reject'
+    admin_notes = request.form.get('admin_notes', '').strip()
+    
+    if action not in ['approve', 'reject']:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    # Check if both documents exist
+    certificate = CALDocuments.query.filter_by(
+        application_id=application_id,
+        document_type='certificate'
+    ).first()
+    proposal = CALDocuments.query.filter_by(
+        application_id=application_id,
+        document_type='proposal'
+    ).first()
+    
+    if not certificate or not proposal:
+        flash('Both Certificate of Participation and Proposal must be uploaded before verification.', 'warning')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    try:
+        # Update both documents
+        for doc in [certificate, proposal]:
+            if action == 'approve':
+                doc.verification_status = 'approved'
+                doc.admin_notes = admin_notes if admin_notes else 'Document verified and approved.'
+            else:  # reject
+                if not admin_notes:
+                    flash('Please provide a reason for rejection.', 'warning')
+                    return redirect(url_for('admin.view_application', application_id=application_id))
+                doc.verification_status = 'rejected'
+                doc.admin_notes = admin_notes
+            
+            doc.verified_by = current_user.id
+            doc.verified_at = datetime.utcnow()
+        
+        # Create notification for applicant
+        if action == 'approve':
+            # For CAL programs, after documents are approved, update application to 'approved'
+            application.application_status = 'approved'
+            application.reviewed_by = current_user.id
+            application.review_date = datetime.utcnow()
+            application.updated_at = datetime.utcnow()
+            
+            flash_msg = 'CAL documents approved! Application status updated to APPROVED. You can now set a document submission deadline.'
+            notif_msg = (
+                f'Great news! Your CAL application documents have been approved!\n\n'
+                f'📜 Certificate of Participation: VERIFIED\n'
+                f'📋 Capital Assistance Proposal: APPROVED\n\n'
+                f'Please wait for the admin to set a deadline for additional document submission. '
+                f'You will be notified of the required documents and submission deadline.'
+            )
+        else:
+            flash_msg = 'CAL documents rejected. Applicant has been notified.'
+            notif_msg = (
+                f'Your CAL application documents for {application.program.program_name} were rejected.\n\n'
+                f'Reason: {admin_notes}\n\n'
+                f'Please review the feedback and resubmit your Certificate and Proposal.'
+            )
+        
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title='CAL Documents Update',
+            notif_message=notif_msg,
+            is_read=False,
+            related_id=application.id,
+            related_type='application',
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(flash_msg, 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating CAL documents: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.view_application', application_id=application_id))
+
+
+@admin_bp.route('/cal-document/<int:doc_id>/verify', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_cal_document(doc_id):
+    """Verify or reject a single CAL document"""
+    cal_doc = CALDocuments.query.get_or_404(doc_id)
+    application = cal_doc.application
+    
+    action = request.form.get('action')  # 'approve' or 'reject'
+    admin_notes = request.form.get('admin_notes', '').strip()
+    
+    if action not in ['approve', 'reject']:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application.id))
+    
+    try:
+        if action == 'approve':
+            cal_doc.verification_status = 'approved'
+            cal_doc.admin_notes = admin_notes if admin_notes else 'Document verified and approved.'
+            flash_msg = f'{cal_doc.document_type.title()} approved successfully.'
+            notif_msg = f'Your {cal_doc.document_type} has been approved for {application.program.program_name} application.'
+        else:  # reject
+            if not admin_notes:
+                flash('Please provide a reason for rejection.', 'warning')
+                return redirect(url_for('admin.view_application', application_id=application.id))
+            
+            cal_doc.verification_status = 'rejected'
+            cal_doc.admin_notes = admin_notes
+            flash_msg = f'{cal_doc.document_type.title()} rejected.'
+            notif_msg = f'Your {cal_doc.document_type} for {application.program.program_name} was rejected. Reason: {admin_notes}'
+        
+        cal_doc.verified_by = current_user.id
+        cal_doc.verified_at = datetime.utcnow()
+        
+        # Check if both documents are now approved - if so, approve the application
+        if action == 'approve':
+            certificate = CALDocuments.query.filter_by(
+                application_id=application.id,
+                document_type='certificate',
+                verification_status='approved'
+            ).first()
+            proposal = CALDocuments.query.filter_by(
+                application_id=application.id,
+                document_type='proposal',
+                verification_status='approved'
+            ).first()
+            
+            if certificate and proposal:
+                application.application_status = 'approved'
+                application.reviewed_by = current_user.id
+                application.review_date = datetime.utcnow()
+                application.updated_at = datetime.utcnow()
+                flash_msg += ' Both CAL documents are now approved - application status updated to APPROVED.'
+                notif_msg = (
+                    f'Both your CAL documents have been approved for {application.program.program_name}!\n\n'
+                    f'📜 Certificate: VERIFIED\n📋 Proposal: APPROVED\n\n'
+                    f'Please wait for the admin to set a deadline for additional document submission.'
+                )
+        
+        # Create notification
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title=f'CAL {cal_doc.document_type.title()} Update',
+            notif_message=notif_msg,
+            is_read=False,
+            related_id=application.id,
+            related_type='application',
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(flash_msg, 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating CAL document: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.view_application', application_id=application.id))
 
 
 @admin_bp.route('/applications/export', methods=['GET'])

@@ -401,3 +401,173 @@ def delete_shelter_photo(photo_id):
         flash(f'Error deleting photo: {str(e)}', 'danger')
     
     return redirect(url_for('community.application_detail', application_id=application_id))
+
+
+# ===================== CAL (Capital Assistance for Livelihood) Routes =====================
+
+from app.models import CALDocuments
+
+@community_bp.route('/application/<int:application_id>/upload-cal-documents', methods=['POST'])
+@login_required
+@role_required('community')
+def upload_cal_documents(application_id):
+    """Upload Certificate of Participation and/or Proposal for CAL applications"""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    # Verify this is a CAL program
+    if application.program.program_type != 'CAL':
+        flash('This upload is only for CAL program applications.', 'danger')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    certificate_file = request.files.get('certificate')
+    proposal_file = request.files.get('proposal')
+    proposal_description = request.form.get('proposal_description', '').strip()
+    
+    if not certificate_file and not proposal_file:
+        flash('Please upload at least one document.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
+    
+    def allowed_file(filename):
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    
+    try:
+        upload_path = os.path.join('static', 'uploads', 'cal_documents', str(application_id))
+        os.makedirs(upload_path, exist_ok=True)
+        
+        uploaded_docs = []
+        
+        # Process Certificate of Participation
+        if certificate_file and certificate_file.filename:
+            if not allowed_file(certificate_file.filename):
+                flash('Invalid file type for certificate. Allowed: PDF, JPG, PNG, DOC, DOCX', 'danger')
+                return redirect(url_for('community.application_detail', application_id=application_id))
+            
+            # Check if certificate already exists
+            existing_cert = CALDocuments.query.filter_by(
+                application_id=application_id,
+                document_type='certificate'
+            ).first()
+            
+            if existing_cert and existing_cert.verification_status == 'approved':
+                flash('Certificate already approved. Cannot replace.', 'warning')
+            else:
+                # Delete old file if exists
+                if existing_cert:
+                    if os.path.exists(existing_cert.file_path):
+                        os.remove(existing_cert.file_path)
+                    db.session.delete(existing_cert)
+                
+                filename = secure_filename(f"certificate_{application_id}_{certificate_file.filename}")
+                file_path = os.path.join(upload_path, filename)
+                certificate_file.save(file_path)
+                
+                cal_doc = CALDocuments(
+                    application_id=application_id,
+                    document_type='certificate',
+                    file_path=file_path,
+                    original_filename=certificate_file.filename,
+                    description='Certificate of Participation - Seminar/Training'
+                )
+                db.session.add(cal_doc)
+                uploaded_docs.append('Certificate of Participation')
+        
+        # Process Proposal
+        if proposal_file and proposal_file.filename:
+            if not allowed_file(proposal_file.filename):
+                flash('Invalid file type for proposal. Allowed: PDF, JPG, PNG, DOC, DOCX', 'danger')
+                return redirect(url_for('community.application_detail', application_id=application_id))
+            
+            # Check if proposal already exists
+            existing_proposal = CALDocuments.query.filter_by(
+                application_id=application_id,
+                document_type='proposal'
+            ).first()
+            
+            if existing_proposal and existing_proposal.verification_status == 'approved':
+                flash('Proposal already approved. Cannot replace.', 'warning')
+            else:
+                # Delete old file if exists
+                if existing_proposal:
+                    if os.path.exists(existing_proposal.file_path):
+                        os.remove(existing_proposal.file_path)
+                    db.session.delete(existing_proposal)
+                
+                filename = secure_filename(f"proposal_{application_id}_{proposal_file.filename}")
+                file_path = os.path.join(upload_path, filename)
+                proposal_file.save(file_path)
+                
+                cal_doc = CALDocuments(
+                    application_id=application_id,
+                    document_type='proposal',
+                    file_path=file_path,
+                    original_filename=proposal_file.filename,
+                    description=proposal_description or 'Capital Assistance Proposal'
+                )
+                db.session.add(cal_doc)
+                uploaded_docs.append('Proposal')
+        
+        db.session.commit()
+        
+        if uploaded_docs:
+            flash(f'Successfully uploaded: {", ".join(uploaded_docs)}', 'success')
+            
+            # Create notification for admin
+            from app.models import Notifications, User
+            admins = User.query.filter_by(role='admin').all()
+            for admin in admins:
+                notif = Notifications(
+                    user_id=admin.id,
+                    notif_title='CAL Documents Uploaded',
+                    notif_message=f'{application.applicant.first_name} {application.applicant.last_name} has uploaded CAL documents for {application.program.program_name}. Please review.',
+                    is_read=False,
+                    related_id=application_id,
+                    related_type='application'
+                )
+                db.session.add(notif)
+            db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error uploading documents: {str(e)}', 'danger')
+    
+    return redirect(url_for('community.application_detail', application_id=application_id))
+
+
+@community_bp.route('/cal-document/<int:doc_id>/delete', methods=['POST'])
+@login_required
+@role_required('community')
+def delete_cal_document(doc_id):
+    """Delete a CAL document (Certificate or Proposal)"""
+    cal_doc = CALDocuments.query.get_or_404(doc_id)
+    
+    # Verify ownership
+    if cal_doc.application.user_id != current_user.id:
+        flash('You do not have permission to delete this document.', 'danger')
+        return redirect(url_for('community.applications'))
+    
+    # Only allow deletion if not yet approved
+    if cal_doc.verification_status == 'approved':
+        flash('Cannot delete an approved document.', 'warning')
+        return redirect(url_for('community.application_detail', application_id=cal_doc.application_id))
+    
+    try:
+        # Delete file from filesystem
+        if os.path.exists(cal_doc.file_path):
+            os.remove(cal_doc.file_path)
+        
+        application_id = cal_doc.application_id
+        doc_type = cal_doc.document_type
+        db.session.delete(cal_doc)
+        db.session.commit()
+        
+        flash(f'{doc_type.title()} deleted successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting document: {str(e)}', 'danger')
+    
+    return redirect(url_for('community.application_detail', application_id=application_id))

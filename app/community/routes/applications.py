@@ -270,7 +270,18 @@ def upload_documents(application_id):
     # Check if online upload is enabled for this program
     if not application.program.allow_online_upload:
         flash('Online document upload is not available for this program. Please submit your documents physically at the MSWD office.', 'info')
-        return redirect(url_for('community.application_details', application_id=application_id))
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    # For ESA programs, check if shelter photos are verified first
+    if application.program.program_type == 'ESA':
+        if not application.shelter_photos or len(application.shelter_photos) < 3:
+            flash('Please upload at least 3 shelter photos before submitting documents.', 'warning')
+            return redirect(url_for('community.application_detail', application_id=application_id))
+        
+        approved_photos = [p for p in application.shelter_photos if p.verification_status == 'approved']
+        if len(approved_photos) < 3:
+            flash('Your shelter photos must be verified before you can submit documents. Please wait for admin verification.', 'info')
+            return redirect(url_for('community.application_detail', application_id=application_id))
     
     # Get document requirements for this program (exclude qualifications)
     program_requirements = db.session.query(

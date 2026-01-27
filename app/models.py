@@ -177,8 +177,18 @@ class Applications(db.Model):
     document_uploads = db.relationship('ApplicationDocumentUploads', backref='application', lazy=True, cascade='all, delete-orphan')
     program = db.relationship('Programs', back_populates='applications')
     shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
+    cal_documents = db.relationship('CALDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
     
     # Note: applicant, reviewer, and claim_scheduler relationships are defined in User model
+    
+    @property
+    def cal_docs_verified(self):
+        """Check if CAL Certificate and Proposal are both verified"""
+        if not self.cal_documents:
+            return False
+        certificate = next((d for d in self.cal_documents if d.document_type == 'certificate' and d.verification_status == 'approved'), None)
+        proposal = next((d for d in self.cal_documents if d.document_type == 'proposal' and d.verification_status == 'approved'), None)
+        return certificate is not None and proposal is not None
     
     @property
     def documents_complete(self):
@@ -425,3 +435,25 @@ class ShelterPhotos(db.Model):
     
     def __repr__(self):
         return f'<ShelterPhoto {self.id} for Application {self.application_id}>'
+
+
+class CALDocuments(db.Model):
+    """CAL (Capital Assistance for Livelihood) pre-approval documents: Certificate and Proposal"""
+    __tablename__ = 'cal_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
+    document_type = db.Column(db.String(50), nullable=False)  # 'certificate' or 'proposal'
+    file_path = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255))
+    description = db.Column(db.Text)  # For proposal: brief description of the business plan
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    verified_at = db.Column(db.DateTime)
+    verification_status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected'
+    admin_notes = db.Column(db.Text)
+    
+    verifier = db.relationship('User', backref='verified_cal_documents')
+    
+    def __repr__(self):
+        return f'<CALDocument {self.document_type} for Application {self.application_id}>'

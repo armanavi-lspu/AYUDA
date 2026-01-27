@@ -119,6 +119,900 @@
         </a>
     </div>
 
+    <!-- ESA Workflow Progress (ESA Programs Only) -->
+    {% if application.program.program_type == 'ESA' %}
+    {% set photos_verified = application.shelter_photos and (application.shelter_photos | selectattr('verification_status', 'equalto', 'approved') | list | length >= 3) %}
+    {% set photos_rejected = application.shelter_photos and (application.shelter_photos | selectattr('verification_status', 'equalto', 'rejected') | list | length > 0) %}
+    {% set has_photos = application.shelter_photos and (application.shelter_photos | length >= 3) %}
+    <div class="card shadow mb-4 border-info">
+        <div class="card-header bg-info text-white py-2">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-tasks mr-2"></i>ESA Application Workflow
+            </h6>
+        </div>
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Step 1: Application -->
+                <div class="text-center flex-fill">
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">1. Applied</div>
+                </div>
+                <div class="flex-fill"><hr class="border-success"></div>
+                
+                <!-- Step 2: Photos Uploaded -->
+                <div class="text-center flex-fill">
+                    {% if has_photos %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">2. Photos Uploaded</div>
+                    {% else %}
+                    <div class="rounded-circle bg-warning text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-warning">2. Awaiting Photos</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if photos_verified %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 3: Photos Verified -->
+                <div class="text-center flex-fill">
+                    {% if photos_verified %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">3. Photos Verified</div>
+                    {% elif photos_rejected %}
+                    <div class="rounded-circle bg-danger text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-times"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-danger">3. Photos Rejected</div>
+                    {% elif has_photos %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">3. Verify Photos</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>3</span>
+                    </div>
+                    <div class="small mt-1 text-muted">3. Verify Photos</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.application_status == 'approved' or application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 4: Documents -->
+                <div class="text-center flex-fill">
+                    {% if application.application_status == 'completed' or application.completion_percentage == 100 %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">4. Docs Verified</div>
+                    {% elif application.application_status == 'approved' %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">4. Verify Docs</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>4</span>
+                    </div>
+                    <div class="small mt-1 text-muted">4. Documents</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 5: Completed -->
+                <div class="text-center flex-fill">
+                    {% if application.application_status == 'completed' %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">5. Completed</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>5</span>
+                    </div>
+                    <div class="small mt-1 text-muted">5. Completed</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.claim_date %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 6: Scheduled -->
+                <div class="text-center flex-fill">
+                    {% if application.claim_date %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">6. Scheduled</div>
+                    {% elif application.application_status == 'completed' %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-calendar"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">6. Schedule</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>6</span>
+                    </div>
+                    <div class="small mt-1 text-muted">6. Schedule</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Current Action Required -->
+            <div class="mt-3 p-2 bg-light rounded">
+                {% if not has_photos %}
+                <div class="text-warning"><i class="fas fa-exclamation-triangle mr-2"></i><strong>Waiting:</strong> Applicant needs to upload shelter photos (minimum 3 required)</div>
+                {% elif photos_rejected %}
+                <div class="text-danger"><i class="fas fa-times-circle mr-2"></i><strong>Action Needed:</strong> Photos were rejected. Waiting for applicant to resubmit photos.</div>
+                {% elif has_photos and not photos_verified %}
+                <div class="text-primary"><i class="fas fa-arrow-down mr-2"></i><strong>Action Required:</strong> Verify shelter photos below, then approve or reject.</div>
+                {% elif photos_verified and application.application_status == 'pending' %}
+                <div class="text-primary"><i class="fas fa-arrow-right mr-2"></i><strong>Action Required:</strong> Approve application and set document submission deadline.</div>
+                {% elif application.application_status == 'approved' and application.completion_percentage < 100 %}
+                <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>In Progress:</strong> Verify submitted documents ({{ application.completion_percentage }}% complete)</div>
+                {% elif application.application_status == 'completed' and not application.claim_date %}
+                <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Ready:</strong> Application completed! Schedule the release date.</div>
+                {% elif application.claim_date %}
+                <div class="text-success"><i class="fas fa-check-circle mr-2"></i><strong>Done:</strong> Release scheduled for {{ application.claim_date.strftime('%B %d, %Y') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- CAL Workflow Progress (CAL Programs Only) -->
+    {% if application.program.program_type == 'CAL' %}
+    {% set has_certificate = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | list | length > 0) %}
+    {% set has_proposal = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | list | length > 0) %}
+    {% set has_both_docs = has_certificate and has_proposal %}
+    {% set cert_approved = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | selectattr('verification_status', 'equalto', 'approved') | list | length > 0) %}
+    {% set proposal_approved = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | selectattr('verification_status', 'equalto', 'approved') | list | length > 0) %}
+    {% set cal_docs_verified = cert_approved and proposal_approved %}
+    {% set any_rejected = application.cal_documents and (application.cal_documents | selectattr('verification_status', 'equalto', 'rejected') | list | length > 0) %}
+    <div class="card shadow mb-4 border-success">
+        <div class="card-header bg-success text-white py-2">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-store mr-2"></i>CAL Application Workflow
+            </h6>
+        </div>
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <!-- Step 1: Application -->
+                <div class="text-center flex-fill">
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">1. Applied</div>
+                </div>
+                <div class="flex-fill"><hr class="border-success"></div>
+                
+                <!-- Step 2: Certificate & Proposal Uploaded -->
+                <div class="text-center flex-fill">
+                    {% if has_both_docs %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">2. Docs Uploaded</div>
+                    {% else %}
+                    <div class="rounded-circle bg-warning text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-warning">2. Awaiting Uploads</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if cal_docs_verified %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 3: Certificate & Proposal Verified -->
+                <div class="text-center flex-fill">
+                    {% if cal_docs_verified %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">3. Verified</div>
+                    {% elif any_rejected %}
+                    <div class="rounded-circle bg-danger text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-times"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-danger">3. Rejected</div>
+                    {% elif has_both_docs %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">3. Verify Docs</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>3</span>
+                    </div>
+                    <div class="small mt-1 text-muted">3. Verify</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.application_status == 'approved' or application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 4: Other Documents -->
+                <div class="text-center flex-fill">
+                    {% if application.application_status == 'completed' or application.completion_percentage == 100 %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">4. Docs Complete</div>
+                    {% elif application.application_status == 'approved' %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">4. Verify Docs</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>4</span>
+                    </div>
+                    <div class="small mt-1 text-muted">4. Documents</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 5: Completed -->
+                <div class="text-center flex-fill">
+                    {% if application.application_status == 'completed' %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">5. Completed</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>5</span>
+                    </div>
+                    <div class="small mt-1 text-muted">5. Completed</div>
+                    {% endif %}
+                </div>
+                <div class="flex-fill"><hr class="{% if application.claim_date %}border-success{% else %}border-secondary{% endif %}"></div>
+                
+                <!-- Step 6: Scheduled -->
+                <div class="text-center flex-fill">
+                    {% if application.claim_date %}
+                    <div class="rounded-circle bg-success text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-success">6. Scheduled</div>
+                    {% elif application.application_status == 'completed' %}
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-calendar"></i>
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-primary">6. Schedule</div>
+                    {% else %}
+                    <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        <span>6</span>
+                    </div>
+                    <div class="small mt-1 text-muted">6. Schedule</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Current Action Required -->
+            <div class="mt-3 p-2 bg-light rounded">
+                {% if not has_certificate and not has_proposal %}
+                <div class="text-warning"><i class="fas fa-exclamation-triangle mr-2"></i><strong>Waiting:</strong> Applicant needs to upload Certificate of Participation and Capital Assistance Proposal</div>
+                {% elif not has_both_docs %}
+                <div class="text-warning"><i class="fas fa-exclamation-triangle mr-2"></i><strong>Waiting:</strong> Applicant needs to upload {% if not has_certificate %}Certificate of Participation{% endif %}{% if not has_certificate and not has_proposal %} and {% endif %}{% if not has_proposal %}Capital Assistance Proposal{% endif %}</div>
+                {% elif any_rejected %}
+                <div class="text-danger"><i class="fas fa-times-circle mr-2"></i><strong>Action Needed:</strong> Documents were rejected. Waiting for applicant to resubmit.</div>
+                {% elif has_both_docs and not cal_docs_verified %}
+                <div class="text-primary"><i class="fas fa-arrow-down mr-2"></i><strong>Action Required:</strong> Verify Certificate and Proposal below, then approve or reject.</div>
+                {% elif cal_docs_verified and application.application_status == 'pending' %}
+                <div class="text-primary"><i class="fas fa-arrow-right mr-2"></i><strong>Action Required:</strong> Approve application and set document submission deadline.</div>
+                {% elif application.application_status == 'approved' and application.completion_percentage < 100 %}
+                <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>In Progress:</strong> Verify submitted documents ({{ application.completion_percentage }}% complete)</div>
+                {% elif application.application_status == 'completed' and not application.claim_date %}
+                <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Ready:</strong> Application completed! Schedule the release date.</div>
+                {% elif application.claim_date %}
+                <div class="text-success"><i class="fas fa-check-circle mr-2"></i><strong>Done:</strong> Release scheduled for {{ application.claim_date.strftime('%B %d, %Y') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Define Step Variables for All Program Types -->
+    {% set esa_photos_verified = false %}
+    {% set cal_docs_verified = false %}
+    {% set is_pre_approval_step = false %}
+    {% set current_step_name = '' %}
+    
+    {% if application.program.program_type == 'ESA' %}
+        {% set esa_photos_verified = application.shelter_photos and (application.shelter_photos | selectattr('verification_status', 'equalto', 'approved') | list | length >= 3) %}
+        {% set has_photos = application.shelter_photos and (application.shelter_photos | length >= 3) %}
+        {% set is_pre_approval_step = not esa_photos_verified %}
+        {% if not has_photos %}
+            {% set current_step_name = 'Waiting for Photos' %}
+        {% elif not esa_photos_verified %}
+            {% set current_step_name = 'Verify Photos' %}
+        {% endif %}
+    {% elif application.program.program_type == 'CAL' %}
+        {% set has_certificate = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | list | length > 0) %}
+        {% set has_proposal = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | list | length > 0) %}
+        {% set has_both_docs = has_certificate and has_proposal %}
+        {% set cert_approved = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | selectattr('verification_status', 'equalto', 'approved') | list | length > 0) %}
+        {% set proposal_approved = application.cal_documents and (application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | selectattr('verification_status', 'equalto', 'approved') | list | length > 0) %}
+        {% set cal_docs_verified = cert_approved and proposal_approved %}
+        {% set is_pre_approval_step = not cal_docs_verified %}
+        {% if not has_both_docs %}
+            {% set current_step_name = 'Waiting for Documents' %}
+        {% elif not cal_docs_verified %}
+            {% set current_step_name = 'Verify Documents' %}
+        {% endif %}
+    {% else %}
+        {# For AICS, 4Ps, and other programs #}
+        {% set is_pre_approval_step = application.application_status == 'pending' %}
+        {% set current_step_name = 'Review Application' %}
+    {% endif %}
+
+    <!-- ============================================== -->
+    <!-- STEP-FOCUSED SECTIONS FOR PRE-APPROVAL STEPS -->
+    <!-- ============================================== -->
+    
+    {% if is_pre_approval_step %}
+    
+    <!-- ESA Step 1: Verify Shelter Photos -->
+    {% if application.program.program_type == 'ESA' %}
+    {% set photos_count = application.shelter_photos | length if application.shelter_photos else 0 %}
+    {% set has_min_photos = photos_count >= 3 %}
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Current Step Card -->
+            <div class="card shadow mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-camera mr-2"></i>Step 1: Verify Shelter Photos</h5>
+                        <span class="badge badge-light">{{ photos_count }} Photos Uploaded</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if not has_min_photos %}
+                    <div class="alert alert-warning">
+                        <div class="text-center py-4">
+                            <i class="fas fa-hourglass-half fa-4x text-warning mb-3"></i>
+                            <h4>Waiting for Applicant</h4>
+                            <p class="mb-0">The applicant needs to upload at least 3 shelter photos.<br>
+                            Currently uploaded: <strong>{{ photos_count }}/3</strong></p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-primary mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Review the shelter photos below and verify them before proceeding.
+                    </div>
+                    
+                    <!-- Photos Grid -->
+                    <div class="row">
+                        {% for photo in application.shelter_photos %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100 {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
+                                <img src="/{{ photo.photo_path }}" class="card-img-top" style="height: 180px; object-fit: cover; cursor: pointer;" 
+                                     alt="Shelter Photo" onclick="window.open('/{{ photo.photo_path }}', '_blank')">
+                                <div class="card-body p-2">
+                                    {% if photo.caption %}
+                                    <small class="d-block text-muted mb-1">{{ photo.caption }}</small>
+                                    {% endif %}
+                                    <div class="text-center">
+                                        {% if photo.verification_status == 'approved' %}
+                                        <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Approved</span>
+                                        {% elif photo.verification_status == 'rejected' %}
+                                        <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Rejected</span>
+                                        {% else %}
+                                        <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if photo.admin_notes %}
+                                    <small class="d-block text-muted mt-1"><strong>Note:</strong> {{ photo.admin_notes }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Verification Actions -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ url_for('admin.verify_all_shelter_photos', application_id=application.id) }}">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-success btn-lg btn-block">
+                                    <i class="fas fa-check-circle mr-2"></i>Approve All Photos
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-danger btn-lg btn-block" data-toggle="modal" data-target="#rejectPhotosModal">
+                                <i class="fas fa-times-circle mr-2"></i>Reject Photos
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Applicant Summary -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-user mr-2"></i>Applicant Summary</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Name:</strong> {{ application.applicant.first_name }} {{ application.applicant.last_name }}</p>
+                    <p class="mb-2"><strong>Email:</strong> {{ application.applicant.email }}</p>
+                    <p class="mb-2"><strong>Program:</strong> {{ application.program.program_name }}</p>
+                    <p class="mb-2"><strong>Applied:</strong> {{ application.application_date.strftime('%b %d, %Y') if application.application_date else 'N/A' }}</p>
+                    <p class="mb-0"><strong>Status:</strong> 
+                        <span class="badge badge-warning">Pending Verification</span>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- What's Next -->
+            <div class="card shadow mb-4 border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-list-ol mr-2"></i>Workflow Steps</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-success rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">✓</span>
+                        <span class="text-success">1. Application Submitted</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-{% if has_min_photos %}success{% else %}warning{% endif %} rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">{% if has_min_photos %}✓{% else %}2{% endif %}</span>
+                        <span class="{% if has_min_photos %}text-success{% else %}text-warning{% endif %}">2. Photos Uploaded</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-primary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">→</span>
+                        <span class="text-primary font-weight-bold">3. Verify Photos</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">4</span>
+                        <span class="text-muted">4. Submit Documents</span>
+                    </div>
+                    <div class="d-flex">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">5</span>
+                        <span class="text-muted">5. Complete & Schedule</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View Full Details Button -->
+            <a href="#fullDetails" class="btn btn-outline-secondary btn-block" onclick="$('#fullDetailsSection').toggle(); return false;">
+                <i class="fas fa-expand mr-2"></i>Show/Hide Full Details
+            </a>
+        </div>
+    </div>
+    
+    <!-- Reject Photos Modal -->
+    <div class="modal fade" id="rejectPhotosModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject Shelter Photos</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.verify_all_shelter_photos', application_id=application.id) }}">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="reject">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Reason for Rejection <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="admin_notes" rows="3" required placeholder="Please explain why the photos are being rejected..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Reject Photos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- CAL Step 1: Verify Certificate & Proposal -->
+    {% if application.program.program_type == 'CAL' %}
+    {% set cal_certificate = application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | first if application.cal_documents else none %}
+    {% set cal_proposal = application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | first if application.cal_documents else none %}
+    {% set cal_both_uploaded = cal_certificate and cal_proposal %}
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Current Step Card -->
+            <div class="card shadow mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-file-contract mr-2"></i>Step 1: Verify CAL Documents</h5>
+                        <span class="badge badge-light">{% if cal_certificate %}1{% else %}0{% endif %} + {% if cal_proposal %}1{% else %}0{% endif %} / 2 Uploaded</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if not cal_both_uploaded %}
+                    <div class="alert alert-warning">
+                        <div class="text-center py-4">
+                            <i class="fas fa-hourglass-half fa-4x text-warning mb-3"></i>
+                            <h4>Waiting for Applicant</h4>
+                            <p class="mb-0">The applicant needs to upload:
+                                <br>{% if not cal_certificate %}<i class="fas fa-times text-danger"></i> Certificate of Participation{% endif %}
+                                {% if not cal_certificate and not cal_proposal %}<br>{% endif %}
+                                {% if not cal_proposal %}<i class="fas fa-times text-danger"></i> Capital Assistance Proposal{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-primary mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Review the Certificate and Proposal below and verify them before proceeding.
+                    </div>
+                    
+                    <!-- Documents Side by Side -->
+                    <div class="row">
+                        <!-- Certificate -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 {% if cal_certificate.verification_status == 'approved' %}border-success{% elif cal_certificate.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
+                                <div class="card-header {% if cal_certificate.verification_status == 'approved' %}bg-success text-white{% elif cal_certificate.verification_status == 'rejected' %}bg-danger text-white{% else %}bg-warning{% endif %}">
+                                    <i class="fas fa-certificate mr-2"></i>Certificate of Participation
+                                </div>
+                                <div class="card-body text-center">
+                                    {% if cal_certificate.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
+                                    <img src="/{{ cal_certificate.file_path }}" class="img-fluid rounded mb-2" style="max-height: 200px; cursor: pointer;" 
+                                         alt="Certificate" onclick="window.open('/{{ cal_certificate.file_path }}', '_blank')">
+                                    {% else %}
+                                    <i class="fas fa-file-pdf fa-5x text-danger mb-2"></i>
+                                    {% endif %}
+                                    <p class="small text-muted mb-2">{{ cal_certificate.original_filename }}</p>
+                                    <a href="/{{ cal_certificate.file_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block">
+                                        <i class="fas fa-external-link-alt mr-1"></i>Open Full Size
+                                    </a>
+                                    <div class="mt-2">
+                                        {% if cal_certificate.verification_status == 'approved' %}
+                                        <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Approved</span>
+                                        {% elif cal_certificate.verification_status == 'rejected' %}
+                                        <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Rejected</span>
+                                        {% else %}
+                                        <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Proposal -->
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 {% if cal_proposal.verification_status == 'approved' %}border-success{% elif cal_proposal.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
+                                <div class="card-header {% if cal_proposal.verification_status == 'approved' %}bg-success text-white{% elif cal_proposal.verification_status == 'rejected' %}bg-danger text-white{% else %}bg-warning{% endif %}">
+                                    <i class="fas fa-file-alt mr-2"></i>Capital Assistance Proposal
+                                </div>
+                                <div class="card-body text-center">
+                                    {% if cal_proposal.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
+                                    <img src="/{{ cal_proposal.file_path }}" class="img-fluid rounded mb-2" style="max-height: 200px; cursor: pointer;" 
+                                         alt="Proposal" onclick="window.open('/{{ cal_proposal.file_path }}', '_blank')">
+                                    {% else %}
+                                    <i class="fas fa-file-pdf fa-5x text-danger mb-2"></i>
+                                    {% endif %}
+                                    <p class="small text-muted mb-2">{{ cal_proposal.original_filename }}</p>
+                                    {% if cal_proposal.description %}
+                                    <p class="small mb-2"><em>{{ cal_proposal.description }}</em></p>
+                                    {% endif %}
+                                    <a href="/{{ cal_proposal.file_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block">
+                                        <i class="fas fa-external-link-alt mr-1"></i>Open Full Size
+                                    </a>
+                                    <div class="mt-2">
+                                        {% if cal_proposal.verification_status == 'approved' %}
+                                        <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Approved</span>
+                                        {% elif cal_proposal.verification_status == 'rejected' %}
+                                        <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Rejected</span>
+                                        {% else %}
+                                        <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Verification Actions -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <form method="POST" action="{{ url_for('admin.verify_all_cal_documents', application_id=application.id) }}">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-success btn-lg btn-block">
+                                    <i class="fas fa-check-circle mr-2"></i>Approve Both Documents
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-danger btn-lg btn-block" data-toggle="modal" data-target="#rejectCALDocsModal">
+                                <i class="fas fa-times-circle mr-2"></i>Reject Documents
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Applicant Summary -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-user mr-2"></i>Applicant Summary</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Name:</strong> {{ application.applicant.first_name }} {{ application.applicant.last_name }}</p>
+                    <p class="mb-2"><strong>Email:</strong> {{ application.applicant.email }}</p>
+                    <p class="mb-2"><strong>Program:</strong> {{ application.program.program_name }}</p>
+                    <p class="mb-2"><strong>Applied:</strong> {{ application.application_date.strftime('%b %d, %Y') if application.application_date else 'N/A' }}</p>
+                    <p class="mb-0"><strong>Status:</strong> 
+                        <span class="badge badge-warning">Pending Verification</span>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- What's Next -->
+            <div class="card shadow mb-4 border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-list-ol mr-2"></i>Workflow Steps</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-success rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">✓</span>
+                        <span class="text-success">1. Application Submitted</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-{% if cal_both_uploaded %}success{% else %}warning{% endif %} rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">{% if cal_both_uploaded %}✓{% else %}2{% endif %}</span>
+                        <span class="{% if cal_both_uploaded %}text-success{% else %}text-warning{% endif %}">2. Documents Uploaded</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-primary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">→</span>
+                        <span class="text-primary font-weight-bold">3. Verify Documents</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">4</span>
+                        <span class="text-muted">4. Submit Other Docs</span>
+                    </div>
+                    <div class="d-flex">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">5</span>
+                        <span class="text-muted">5. Complete & Schedule</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View Full Details Button -->
+            <a href="#fullDetails" class="btn btn-outline-secondary btn-block" onclick="$('#fullDetailsSection').toggle(); return false;">
+                <i class="fas fa-expand mr-2"></i>Show/Hide Full Details
+            </a>
+        </div>
+    </div>
+    
+    <!-- Reject CAL Docs Modal -->
+    <div class="modal fade" id="rejectCALDocsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject CAL Documents</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.verify_all_cal_documents', application_id=application.id) }}">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="reject">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Reason for Rejection <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="admin_notes" rows="3" required placeholder="Please explain why the documents are being rejected..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Reject Documents</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Other Programs Step 1: Review & Approve/Reject -->
+    {% if application.program.program_type not in ['ESA', 'CAL'] %}
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Current Step Card -->
+            <div class="card shadow mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-clipboard-check mr-2"></i>Step 1: Review Application</h5>
+                        <span class="badge badge-dark">Pending Decision</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning mb-4">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Review the applicant's information below and decide whether to <strong>Approve</strong> or <strong>Reject</strong> this application.
+                    </div>
+                    
+                    <!-- Applicant Details -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold border-bottom pb-2"><i class="fas fa-user mr-2"></i>Applicant Information</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" width="40%">Full Name:</td>
+                                    <td class="font-weight-bold">{{ application.applicant.first_name }} {{ application.applicant.last_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Email:</td>
+                                    <td>{{ application.applicant.email }}</td>
+                                </tr>
+                                {% if application.applicant.community_profile %}
+                                <tr>
+                                    <td class="text-muted">Mobile:</td>
+                                    <td>{{ application.applicant.community_profile.mobile_number or 'Not provided' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Barangay:</td>
+                                    <td>{{ application.applicant.community_profile.barangay or 'Not provided' }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold border-bottom pb-2"><i class="fas fa-file-alt mr-2"></i>Application Details</h6>
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="text-muted" width="40%">Program:</td>
+                                    <td class="font-weight-bold">{{ application.program.program_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Type:</td>
+                                    <td>{{ application.program.program_type }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Applied:</td>
+                                    <td>{{ application.application_date.strftime('%B %d, %Y') if application.application_date else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Status:</td>
+                                    <td><span class="badge badge-warning">Pending</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-success btn-lg btn-block" data-toggle="modal" data-target="#approveApplicationModal">
+                                <i class="fas fa-check-circle mr-2"></i>Approve Application
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-danger btn-lg btn-block" data-toggle="modal" data-target="#rejectApplicationModal">
+                                <i class="fas fa-times-circle mr-2"></i>Reject Application
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Quick Stats -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar mr-2"></i>Application Summary</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><strong>Application ID:</strong> #{{ application.id }}</p>
+                    <p class="mb-2"><strong>Program:</strong> {{ application.program.program_name }}</p>
+                    <p class="mb-2"><strong>Type:</strong> {{ application.program.program_type }}</p>
+                    <p class="mb-0"><strong>Applied:</strong> {{ application.application_date.strftime('%b %d, %Y') if application.application_date else 'N/A' }}</p>
+                </div>
+            </div>
+            
+            <!-- Workflow Steps -->
+            <div class="card shadow mb-4 border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-list-ol mr-2"></i>Workflow Steps</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-success rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">✓</span>
+                        <span class="text-success">1. Application Submitted</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-primary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">→</span>
+                        <span class="text-primary font-weight-bold">2. Review & Approve</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">3</span>
+                        <span class="text-muted">3. Submit Documents</span>
+                    </div>
+                    <div class="d-flex mb-2">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">4</span>
+                        <span class="text-muted">4. Verify Documents</span>
+                    </div>
+                    <div class="d-flex">
+                        <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">5</span>
+                        <span class="text-muted">5. Complete & Schedule</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- View Full Details Button -->
+            <a href="#fullDetails" class="btn btn-outline-secondary btn-block" onclick="$('#fullDetailsSection').toggle(); return false;">
+                <i class="fas fa-expand mr-2"></i>Show/Hide Full Details
+            </a>
+        </div>
+    </div>
+    
+    <!-- Approve Application Modal -->
+    <div class="modal fade" id="approveApplicationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="fas fa-check-circle mr-2"></i>Approve Application</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.update_application_status', application_id=application.id) }}">
+                    <div class="modal-body">
+                        <input type="hidden" name="status" value="approved">
+                        <div class="alert alert-success">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Approving this application will allow the applicant to proceed with document submission.
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Admin Notes (Optional)</label>
+                            <textarea class="form-control" name="remarks" rows="2" placeholder="Add any notes for this approval..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Approve Application</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reject Application Modal -->
+    <div class="modal fade" id="rejectApplicationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject Application</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <form method="POST" action="{{ url_for('admin.update_application_status', application_id=application.id) }}">
+                    <div class="modal-body">
+                        <input type="hidden" name="status" value="rejected">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Reason for Rejection <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="remarks" rows="3" required placeholder="Please explain why this application is being rejected..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Reject Application</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% endif %}
+    <!-- End of Pre-Approval Step Focused Sections -->
+
+    <!-- ============================================== -->
+    <!-- FULL DETAILS SECTION (Hidden during pre-approval for step focus) -->
+    <!-- ============================================== -->
+    <div id="fullDetailsSection" {% if is_pre_approval_step %}style="display: none;"{% endif %}>
+
     <!-- Application Header -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -883,6 +1777,224 @@
 </div>
 {% endif %}
 
+<!-- CAL Documents Section (CAL Programs Only) -->
+{% if application.program.program_type == 'CAL' %}
+{% set certificate = application.cal_documents | selectattr('document_type', 'equalto', 'certificate') | first if application.cal_documents else none %}
+{% set proposal = application.cal_documents | selectattr('document_type', 'equalto', 'proposal') | first if application.cal_documents else none %}
+{% set both_uploaded = certificate and proposal %}
+{% set cert_approved = certificate and certificate.verification_status == 'approved' %}
+{% set proposal_approved = proposal and proposal.verification_status == 'approved' %}
+{% set both_approved = cert_approved and proposal_approved %}
+{% set any_rejected = (certificate and certificate.verification_status == 'rejected') or (proposal and proposal.verification_status == 'rejected') %}
+<div class="card shadow mb-4">
+    <div class="card-header bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 font-weight-bold">
+                <i class="fas fa-file-contract mr-2"></i>CAL Pre-Approval Documents
+            </h6>
+            <small>Certificate & Proposal Verification</small>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if certificate or proposal %}
+        <div class="row">
+            <!-- Certificate of Participation -->
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 {% if cert_approved %}border-success{% elif certificate and certificate.verification_status == 'rejected' %}border-danger{% elif certificate %}border-warning{% else %}border-secondary{% endif %}">
+                    <div class="card-header {% if cert_approved %}bg-success text-white{% elif certificate and certificate.verification_status == 'rejected' %}bg-danger text-white{% elif certificate %}bg-warning text-white{% else %}bg-secondary text-white{% endif %}">
+                        <i class="fas fa-certificate mr-2"></i>Certificate of Participation
+                    </div>
+                    <div class="card-body">
+                        {% if certificate %}
+                        <div class="mb-3">
+                            <a href="/{{ certificate.file_path }}" target="_blank" class="btn btn-outline-primary btn-block">
+                                <i class="fas fa-eye mr-2"></i>View Certificate
+                            </a>
+                            <small class="text-muted d-block mt-1">{{ certificate.original_filename }}</small>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Uploaded: {{ certificate.uploaded_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        </div>
+                        {% if certificate.admin_notes %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <small><strong>Admin Notes:</strong><br>{{ certificate.admin_notes }}</small>
+                        </div>
+                        {% endif %}
+                        <div class="text-center">
+                            {% if certificate.verification_status == 'approved' %}
+                            <span class="badge badge-success badge-lg"><i class="fas fa-check mr-1"></i>Approved</span>
+                            {% elif certificate.verification_status == 'rejected' %}
+                            <span class="badge badge-danger badge-lg"><i class="fas fa-times mr-1"></i>Rejected</span>
+                            {% else %}
+                            <span class="badge badge-warning badge-lg"><i class="fas fa-clock mr-1"></i>Pending Review</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-file-upload fa-3x mb-3 text-secondary"></i>
+                            <p class="mb-0">Certificate not yet uploaded</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Proposal -->
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 {% if proposal_approved %}border-success{% elif proposal and proposal.verification_status == 'rejected' %}border-danger{% elif proposal %}border-warning{% else %}border-secondary{% endif %}">
+                    <div class="card-header {% if proposal_approved %}bg-success text-white{% elif proposal and proposal.verification_status == 'rejected' %}bg-danger text-white{% elif proposal %}bg-warning text-white{% else %}bg-secondary text-white{% endif %}">
+                        <i class="fas fa-file-alt mr-2"></i>Capital Assistance Proposal
+                    </div>
+                    <div class="card-body">
+                        {% if proposal %}
+                        <div class="mb-3">
+                            <a href="/{{ proposal.file_path }}" target="_blank" class="btn btn-outline-primary btn-block">
+                                <i class="fas fa-eye mr-2"></i>View Proposal
+                            </a>
+                            <small class="text-muted d-block mt-1">{{ proposal.original_filename }}</small>
+                        </div>
+                        {% if proposal.description %}
+                        <div class="alert alert-light py-2 mb-2">
+                            <small><strong>Description:</strong> {{ proposal.description }}</small>
+                        </div>
+                        {% endif %}
+                        <div class="mb-2">
+                            <small class="text-muted">Uploaded: {{ proposal.uploaded_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                        </div>
+                        {% if proposal.admin_notes %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <small><strong>Admin Notes:</strong><br>{{ proposal.admin_notes }}</small>
+                        </div>
+                        {% endif %}
+                        <div class="text-center">
+                            {% if proposal.verification_status == 'approved' %}
+                            <span class="badge badge-success badge-lg"><i class="fas fa-check mr-1"></i>Approved</span>
+                            {% elif proposal.verification_status == 'rejected' %}
+                            <span class="badge badge-danger badge-lg"><i class="fas fa-times mr-1"></i>Rejected</span>
+                            {% else %}
+                            <span class="badge badge-warning badge-lg"><i class="fas fa-clock mr-1"></i>Pending Review</span>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-file-upload fa-3x mb-3 text-secondary"></i>
+                            <p class="mb-0">Proposal not yet uploaded</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Verification Actions -->
+        {% if both_uploaded and not both_approved %}
+        <div class="card mt-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h6 class="font-weight-bold mb-1">CAL Documents Verification</h6>
+                        <p class="text-muted mb-0 small">
+                            {% if both_approved %}
+                            <i class="fas fa-check-circle text-success mr-1"></i>Both documents verified and approved
+                            {% elif any_rejected %}
+                            <i class="fas fa-times-circle text-danger mr-1"></i>One or more documents rejected
+                            {% else %}
+                            <i class="fas fa-clock text-warning mr-1"></i>Both documents pending review
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6 text-right">
+                        {% if not both_approved %}
+                        <form method="POST" action="{{ url_for('admin.verify_all_cal_documents', application_id=application.id) }}" class="d-inline">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn btn-success mr-2" onclick="return confirm('Approve both Certificate and Proposal?')">
+                                <i class="fas fa-check mr-1"></i>Approve Both
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#rejectCALDocsModal">
+                            <i class="fas fa-times mr-1"></i>Reject
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Overall Status -->
+        <div class="mt-3 p-3 {% if both_approved %}bg-success{% elif any_rejected %}bg-danger{% elif both_uploaded %}bg-warning{% else %}bg-secondary{% endif %} text-white rounded">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>CAL Documents Status</strong>
+                    <br>
+                    {% if not certificate and not proposal %}
+                    <small>Waiting for applicant to upload Certificate and Proposal</small>
+                    {% elif not both_uploaded %}
+                    <small>Waiting for {% if not certificate %}Certificate{% endif %}{% if not certificate and not proposal %} and {% endif %}{% if not proposal %}Proposal{% endif %}</small>
+                    {% elif both_approved %}
+                    <small>Both documents approved ✓ - Ready for document submission phase</small>
+                    {% elif any_rejected %}
+                    <small>Documents rejected - Applicant needs to resubmit</small>
+                    {% else %}
+                    <small>Both documents uploaded - Pending verification</small>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    {% if both_approved %}
+                    <i class="fas fa-check-circle fa-2x"></i>
+                    {% elif any_rejected %}
+                    <i class="fas fa-times-circle fa-2x"></i>
+                    {% elif both_uploaded %}
+                    <i class="fas fa-clock fa-2x"></i>
+                    {% else %}
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>No CAL documents uploaded yet.</strong>
+            <p class="mb-0">CAL applications require the applicant to upload a Certificate of Participation (seminar/training) and a Capital Assistance Proposal before proceeding.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reject CAL Documents Modal -->
+<div class="modal fade" id="rejectCALDocsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.verify_all_cal_documents', application_id=application.id) }}">
+                <input type="hidden" name="action" value="reject">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject CAL Documents</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea name="admin_notes" class="form-control" rows="4" required 
+                                  placeholder="Please explain why the Certificate or Proposal is being rejected..."></textarea>
+                        <small class="form-text text-muted">This feedback will be sent to the applicant.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times mr-1"></i>Reject Documents
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Shelter Photos Section (ESA Programs Only) -->
 {% if application.program.program_type == 'ESA' %}
 <div class="card shadow mb-4">
@@ -1162,6 +2274,8 @@
     </div>
   </div>
 </div>
+
+</div><!-- End of fullDetailsSection -->
 {% endblock %}
 {% block extra_js %}
 <script>
