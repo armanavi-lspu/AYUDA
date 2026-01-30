@@ -1,0 +1,605 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Subsidy Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .subsidy-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .subsidy-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 1rem 2rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .subsidy-card .card-body {
+        padding: 2rem;
+    }
+    
+    .subsidy-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+    }
+    
+    .subsidy-card.pwd .subsidy-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .subsidy-card.senior .subsidy-icon {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    
+    .subsidy-card.solo-parent .subsidy-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    
+    .subsidy-count {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .subsidy-card.pwd .subsidy-count {
+        color: #667eea;
+    }
+    
+    .subsidy-card.senior .subsidy-count {
+        color: #11998e;
+    }
+    
+    .subsidy-card.solo-parent .subsidy-count {
+        color: #f5576c;
+    }
+    
+    .subsidy-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    
+    .view-btn {
+        margin-top: 1.5rem;
+        padding: 0.75rem 2rem;
+        border-radius: 25px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .subsidy-card.pwd .view-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+    }
+    
+    .subsidy-card.senior .view-btn {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
+        color: white;
+    }
+    
+    .subsidy-card.solo-parent .view-btn {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        color: white;
+    }
+    
+    .view-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.2);
+        color: white;
+    }
+    
+    .stats-summary {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 15px;
+        color: white;
+        padding: 1.5rem 2rem;
+    }
+    
+    .stats-summary .stat-item {
+        text-align: center;
+        padding: 0 1rem;
+    }
+    
+    .stats-summary .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+    
+    .stats-summary .stat-label {
+        font-size: 0.85rem;
+        opacity: 0.8;
+    }
+    
+    /* Modal Enhancements */
+    .modal-content {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 1rem 3rem rgba(0,0,0,0.175);
+    }
+    
+    .modal-header {
+        border-radius: 15px 15px 0 0;
+        border-bottom: none;
+        padding: 1.5rem 2rem 1rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem 2rem;
+    }
+    
+    .modal-footer {
+        border-radius: 0 0 15px 15px;
+        border-top: 1px solid #e9ecef;
+        padding: 1rem 2rem 1.5rem;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 1px solid #d1d3e2;
+        padding: 0.75rem 1rem;
+    }
+    
+    .form-control:focus {
+        border-color: #5a5c69;
+        box-shadow: 0 0 0 0.2rem rgba(90, 92, 105, 0.25);
+    }
+    
+    .custom-control-label {
+        font-weight: 500;
+    }
+    
+    .custom-control-input:checked ~ .custom-control-label::before {
+        border-color: #4e73df;
+        background-color: #4e73df;
+    }
+    
+    .input-group-text {
+        background-color: #f8f9fc;
+        border: 1px solid #d1d3e2;
+        color: #5a5c69;
+    }
+    
+    #beneficiaryPreview {
+        background-color: #f8f9fc !important;
+        border: 1px solid #d1d3e2 !important;
+        border-radius: 8px;
+    }
+    
+    .btn {
+        border-radius: 25px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold mb-1">Subsidy Management</h1>
+            <p class="text-muted mb-0">Manage PWD, Senior Citizen, and Solo Parent subsidies</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#schedulePayoutModal">
+                <i class="fas fa-calendar-check mr-2"></i>Schedule Payout
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Stats Bar -->
+    <div class="stats-summary shadow mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ total_beneficiaries }}</div>
+                    <div class="stat-label">Total Beneficiaries</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ pwd_count }}</div>
+                    <div class="stat-label">PWD Registered</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ senior_count }}</div>
+                    <div class="stat-label">Senior Citizens</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number">{{ solo_parent_count }}</div>
+                    <div class="stat-label">Solo Parents</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subsidy Category Cards -->
+    <div class="row">
+        <!-- PWD Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card subsidy-card pwd shadow h-100">
+                <div class="card-body text-center">
+                    <div class="subsidy-icon">
+                        <i class="fas fa-wheelchair"></i>
+                    </div>
+                    <div class="subsidy-count">{{ pwd_count }}</div>
+                    <div class="subsidy-label">Persons with Disability</div>
+                    <p class="text-muted mt-3 mb-0">
+                        Registered PWD individuals eligible for subsidy programs and special assistance.
+                    </p>
+                    <a href="{{ url_for('admin.subsidy_list', category='pwd') }}" class="btn view-btn">
+                        <i class="fas fa-list mr-2"></i>View List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Senior Citizen Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card subsidy-card senior shadow h-100">
+                <div class="card-body text-center">
+                    <div class="subsidy-icon">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="subsidy-count">{{ senior_count }}</div>
+                    <div class="subsidy-label">Senior Citizens</div>
+                    <p class="text-muted mt-3 mb-0">
+                        Residents aged 60 and above who are eligible for senior citizen benefits and subsidies.
+                    </p>
+                    <a href="{{ url_for('admin.subsidy_list', category='senior') }}" class="btn view-btn">
+                        <i class="fas fa-list mr-2"></i>View List
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solo Parent Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card subsidy-card solo-parent shadow h-100">
+                <div class="card-body text-center">
+                    <div class="subsidy-icon">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <div class="subsidy-count">{{ solo_parent_count }}</div>
+                    <div class="subsidy-label">Solo Parents</div>
+                    <p class="text-muted mt-3 mb-0">
+                        Registered solo parents eligible for special assistance and support programs.
+                    </p>
+                    <a href="{{ url_for('admin.subsidy_list', category='solo_parent') }}" class="btn view-btn">
+                        <i class="fas fa-list mr-2"></i>View List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Info Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-info-circle mr-2"></i>About Subsidy Programs
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="mr-3">
+                                    <span class="badge badge-primary p-2"><i class="fas fa-wheelchair"></i></span>
+                                </div>
+                                <div>
+                                    <h6 class="font-weight-bold mb-1">PWD Benefits</h6>
+                                    <small class="text-muted">Includes medical assistance, educational support, and livelihood programs for persons with disabilities.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="mr-3">
+                                    <span class="badge badge-success p-2"><i class="fas fa-user-clock"></i></span>
+                                </div>
+                                <div>
+                                    <h6 class="font-weight-bold mb-1">Senior Citizen Benefits</h6>
+                                    <small class="text-muted">Covers social pension, medical assistance, and priority services for residents 60 years and above.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex align-items-start">
+                                <div class="mr-3">
+                                    <span class="badge badge-warning p-2"><i class="fas fa-user-friends"></i></span>
+                                </div>
+                                <div>
+                                    <h6 class="font-weight-bold mb-1">Solo Parent Benefits</h6>
+                                    <small class="text-muted">Includes flexible work schedules, educational assistance, and livelihood support for solo parents.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Payout Modal -->
+<div class="modal fade" id="schedulePayoutModal" tabindex="-1" role="dialog" aria-labelledby="schedulePayoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="schedulePayoutForm" action="{{ url_for('admin.schedule_subsidy_payout') }}" method="POST">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="schedulePayoutModalLabel">
+                        <i class="fas fa-calendar-check mr-2"></i>Schedule Subsidy Payout
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="payoutDate" class="font-weight-bold">Payout Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="payoutDate" name="payout_date" required>
+                                <small class="text-muted">Select the date when subsidies will be released</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="payoutTime" class="font-weight-bold">Payout Time <span class="text-danger">*</span></label>
+                                <input type="time" class="form-control" id="payoutTime" name="payout_time" value="09:00" required>
+                                <small class="text-muted">Select the time for payout distribution</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="payoutCategories" class="font-weight-bold">Beneficiary Categories <span class="text-danger">*</span></label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="includePWD" name="categories" value="pwd" checked>
+                                    <label class="custom-control-label" for="includePWD">
+                                        <i class="fas fa-wheelchair mr-2 text-primary"></i>PWD ({{ pwd_count }})
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="includeSenior" name="categories" value="senior" checked>
+                                    <label class="custom-control-label" for="includeSenior">
+                                        <i class="fas fa-user-clock mr-2 text-success"></i>Senior Citizens ({{ senior_count }})
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="includeSoloParent" name="categories" value="solo_parent" checked>
+                                    <label class="custom-control-label" for="includeSoloParent">
+                                        <i class="fas fa-user-friends mr-2 text-warning"></i>Solo Parents ({{ solo_parent_count }})
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Select which categories will receive the subsidy payout</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="payoutLocation" class="font-weight-bold">Payout Location <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="payoutLocation" name="payout_location" placeholder="e.g., Barangay Hall, Community Center" required>
+                        <small class="text-muted">Where beneficiaries should go to claim their subsidy</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="payoutNotes" class="font-weight-bold">Additional Notes</label>
+                        <textarea class="form-control" id="payoutNotes" name="payout_notes" rows="3" placeholder="Any special instructions or requirements for the payout..."></textarea>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>After scheduling:</strong> You'll have the option to create an announcement with the list of beneficiaries.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-calendar-plus mr-2"></i>Schedule Payout
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Announcement Creation Modal -->
+<div class="modal fade" id="createAnnouncementModal" tabindex="-1" role="dialog" aria-labelledby="createAnnouncementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="createAnnouncementForm" action="{{ url_for('admin.create_subsidy_announcement') }}" method="POST">
+                <input type="hidden" id="payoutId" name="payout_id">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="createAnnouncementModalLabel">
+                        <i class="fas fa-bullhorn mr-2"></i>Create Subsidy Announcement
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="announcementTitle" class="font-weight-bold">Announcement Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="announcementTitle" name="announcement_title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcementContent" class="font-weight-bold">Announcement Content <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="announcementContent" name="announcement_content" rows="8" required></textarea>
+                        <small class="text-muted">The list of beneficiaries will be automatically appended to this content</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Beneficiary List Preview</label>
+                        <div id="beneficiaryPreview" class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                            <small class="text-muted">Beneficiary list will appear here after scheduling payout...</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-bullhorn mr-2"></i>Create Announcement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set minimum date to today
+document.getElementById('payoutDate').min = new Date().toISOString().split('T')[0];
+
+// Handle form submission and show announcement modal
+$(document).ready(function() {
+    $('#schedulePayoutForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Get selected categories
+        let selectedCategories = [];
+        $('input[name="categories"]:checked').each(function() {
+            selectedCategories.push($(this).val());
+        });
+        
+        if (selectedCategories.length === 0) {
+            alert('Please select at least one beneficiary category.');
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Processing...').prop('disabled', true);
+        
+        // Submit the form via AJAX
+        $.ajax({
+            url: $(this).attr('action'),
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    // Hide schedule modal
+                    $('#schedulePayoutModal').modal('hide');
+                    
+                    // Reset form
+                    $('#schedulePayoutForm')[0].reset();
+                    
+                    // Populate announcement modal
+                    $('#payoutId').val(response.payout_id);
+                    $('#announcementTitle').val(response.suggested_title);
+                    $('#announcementContent').val(response.suggested_content);
+                    $('#beneficiaryPreview').html(response.beneficiary_list_html);
+                    
+                    // Show success message
+                    const successAlert = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <strong>Success!</strong> Payout scheduled for ${response.total_beneficiaries} beneficiaries.
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    `;
+                    $('.modal-body').first().prepend(successAlert);
+                    
+                    // Show announcement modal
+                    setTimeout(() => {
+                        $('#createAnnouncementModal').modal('show');
+                    }, 500);
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'An error occurred while scheduling the payout.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                alert('Error: ' + errorMessage);
+            },
+            complete: function() {
+                // Restore button state
+                submitBtn.html(originalText).prop('disabled', false);
+            }
+        });
+    });
+    
+    // Handle announcement form submission
+    $('#createAnnouncementForm').on('submit', function(e) {
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Creating...').prop('disabled', true);
+        
+        // Allow normal form submission but show loading state
+        setTimeout(() => {
+            submitBtn.html(originalText).prop('disabled', false);
+        }, 3000);
+    });
+    
+    // Update total beneficiaries when categories change
+    $('input[name="categories"]').on('change', function() {
+        let total = 0;
+        if ($('#includePWD').is(':checked')) total += {{ pwd_count }};
+        if ($('#includeSenior').is(':checked')) total += {{ senior_count }};
+        if ($('#includeSoloParent').is(':checked')) total += {{ solo_parent_count }};
+        
+        // Note: This is an approximation since some people might belong to multiple categories
+        const noteText = total > 0 ? `Estimated ${total} beneficiaries (may be less if individuals belong to multiple categories)` : 'No categories selected';
+        
+        // Update or create info text
+        let infoElement = $('#categoryInfo');
+        if (infoElement.length === 0) {
+            $('input[name="categories"]').closest('.form-group').append(`<small id="categoryInfo" class="text-info"></small>`);
+            infoElement = $('#categoryInfo');
+        }
+        infoElement.text(noteText);
+    });
+    
+    // Reset modals when hidden
+    $('#schedulePayoutModal').on('hidden.bs.modal', function() {
+        $(this).find('form')[0].reset();
+        $('#categoryInfo').remove();
+        $('.alert').remove();
+    });
+    
+    $('#createAnnouncementModal').on('hidden.bs.modal', function() {
+        $(this).find('form')[0].reset();
+        $('#beneficiaryPreview').html('<small class="text-muted">Beneficiary list will appear here after scheduling payout...</small>');
+        $('.alert').remove();
+    });
+});
+</script>
+{% endblock %}

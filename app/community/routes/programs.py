@@ -20,7 +20,7 @@ def programs():
         'AICS': 'Assistance to Individuals in Crisis Situation (AICS)',
         'ESA': 'Emergency Shelter Assistance (ESA)', 
         '4Ps': 'Pantawid Pamilyang Pilipino Program (4Ps)',
-        'CAL': 'Capital Assistance for Livelihood (CAL)'
+        'CA': 'Capital Assistance (CA)'
     }
     
     # Get program counts by category
@@ -54,7 +54,7 @@ def programs_by_category(category):
         'AICS': 'Assistance to Individuals in Crisis Situation (AICS)',
         'ESA': 'Emergency Shelter Assistance (ESA)', 
         '4Ps': 'Pantawid Pamilyang Pilipino Program (4Ps)',
-        'CAL': 'Capital Assistance for Livelihood (CAL)'
+        'CA': 'Capital Assistance (CA)'
     }
     
     print(f"DEBUG: Received category: '{category}'")
@@ -403,23 +403,23 @@ def delete_shelter_photo(photo_id):
     return redirect(url_for('community.application_detail', application_id=application_id))
 
 
-# ===================== CAL (Capital Assistance for Livelihood) Routes =====================
+# ===================== CA (Capital Assistance) Routes =====================
 
 from app.models import CALDocuments
 
-@community_bp.route('/application/<int:application_id>/upload-cal-documents', methods=['POST'])
+@community_bp.route('/application/<int:application_id>/upload-ca-documents', methods=['POST'])
 @login_required
 @role_required('community')
 def upload_cal_documents(application_id):
-    """Upload Certificate of Participation and/or Proposal for CAL applications"""
+    """Upload Certificate of Participation and/or Proposal for CA applications"""
     application = Applications.query.filter_by(
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
     
-    # Verify this is a CAL program
-    if application.program.program_type != 'CAL':
-        flash('This upload is only for CAL program applications.', 'danger')
+    # Verify this is a CA program
+    if application.program.program_type != 'CA':
+        flash('This upload is only for CA program applications.', 'danger')
         return redirect(url_for('community.application_detail', application_id=application_id))
     
     certificate_file = request.files.get('certificate')
@@ -522,8 +522,8 @@ def upload_cal_documents(application_id):
             for admin in admins:
                 notif = Notifications(
                     user_id=admin.id,
-                    notif_title='CAL Documents Uploaded',
-                    notif_message=f'{application.applicant.first_name} {application.applicant.last_name} has uploaded CAL documents for {application.program.program_name}. Please review.',
+                    notif_title='CA Documents Uploaded',
+                    notif_message=f'{application.applicant.first_name} {application.applicant.last_name} has uploaded CA documents for {application.program.program_name}. Please review.',
                     is_read=False,
                     related_id=application_id,
                     related_type='application'
@@ -538,11 +538,11 @@ def upload_cal_documents(application_id):
     return redirect(url_for('community.application_detail', application_id=application_id))
 
 
-@community_bp.route('/cal-document/<int:doc_id>/delete', methods=['POST'])
+@community_bp.route('/ca-document/<int:doc_id>/delete', methods=['POST'])
 @login_required
 @role_required('community')
-def delete_cal_document(doc_id):
-    """Delete a CAL document (Certificate or Proposal)"""
+def delete_ca_document(doc_id):
+    """Delete a CA document (Certificate or Proposal)"""
     cal_doc = CALDocuments.query.get_or_404(doc_id)
     
     # Verify ownership

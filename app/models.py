@@ -62,9 +62,78 @@ class Programs(db.Model):
     requirements = db.relationship('Requirements', secondary='program_requirements', viewonly=True)
     file_attachment = db.relationship('FileAttachment', back_populates='program', uselist=False)
     program_requirements = db.relationship('ProgramRequirements', back_populates='program', lazy='select', cascade='all, delete-orphan')
+    workflow_steps = db.relationship('ProgramWorkflowSteps', back_populates='program', lazy='select', cascade='all, delete-orphan', order_by='ProgramWorkflowSteps.step_order')
 
     def __repr__(self):
         return f'<Program {self.program_name}>'
+
+
+class ProgramWorkflowSteps(db.Model):
+    """Configurable workflow steps for each program"""
+    __tablename__ = 'program_workflow_steps'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    step_order = db.Column(db.Integer, nullable=False)  # 1, 2, 3, etc.
+    step_name = db.Column(db.String(100), nullable=False)  # e.g., "Upload Shelter Photos", "Submit Certificate"
+    step_description = db.Column(db.Text)  # Detailed instructions for this step
+    step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
+    is_pre_approval = db.Column(db.Boolean, default=False)  # True if step must be completed before application approval
+    requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
+    min_items = db.Column(db.Integer, default=1)  # Minimum items required (e.g., 3 photos for ESA)
+    allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
+    step_config = db.Column(db.Text)  # JSON configuration for step-specific settings (required documents, etc.)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    program = db.relationship('Programs', back_populates='workflow_steps')
+    
+    def __repr__(self):
+        return f'<WorkflowStep {self.step_order}: {self.step_name} for Program {self.program_id}>'
+    
+    def to_dict(self):
+        """Convert model to JSON-serializable dictionary"""
+        return {
+            'id': self.id,
+            'program_id': self.program_id,
+            'step_order': self.step_order,
+            'step_name': self.step_name,
+            'step_description': self.step_description,
+            'step_type': self.step_type,
+            'is_pre_approval': self.is_pre_approval,
+            'requires_verification': self.requires_verification,
+            'min_items': self.min_items,
+            'allowed_file_types': self.allowed_file_types,
+            'step_config': self.step_config
+        }
+    
+    @property
+    def config_data(self):
+        """Return step configuration as dictionary"""
+        if self.step_config:
+            try:
+                import json
+                return json.loads(self.step_config)
+            except:
+                return {}
+        return {}
+    
+    def set_config_data(self, config_dict):
+        """Set step configuration from dictionary"""
+        if config_dict:
+            import json
+            self.step_config = json.dumps(config_dict)
+        else:
+            self.step_config = None
+    
+    @property
+    def file_types_list(self):
+        """Return allowed file types as a list"""
+        if self.allowed_file_types:
+            return [ft.strip().lower() for ft in self.allowed_file_types.split(',')]
+        return []
+
 
 class Requirements(db.Model):
     __tablename__ = 'requirements'
@@ -183,7 +252,7 @@ class Applications(db.Model):
     
     @property
     def cal_docs_verified(self):
-        """Check if CAL Certificate and Proposal are both verified"""
+        """Check if CA Certificate and Proposal are both verified"""
         if not self.cal_documents:
             return False
         certificate = next((d for d in self.cal_documents if d.document_type == 'certificate' and d.verification_status == 'approved'), None)
@@ -438,7 +507,7 @@ class ShelterPhotos(db.Model):
 
 
 class CALDocuments(db.Model):
-    """CAL (Capital Assistance for Livelihood) pre-approval documents: Certificate and Proposal"""
+    """CA (Capital Assistance) pre-approval documents: Certificate and Proposal"""
     __tablename__ = 'cal_documents'
     
     id = db.Column(db.Integer, primary_key=True)

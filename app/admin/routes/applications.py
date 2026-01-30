@@ -943,15 +943,15 @@ def verify_shelter_photo(photo_id):
     return redirect(url_for('admin.view_application', application_id=photo.application_id))
 
 
-# ===================== CAL (Capital Assistance for Livelihood) Document Verification =====================
+# ===================== CA (Capital Assistance) Document Verification =====================
 
 from app.models import CALDocuments
 
-@admin_bp.route('/application/<int:application_id>/verify-cal-documents', methods=['POST'])
+@admin_bp.route('/application/<int:application_id>/verify-ca-documents', methods=['POST'])
 @login_required
 @role_required('admin')
-def verify_all_cal_documents(application_id):
-    """Verify or reject both CAL documents (Certificate and Proposal)"""
+def verify_all_ca_documents(application_id):
+    """Verify or reject both CA documents (Certificate and Proposal)"""
     application = Applications.query.get_or_404(application_id)
     
     action = request.form.get('action')  # 'approve' or 'reject'
@@ -993,31 +993,31 @@ def verify_all_cal_documents(application_id):
         
         # Create notification for applicant
         if action == 'approve':
-            # For CAL programs, after documents are approved, update application to 'approved'
+            # For CA programs, after documents are approved, update application to 'approved'
             application.application_status = 'approved'
             application.reviewed_by = current_user.id
             application.review_date = datetime.utcnow()
             application.updated_at = datetime.utcnow()
             
-            flash_msg = 'CAL documents approved! Application status updated to APPROVED. You can now set a document submission deadline.'
+            flash_msg = 'CA documents approved! Application status updated to APPROVED. You can now set a document submission deadline.'
             notif_msg = (
-                f'Great news! Your CAL application documents have been approved!\n\n'
+                f'Great news! Your CA application documents have been approved!\n\n'
                 f'📜 Certificate of Participation: VERIFIED\n'
                 f'📋 Capital Assistance Proposal: APPROVED\n\n'
                 f'Please wait for the admin to set a deadline for additional document submission. '
                 f'You will be notified of the required documents and submission deadline.'
             )
         else:
-            flash_msg = 'CAL documents rejected. Applicant has been notified.'
+            flash_msg = 'CA documents rejected. Applicant has been notified.'
             notif_msg = (
-                f'Your CAL application documents for {application.program.program_name} were rejected.\n\n'
+                f'Your CA application documents for {application.program.program_name} were rejected.\n\n'
                 f'Reason: {admin_notes}\n\n'
                 f'Please review the feedback and resubmit your Certificate and Proposal.'
             )
         
         notification = Notifications(
             user_id=application.user_id,
-            notif_title='CAL Documents Update',
+            notif_title='CA Documents Update',
             notif_message=notif_msg,
             is_read=False,
             related_id=application.id,
@@ -1032,16 +1032,16 @@ def verify_all_cal_documents(application_id):
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating CAL documents: {str(e)}', 'danger')
+        flash(f'Error updating CA documents: {str(e)}', 'danger')
     
     return redirect(url_for('admin.view_application', application_id=application_id))
 
 
-@admin_bp.route('/cal-document/<int:doc_id>/verify', methods=['POST'])
+@admin_bp.route('/ca-document/<int:doc_id>/verify', methods=['POST'])
 @login_required
 @role_required('admin')
-def verify_cal_document(doc_id):
-    """Verify or reject a single CAL document"""
+def verify_ca_document(doc_id):
+    """Verify or reject a single CA document"""
     cal_doc = CALDocuments.query.get_or_404(doc_id)
     application = cal_doc.application
     
@@ -1089,9 +1089,9 @@ def verify_cal_document(doc_id):
                 application.reviewed_by = current_user.id
                 application.review_date = datetime.utcnow()
                 application.updated_at = datetime.utcnow()
-                flash_msg += ' Both CAL documents are now approved - application status updated to APPROVED.'
+                flash_msg += ' Both CA documents are now approved - application status updated to APPROVED.'
                 notif_msg = (
-                    f'Both your CAL documents have been approved for {application.program.program_name}!\n\n'
+                    f'Both your CA documents have been approved for {application.program.program_name}!\n\n'
                     f'📜 Certificate: VERIFIED\n📋 Proposal: APPROVED\n\n'
                     f'Please wait for the admin to set a deadline for additional document submission.'
                 )
@@ -1099,7 +1099,7 @@ def verify_cal_document(doc_id):
         # Create notification
         notification = Notifications(
             user_id=application.user_id,
-            notif_title=f'CAL {cal_doc.document_type.title()} Update',
+            notif_title=f'CA {cal_doc.document_type.title()} Update',
             notif_message=notif_msg,
             is_read=False,
             related_id=application.id,
@@ -1114,7 +1114,7 @@ def verify_cal_document(doc_id):
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating CAL document: {str(e)}', 'danger')
+        flash(f'Error updating CA document: {str(e)}', 'danger')
     
     return redirect(url_for('admin.view_application', application_id=application.id))
 
@@ -1200,8 +1200,8 @@ def schedule_claim(application_id):
         return jsonify(success=False, message='Application must be approved or completed before scheduling.')
     
     # Removed restriction - scheduling now available for all program types
-    # if application.program.program_type not in ['AICS', 'CAL']:
-    #     return jsonify(success=False, message='Claim scheduling is only available for AICS and CAL programs.')
+    # if application.program.program_type not in ['AICS', 'CA']:
+    #     return jsonify(success=False, message='Claim scheduling is only available for AICS and CA programs.')
     
     if not application.documents_complete:
         return jsonify(success=False, message='All required documents must be verified before scheduling.')

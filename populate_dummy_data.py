@@ -198,8 +198,8 @@ def populate_dummy_data():
                     'description': 'Temporary shelter and housing assistance for families affected by typhoon incidents'
                 },
                 {
-                    'name': 'Capital Assistance for Livelihood Program',
-                    'type': 'CAL',
+                    'name': 'Capital Assistance Program',
+                    'type': 'CA',
                     'period': 'Monthly',
                     'description': 'Support for microenterprise development and livelihood projects'
                 },                            
@@ -369,7 +369,7 @@ def populate_dummy_data():
                         ('Resident of Mabitac', True),
                     ]
                 },
-                'Capital Assistance for Livelihood Program': {
+                'Capital Assistance Program': {
                     'documents': [
                         ('Valid ID', True),
                         ('Barangay Clearance', True),

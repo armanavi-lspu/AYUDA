@@ -1,0 +1,266 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}{{ category_name }} - Subsidy Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .beneficiary-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #dee2e6;
+    }
+    
+    .beneficiary-card:hover {
+        border-left-color: var(--category-color, #4e73df);
+        background-color: #f8f9fc;
+    }
+    
+    .beneficiary-card.border-left-primary { --category-color: #4e73df; }
+    .beneficiary-card.border-left-success { --category-color: #1cc88a; }
+    .beneficiary-card.border-left-warning { --category-color: #f6c23e; }
+    
+    .avatar-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+    
+    .avatar-circle.bg-primary { background-color: rgba(78, 115, 223, 0.2) !important; color: #4e73df; }
+    .avatar-circle.bg-success { background-color: rgba(28, 200, 138, 0.2) !important; color: #1cc88a; }
+    .avatar-circle.bg-warning { background-color: rgba(246, 194, 62, 0.2) !important; color: #f6c23e; }
+    
+    .info-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 20px;
+    }
+    
+    .filter-card {
+        border: none;
+        border-radius: 10px;
+    }
+    
+    .category-header {
+        border-radius: 10px;
+        padding: 1.5rem 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    .category-header.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+    .category-header.bg-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
+    .category-header.bg-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important; color: white !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_subsidy') }}">Subsidy</a></li>
+            <li class="breadcrumb-item active">{{ category_name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Category Header -->
+    <div class="category-header bg-{{ category_color }} shadow">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="font-weight-bold mb-1">
+                    <i class="fas {{ category_icon }} mr-2"></i>{{ category_name }}
+                </h2>
+                <p class="mb-0 opacity-75">
+                    {% if category == 'pwd' %}
+                    Registered persons with disabilities eligible for subsidy programs
+                    {% elif category == 'senior' %}
+                    Residents aged 60 years and above eligible for senior citizen benefits
+                    {% elif category == 'solo_parent' %}
+                    Registered solo parents eligible for special assistance programs
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-right">
+                <div class="h1 font-weight-bold mb-0">{{ pagination.total }}</div>
+                <small>Total Registered</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card filter-card shadow mb-4">
+        <div class="card-body py-3">
+            <form method="GET" action="{{ url_for('admin.subsidy_list', category=category) }}">
+                <div class="row align-items-center">
+                    <div class="col-md-5 mb-2 mb-md-0">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                            </div>
+                            <input type="text" class="form-control border-left-0" name="search" 
+                                   placeholder="Search by name, email, or barangay..." value="{{ search }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2 mb-md-0">
+                        <select class="form-control" name="barangay">
+                            <option value="">All Barangays</option>
+                            {% for barangay in barangays %}
+                            <option value="{{ barangay }}" {% if barangay_filter == barangay %}selected{% endif %}>
+                                {{ barangay }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-{{ category_color }} btn-block">
+                            <i class="fas fa-filter mr-1"></i>Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Beneficiaries List -->
+    <div class="card shadow">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-{{ category_color }}">
+                <i class="fas fa-users mr-2"></i>Beneficiary List
+            </h6>
+            <span class="badge badge-{{ category_color }}">
+                Showing {{ beneficiaries|length }} of {{ pagination.total }}
+            </span>
+        </div>
+        <div class="card-body p-0">
+            {% if beneficiaries %}
+            <div class="list-group list-group-flush">
+                {% for beneficiary in beneficiaries %}
+                <div class="list-group-item beneficiary-card border-left-{{ category_color }} py-3">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <div class="avatar-circle bg-{{ category_color }}">
+                                {{ beneficiary.user.first_name[0] }}{{ beneficiary.user.last_name[0] }}
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">
+                                        {{ beneficiary.user.last_name }}, {{ beneficiary.user.first_name }}
+                                        {% if beneficiary.user.middle_name %}
+                                        {{ beneficiary.user.middle_name[0] }}.
+                                        {% endif %}
+                                    </h6>
+                                    <p class="text-muted mb-2 small">
+                                        <i class="fas fa-envelope mr-1"></i>{{ beneficiary.user.email }}
+                                        {% if beneficiary.mobile_no %}
+                                        <span class="mx-2">|</span>
+                                        <i class="fas fa-phone mr-1"></i>{{ beneficiary.mobile_no }}
+                                        {% endif %}
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="info-badge badge badge-light mr-2">
+                                            <i class="fas fa-map-marker-alt mr-1"></i>
+                                            {{ beneficiary.barangay or 'No barangay' }}
+                                            {% if beneficiary.sitio %}, {{ beneficiary.sitio }}{% endif %}
+                                        </span>
+                                        <span class="info-badge badge badge-light mr-2">
+                                            <i class="fas fa-birthday-cake mr-1"></i>
+                                            {{ beneficiary.age }} years old
+                                        </span>
+                                        {% if beneficiary.gender %}
+                                        <span class="info-badge badge badge-light mr-2">
+                                            <i class="fas fa-{% if beneficiary.gender == 'Male' %}mars{% elif beneficiary.gender == 'Female' %}venus{% else %}genderless{% endif %} mr-1"></i>
+                                            {{ beneficiary.gender }}
+                                        </span>
+                                        {% endif %}
+                                        {% if category == 'pwd' and beneficiary.disability_type %}
+                                        <span class="info-badge badge badge-primary">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            {{ beneficiary.disability_type }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <a href="{{ url_for('admin.view_community_user', user_id=beneficiary.user.id) }}" 
+                                       class="btn btn-sm btn-outline-{{ category_color }}">
+                                        <i class="fas fa-eye mr-1"></i>View Profile
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas {{ category_icon }} fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No {{ category_name }} Found</h5>
+                <p class="text-muted mb-0">
+                    {% if search or barangay_filter %}
+                    Try adjusting your search filters.
+                    {% else %}
+                    There are no registered {{ category_name.lower() }} in the system yet.
+                    {% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if pagination.pages > 1 %}
+        <div class="card-footer bg-white">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.subsidy_list', category=category, page=pagination.prev_num, search=search, barangay=barangay_filter) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.subsidy_list', category=category, page=page_num, search=search, barangay=barangay_filter) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.subsidy_list', category=category, page=pagination.next_num, search=search, barangay=barangay_filter) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Back Button -->
+    <div class="mt-4">
+        <a href="{{ url_for('admin.adm_subsidy') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Subsidy Categories
+        </a>
+    </div>
+</div>
+{% endblock %}

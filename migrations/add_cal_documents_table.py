@@ -1,6 +1,6 @@
 """
-Migration: Add CAL Documents Table
-For Capital Assistance for Livelihood (CAL) program pre-approval documents
+Migration: Add CA Documents Table
+For Capital Assistance (CA) program pre-approval documents
 """
 
 import psycopg2

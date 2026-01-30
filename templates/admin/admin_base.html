@@ -141,6 +141,37 @@
             background-color: #495057;
         }
         
+        /* Sidebar Submenu Styles */
+        .sidebar #programsSubmenu {
+            background-color: rgba(0, 0, 0, 0.15);
+            border-left: 3px solid #007bff;
+            margin-left: 0.5rem;
+        }
+        
+        .sidebar #programsSubmenu .nav-link {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .sidebar #programsSubmenu .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar #programsSubmenu .nav-link.active {
+            color: #fff;
+            background-color: #007bff;
+        }
+        
+        .sidebar .nav-link .fa-chevron-down {
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar .nav-link[aria-expanded="true"] .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+        
         .content-wrapper {
             margin-left: 15.625rem;
             padding-top: 60px;
@@ -971,11 +1002,37 @@
                         Announcements
                     </a>
                 </li>
+                <!-- Programs Dropdown -->
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.adm_programs') }}">
-                        <i class="fas fa-calendar-alt mr-2"></i>
-                        Programs
+                    <a class="nav-link d-flex justify-content-between align-items-center" href="#programsSubmenu" data-toggle="collapse" aria-expanded="false">
+                        <span>
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Programs
+                        </span>
+                        <i class="fas fa-chevron-down small"></i>
                     </a>
+                    <div class="collapse" id="programsSubmenu">
+                        <ul class="nav flex-column pl-4">
+                            <li class="nav-item">
+                                <a class="nav-link py-2" href="{{ url_for('admin.adm_programs') }}">
+                                    <i class="fas fa-hand-holding-usd mr-2"></i>
+                                    Financial Assistance
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-2" href="{{ url_for('admin.adm_subsidy') }}">
+                                    <i class="fas fa-money-check-alt mr-2"></i>
+                                    Subsidy
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-2" href="#">
+                                    <i class="fas fa-tasks mr-2"></i>
+                                    Manage Requirements
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('admin.applications') }}">
@@ -1045,8 +1102,8 @@
 
     <!-- Bootstrap JS -->
     <script
-      src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
-      integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK"
       crossorigin="anonymous"
     ></script>
     <script
@@ -1074,6 +1131,21 @@
             var path = window.location.pathname;
             $('.sidebar .nav-link').removeClass('active');
             $('.sidebar .nav-link[href="' + path + '"]').addClass('active');
+            
+            // Auto-expand Programs submenu if a submenu item is active
+            if ($('#programsSubmenu .nav-link.active').length > 0) {
+                $('#programsSubmenu').addClass('show');
+                $('a[href="#programsSubmenu"]').attr('aria-expanded', 'true');
+            }
+            
+            // Also expand if current path matches any submenu item
+            $('#programsSubmenu .nav-link').each(function() {
+                if ($(this).attr('href') === path) {
+                    $(this).addClass('active');
+                    $('#programsSubmenu').addClass('show');
+                    $('a[href="#programsSubmenu"]').attr('aria-expanded', 'true');
+                }
+            });
             
             // Close notification dropdown when clicking outside
             $(document).click(function(e) {
