@@ -435,7 +435,7 @@ def populate_dummy_data():
             # Base applications per month with trend and seasonality for ARIMA to detect
             # Trend: gradual increase over time
             # Seasonality: higher in school months (Jun-Aug), lower in Dec-Feb
-            base_applications = 3  # Minimum applications per month
+            base_applications = 3  # Base value for calculations (minimum enforced at 2)
             
             for idx, (year, month) in enumerate(months_data):
                 # Trend component: increases over time (0.2 per month)
