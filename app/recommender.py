@@ -1,5 +1,10 @@
 """
-Content-based beneficiary recommendation module using scikit-learn.
+Content-based recommendation module using scikit-learn.
+
+This module provides:
+1. BeneficiaryRecommender: Recommends beneficiaries (users) for programs to admins
+2. ProgramRecommender: Recommends programs to users based on interactions and profile
+
 Uses TfidfVectorizer + ColumnTransformer + NearestNeighbors for 
 finding similar beneficiaries based on their profiles.
 """
@@ -11,6 +16,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
+from sklearn.metrics.pairwise import cosine_similarity
 import joblib
 import os
 
@@ -313,3 +319,551 @@ def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
     
     # Return top N beneficiaries
     return scored[:max_beneficiaries]
+
+
+class ProgramRecommender:
+    """
+    Content-based program recommender for users.
+    
+    Recommends programs to users based on:
+    - User interaction history (applications) when available
+    - User profile (income/status) for cold-start users
+    - Program popularity as fallback
+    
+    Cold-start strategy:
+    - Builds a user profile vector from CommunityUsers (income bucket + status flags)
+    - Computes cosine similarity between user vector and program TF-IDF vectors
+    - Blends similarity, popularity, and status-to-type boosts
+    """
+    
+    # Class-level constants for blending weights
+    ALPHA = 0.7  # Weight for profile similarity
+    BETA = 0.3   # Weight for popularity
+    
+    # TF-IDF configuration
+    TFIDF_MAX_FEATURES = 200
+    
+    # Income bucket thresholds
+    INCOME_LOW_THRESHOLD = 100000
+    INCOME_MID_THRESHOLD = 300000
+    
+    # Status-to-program-type boost values
+    BOOST_STUDENT_EDUCATION = 0.15
+    BOOST_SOLO_PARENT_EMERGENCY = 0.10
+    BOOST_SOLO_PARENT_HOUSING = 0.10
+    BOOST_SOLO_PARENT_HEALTHCARE = 0.10
+    BOOST_PWD_HEALTHCARE = 0.10
+    BOOST_PWD_EMPLOYMENT = 0.10
+    BOOST_UNEMPLOYED_EMPLOYMENT = 0.10
+    BOOST_UNEMPLOYED_BUSINESS = 0.10
+    BOOST_UNEMPLOYED_EMERGENCY = 0.10
+    BOOST_INFORMAL_WORKER_BUSINESS = 0.05
+    BOOST_INFORMAL_WORKER_EMERGENCY = 0.05
+    BOOST_LOW_INCOME_EMERGENCY = 0.10
+    BOOST_LOW_INCOME_HOUSING = 0.10
+    
+    def __init__(self):
+        self.vectorizer = None
+        self.program_vectors = None
+        self.programs = None  # List of program dicts
+        self.program_id_to_idx = {}  # Mapping from program id to index
+        self.is_fitted = False
+    
+    def fit(self, programs):
+        """
+        Fit the recommender model on program data.
+        
+        Args:
+            programs: List of dictionaries with program data, each containing:
+                - id: Program ID
+                - program_name: Name of the program
+                - program_type: Type/category of the program
+                - description: Program description
+                
+        Returns:
+            bool: True if fitting was successful, False otherwise
+        """
+        if not programs or len(programs) < 1:
+            return False
+        
+        self.programs = programs
+        
+        # Build id->index mapping for boost lookups
+        self.program_id_to_idx = {p['id']: idx for idx, p in enumerate(programs)}
+        
+        # Build text corpus from program name, type, and description
+        corpus = []
+        for p in programs:
+            text_parts = []
+            if p.get('program_name'):
+                text_parts.append(str(p['program_name']))
+            if p.get('program_type'):
+                text_parts.append(str(p['program_type']))
+            if p.get('description'):
+                text_parts.append(str(p['description']))
+            corpus.append(' '.join(text_parts))
+        
+        # Fit TF-IDF vectorizer on program texts
+        self.vectorizer = TfidfVectorizer(
+            max_features=self.TFIDF_MAX_FEATURES,
+            stop_words='english',
+            ngram_range=(1, 2)
+        )
+        self.program_vectors = self.vectorizer.fit_transform(corpus)
+        self.is_fitted = True
+        
+        return True
+    
+    def _income_bucket(self, value):
+        """
+        Convert income value to bucket token.
+        
+        Args:
+            value: Annual income value (float or None)
+            
+        Returns:
+            str: Income bucket token
+        """
+        if value is None:
+            return "unknown_income"
+        try:
+            income = float(value)
+            if income <= self.INCOME_LOW_THRESHOLD:
+                return "low_income"
+            elif income <= self.INCOME_MID_THRESHOLD:
+                return "mid_income"
+            else:
+                return "high_income"
+        except (TypeError, ValueError):
+            return "unknown_income"
+    
+    def _build_user_profile_text(self, profile):
+        """
+        Build profile text string from user profile for TF-IDF vectorization.
+        
+        Args:
+            profile: CommunityUsers model instance or dict with user profile data
+            
+        Returns:
+            str: Text string of tokens representing user profile
+        """
+        tokens = []
+        
+        # Income bucket token
+        income = getattr(profile, 'family_annual_income', None)
+        if income is None and isinstance(profile, dict):
+            income = profile.get('family_annual_income')
+        tokens.append(self._income_bucket(income))
+        
+        # Status tokens with related program type keywords
+        is_student = getattr(profile, 'is_student', None)
+        if is_student is None and isinstance(profile, dict):
+            is_student = profile.get('is_student')
+        if is_student:
+            tokens.extend(['student', 'education'])
+        
+        is_solo_parent = getattr(profile, 'is_solo_parent', None)
+        if is_solo_parent is None and isinstance(profile, dict):
+            is_solo_parent = profile.get('is_solo_parent')
+        if is_solo_parent:
+            tokens.extend(['solo_parent', 'emergency', 'housing'])
+        
+        # Optional fields - use getattr with defaults
+        is_pwd = getattr(profile, 'is_pwd', None)
+        if is_pwd is None and isinstance(profile, dict):
+            is_pwd = profile.get('is_pwd')
+        if is_pwd:
+            tokens.extend(['pwd', 'healthcare'])
+        
+        is_unemployed = getattr(profile, 'is_unemployed', None)
+        if is_unemployed is None and isinstance(profile, dict):
+            is_unemployed = profile.get('is_unemployed')
+        # Also check is_currently_employed as alternative
+        if is_unemployed is None:
+            is_currently_employed = getattr(profile, 'is_currently_employed', None)
+            if is_currently_employed is None and isinstance(profile, dict):
+                is_currently_employed = profile.get('is_currently_employed')
+            if is_currently_employed is not None:
+                is_unemployed = not is_currently_employed
+        if is_unemployed:
+            tokens.extend(['unemployed', 'employment', 'business', 'emergency'])
+        
+        is_informal_worker = getattr(profile, 'is_informal_worker', None)
+        if is_informal_worker is None and isinstance(profile, dict):
+            is_informal_worker = profile.get('is_informal_worker')
+        if is_informal_worker:
+            tokens.extend(['informal_worker', 'business', 'emergency'])
+        
+        return ' '.join(tokens)
+    
+    def _status_type_boost(self, profile, program):
+        """
+        Calculate status-to-program-type boost.
+        
+        Args:
+            profile: CommunityUsers model instance or dict with user profile data
+            program: Program dict with 'program_type' key
+            
+        Returns:
+            float: Boost value to add to score
+        """
+        boost = 0.0
+        program_type = str(program.get('program_type', '')).lower()
+        
+        # Get profile fields safely
+        is_student = getattr(profile, 'is_student', None)
+        if is_student is None and isinstance(profile, dict):
+            is_student = profile.get('is_student')
+            
+        is_solo_parent = getattr(profile, 'is_solo_parent', None)
+        if is_solo_parent is None and isinstance(profile, dict):
+            is_solo_parent = profile.get('is_solo_parent')
+            
+        is_pwd = getattr(profile, 'is_pwd', None)
+        if is_pwd is None and isinstance(profile, dict):
+            is_pwd = profile.get('is_pwd')
+        
+        # Check is_unemployed or derive from is_currently_employed
+        is_unemployed = getattr(profile, 'is_unemployed', None)
+        if is_unemployed is None and isinstance(profile, dict):
+            is_unemployed = profile.get('is_unemployed')
+        if is_unemployed is None:
+            is_currently_employed = getattr(profile, 'is_currently_employed', None)
+            if is_currently_employed is None and isinstance(profile, dict):
+                is_currently_employed = profile.get('is_currently_employed')
+            if is_currently_employed is not None:
+                is_unemployed = not is_currently_employed
+                
+        is_informal_worker = getattr(profile, 'is_informal_worker', None)
+        if is_informal_worker is None and isinstance(profile, dict):
+            is_informal_worker = profile.get('is_informal_worker')
+        
+        income = getattr(profile, 'family_annual_income', None)
+        if income is None and isinstance(profile, dict):
+            income = profile.get('family_annual_income')
+        income_bucket = self._income_bucket(income)
+        
+        # Apply boosts
+        if is_student and 'education' in program_type:
+            boost += self.BOOST_STUDENT_EDUCATION
+            
+        if is_solo_parent:
+            if 'emergency' in program_type:
+                boost += self.BOOST_SOLO_PARENT_EMERGENCY
+            if 'housing' in program_type:
+                boost += self.BOOST_SOLO_PARENT_HOUSING
+            if 'healthcare' in program_type:
+                boost += self.BOOST_SOLO_PARENT_HEALTHCARE
+                
+        if is_pwd:
+            if 'healthcare' in program_type:
+                boost += self.BOOST_PWD_HEALTHCARE
+            if 'employment' in program_type:
+                boost += self.BOOST_PWD_EMPLOYMENT
+                
+        if is_unemployed:
+            if 'employment' in program_type:
+                boost += self.BOOST_UNEMPLOYED_EMPLOYMENT
+            if 'business' in program_type:
+                boost += self.BOOST_UNEMPLOYED_BUSINESS
+            if 'emergency' in program_type:
+                boost += self.BOOST_UNEMPLOYED_EMERGENCY
+                
+        if is_informal_worker:
+            if 'business' in program_type:
+                boost += self.BOOST_INFORMAL_WORKER_BUSINESS
+            if 'emergency' in program_type:
+                boost += self.BOOST_INFORMAL_WORKER_EMERGENCY
+                
+        if income_bucket == 'low_income':
+            if 'emergency' in program_type:
+                boost += self.BOOST_LOW_INCOME_EMERGENCY
+            if 'housing' in program_type:
+                boost += self.BOOST_LOW_INCOME_HOUSING
+        
+        return boost
+    
+    def _normalize(self, scores_dict):
+        """
+        Normalize scores dictionary to 0..1 range.
+        
+        Args:
+            scores_dict: Dict mapping program_id to score
+            
+        Returns:
+            Dict with normalized scores
+        """
+        if not scores_dict:
+            return {}
+        
+        values = list(scores_dict.values())
+        min_val = min(values)
+        max_val = max(values)
+        
+        if max_val == min_val:
+            # All scores are the same, return 0.5 for all
+            return {k: 0.5 for k in scores_dict}
+        
+        return {
+            k: (v - min_val) / (max_val - min_val)
+            for k, v in scores_dict.items()
+        }
+    
+    def _get_popular_programs(self, interactions=None, top_n=10):
+        """
+        Get popularity scores for programs.
+        
+        Uses interaction counts if provided, otherwise uses recency (assumes
+        programs list is ordered by recency).
+        
+        Args:
+            interactions: Optional list of interaction dicts with 'program_id'
+            top_n: Number of top programs to return
+            
+        Returns:
+            Dict mapping program_id to popularity score (higher = more popular)
+        """
+        if not self.programs:
+            return {}
+        
+        popularity = {}
+        
+        if interactions:
+            # Count interactions per program
+            interaction_counts = {}
+            for interaction in interactions:
+                pid = interaction.get('program_id')
+                if pid is not None:
+                    interaction_counts[pid] = interaction_counts.get(pid, 0) + 1
+            
+            # Use interaction count as popularity
+            for p in self.programs:
+                popularity[p['id']] = interaction_counts.get(p['id'], 0)
+        else:
+            # Use index as proxy for recency (lower index = more recent/popular)
+            for idx, p in enumerate(self.programs):
+                # Invert so first programs have higher scores
+                popularity[p['id']] = len(self.programs) - idx
+        
+        return popularity
+    
+    def _profile_based_cold_start(self, profile, top_n=10):
+        """
+        Generate cold-start recommendations based on user profile.
+        
+        Args:
+            profile: CommunityUsers model instance or dict with profile data
+            top_n: Number of recommendations to return
+            
+        Returns:
+            List of recommended program dicts with 'score' key
+        """
+        if not self.is_fitted or profile is None:
+            return self._popularity_fallback(top_n)
+        
+        # Build user profile text
+        user_text = self._build_user_profile_text(profile)
+        
+        if not user_text.strip():
+            return self._popularity_fallback(top_n)
+        
+        try:
+            # Vectorize user profile text
+            user_vector = self.vectorizer.transform([user_text])
+            
+            # Compute cosine similarity with all programs
+            similarities = cosine_similarity(user_vector, self.program_vectors)[0]
+            
+            # Build similarity scores dict
+            similarity_scores = {
+                self.programs[idx]['id']: float(sim)
+                for idx, sim in enumerate(similarities)
+            }
+        except Exception:
+            # If vectorization fails, fallback to popularity
+            return self._popularity_fallback(top_n)
+        
+        # Get popularity scores
+        popularity_scores = self._get_popular_programs()
+        
+        # Normalize both score sets
+        norm_similarity = self._normalize(similarity_scores)
+        norm_popularity = self._normalize(popularity_scores)
+        
+        # Compute final scores with blending and boosts
+        final_scores = {}
+        for p in self.programs:
+            pid = p['id']
+            sim_score = norm_similarity.get(pid, 0)
+            pop_score = norm_popularity.get(pid, 0)
+            boost = self._status_type_boost(profile, p)
+            
+            final_scores[pid] = (
+                self.ALPHA * sim_score +
+                self.BETA * pop_score +
+                boost
+            )
+        
+        # Sort by score and return top N
+        sorted_programs = sorted(
+            final_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:top_n]
+        
+        # Build result list
+        results = []
+        for pid, score in sorted_programs:
+            idx = self.program_id_to_idx.get(pid)
+            if idx is not None:
+                program_copy = dict(self.programs[idx])
+                program_copy['score'] = round(score, 4)
+                results.append(program_copy)
+        
+        return results
+    
+    def _popularity_fallback(self, top_n=10):
+        """
+        Return programs ranked by popularity only (fallback for missing profile).
+        
+        Args:
+            top_n: Number of recommendations to return
+            
+        Returns:
+            List of program dicts with 'score' key
+        """
+        if not self.programs:
+            return []
+        
+        popularity = self._get_popular_programs()
+        norm_popularity = self._normalize(popularity)
+        
+        sorted_programs = sorted(
+            norm_popularity.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:top_n]
+        
+        results = []
+        for pid, score in sorted_programs:
+            idx = self.program_id_to_idx.get(pid)
+            if idx is not None:
+                program_copy = dict(self.programs[idx])
+                program_copy['score'] = round(score, 4)
+                results.append(program_copy)
+        
+        return results
+    
+    def recommend_for_user(self, user_id, top_n=10, interactions=None, profile=None,
+                          get_profile_func=None, get_interactions_func=None):
+        """
+        Generate program recommendations for a user.
+        
+        Args:
+            user_id: User ID to generate recommendations for
+            top_n: Number of recommendations to return
+            interactions: Optional pre-fetched list of user interactions (applications)
+            profile: Optional pre-fetched CommunityUsers profile
+            get_profile_func: Optional callback to fetch profile: func(user_id) -> profile
+            get_interactions_func: Optional callback to fetch interactions: func(user_id) -> list
+            
+        Returns:
+            List of recommended program dicts with 'score' key
+        """
+        if not self.is_fitted:
+            return []
+        
+        # Try to get interactions
+        user_interactions = interactions
+        if user_interactions is None and get_interactions_func is not None:
+            try:
+                user_interactions = get_interactions_func(user_id)
+            except Exception:
+                user_interactions = None
+        
+        # If user has interactions, use interaction-weighted logic (existing behavior)
+        if user_interactions and len(user_interactions) > 0:
+            return self._interaction_based_recommendations(
+                user_interactions, top_n
+            )
+        
+        # Cold start path: try profile-based recommendations
+        user_profile = profile
+        if user_profile is None and get_profile_func is not None:
+            try:
+                user_profile = get_profile_func(user_id)
+            except Exception:
+                user_profile = None
+        
+        if user_profile is not None:
+            return self._profile_based_cold_start(user_profile, top_n)
+        
+        # Ultimate fallback: popularity only
+        return self._popularity_fallback(top_n)
+    
+    def _interaction_based_recommendations(self, interactions, top_n=10):
+        """
+        Generate recommendations based on user's interaction history.
+        
+        This is the existing logic for users with interactions.
+        Uses program similarity to previously interacted programs.
+        
+        Args:
+            interactions: List of interaction dicts with 'program_id'
+            top_n: Number of recommendations to return
+            
+        Returns:
+            List of recommended program dicts with 'score' key
+        """
+        if not self.is_fitted or not interactions:
+            return self._popularity_fallback(top_n)
+        
+        # Get programs the user has interacted with
+        interacted_ids = set()
+        for interaction in interactions:
+            pid = interaction.get('program_id')
+            if pid is not None:
+                interacted_ids.add(pid)
+        
+        if not interacted_ids:
+            return self._popularity_fallback(top_n)
+        
+        # Build aggregate vector from interacted programs
+        interacted_vectors = []
+        for pid in interacted_ids:
+            idx = self.program_id_to_idx.get(pid)
+            if idx is not None:
+                interacted_vectors.append(self.program_vectors[idx].toarray())
+        
+        if not interacted_vectors:
+            return self._popularity_fallback(top_n)
+        
+        # Average the vectors
+        avg_vector = np.mean(interacted_vectors, axis=0)
+        
+        # Compute similarity to all programs
+        similarities = cosine_similarity(avg_vector, self.program_vectors)[0]
+        
+        # Build scores, excluding already interacted programs
+        scores = {}
+        for idx, sim in enumerate(similarities):
+            pid = self.programs[idx]['id']
+            if pid not in interacted_ids:
+                scores[pid] = float(sim)
+        
+        # Sort and return top N
+        sorted_programs = sorted(
+            scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:top_n]
+        
+        results = []
+        for pid, score in sorted_programs:
+            idx = self.program_id_to_idx.get(pid)
+            if idx is not None:
+                program_copy = dict(self.programs[idx])
+                program_copy['score'] = round(score, 4)
+                results.append(program_copy)
+        
+        return results
