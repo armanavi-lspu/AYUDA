@@ -417,21 +417,45 @@ def populate_dummy_data():
             db.session.commit()
             print(f"✅ Assigned {requirements_assigned} requirements to programs\n")
             
-            # 6. Create Applications (reduced volume to stay under 60 total)
-            print("📝 Creating applications...")
+            # 6. Create Applications with time series data for ARIMA forecasting
+            # Generate 18 months of data (Jan 2024 - Jun 2025) to ensure ARIMA works
+            # ARIMA requires at least 12 continuous months of data
+            print("📝 Creating applications with time series data for ARIMA...")
 
             applications_created = 0
-            current_year = 2025
-
-            # Create 30 applications (reduced from thousands)
-            num_applications = 30
-
-            for i in range(num_applications):
-                user = random.choice(community_users)
-                program = random.choice(programs)
-
-                # Random month from Jan-Dec 2025
-                month = random.randint(1, 12)
+            
+            # Generate monthly data from January 2024 to June 2025 (18 months)
+            # This ensures ARIMA has sufficient data points (>= 12 months)
+            months_data = []
+            for year in [2024, 2025]:
+                month_range = range(1, 13) if year == 2024 else range(1, 7)  # Jan-Dec 2024, Jan-Jun 2025
+                for month in month_range:
+                    months_data.append((year, month))
+            
+            # Base applications per month with trend and seasonality for ARIMA to detect
+            # Trend: gradual increase over time
+            # Seasonality: higher in school months (Jun-Aug), lower in Dec-Feb
+            base_applications = 3  # Minimum applications per month
+            
+            for idx, (year, month) in enumerate(months_data):
+                # Trend component: increases over time (0.2 per month)
+                trend = int(idx * 0.2)
+                
+                # Seasonality component: simulate real patterns
+                # Higher in June-August (school-related programs)
+                # Lower in December-February (holiday/new year)
+                if month in [6, 7, 8]:
+                    seasonality = 2  # Peak season
+                elif month in [12, 1, 2]:
+                    seasonality = -1  # Low season
+                else:
+                    seasonality = 0  # Normal
+                
+                # Random variation (small noise)
+                noise = random.randint(-1, 1)
+                
+                # Calculate applications for this month (minimum 2)
+                num_apps_this_month = max(2, base_applications + trend + seasonality + noise)
                 
                 # Last day of month
                 if month in [1, 3, 5, 7, 8, 10, 12]:
@@ -439,37 +463,43 @@ def populate_dummy_data():
                 elif month in [4, 6, 9, 11]:
                     last_day = 30
                 else:  # Feb
-                    last_day = 28
-
-                # Random business-time application within the month
-                day = random.randint(1, last_day)
-                hour = random.randint(8, 17)
-                minute = random.randint(0, 59)
-                application_date = datetime(current_year, month, day, hour, minute)
-
-                # Status distribution
-                status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                status_weights = [0.40, 0.30, 0.10, 0.20]
-                application_status = np.random.choice(status_choices, p=status_weights)
-
-                # Create application with new fields
-                application = Applications(
-                    user_id=user.id,
-                    program_id=program.id,
-                    application_date=application_date,
-                    application_status=application_status,
-                    claim_status='not_scheduled'  # Added new field
-                )
+                    last_day = 29 if year == 2024 else 28  # 2024 is leap year
                 
-                # Add verification code for some approved applications
-                if application_status == 'approved' and random.random() < 0.5:
-                    application.generate_verification_code()
-                
-                db.session.add(application)
-                applications_created += 1
+                # Create applications for this month
+                for _ in range(num_apps_this_month):
+                    user = random.choice(community_users)
+                    program = random.choice(programs)
+                    
+                    # Random business-time application within the month
+                    day = random.randint(1, last_day)
+                    hour = random.randint(8, 17)
+                    minute = random.randint(0, 59)
+                    application_date = datetime(year, month, day, hour, minute)
+                    
+                    # Status distribution
+                    status_choices = ['pending', 'approved', 'rejected', 'under_review']
+                    status_weights = [0.40, 0.30, 0.10, 0.20]
+                    application_status = np.random.choice(status_choices, p=status_weights)
+                    
+                    # Create application with new fields
+                    application = Applications(
+                        user_id=user.id,
+                        program_id=program.id,
+                        application_date=application_date,
+                        application_status=application_status,
+                        claim_status='not_scheduled'
+                    )
+                    
+                    # Add verification code for some approved applications
+                    if application_status == 'approved' and random.random() < 0.5:
+                        application.generate_verification_code()
+                    
+                    db.session.add(application)
+                    applications_created += 1
 
             db.session.commit()
-            print(f"✅ Created {applications_created} applications\n")
+            print(f"✅ Created {applications_created} applications across 18 months (Jan 2024 - Jun 2025)\n")
+            print(f"   📊 This provides sufficient data for ARIMA forecasting (requires 12+ months)\n")
             
             # Print summary
             print("="*70)  
@@ -496,14 +526,17 @@ def populate_dummy_data():
                 percentage = (count / applications_created * 100) if applications_created > 0 else 0
                 print(f"   • {status.upper()}: {count} ({percentage:.1f}%)")
             
-            print("\n📅 MONTHLY APPLICATION DISTRIBUTION:")
+            print("\n📅 MONTHLY APPLICATION DISTRIBUTION (18 months for ARIMA):")
             month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-            for month in range(1, 13):
-                count = Applications.query.filter(
-                    db.func.extract('month', Applications.application_date) == month,
-                    db.func.extract('year', Applications.application_date) == current_year
-                ).count()
-                print(f"   • {month_names[month-1]} {current_year}: {count} applications")
+            # Show distribution for both 2024 and 2025 (18 months total)
+            for year in [2024, 2025]:
+                month_range = range(1, 13) if year == 2024 else range(1, 7)
+                for month in month_range:
+                    count = Applications.query.filter(
+                        db.func.extract('month', Applications.application_date) == month,
+                        db.func.extract('year', Applications.application_date) == year
+                    ).count()
+                    print(f"   • {month_names[month-1]} {year}: {count} applications")
             
             print("\n🏘️  TOP BARANGAYS BY APPLICATION COUNT:")
             barangay_counts = {}

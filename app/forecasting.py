@@ -121,8 +121,8 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
             enforce_invertibility=False  # Relax invertibility constraint
         )
         
-        # Fit with default method (powell is more stable than lbfgs)
-        fitted_model = model.fit(maxiter=300, disp=False)
+        # Fit with default method - use method_kwargs for optimizer options (statsmodels 0.14+)
+        fitted_model = model.fit(method_kwargs={'maxiter': 300})
         
         # Generate forecast
         forecast_result = fitted_model.get_forecast(steps=periods)
@@ -173,7 +173,7 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
                 enforce_stationarity=False,
                 enforce_invertibility=False
             )
-            fitted_model = model.fit(maxiter=200, disp=False)
+            fitted_model = model.fit(method_kwargs={'maxiter': 200})
             
             forecast_result = fitted_model.get_forecast(steps=periods)
             forecast_values = forecast_result.predicted_mean.tolist()
