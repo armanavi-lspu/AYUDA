@@ -1,0 +1,2854 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}{{ program.program_name }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .requirement-item {
+        padding: 8px;
+        border: 1px solid #e3e6f0;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        transition: background-color 0.2s;
+    }
+    
+    .requirement-item:hover {
+        background-color: #f8f9fc;
+    }
+    
+    .requirement-item label {
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+    
+    .requirements-list {
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .req-checkbox:checked ~ .custom-control-label {
+        color: #1cc88a;
+        font-weight: 600;
+    }
+    
+    .add-req-form {
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .add-req-form .border {
+        border: 2px dashed #dee2e6 !important;
+    }
+    
+    .add-req-form input:focus,
+    .add-req-form textarea:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+    
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+    
+    /* Requirements Card Styles */
+    .list-group-item {
+        overflow: hidden;
+        word-break: break-word;
+    }
+    
+    .list-group-item .btn-sm {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 0.2rem;
+    }
+    
+    .list-group-item:hover .btn-outline-primary,
+    .list-group-item:hover .btn-outline-danger {
+        opacity: 1;
+        transition: opacity 0.2s;
+    }
+    
+    .list-group-item .btn-outline-primary,
+    .list-group-item .btn-outline-danger {
+        opacity: 0.7;
+    }
+    
+    /* Sidebar Fixes */
+    .view-sidebar-stats {
+        position: static;
+    }
+    
+    /* Drag and Drop Styles for Workflow Steps */
+    .workflow-step-card {
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    
+    .workflow-step-card:hover {
+        box-shadow: 0 0.15rem 0.4rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .workflow-step-card.dragging {
+        opacity: 0.5;
+        transform: scale(0.98);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+    }
+    
+    .workflow-step-card.drag-over {
+        border-top: 3px solid #007bff !important;
+        margin-top: 5px;
+    }
+    
+    .drag-handle {
+        cursor: grab;
+        padding: 5px;
+        color: #adb5bd;
+        transition: color 0.2s;
+    }
+    
+    .drag-handle:hover {
+        color: #495057;
+    }
+    
+    .workflow-step-card:active .drag-handle {
+        cursor: grabbing;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_programs') }}">Programs</a></li>
+                    <li class="breadcrumb-item active">{{ program.program_name }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Programs
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-4" id="programTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="view-tab" data-toggle="tab" href="#view" role="tab">
+                <i class="fas fa-eye mr-2"></i>View Details
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="edit-tab" data-toggle="tab" href="#edit" role="tab">
+                <i class="fas fa-edit mr-2"></i>Edit Program
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="programTabsContent">
+        <!-- View Tab -->
+        <div class="tab-pane fade show active" id="view" role="tabpanel">
+            <!-- Program Header with Stats -->
+            <div class="card shadow mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                <div class="card-body text-white">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <h2 class="mb-1 font-weight-bold">{{ program.program_name }}</h2>
+                            <p class="mb-0 opacity-75">
+                                <i class="fas fa-tag mr-2"></i>{{ program.program_type }} • 
+                                <i class="fas fa-clock mr-2"></i>{{ program.program_period }}
+                            </p>
+                        </div>                        
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .stat-box {
+                    padding: 12px;
+                    background: rgba(255,255,255,0.15);
+                    border-radius: 8px;
+                }
+                .stat-box small {
+                    display: block;
+                    font-size: 0.85rem;
+                    opacity: 0.9;
+                }
+            </style>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Program Info Card -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-info text-white d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold">Program Information</h6>
+                            <button class="btn btn-sm btn-light" onclick="openProgramInfoModal()">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card border-left-primary shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="text-primary font-weight-bold mb-2">
+                                                <i class="fas fa-tag mr-2"></i>Program Type
+                                            </h6>
+                                            <p class="mb-0">{{ program.program_type }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-left-success shadow-sm h-100">
+                                        <div class="card-body">
+                                            <h6 class="text-success font-weight-bold mb-2">
+                                                <i class="fas fa-clock mr-2"></i>Program Period
+                                            </h6>
+                                            <p class="mb-0">{{ program.program_period }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if program.start_date or program.end_date %}
+                            <div class="card mb-3 border-left-info shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-info font-weight-bold mb-2">
+                                        <i class="fas fa-calendar-alt mr-2"></i>Program Duration
+                                    </h6>
+                                    <div class="row">
+                                        {% if program.start_date %}
+                                        <div class="col-md-6">
+                                            <p class="mb-0"><strong>Start Date:</strong></p>
+                                            <p class="mb-0">{{ program.start_date.strftime('%B %d, %Y') }}</p>
+                                        </div>
+                                        {% endif %}
+                                        {% if program.end_date %}
+                                        <div class="col-md-6">
+                                            <p class="mb-0"><strong>End Date / Deadline:</strong></p>
+                                            <p class="mb-0">{{ program.end_date.strftime('%B %d, %Y') }}</p>
+                                            {% set days_remaining = (program.end_date - today).days if program.end_date > today else 0 %}
+                                            {% if days_remaining > 0 %}
+                                            <small class="text-success"><i class="fas fa-check-circle"></i> {{ days_remaining }} days remaining</small>
+                                            {% elif days_remaining == 0 %}
+                                            <small class="text-warning"><i class="fas fa-exclamation-triangle"></i> Ends today</small>
+                                            {% else %}
+                                            <small class="text-danger"><i class="fas fa-times-circle"></i> Ended {{ (today - program.end_date).days }} days ago</small>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if program.beneficiary_limit %}
+                            <div class="card mb-3 border-left-warning shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-warning font-weight-bold mb-2">
+                                        <i class="fas fa-user-friends mr-2"></i>Beneficiary Limit
+                                    </h6>
+                                    {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                                    <p class="mb-0">Maximum {{ program.beneficiary_limit }} beneficiaries</p>
+                                    <small class="text-muted">Current accepted: {{ approved_count }} / {{ program.beneficiary_limit }}</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if program.income_range %}
+                            <div class="card mb-3 border-left-success shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-success font-weight-bold mb-2">
+                                        <i class="fas fa-money-bill-wave mr-2"></i>Target Income Range
+                                    </h6>
+                                    <p class="mb-0">{{ program.income_range }} monthly</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if program.priority_group %}
+                            <div class="card mb-3 border-left-info shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="text-info font-weight-bold mb-2">
+                                        <i class="fas fa-users mr-2"></i>Priority Groups
+                                    </h6>
+                                    <p class="mb-0">{{ program.priority_group }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Online Document Submission Status -->
+                            <div class="card mb-3 border-left-{{ 'success' if program.allow_online_upload else 'secondary' }} shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="font-weight-bold mb-2 {{ 'text-success' if program.allow_online_upload else 'text-secondary' }}">
+                                        <i class="fas fa-cloud-upload-alt mr-2"></i>Online Document Submission
+                                    </h6>
+                                    {% if program.allow_online_upload %}
+                                    <p class="mb-0 text-success">
+                                        <i class="fas fa-check-circle mr-1"></i>Enabled - Applicants can upload documents online
+                                    </p>
+                                    {% else %}
+                                    <p class="mb-0 text-secondary">
+                                        <i class="fas fa-times-circle mr-1"></i>Disabled - Physical submission only
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-3 border-0 bg-light">
+                                <div class="card-body">
+                                    <h6 class="font-weight-bold mb-2"><i class="fas fa-info-circle mr-2"></i>Description</h6>
+                                    <p class="mb-0 text-justify">{{ program.description or 'No description available.' }}</p>
+                                </div>
+                            </div>
+                            
+                            {% if program.file_attachment %}
+                            <div class="card border-left-warning shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="font-weight-bold mb-2"><i class="fas fa-paperclip mr-2"></i>Attachment</h6>
+                                    <a href="{{ url_for('static', filename=program.file_attachment.file_path) }}" 
+                                       target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download mr-2"></i>{{ program.file_attachment.filename }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Requirements Card -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold">Program Requirements</h6>
+                            <button class="btn btn-sm btn-light" onclick="openRequirementsModal()">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% set program_reqs = program.program_requirements %}
+                            {% if program_reqs %}
+                                <!-- Document Requirements -->
+                                {% set doc_reqs = [] %}
+                                {% for pr in program_reqs %}
+                                    {% if pr.requirement.requirement_type == 'document' %}
+                                        {% set _ = doc_reqs.append(pr) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if doc_reqs %}
+                                <h6 class="text-primary mb-3"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
+                                <ul class="list-group mb-3">
+                                    {% for pr in doc_reqs %}
+                                    <li class="list-group-item">
+                                        <strong>{{ pr.requirement.requirement_name }}</strong>
+                                        {% if pr.requirement.description %}
+                                            <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                                
+                                <!-- Qualification Requirements -->
+                                {% set qual_reqs = [] %}
+                                {% for pr in program_reqs %}
+                                    {% if pr.requirement.requirement_type == 'qualification' %}
+                                        {% set _ = qual_reqs.append(pr) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if qual_reqs %}
+                                <h6 class="text-success mb-3"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
+                                <ul class="list-group">
+                                    {% for pr in qual_reqs %}
+                                    <li class="list-group-item">
+                                        <strong>{{ pr.requirement.requirement_name }}</strong>
+                                        {% if pr.requirement.description %}
+                                            <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                        {% endif %}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-muted mb-0">No requirements set for this program.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Workflow Steps Card (View Mode) -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-dark text-white d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Workflow Steps</h6>
+                            <button class="btn btn-sm btn-light" onclick="openWorkflowModal()">
+                                <i class="fas fa-edit mr-1"></i>Edit Steps
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            {% if program.workflow_steps %}
+                            <div class="timeline">
+                                {% for step in program.workflow_steps|sort(attribute='step_order') %}
+                                <div class="d-flex mb-3">
+                                    <div class="mr-3 text-center" style="min-width: 50px;">
+                                        <span class="badge badge-{% if step.is_pre_approval %}warning{% else %}primary{% endif %} rounded-circle" style="width:35px;height:35px;line-height:27px;font-size:16px;">
+                                            {{ step.step_order }}
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="font-weight-bold mb-1">
+                                            {% if step.step_type == 'photo_upload' %}
+                                            <i class="fas fa-camera text-info mr-2"></i>
+                                            {% elif step.step_type == 'document_upload' %}
+                                            <i class="fas fa-file-upload text-primary mr-2"></i>
+                                            {% elif step.step_type == 'approval' %}
+                                            <i class="fas fa-check-circle text-success mr-2"></i>
+                                            {% elif step.step_type == 'verification' %}
+                                            <i class="fas fa-clipboard-check text-warning mr-2"></i>
+                                            {% elif step.step_type == 'document_submission' %}
+                                            <i class="fas fa-building text-secondary mr-2"></i>
+                                            {% elif step.step_type == 'scheduling' %}
+                                            <i class="fas fa-calendar-alt text-dark mr-2"></i>
+                                            {% endif %}
+                                            {{ step.step_name }}
+                                        </h6>
+                                        {% if step.step_description %}
+                                        <p class="text-muted small mb-1">{{ step.step_description }}</p>
+                                        {% endif %}
+                                        <div class="d-flex flex-wrap">
+                                            {% if step.is_pre_approval %}
+                                            <span class="badge badge-warning mr-1 mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Pre-Approval Required</span>
+                                            {% endif %}
+                                            {% if step.requires_verification %}
+                                            <span class="badge badge-info mr-1 mb-1"><i class="fas fa-user-check mr-1"></i>Admin Verification</span>
+                                            {% endif %}
+                                            {% if step.min_items > 1 %}
+                                            <span class="badge badge-secondary mr-1 mb-1"><i class="fas fa-list mr-1"></i>Min: {{ step.min_items }} items</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-stream fa-2x mb-2"></i>
+                                <p class="mb-0">No workflow steps defined. Click "Edit Steps" to add steps.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Statistics Sidebar -->
+                <div class="col-lg-4">
+                    <div class="view-sidebar-stats">
+                        <!-- Program Statistics Card -->
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3 bg-success text-white">
+                                <h6 class="m-0 font-weight-bold">
+                                    <i class="fas fa-chart-bar mr-2"></i>Program Statistics
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <h4 class="font-weight-bold text-primary mb-1">
+                                                {{ program.applications|length }}
+                                            </h4>
+                                            <small class="text-muted">Total Applications</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="stat-box">
+                                            <h4 class="font-weight-bold text-success mb-1">
+                                                {{ program.applications|selectattr('status', 'equalto', 'approved')|list|length }}
+                                            </h4>
+                                            <small class="text-muted">Approved Applications</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <hr class="my-3">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <small class="text-muted">Pending:</small>
+                                        <span class="font-weight-bold text-warning ml-1">
+                                            {{ program.applications|selectattr('status', 'equalto', 'pending')|list|length }}
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Rejected:</small>
+                                        <span class="font-weight-bold text-danger ml-1">
+                                            {{ program.applications|selectattr('status', 'equalto', 'rejected')|list|length }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if program.beneficiary_limit %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-2 bg-warning text-white">
+                                <h6 class="m-0 font-weight-bold">Beneficiary Limit</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="text-center">
+                                    <i class="fas fa-user-friends fa-2x text-warning mb-2"></i>
+                                    <h4 class="font-weight-bold mb-2">{{ program.beneficiary_limit }}</h4>
+                                    <p class="text-muted mb-3">Maximum Beneficiaries</p>
+                                    
+                                    {% set capacity_percent = (approved_count / program.beneficiary_limit * 100)|round|int %}
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div class="progress-bar {% if capacity_percent >= 100 %}bg-danger{% elif capacity_percent >= 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ [capacity_percent, 100]|min }}%;" 
+                                             aria-valuenow="{{ capacity_percent }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                            <small class="font-weight-bold">{{ capacity_percent }}%</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="mb-0"><strong>{{ approved_count }}/{{ program.beneficiary_limit }}</strong> accepted</p>
+                                    
+                                    {% if capacity_percent >= 100 %}
+                                        <div class="alert alert-danger mt-2 mb-0 py-2">
+                                            <small><i class="fas fa-exclamation-triangle mr-1"></i>Capacity Full</small>
+                                        </div>
+                                    {% elif capacity_percent >= 75 %}
+                                        <div class="alert alert-warning mt-2 mb-0 py-2">
+                                            <small><i class="fas fa-exclamation-circle mr-1"></i>Near Capacity</small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="card shadow">
+                            <div class="card-header py-2 bg-warning text-white">
+                                <h6 class="m-0 font-weight-bold">Quick Actions</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <button class="btn btn-warning btn-block mb-2" onclick="$('#edit-tab').tab('show')">
+                                    <i class="fas fa-edit mr-2"></i>Edit Program
+                                </button>
+                                <a href="{{ url_for('admin.applications', program=program.id) }}" class="btn btn-info btn-block mb-2">
+                                    <i class="fas fa-list mr-2"></i>View Applicants
+                                </a>
+                                <button class="btn btn-danger btn-block" data-toggle="modal" data-target="#deleteModal">
+                                    <i class="fas fa-trash mr-2"></i>Delete Program
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Tab -->
+        <div class="tab-pane fade" id="edit" role="tabpanel">
+            <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
+                
+                <!-- 1. Program Information Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-warning text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Program Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Program Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="program_name" value="{{ program.program_name }}" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Type <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="program_type" required>
+                                        <option value="AICS" {% if program.program_type=='AICS' %}selected{% endif %}>AICS</option>
+                                        <option value="ESA" {% if program.program_type=='ESA' %}selected{% endif %}>ESA</option>
+                                        <option value="CA" {% if program.program_type=='CA' %}selected{% endif %}>CA</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Period <span class="text-danger">*</span></label>
+                                    <select class="form-control" name="program_period" required>
+                                        <option value="Ongoing" {% if program.program_period=='Ongoing' %}selected{% endif %}>Ongoing</option>
+                                        <option value="Monthly" {% if program.program_period=='Monthly' %}selected{% endif %}>Monthly</option>
+                                        <option value="Quarterly" {% if program.program_period=='Quarterly' %}selected{% endif %}>Quarterly</option>
+                                        <option value="Semi-Annual" {% if program.program_period=='Semi-Annual' %}selected{% endif %}>Semi-Annual</option>
+                                        <option value="Annual" {% if program.program_period=='Annual' %}selected{% endif %}>Annual</option>
+                                        <option value="One-time" {% if program.program_period=='One-time' %}selected{% endif %}>One-time</option>
+                                        <option value="Emergency" {% if program.program_period=='Emergency' %}selected{% endif %}>Emergency</option>
+                                        <option value="Seasonal" {% if program.program_period=='Seasonal' %}selected{% endif %}>Seasonal</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Program Duration Fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program Start Date</label>
+                                    <input type="date" class="form-control" name="start_date" id="editStartDate"
+                                           value="{{ program.start_date.strftime('%Y-%m-%d') if program.start_date else '' }}">
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> When the program begins accepting applications
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Program End Date / Deadline</label>
+                                    <input type="date" class="form-control" name="end_date" id="editEndDate"
+                                           value="{{ program.end_date.strftime('%Y-%m-%d') if program.end_date else '' }}">
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle"></i> Last day for application/document submission
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Beneficiary Limit</label>
+                            <input type="number" class="form-control" name="beneficiary_limit" min="1" 
+                                   value="{{ program.beneficiary_limit if program.beneficiary_limit else '' }}"
+                                   placeholder="e.g., 100 (leave blank for unlimited)">
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program. Leave blank for no limit.
+                                {% if program.applications and program.beneficiary_limit %}
+                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length %}
+                                    <br><strong class="text-info">Current accepted: {{ approved_count_edit }} / {{ program.beneficiary_limit }}</strong>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Target Income Range</label>
+                            <select class="form-control" name="income_range">
+                                <option value="">Select Income Range (Optional)</option>
+                                <option value="Below 10,000" {% if program.income_range == "Below 10,000" %}selected{% endif %}>Below ₱10,000</option>
+                                <option value="10,000 - 15,000" {% if program.income_range == "10,000 - 15,000" %}selected{% endif %}>₱10,000 - ₱15,000</option>
+                                <option value="15,001 - 20,000" {% if program.income_range == "15,001 - 20,000" %}selected{% endif %}>₱15,001 - ₱20,000</option>
+                                <option value="20,001 - 30,000" {% if program.income_range == "20,001 - 30,000" %}selected{% endif %}>₱20,001 - ₱30,000</option>
+                                <option value="30,001 - 50,000" {% if program.income_range == "30,001 - 50,000" %}selected{% endif %}>₱30,001 - ₱50,000</option>
+                                <option value="Above 50,000" {% if program.income_range == "Above 50,000" %}selected{% endif %}>Above ₱50,000</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Priority Groups (Target Beneficiaries)</label>
+                            {% set selected_groups = program.priority_group.split(', ') if program.priority_group else [] %}
+                            <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Low Income Families" id="editPriority1" {% if "Low Income Families" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority1">Low Income Families</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Students" id="editPriority2" {% if "Students" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority2">Students</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="PWDs (Persons with Disabilities)" id="editPriority3" {% if "PWDs (Persons with Disabilities)" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority3">PWDs (Persons with Disabilities)</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Senior Citizens" id="editPriority4" {% if "Senior Citizens" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority4">Senior Citizens</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Single Parents" id="editPriority5" {% if "Single Parents" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority5">Single Parents</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Indigent Families" id="editPriority6" {% if "Indigent Families" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority6">Indigent Families</label>
+                                </div>
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Unemployed Individuals" id="editPriority7" {% if "Unemployed Individuals" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority7">Unemployed Individuals</label>
+                                </div>
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Informal Settlers" id="editPriority8" {% if "Informal Settlers" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority8">Informal Settlers</label>
+                                </div>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Select one or more priority groups. Leave unchecked if program is open to all.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea class="form-control" name="description" rows="4">{{ program.description }}</textarea>
+                        </div>
+                        
+                        <!-- Online Document Upload Toggle -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-cloud-upload-alt mr-2"></i>Online Document Submission
+                            </label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" name="allow_online_upload" id="editAllowOnlineUpload" 
+                                       {% if program.allow_online_upload %}checked{% endif %}>
+                                <label class="custom-control-label" for="editAllowOnlineUpload">
+                                    Enable online document upload for this program
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> When enabled, applicants can upload their documents online for pre-verification before visiting the MSWD office.
+                            </small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Update Attachment (Optional)</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" name="attachment" id="editAttachment"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                <label class="custom-file-label" for="editAttachment">Choose new file...</label>
+                            </div>
+                            {% if program.file_attachment %}
+                            <small class="text-muted d-block mt-1">
+                                Current: {{ program.file_attachment.filename }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 2. Requirements Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>Program Requirements</h6>
+                            <a href="{{ url_for('admin.manage_requirements') }}" class="btn btn-sm btn-outline-light" title="Manage All Requirements">
+                                <i class="fas fa-cog mr-1"></i>Manage Requirements
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Requirements Section -->
+                        <div class="form-group">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label class="font-weight-bold mb-0">
+                                    <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                                </label>
+                                <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-sm btn-outline-secondary" title="Manage All Requirements">
+                                    <i class="fas fa-cog mr-1"></i>Manage Requirements
+                                </a>
+                            </div>
+                            
+                            <!-- Document Requirements Section -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-primary">
+                                            <i class="fas fa-file-alt mr-2"></i>Document Requirements
+                                        </h6>
+                                        <small class="text-muted">Select documents that applicants need to submit</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEditDocForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="editAddDocForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Document Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="editNewDocName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="editNewDocDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditDocForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 250px;" id="editDocumentReqsList">
+                                        {% if requirements %}
+                                            {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
+                                            {% if document_reqs %}
+                                                {% for req in document_reqs %}
+                                                <div class="requirement-item">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div class="custom-control custom-checkbox flex-grow-1">
+                                                            <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                                   name="requirements" 
+                                                                   value="{{ req.id }}" 
+                                                                   id="editReq{{ req.id }}"
+                                                                   {% if req.id in existing_reqs %}checked{% endif %}>
+                                                            <label class="custom-control-label" for="editReq{{ req.id }}">
+                                                                <strong>{{ req.requirement_name }}</strong>
+                                                                {% if req.description %}
+                                                                    <br><small class="text-muted">{{ req.description }}</small>
+                                                                {% endif %}
+                                                            </label>
+                                                        </div>
+                                                        <div class="ml-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                    onclick="editRequirement({{ req.id }}, '{{ req.requirement_name }}', '{{ req.description or '' }}', '{{ req.requirement_type }}')"
+                                                                    title="Edit requirement">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Qualification Requirements Section -->
+                            <div class="card">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-success">
+                                            <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+                                        </h6>
+                                        <small class="text-muted">Select qualifications that applicants must meet</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleEditQualForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="editAddQualForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Qualification Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="editNewQualName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="editNewQualDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditQualForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 250px;" id="editQualificationReqsList">
+                                        {% if requirements %}
+                                            {% set qualification_reqs = requirements|selectattr('requirement_type', 'equalto', 'qualification')|list %}
+                                            {% if qualification_reqs %}
+                                                {% for req in qualification_reqs %}
+                                                <div class="requirement-item">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div class="custom-control custom-checkbox flex-grow-1">
+                                                            <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                                   name="requirements" 
+                                                                   value="{{ req.id }}" 
+                                                                   id="editReq{{ req.id }}"
+                                                                   {% if req.id in existing_reqs %}checked{% endif %}>
+                                                            <label class="custom-control-label" for="editReq{{ req.id }}">
+                                                                <strong>{{ req.requirement_name }}</strong>
+                                                                {% if req.description %}
+                                                                    <br><small class="text-muted">{{ req.description }}</small>
+                                                                {% endif %}
+                                                            </label>
+                                                        </div>
+                                                        <div class="ml-2">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                                    onclick="editRequirement({{ req.id }}, '{{ req.requirement_name }}', '{{ req.description or '' }}', '{{ req.requirement_type }}')"
+                                                                    title="Edit requirement">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 3. Workflow Steps Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-dark text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Application Workflow Steps</h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Workflow Steps Section (Edit Mode) -->
+                        <div class="form-group" id="workflowSection">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Define the steps applicants must complete. Steps marked as "Pre-Approval" must be completed before application approval.
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header bg-light py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0 text-primary">
+                                                <i class="fas fa-stream mr-2"></i>Workflow Steps
+                                            </h6>
+                                            <small class="text-muted">Drag to reorder, click gear for more options</small>
+                                        </div>
+                                        <div>
+                                            <div class="btn-group mr-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    <i class="fas fa-file-import mr-1"></i>Load Template
+                                                </button>
+                                                <div class="dropdown-menu dropdown-menu-right">
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('default'); return false;">
+                                                        <i class="fas fa-clipboard-list mr-2"></i>Standard Workflow
+                                                    </a>
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('online_upload'); return false;">
+                                                        <i class="fas fa-cloud-upload-alt mr-2"></i>Online Upload Workflow
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('ESA'); return false;">
+                                                        <i class="fas fa-home mr-2"></i>ESA Workflow
+                                                    </a>
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('CA'); return false;">
+                                                        <i class="fas fa-store mr-2"></i>CA Workflow
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWorkflowStep()">
+                                                <i class="fas fa-plus"></i> Add Step
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success ml-1" onclick="applyWorkflowTemplate('default')">
+                                                <i class="fas fa-file-import"></i> Test Template
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="workflowStepsList">
+                                        <!-- Steps will be rendered by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden input to store workflow steps data -->
+                            <input type="hidden" name="workflow_steps_json" id="workflowStepsJson" value="[]">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="card shadow">
+                    <div class="card-body">
+                        <div class="text-right">
+                            <button type="button" class="btn btn-secondary" onclick="$('#view-tab').tab('show')">
+                                <i class="fas fa-times mr-1"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save mr-1"></i>Update Program
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Program Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-trash mr-2"></i>Delete Program
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle mr-2"></i>Warning!</h5>
+                    <p class="mb-0">This action cannot be undone. All data associated with this program will be permanently deleted.</p>
+                </div>
+                
+                <p class="mb-3">Are you sure you want to delete this program?</p>
+                <p class="font-weight-bold text-danger">"{{ program.program_name }}"</p>
+                
+                <div class="card bg-light mt-3">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-3">This will also delete:</h6>
+                        <ul class="mb-0">
+                            <li>{{ program.application_count }} application(s)</li>
+                            <li>{{ program.requirement_count }} requirement link(s)</li>
+                            <li>All associated data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="POST" action="{{ url_for('admin.delete_program', id=program.id) }}" class="d-inline">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you absolutely sure? This cannot be undone!')">
+                        <i class="fas fa-trash mr-1"></i>Delete Program
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step Process Details Modal -->
+<div class="modal fade" id="stepProcessModal" tabindex="-1" role="dialog" aria-labelledby="stepProcessModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="stepProcessModalLabel">
+                    <i class="fas fa-tasks mr-2"></i>Edit Step Process Details
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="stepProcessContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveStepProcess()">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Requirement Modal -->
+<div class="modal fade" id="editRequirementModal" tabindex="-1" role="dialog" aria-labelledby="editRequirementModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editRequirementModalLabel">
+                    <i class="fas fa-edit mr-2"></i>Edit Requirement
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editRequirementForm">
+                    <input type="hidden" id="editReqId" name="requirement_id">
+                    <input type="hidden" id="editReqType" name="requirement_type">
+                    
+                    <div class="form-group">
+                        <label for="editReqName" class="font-weight-bold">
+                            <i class="fas fa-tag mr-1"></i>Requirement Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="editReqName" name="requirement_name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editReqDescription" class="font-weight-bold">
+                            <i class="fas fa-align-left mr-1"></i>Description <small class="text-muted">(Optional)</small>
+                        </label>
+                        <textarea class="form-control" id="editReqDescription" name="description" rows="3" 
+                                  placeholder="Detailed description of this requirement..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-info-circle mr-1"></i>Requirement Type
+                        </label>
+                        <p class="form-control-plaintext" id="editReqTypeDisplay"></p>
+                        <small class="text-muted">Requirement type cannot be changed after creation</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="deleteFromEditModal()">
+                    <i class="fas fa-trash-alt mr-1"></i>Delete Requirement
+                </button>
+                <div class="ml-auto">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="saveRequirementEdit()">
+                        <i class="fas fa-save mr-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Requirement Confirmation Modal -->
+<div class="modal fade" id="deleteRequirementModal" tabindex="-1" role="dialog" aria-labelledby="deleteRequirementModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteRequirementModalLabel">
+                    <i class="fas fa-trash-alt mr-2"></i>Delete Requirement
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle mr-2"></i>Warning!</h5>
+                    <p class="mb-0">Are you sure you want to delete this requirement?</p>
+                </div>
+                <p class="mb-3">This action cannot be undone. The requirement will be permanently deleted.</p>
+                <p class="font-weight-bold text-danger" id="deleteReqName"></p>
+                <div class="card bg-light mt-3">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold mb-2">Impact:</h6>
+                        <p class="mb-0 text-muted">This requirement will be removed from all programs that use it.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteRequirement()">
+                    <i class="fas fa-trash-alt mr-1"></i>Delete Requirement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Program Information Edit Modal -->
+<div class="modal fade" id="programInfoModal" tabindex="-1" role="dialog" aria-labelledby="programInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="programInfoModalLabel">
+                    <i class="fas fa-info-circle mr-2"></i>Edit Program Information
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="programInfoForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Program Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="modalProgramName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Program Type <span class="text-danger">*</span></label>
+                                <select class="form-control" id="modalProgramType" required>
+                                    <option value="ESA">Educational Service Assistance (ESA)</option>
+                                    <option value="CA">Capital Assistance (CA)</option>
+                                    <option value="AICS">Assistance to Individuals in Crisis Situations (AICS)</option>
+                                    <option value="4Ps">Pantawid Pamilyang Pilipino Program (4Ps)</option>
+                                    <option value="SOLO">Solo Parent Support</option>
+                                    <option value="PWD">PWD Support Program</option>
+                                    <option value="Senior Citizen">Senior Citizen Assistance</option>
+                                    <option value="Other">Other Program</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Program Period</label>
+                                <select class="form-control" id="modalProgramPeriod">
+                                    <option value="Quarterly">Quarterly</option>
+                                    <option value="Semi-Annual">Semi-Annual</option>
+                                    <option value="Annual">Annual</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="One-time">One-time</option>
+                                    <option value="Ongoing">Ongoing</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Beneficiary Limit</label>
+                                <input type="number" class="form-control" id="modalBeneficiaryLimit" min="1" placeholder="Leave blank for unlimited">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Target Income Range</label>
+                        <select class="form-control" id="modalIncomeRange">
+                            <option value="">Select Income Range (Optional)</option>
+                            <option value="Below 10,000">Below ₱10,000</option>
+                            <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
+                            <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
+                            <option value="20,001 - 30,000">₱20,001 - ₱30,000</option>
+                            <option value="30,001 - 50,000">₱30,001 - ₱50,000</option>
+                            <option value="Above 50,000">Above ₱50,000</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
+                        </small>
+                    </div>
+                    
+                    <!-- Priority Groups -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">Priority Groups (Target Beneficiaries)</label>
+                        <div class="border rounded p-3" style="max-height: 180px; overflow-y: auto;">
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Low Income Families" id="modalPriority1">
+                                <label class="custom-control-label" for="modalPriority1">Low Income Families</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Students" id="modalPriority2">
+                                <label class="custom-control-label" for="modalPriority2">Students</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="PWDs (Persons with Disabilities)" id="modalPriority3">
+                                <label class="custom-control-label" for="modalPriority3">PWDs (Persons with Disabilities)</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Senior Citizens" id="modalPriority4">
+                                <label class="custom-control-label" for="modalPriority4">Senior Citizens</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Single Parents" id="modalPriority5">
+                                <label class="custom-control-label" for="modalPriority5">Single Parents</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Indigent Families" id="modalPriority6">
+                                <label class="custom-control-label" for="modalPriority6">Indigent Families</label>
+                            </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Unemployed Individuals" id="modalPriority7">
+                                <label class="custom-control-label" for="modalPriority7">Unemployed Individuals</label>
+                            </div>
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Informal Settlers" id="modalPriority8">
+                                <label class="custom-control-label" for="modalPriority8">Informal Settlers</label>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Select one or more priority groups. Leave unchecked if program is open to all.
+                        </small>
+                    </div>
+                    
+                    <!-- Online Document Submission -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-cloud-upload-alt mr-2"></i>Online Document Submission
+                        </label>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" name="modal_allow_online_upload" id="modalAllowOnlineUpload">
+                            <label class="custom-control-label" for="modalAllowOnlineUpload">
+                                Enable online document upload for this program
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> When enabled, applicants can upload their documents online for pre-verification before visiting the MSWD office.
+                        </small>
+                    </div>
+                    
+                    <!-- Update Attachment -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">Update Attachment (Optional)</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" name="modal_attachment" id="modalAttachment"
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                            <label class="custom-file-label" for="modalAttachment">Choose new file...</label>
+                        </div>
+                        <small class="form-text text-muted" id="modalCurrentAttachment">
+                            <!-- Current attachment info will be shown here -->
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold">Description</label>
+                        <textarea class="form-control" id="modalDescription" rows="4"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-info" onclick="saveProgramInfo()">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Requirements Edit Modal -->
+<div class="modal fade" id="requirementsModal" tabindex="-1" role="dialog" aria-labelledby="requirementsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="requirementsModalLabel">
+                    <i class="fas fa-clipboard-check mr-2"></i>Edit Program Requirements
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-4">Select the requirements that applicants need to meet for this program.</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0 text-primary"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
+                            </div>
+                            <div class="card-body" id="modalDocRequirements" style="max-height: 300px; overflow-y: auto;">
+                                <!-- Will be populated via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0 text-success"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
+                            </div>
+                            <div class="card-body" id="modalQualRequirements" style="max-height: 300px; overflow-y: auto;">
+                                <!-- Will be populated via JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveRequirements()">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workflow Steps Edit Modal -->
+<div class="modal fade" id="workflowModal" tabindex="-1" role="dialog" aria-labelledby="workflowModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="workflowModalLabel">
+                    <i class="fas fa-tasks mr-2"></i>Edit Workflow Steps
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Define the steps applicants must complete. Drag to reorder, use the gear icon for detailed configuration.
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Current Workflow Steps</h6>
+                    <button type="button" class="btn btn-sm btn-success" onclick="addWorkflowStep()">
+                        <i class="fas fa-plus mr-1"></i>Add Step
+                    </button>
+                </div>
+                <div id="modalWorkflowStepsList">
+                    <!-- Will be populated via JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-dark" onclick="saveWorkflowSteps()">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleEditDocForm() {
+        const form = document.getElementById('editAddDocForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewDocName').focus();
+        }
+    }
+    
+    function toggleEditQualForm() {
+        const form = document.getElementById('editAddQualForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('editNewQualName').focus();
+        }
+    }
+    
+    function addNewRequirementEdit(type) {
+        const nameField = type === 'document' ? 'editNewDocName' : 'editNewQualName';
+        const descField = type === 'document' ? 'editNewDocDesc' : 'editNewQualDesc';
+        const listId = type === 'document' ? 'editDocumentReqsList' : 'editQualificationReqsList';
+        
+        const name = document.getElementById(nameField).value.trim();
+        const description = document.getElementById(descField).value.trim();
+        
+        if (!name) {
+            alert('Requirement name is required!');
+            document.getElementById(nameField).focus();
+            return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+        
+        fetch('{{ url_for("admin.add_requirement_ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: name,
+                requirement_type: type,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const list = document.getElementById(listId);
+                const emptyMsg = list.querySelector('.text-center.text-muted');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+                
+                const reqItem = document.createElement('div');
+                reqItem.className = 'requirement-item';
+                reqItem.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="custom-control custom-checkbox flex-grow-1">
+                            <input type="checkbox" class="custom-control-input req-checkbox" 
+                                   name="requirements" 
+                                   value="${data.requirement.id}" 
+                                   id="editReq${data.requirement.id}">
+                            <label class="custom-control-label" for="editReq${data.requirement.id}">
+                                <strong>${data.requirement.name}</strong>
+                                ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
+                            </label>
+                        </div>
+                        <div class="ml-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    onclick="editRequirement(${data.requirement.id}, '${data.requirement.name}', '${description || ''}', '${data.requirement.type}')"
+                                    title="Edit requirement">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(reqItem);
+                
+                document.getElementById(nameField).value = '';
+                document.getElementById(descField).value = '';
+                if (type === 'document') {
+                    toggleEditDocForm();
+                } else {
+                    toggleEditQualForm();
+                }
+                
+                showToast('Success! Requirement added.', 'success');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the requirement.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+    
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        
+        const iconMap = {
+            'success': 'fas fa-check-circle',
+            'info': 'fas fa-info-circle',
+            'warning': 'fas fa-exclamation-triangle',
+            'danger': 'fas fa-times-circle'
+        };
+        
+        toast.innerHTML = `
+            <i class="${iconMap[type] || 'fas fa-info-circle'} mr-2"></i>${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
+    document.querySelectorAll('.custom-file-input').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+    
+    // Date validation for edit form
+    const editStartDate = document.getElementById('editStartDate');
+    const editEndDate = document.getElementById('editEndDate');
+    
+    if (editStartDate && editEndDate) {
+        // Validate end date is after start date
+        editStartDate.addEventListener('change', function() {
+            if (this.value && editEndDate.value && editEndDate.value < this.value) {
+                alert('End date must be after start date');
+                editEndDate.value = '';
+            }
+            if (this.value) {
+                editEndDate.setAttribute('min', this.value);
+            }
+        });
+        
+        editEndDate.addEventListener('change', function() {
+            if (editStartDate.value && this.value && this.value < editStartDate.value) {
+                alert('End date must be after start date');
+                this.value = '';
+            }
+        });
+    }
+    
+    // ===================================
+    // MODAL EDITING FUNCTIONS
+    // ===================================
+    
+    function openProgramInfoModal() {
+        // Populate modal with current program data
+        document.getElementById('modalProgramName').value = '{{ program.program_name }}';
+        document.getElementById('modalProgramType').value = '{{ program.program_type }}';
+        document.getElementById('modalProgramPeriod').value = '{{ program.program_period }}';
+        document.getElementById('modalBeneficiaryLimit').value = '{{ program.beneficiary_limit or "" }}';
+        document.getElementById('modalIncomeRange').value = '{{ program.income_range or "" }}';
+        document.getElementById('modalDescription').value = '{{ program.description or "" }}';
+        
+        // Populate Priority Groups
+        const priorityGroups = '{{ program.priority_group or "" }}'.split(', ');
+        document.querySelectorAll('input[name="modal_priority_group"]').forEach(checkbox => {
+            checkbox.checked = priorityGroups.includes(checkbox.value);
+        });
+        
+        // Populate Online Upload setting
+        document.getElementById('modalAllowOnlineUpload').checked = {{ 'true' if program.allow_online_upload else 'false' }};
+        
+        // Show current attachment info
+        const currentAttachmentEl = document.getElementById('modalCurrentAttachment');
+        {% if program.file_attachment %}
+        currentAttachmentEl.innerHTML = '<i class="fas fa-paperclip mr-1"></i>Current: {{ program.file_attachment.filename }}';
+        {% else %}
+        currentAttachmentEl.innerHTML = '<i class="fas fa-info-circle mr-1"></i>No attachment currently uploaded.';
+        {% endif %}
+        
+        // Initialize file input change handler
+        document.getElementById('modalAttachment').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose new file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+        
+        $('#programInfoModal').modal('show');
+    }
+    
+    function saveProgramInfo() {
+        const formData = new FormData();
+        formData.append('program_name', document.getElementById('modalProgramName').value);
+        formData.append('program_type', document.getElementById('modalProgramType').value);
+        formData.append('program_period', document.getElementById('modalProgramPeriod').value);
+        formData.append('beneficiary_limit', document.getElementById('modalBeneficiaryLimit').value);
+        formData.append('income_range', document.getElementById('modalIncomeRange').value);
+        formData.append('description', document.getElementById('modalDescription').value);
+        
+        // Handle Priority Groups
+        const selectedPriorityGroups = [];
+        document.querySelectorAll('input[name="modal_priority_group"]:checked').forEach(checkbox => {
+            selectedPriorityGroups.push(checkbox.value);
+        });
+        formData.append('priority_group', selectedPriorityGroups.join(', '));
+        
+        // Handle Online Upload setting
+        formData.append('allow_online_upload', document.getElementById('modalAllowOnlineUpload').checked ? '1' : '0');
+        
+        // Handle Attachment
+        const attachmentFile = document.getElementById('modalAttachment').files[0];
+        if (attachmentFile) {
+            formData.append('attachment', attachmentFile);
+        }
+        
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+        
+        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Program information updated successfully!', 'success');
+                $('#programInfoModal').modal('hide');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                throw new Error(data.message || 'Failed to save');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error updating program information', 'danger');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        });
+    }
+    
+    function openRequirementsModal() {
+        // Populate requirements checkboxes
+        const docContainer = document.getElementById('modalDocRequirements');
+        const qualContainer = document.getElementById('modalQualRequirements');
+        
+        // Clear existing content
+        docContainer.innerHTML = '';
+        qualContainer.innerHTML = '';
+        
+        // Get current program requirements
+        const currentReqs = [
+            {% for pr in program.program_requirements %}
+            {{ pr.requirement_id }}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Add document requirements
+        {% if requirements %}
+        const docReqs = [
+            {% for req in requirements %}
+            {% if req.requirement_type == 'document' %}
+            { id: {{ req.id }}, name: '{{ req.requirement_name }}', description: '{{ req.description or "" }}' }{% if not loop.last %},{% endif %}
+            {% endif %}
+            {% endfor %}
+        ];
+        
+        const qualReqs = [
+            {% for req in requirements %}
+            {% if req.requirement_type == 'qualification' %}
+            { id: {{ req.id }}, name: '{{ req.requirement_name }}', description: '{{ req.description or "" }}' }{% if not loop.last %},{% endif %}
+            {% endif %}
+            {% endfor %}
+        ];
+        
+        docReqs.forEach(req => {
+            const isChecked = currentReqs.includes(req.id);
+            docContainer.innerHTML += `
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalDocReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
+                    <label class="custom-control-label" for="modalDocReq${req.id}">
+                        <strong>${req.name}</strong>
+                        ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
+                    </label>
+                </div>
+            `;
+        });
+        
+        qualReqs.forEach(req => {
+            const isChecked = currentReqs.includes(req.id);
+            qualContainer.innerHTML += `
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalQualReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
+                    <label class="custom-control-label" for="modalQualReq${req.id}">
+                        <strong>${req.name}</strong>
+                        ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
+                    </label>
+                </div>
+            `;
+        });
+        {% endif %}
+        
+        $('#requirementsModal').modal('show');
+    }
+    
+    function saveRequirements() {
+        const selectedReqs = [];
+        document.querySelectorAll('#requirementsModal input[type="checkbox"]:checked').forEach(checkbox => {
+            selectedReqs.push(checkbox.value);
+        });
+        
+        const formData = new FormData();
+        selectedReqs.forEach(reqId => formData.append('requirements', reqId));
+        
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+        
+        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Requirements updated successfully!', 'success');
+                $('#requirementsModal').modal('hide');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                throw new Error(data.message || 'Failed to save');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error updating requirements', 'danger');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        });
+    }
+    
+    function openWorkflowModal() {
+        // Create a temporary copy of workflow steps for editing
+        tempWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+        // Render workflow steps properly in the modal with correct form states
+        renderWorkflowStepsModal();
+        $('#workflowModal').modal('show');
+    }
+    
+    // Handle modal cancel/close to discard temporary changes
+    $('#workflowModal').on('hidden.bs.modal', function() {
+        // Clear temporary changes when modal is closed without saving
+        tempWorkflowSteps = [];
+    });
+    
+    function renderWorkflowStepsModal() {
+        const modalContainer = document.getElementById('modalWorkflowStepsList');
+        
+        if (tempWorkflowSteps.length === 0) {
+            modalContainer.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p class="mb-0">No workflow steps defined. Click "Add Step" to create one.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        modalContainer.innerHTML = tempWorkflowSteps.map(step => `
+            <div class="card mb-2 border-left-${stepTypes[step.step_type]?.color || 'primary'} workflow-step-card" 
+                 data-step-id="${step.id}" 
+                 draggable="true"
+                 ondragstart="handleDragStart(event, ${step.id})"
+                 ondragover="handleDragOver(event)"
+                 ondragenter="handleDragEnter(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event, ${step.id})"
+                 ondragend="handleDragEnd(event)"
+                 style="border-left-width: 4px !important; cursor: move;">
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-grip-vertical text-muted mr-2 drag-handle" style="cursor: grab;"></i>
+                                <span class="badge badge-${stepTypes[step.step_type]?.color || 'primary'} rounded-circle" style="width:30px;height:30px;line-height:22px;font-size:14px;">
+                                    ${step.step_order}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" placeholder="Step Name *" 
+                                   value="${step.step_name}" onchange="updateWorkflowStep(${step.id}, 'step_name', this.value)">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" onchange="updateWorkflowStep(${step.id}, 'step_type', this.value)">
+                                ${Object.entries(stepTypes).map(([key, val]) => 
+                                    `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="modalPreApproval${step.id}" 
+                                       ${step.is_pre_approval ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
+                                <label class="custom-control-label small" for="modalPreApproval${step.id}">Pre-Approval</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="modalReqVerify${step.id}" 
+                                       ${step.requires_verification ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
+                                <label class="custom-control-label small" for="modalReqVerify${step.id}">Admin Verify</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
+                                <i class="fas fa-tasks"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="toggleStepDetails(${step.id})" title="More options">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-2" id="modalStepDetails${step.id}" style="display:none;">
+                        <div class="col-md-4">
+                            <label class="small text-muted">Description</label>
+                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
+                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted">Min Items</label>
+                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
+                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Allowed File Types</label>
+                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
+                                   value="${step.allowed_file_types || ''}"
+                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Initialize sortable for modal workflow steps
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(modalContainer, {
+                animation: 150,
+                handle: '.drag-handle',
+                onEnd: function (evt) {
+                    // Reorder the temporary workflow steps array
+                    const movedItem = tempWorkflowSteps[evt.oldIndex];
+                    tempWorkflowSteps.splice(evt.oldIndex, 1);
+                    tempWorkflowSteps.splice(evt.newIndex, 0, movedItem);
+                    
+                    // Update step orders
+                    tempWorkflowSteps.forEach((step, index) => {
+                        step.step_order = index + 1;
+                    });
+                    
+                    // Re-render modal to reflect the new order
+                    renderWorkflowStepsModal();
+                }
+            });
+        }
+    }
+    
+    function saveWorkflowSteps() {
+        // Apply temporary changes to main workflow steps array
+        workflowSteps = JSON.parse(JSON.stringify(tempWorkflowSteps));
+        updateWorkflowStepsJson();
+        
+        // Use the existing workflow steps save functionality
+        const formData = new FormData();
+        formData.append('workflow_steps_json', document.getElementById('workflowStepsJson').value);
+        
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+        
+        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Workflow steps updated successfully!', 'success');
+                // Refresh the main view and close modal
+                renderWorkflowSteps();
+                $('#workflowModal').modal('hide');
+            } else {
+                throw new Error(data.message || 'Failed to save');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error updating workflow steps', 'danger');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        });
+    }
+    
+    // ===================================
+    // WORKFLOW STEPS MANAGEMENT
+    // ===================================
+    
+    // Initialize workflow steps from existing data
+    let workflowSteps = [
+        {% for step in program.workflow_steps %}
+        {
+            id: {{ step.id }},
+            step_order: {{ step.step_order }},
+            step_name: {{ step.step_name | tojson }},
+            step_description: {{ (step.step_description or '') | tojson }},
+            step_type: {{ step.step_type | tojson }},
+            is_pre_approval: {{ 'true' if step.is_pre_approval else 'false' }},
+            requires_verification: {{ 'true' if step.requires_verification else 'false' }},
+            min_items: {{ step.min_items or 1 }},
+            allowed_file_types: {{ (step.allowed_file_types or '') | tojson }},
+            step_config: {{ (step.step_config or 'null') | safe }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const stepTypes = {
+        'photo_upload': { label: 'Photo Upload', icon: 'fas fa-camera', color: 'info' },
+        'document_upload': { label: 'Document Upload', icon: 'fas fa-file-upload', color: 'primary' },
+        'approval': { label: 'Admin Approval', icon: 'fas fa-check-circle', color: 'success' },
+        'verification': { label: 'Document Verification', icon: 'fas fa-clipboard-check', color: 'warning' },
+        'document_submission': { label: 'Physical Submission', icon: 'fas fa-building', color: 'secondary' },
+        'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
+    };
+    
+    window.addWorkflowStep = function() {
+        // Check if modal is open to determine which array to use
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            const stepOrder = tempWorkflowSteps.length + 1;
+            const newStep = {
+                id: Date.now(),
+                step_order: stepOrder,
+                step_name: '',
+                step_description: '',
+                step_type: 'approval',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            };
+            tempWorkflowSteps.push(newStep);
+            renderWorkflowStepsModal();
+        } else {
+            // Working in main view - use main array
+            const stepOrder = workflowSteps.length + 1;
+            const newStep = {
+                id: Date.now(),
+                step_order: stepOrder,
+                step_name: '',
+                step_description: '',
+                step_type: 'approval',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            };
+            workflowSteps.push(newStep);
+            renderWorkflowSteps();
+        }
+    }
+    
+    function removeWorkflowStep(stepId) {
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            tempWorkflowSteps = tempWorkflowSteps.filter(s => s.id !== stepId);
+            // Reorder steps
+            tempWorkflowSteps.forEach((s, index) => s.step_order = index + 1);
+            renderWorkflowStepsModal();
+        } else {
+            // Working in main view - use main array
+            workflowSteps = workflowSteps.filter(s => s.id !== stepId);
+            // Reorder steps
+            workflowSteps.forEach((s, index) => s.step_order = index + 1);
+            renderWorkflowSteps();
+        }
+    }
+    
+    function updateWorkflowStep(stepId, field, value) {
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            const step = tempWorkflowSteps.find(s => s.id === stepId);
+            if (step) {
+                step[field] = value;
+            }
+        } else {
+            // Working in main view - use main array
+            const step = workflowSteps.find(s => s.id === stepId);
+            if (step) {
+                step[field] = value;
+                updateWorkflowStepsJson();
+            }
+        }
+    }
+    
+    function updateWorkflowStepsJson() {
+        document.getElementById('workflowStepsJson').value = JSON.stringify(workflowSteps);
+    }
+    
+    function renderWorkflowSteps() {
+        const container = document.getElementById('workflowStepsList');
+        
+        if (workflowSteps.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p class="mb-0">No workflow steps defined. Click "Add Step" to create one.</p>
+                </div>
+            `;
+            updateWorkflowStepsJson();
+            return;
+        }
+        
+        container.innerHTML = workflowSteps.map(step => `
+            <div class="card mb-2 border-left-${stepTypes[step.step_type]?.color || 'primary'} workflow-step-card" 
+                 data-step-id="${step.id}" 
+                 draggable="true"
+                 ondragstart="handleDragStart(event, ${step.id})"
+                 ondragover="handleDragOver(event)"
+                 ondragenter="handleDragEnter(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event, ${step.id})"
+                 ondragend="handleDragEnd(event)"
+                 style="border-left-width: 4px !important; cursor: move;">
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-grip-vertical text-muted mr-2 drag-handle" style="cursor: grab;"></i>
+                                <span class="badge badge-${stepTypes[step.step_type]?.color || 'primary'} rounded-circle" style="width:30px;height:30px;line-height:22px;font-size:14px;">
+                                    ${step.step_order}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" placeholder="Step Name *" 
+                                   value="${step.step_name}" onchange="updateWorkflowStep(${step.id}, 'step_name', this.value)">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" onchange="updateWorkflowStep(${step.id}, 'step_type', this.value)">
+                                ${Object.entries(stepTypes).map(([key, val]) => 
+                                    `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="preApproval${step.id}" 
+                                       ${step.is_pre_approval ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
+                                <label class="custom-control-label small" for="preApproval${step.id}">Pre-Approval</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="reqVerify${step.id}" 
+                                       ${step.requires_verification ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
+                                <label class="custom-control-label small" for="reqVerify${step.id}">Admin Verify</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
+                                <i class="fas fa-tasks"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="toggleStepDetails(${step.id})" title="More options">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-2" id="stepDetails${step.id}" style="display:none;">
+                        <div class="col-md-4">
+                            <label class="small text-muted">Description</label>
+                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
+                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted">Min Items</label>
+                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
+                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Allowed File Types</label>
+                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
+                                   value="${step.allowed_file_types || ''}"
+                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        updateWorkflowStepsJson();
+    }
+    
+    function toggleStepDetails(stepId) {
+        // Try both regular and modal step details
+        const details = document.getElementById('stepDetails' + stepId);
+        const modalDetails = document.getElementById('modalStepDetails' + stepId);
+        
+        if (details) {
+            details.style.display = details.style.display === 'none' ? 'flex' : 'none';
+        }
+        if (modalDetails) {
+            modalDetails.style.display = modalDetails.style.display === 'none' ? 'flex' : 'none';
+        }
+    }
+    
+    // ===================================
+    // DRAG AND DROP REORDERING
+    // ===================================
+    
+    let draggedStepId = null;
+    
+    function handleDragStart(event, stepId) {
+        draggedStepId = stepId;
+        event.target.classList.add('dragging');
+        event.target.style.opacity = '0.5';
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', stepId);
+    }
+    
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }
+    
+    function handleDragEnter(event) {
+        event.preventDefault();
+        const card = event.target.closest('.workflow-step-card');
+        if (card && !card.classList.contains('dragging')) {
+            card.classList.add('drag-over');
+            card.style.borderTop = '3px solid #007bff';
+        }
+    }
+    
+    function handleDragLeave(event) {
+        const card = event.target.closest('.workflow-step-card');
+        if (card) {
+            card.classList.remove('drag-over');
+            card.style.borderTop = '';
+        }
+    }
+    
+    function handleDrop(event, targetStepId) {
+        event.preventDefault();
+        
+        const card = event.target.closest('.workflow-step-card');
+        if (card) {
+            card.classList.remove('drag-over');
+            card.style.borderTop = '';
+        }
+        
+        if (draggedStepId === null || draggedStepId === targetStepId) {
+            return;
+        }
+        
+        // Find indices
+        const draggedIndex = workflowSteps.findIndex(s => s.id === draggedStepId);
+        const targetIndex = workflowSteps.findIndex(s => s.id === targetStepId);
+        
+        if (draggedIndex === -1 || targetIndex === -1) {
+            return;
+        }
+        
+        // Remove dragged item and insert at target position
+        const [draggedStep] = workflowSteps.splice(draggedIndex, 1);
+        workflowSteps.splice(targetIndex, 0, draggedStep);
+        
+        // Update step_order for all steps
+        workflowSteps.forEach((step, index) => {
+            step.step_order = index + 1;
+        });
+        
+        // Re-render the list
+        renderWorkflowSteps();
+    }
+    
+    function handleDragEnd(event) {
+        draggedStepId = null;
+        event.target.classList.remove('dragging');
+        event.target.style.opacity = '1';
+        
+        // Clean up any remaining drag-over styles
+        document.querySelectorAll('.workflow-step-card').forEach(card => {
+            card.classList.remove('drag-over');
+            card.style.borderTop = '';
+        });
+    }
+    
+    // ===================================
+    // STEP PROCESS EDITING MODAL
+    // ===================================
+    
+    let currentEditingStepId = null;
+    
+    function openStepProcessModal(stepId) {
+        currentEditingStepId = stepId;
+        const step = workflowSteps.find(s => s.id === stepId);
+        
+        if (!step) return;
+        
+        document.getElementById('stepProcessModalLabel').innerHTML = 
+            `<i class="fas fa-tasks mr-2"></i>Edit Process: ${step.step_name}`;
+        
+        let modalContent = '';
+        
+        // Basic step information
+        modalContent += `
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="font-weight-bold">Step Name</label>
+                    <input type="text" class="form-control" id="modalStepName" value="${step.step_name}">
+                </div>
+                <div class="col-md-6">
+                    <label class="font-weight-bold">Step Type</label>
+                    <select class="form-control" id="modalStepType" onchange="updateStepProcessContent()">
+                        ${Object.entries(stepTypes).map(([key, val]) => 
+                            `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="font-weight-bold">Step Description</label>
+                <textarea class="form-control" id="modalStepDescription" rows="3" placeholder="Detailed instructions for this step...">${step.step_description || ''}</textarea>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="modalPreApproval" ${step.is_pre_approval ? 'checked' : ''}>
+                        <label class="custom-control-label font-weight-bold" for="modalPreApproval">Pre-Approval Step</label>
+                        <small class="form-text text-muted">Must be completed before application approval</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="modalRequiresVerification" ${step.requires_verification ? 'checked' : ''}>
+                        <label class="custom-control-label font-weight-bold" for="modalRequiresVerification">Requires Admin Verification</label>
+                        <small class="form-text text-muted">Admin must manually verify this step</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="font-weight-bold">Minimum Items Required</label>
+                    <input type="number" class="form-control" id="modalMinItems" min="1" value="${step.min_items || 1}">
+                    <small class="form-text text-muted">For upload steps</small>
+                </div>
+            </div>
+            
+            <div id="stepTypeSpecificContent"></div>
+        `;
+        
+        document.getElementById('stepProcessContent').innerHTML = modalContent;
+        updateStepProcessContent();
+        
+        // Load existing configuration after content is updated
+        setTimeout(() => {
+            loadExistingStepConfig(step);
+        }, 100);
+        
+        $('#stepProcessModal').modal('show');
+    }
+    
+    function loadExistingStepConfig(step) {
+        // Load existing step configuration
+        let config = {};
+        if (step.step_config) {
+            try {
+                config = JSON.parse(step.step_config);
+            } catch (e) {
+                console.log('Failed to parse step config:', e);
+            }
+        }
+        
+        // Set document requirements checkboxes
+        if (config.required_documents && Array.isArray(config.required_documents)) {
+            config.required_documents.forEach(reqId => {
+                const checkbox = document.getElementById(`req${reqId}`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        
+        // Set photo category
+        if (config.photo_category) {
+            const photoCategoryField = document.getElementById('modalPhotoCategory');
+            if (photoCategoryField) photoCategoryField.value = config.photo_category;
+        }
+        
+        // Set scheduling configuration
+        if (config.scheduling_purpose) {
+            const purposeField = document.getElementById('modalSchedulingPurpose');
+            if (purposeField) purposeField.value = config.scheduling_purpose;
+        }
+        if (config.scheduling_instructions) {
+            const instructionsField = document.getElementById('modalSchedulingInstructions');
+            if (instructionsField) instructionsField.value = config.scheduling_instructions;
+        }
+    }
+    
+    function updateStepProcessContent() {
+        const stepType = document.getElementById('modalStepType').value;
+        const container = document.getElementById('stepTypeSpecificContent');
+        
+        if (stepType === 'document_upload' || stepType === 'document_submission') {
+            container.innerHTML = `
+                <hr>
+                <h6 class="font-weight-bold text-primary mb-3">
+                    <i class="fas fa-file-alt mr-2"></i>Document Requirements Configuration
+                </h6>
+                
+                <div class="form-group">
+                    <label class="font-weight-bold">Allowed File Types</label>
+                    <input type="text" class="form-control" id="modalAllowedFileTypes" 
+                           placeholder="pdf,doc,docx,jpg,png" 
+                           value="${workflowSteps.find(s => s.id === currentEditingStepId)?.allowed_file_types || ''}">
+                    <small class="form-text text-muted">Comma-separated file extensions</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="font-weight-bold">Required Documents for this Step</label>
+                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                        ${getRequirementsCheckboxes()}
+                    </div>
+                    <small class="form-text text-muted">All selected documents are required for this step</small>
+                </div>
+            `;
+        } else if (stepType === 'photo_upload') {
+            container.innerHTML = `
+                <hr>
+                <h6 class="font-weight-bold text-primary mb-3">
+                    <i class="fas fa-camera mr-2"></i>Photo Upload Configuration
+                </h6>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="font-weight-bold">Allowed File Types</label>
+                        <input type="text" class="form-control" id="modalAllowedFileTypes" 
+                               placeholder="jpg,jpeg,png,webp" 
+                               value="${workflowSteps.find(s => s.id === currentEditingStepId)?.allowed_file_types || 'jpg,jpeg,png'}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="font-weight-bold">Photo Category</label>
+                        <select class="form-control" id="modalPhotoCategory">
+                            <option value="shelter">Shelter Photos</option>
+                            <option value="identification">ID Photos</option>
+                            <option value="proof">Proof Documents</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+        } else if (stepType === 'scheduling') {
+            container.innerHTML = `
+                <hr>
+                <h6 class="font-weight-bold text-primary mb-3">
+                    <i class="fas fa-calendar-alt mr-2"></i>Scheduling Configuration
+                </h6>
+                
+                <div class="form-group">
+                    <label class="font-weight-bold">Scheduling Purpose</label>
+                    <select class="form-control" id="modalSchedulingPurpose">
+                        <option value="release">Document Release/Pickup</option>
+                        <option value="interview">Interview/Assessment</option>
+                        <option value="verification">Document Verification</option>
+                        <option value="orientation">Program Orientation</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="font-weight-bold">Instructions for Applicant</label>
+                    <textarea class="form-control" id="modalSchedulingInstructions" rows="3" 
+                              placeholder="What should the applicant bring or prepare?"></textarea>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <hr>
+                <div class="text-muted text-center py-3">
+                    <i class="fas fa-info-circle fa-2x mb-2"></i>
+                    <p>No additional configuration available for this step type.</p>
+                </div>
+            `;
+        }
+    }
+    
+    function getRequirementsCheckboxes() {
+        // Get requirements passed from server
+        const requirements = [
+            {% for req in requirements %}
+            { id: {{ req.id }}, name: {{ req.requirement_name | tojson }}, type: {{ req.requirement_type | tojson }} }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        if (requirements.length === 0) {
+            return `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-file-alt fa-2x mb-2"></i>
+                    <p class="mb-0">No requirements available.</p>
+                    <small>Add requirements in the Requirements section first.</small>
+                </div>
+            `;
+        }
+        
+        return requirements
+            .filter(req => req.type === 'document')
+            .map(req => `
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="req${req.id}" value="${req.id}">
+                    <label class="custom-control-label" for="req${req.id}">
+                        <i class="fas fa-file-alt text-primary mr-1"></i>${req.name}
+                    </label>
+                </div>
+            `).join('');
+    }
+    
+    function saveStepProcess() {
+        if (!currentEditingStepId) return;
+        
+        const step = workflowSteps.find(s => s.id === currentEditingStepId);
+        if (!step) return;
+        
+        // Update basic step information
+        step.step_name = document.getElementById('modalStepName').value;
+        step.step_type = document.getElementById('modalStepType').value;
+        step.step_description = document.getElementById('modalStepDescription').value;
+        step.is_pre_approval = document.getElementById('modalPreApproval').checked;
+        step.requires_verification = document.getElementById('modalRequiresVerification').checked;
+        step.min_items = parseInt(document.getElementById('modalMinItems').value) || 1;
+        
+        // Update step-specific settings
+        const allowedFileTypesField = document.getElementById('modalAllowedFileTypes');
+        if (allowedFileTypesField) {
+            step.allowed_file_types = allowedFileTypesField.value;
+        }
+        
+        // Build step configuration object
+        const stepConfig = {};
+        
+        // Update step requirements (for document steps)
+        const stepType = step.step_type;
+        if (stepType === 'document_upload' || stepType === 'document_submission') {
+            const selectedReqs = [];
+            document.querySelectorAll('#stepTypeSpecificContent input[type="checkbox"]:checked').forEach(cb => {
+                selectedReqs.push(parseInt(cb.value));
+            });
+            stepConfig.required_documents = selectedReqs;
+        } else if (stepType === 'photo_upload') {
+            const photoCategoryField = document.getElementById('modalPhotoCategory');
+            if (photoCategoryField) {
+                stepConfig.photo_category = photoCategoryField.value;
+            }
+        } else if (stepType === 'scheduling') {
+            const purposeField = document.getElementById('modalSchedulingPurpose');
+            const instructionsField = document.getElementById('modalSchedulingInstructions');
+            if (purposeField) stepConfig.scheduling_purpose = purposeField.value;
+            if (instructionsField) stepConfig.scheduling_instructions = instructionsField.value;
+        }
+        
+        // Store configuration as JSON string
+        step.step_config = JSON.stringify(stepConfig);
+        
+        // Re-render the workflow steps
+        renderWorkflowSteps();
+        $('#stepProcessModal').modal('hide');
+        
+        // Show success message
+        showToast('Step process updated successfully!', 'success');
+    }
+    
+    // ===================================
+    // REQUIREMENT MANAGEMENT FUNCTIONS
+    // ===================================
+    
+    function editRequirement(requirementId, name, description, type) {
+        // Populate the modal with existing data
+        document.getElementById('editReqId').value = requirementId;
+        document.getElementById('editReqType').value = type;
+        document.getElementById('editReqName').value = name;
+        document.getElementById('editReqDescription').value = description || '';
+        
+        // Display the requirement type (capitalize first letter)
+        const typeDisplay = type.charAt(0).toUpperCase() + type.slice(1);
+        document.getElementById('editReqTypeDisplay').textContent = typeDisplay;
+        
+        // Show the modal
+        $('#editRequirementModal').modal('show');
+    }
+    
+    function saveRequirementEdit() {
+        const form = document.getElementById('editRequirementForm');
+        const formData = new FormData(form);
+        
+        const requirementId = document.getElementById('editReqId').value;
+        const requirementName = document.getElementById('editReqName').value.trim();
+        const description = document.getElementById('editReqDescription').value.trim();
+        
+        if (!requirementName) {
+            alert('Requirement name is required!');
+            document.getElementById('editReqName').focus();
+            return;
+        }
+        
+        // Disable submit button
+        const saveBtn = event.target;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+        
+        fetch(`{{ url_for("admin.edit_requirement_ajax", requirement_id=0) }}`.replace('0', requirementId), {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: requirementName,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Requirement updated successfully!', 'success');
+                $('#editRequirementModal').modal('hide');
+                // Reload the page to show updated requirements
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while updating the requirement.');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        });
+    }
+    
+    function deleteFromEditModal() {
+        const requirementId = document.getElementById('editReqId').value;
+        const requirementName = document.getElementById('editReqName').value;
+        
+        // Close the edit modal first
+        $('#editRequirementModal').modal('hide');
+        
+        // Wait for the edit modal to close, then show delete confirmation
+        setTimeout(() => {
+            deleteRequirement(requirementId, requirementName);
+        }, 300);
+    }
+    
+    function deleteRequirement(requirementId, requirementName) {
+        // Store the requirement ID and name for confirmation
+        window.pendingDeleteRequirementId = requirementId;
+        window.pendingDeleteRequirementName = requirementName;
+        
+        // Update and show the modal
+        document.getElementById('deleteReqName').textContent = `"${requirementName}"`;
+        $('#deleteRequirementModal').modal('show');
+    }
+    
+    function confirmDeleteRequirement() {
+        const requirementId = window.pendingDeleteRequirementId;
+        const requirementName = window.pendingDeleteRequirementName;
+        
+        if (!requirementId) {
+            alert('Error: Requirement ID not set');
+            return;
+        }
+        
+        // Disable the delete button
+        const deleteBtn = event.target;
+        const originalText = deleteBtn.innerHTML;
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Deleting...';
+        
+        fetch(`{{ url_for("admin.delete_requirement_ajax", requirement_id=0) }}`.replace('0', requirementId), {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(data.message, 'success');
+                $('#deleteRequirementModal').modal('hide');
+                // Reload the page to show updated requirements
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showToast('Error: ' + data.message, 'danger');
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('An error occurred while deleting the requirement.', 'danger');
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalText;
+        });
+    }
+    
+    // ===================================
+    // WORKFLOW STEPS INITIALIZATION
+    // ===================================
+    
+    // Initialize the workflow steps on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ensure default steps are initialized for new programs
+        if (workflowSteps.length === 0) {
+            console.log('Initializing default workflow steps...');
+            
+            const defaultSteps = [
+                {
+                    id: Date.now() + 1,
+                    step_order: 1,
+                    step_name: 'Application Review',
+                    step_description: 'Admin reviews the submitted application and determines eligibility',
+                    step_type: 'approval',
+                    is_pre_approval: true,
+                    requires_verification: true,
+                    min_items: 1,
+                    allowed_file_types: '',
+                    step_config: null
+                }
+            ];
+            
+            {% if program.allow_online_upload %}
+            // Add online document upload step if enabled
+            defaultSteps.push({
+                id: Date.now() + 2,
+                step_order: 2,
+                step_name: 'Submit Required Documents Online',
+                step_description: 'Applicant submits required documents through the online system for initial review',
+                step_type: 'document_upload',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: 'pdf,jpg,jpeg,png',
+                step_config: null
+            });
+            
+            // Add physical document submission step
+            defaultSteps.push({
+                id: Date.now() + 3,
+                step_order: 3,
+                step_name: 'Submit Documents at MSWD Office',
+                step_description: 'Submit all required documents at MSWD Office or designated venue for physical verification',
+                step_type: 'document_submission',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            });
+            
+            // Add scheduling step
+            defaultSteps.push({
+                id: Date.now() + 4,
+                step_order: 4,
+                step_name: 'Schedule of Release',
+                step_description: 'Schedule appointment for benefit release or program enrollment',
+                step_type: 'scheduling',
+                is_pre_approval: false,
+                requires_verification: false,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            });
+            {% else %}
+            // Add only physical document submission if online upload is not enabled
+            defaultSteps.push({
+                id: Date.now() + 2,
+                step_order: 2,
+                step_name: 'Submit Required Documents',
+                step_description: 'Submit all required documents at MSWD Office or designated venue for verification',
+                step_type: 'document_submission',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            });
+            
+            // Add scheduling step
+            defaultSteps.push({
+                id: Date.now() + 3,
+                step_order: 3,
+                step_name: 'Schedule of Release',
+                step_description: 'Schedule appointment for benefit release or program enrollment',
+                step_type: 'scheduling',
+                is_pre_approval: false,
+                requires_verification: false,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            });
+            {% endif %}
+            
+            workflowSteps = defaultSteps;
+        }
+        renderWorkflowSteps();
+    });
+    
+    // ===================================
+    // WORKFLOW TEMPLATE FUNCTIONS
+    // ===================================
+    
+    // Make function globally accessible
+    window.applyWorkflowTemplate = function(templateType) {
+        console.log('Applying template:', templateType);
+        alert('Template clicked: ' + templateType); // Debug alert
+        
+        if (workflowSteps.length > 0) {
+            if (!confirm('This will replace all current workflow steps. Are you sure?')) {
+                return;
+            }
+        }
+        
+        const templates = {
+            'ESA': [
+                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, min_items: 3, allowed_file_types: 'jpg,jpeg,png,gif'},
+                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+            ],
+            'CA': [
+                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf'},
+                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
+                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+            ],
+            'online_upload': [
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: 'pdf,jpg,jpeg,png'},
+                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+            ],
+            'default': [
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+            ]
+        };
+        
+        const templateSteps = templates[templateType] || templates['default'];
+        console.log('Template steps:', templateSteps);
+        
+        // Create new workflow steps with unique IDs
+        workflowSteps = templateSteps.map((step, index) => ({
+            id: Date.now() + index + 1,
+            step_order: index + 1,
+            step_name: step.step_name,
+            step_description: step.step_description,
+            step_type: step.step_type,
+            is_pre_approval: step.is_pre_approval,
+            requires_verification: step.requires_verification,
+            min_items: step.min_items,
+            allowed_file_types: step.allowed_file_types,
+            step_config: null
+        }));
+        
+        console.log('New workflow steps:', workflowSteps);
+        renderWorkflowSteps();
+        showToast(`Applied ${templateType.replace('_', ' ')} workflow template`, 'success');
+    }
+</script>
+{% endblock %}

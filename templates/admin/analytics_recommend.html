@@ -94,7 +94,6 @@
                     <h6 class="m-0 font-weight-bold d-flex align-items-center">
                         <i class="fas fa-sliders-h mr-2"></i>
                         Selection Parameters
-                        <span class="ml-badge ml-2">ML Model</span>
                     </h6>
                 </div>
                 <div class="card-body">
@@ -132,15 +131,21 @@
                             <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
                         </h6>
 
-                        <!-- Barangay Priority -->
+                        <!-- Barangay Priority - Checkboxes -->
                         <div class="form-group">
-                            <label>Priority Barangay</label>
-                            <select class="form-control" id="priority_barangay" name="priority_barangay">
-                                <option value="">All Barangays</option>
+                            <label>Priority Barangays <small class="text-muted">(Select one or more)</small></label>
+                            <div class="barangay-checkbox-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
                                 {% for barangay in barangays %}
-                                <option value="{{ barangay }}">{{ barangay }}</option>
+                                <div class="custom-control custom-checkbox mb-1">
+                                    <input type="checkbox" class="custom-control-input barangay-checkbox" 
+                                           id="barangay_{{ loop.index }}" name="priority_barangays" value="{{ barangay }}">
+                                    <label class="custom-control-label" for="barangay_{{ loop.index }}">
+                                        {{ barangay }}
+                                    </label>
+                                </div>
                                 {% endfor %}
-                            </select>
+                            </div>
+                            <small class="form-text text-muted">Leave all unchecked to include all barangays</small>
                         </div>
 
                         <!-- Income Range -->
@@ -150,14 +155,21 @@
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
                                            id="min_income" name="min_income" 
-                                           placeholder="Min" value="0">
+                                           placeholder="Min" value="0"
+                                           min="0" max="10000000" step="1000"
+                                           title="Enter minimum income (₱0 - ₱10,000,000)">
+                                    <small class="form-text text-muted">Min: ₱0</small>
                                 </div>
                                 <div class="col-6">
                                     <input type="number" class="form-control form-control-sm" 
                                            id="max_income" name="max_income" 
-                                           placeholder="Max" value="999999999">
+                                           placeholder="Max" value="10000000"
+                                           min="0" max="10000000" step="1000"
+                                           title="Enter maximum income (₱0 - ₱10,000,000)">
+                                    <small class="form-text text-muted">Max: ₱10,000,000</small>
                                 </div>
                             </div>
+                            <small class="form-text text-muted">Set income range to filter beneficiaries</small>
                         </div>
 
                         <!-- Priority Checkboxes -->
@@ -176,6 +188,13 @@
                                     Prioritize Students
                                 </label>
                             </div>
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" 
+                                       id="pwd_priority" name="pwd_priority">
+                                <label class="custom-control-label" for="pwd_priority">
+                                    Prioritize PWDs
+                                </label>
+                            </div>
                         </div>
 
                         <hr>
@@ -183,7 +202,7 @@
                         <!-- ML Model Note -->
                         <div class="alert alert-info">
                             <i class="fas fa-robot mr-2"></i>
-                            <strong>AI Integration:</strong> Machine learning model will be integrated to provide intelligent scoring and ranking.
+                            <strong>Content-Based Filtering:</strong> Using TF-IDF vectorization and nearest neighbors for intelligent beneficiary scoring and ranking.
                         </div>
 
                         <!-- Generate Button -->
@@ -252,6 +271,101 @@
 
 {% block extra_js %}
 <script>
+// Auto-fill parameters when program is selected
+document.getElementById('program_id').addEventListener('change', function() {
+    const programId = this.value;
+    if (!programId) return;
+    
+    // Fetch program parameters
+    fetch(`/api/program/${programId}/parameters`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                autofillParameters(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching program parameters:', error);
+        });
+});
+
+function autofillParameters(programData) {
+    // Auto-fill beneficiary limit
+    if (programData.beneficiary_limit) {
+        document.getElementById('max_beneficiaries').value = programData.beneficiary_limit;
+    }
+    
+    // Auto-fill income range
+    if (programData.income_range) {
+        parseIncomeRange(programData.income_range);
+    }
+    
+    // Auto-fill priority checkboxes
+    if (programData.priority_group) {
+        parsePriorityGroups(programData.priority_group);
+    }
+}
+
+function parseIncomeRange(incomeRangeStr) {
+    // Reset to defaults
+    document.getElementById('min_income').value = '0';
+    document.getElementById('max_income').value = '999999999';
+    
+    if (!incomeRangeStr) return;
+    
+    const lowerStr = incomeRangeStr.toLowerCase();
+    
+    // Parse common patterns like "Below 15,000", "15000-30000", "Above 50,000", etc.
+    if (lowerStr.includes('below') || lowerStr.includes('less than')) {
+        const match = incomeRangeStr.match(/[\d,]+/);
+        if (match) {
+            const maxValue = match[0].replace(/,/g, '');
+            document.getElementById('max_income').value = maxValue;
+            document.getElementById('min_income').value = '0';
+        }
+    } else if (lowerStr.includes('above') || lowerStr.includes('more than') || lowerStr.includes('greater than')) {
+        const match = incomeRangeStr.match(/[\d,]+/);
+        if (match) {
+            const minValue = match[0].replace(/,/g, '');
+            document.getElementById('min_income').value = minValue;
+            document.getElementById('max_income').value = '999999999';
+        }
+    } else if (incomeRangeStr.includes('-') || lowerStr.includes('to')) {
+        // Range format like "15000-30000" or "15,000 to 30,000"
+        const numbers = incomeRangeStr.match(/[\d,]+/g);
+        if (numbers && numbers.length >= 2) {
+            document.getElementById('min_income').value = numbers[0].replace(/,/g, '');
+            document.getElementById('max_income').value = numbers[1].replace(/,/g, '');
+        }
+    }
+}
+
+function parsePriorityGroups(priorityGroupStr) {
+    // Reset all checkboxes
+    document.getElementById('solo_parent_priority').checked = false;
+    document.getElementById('student_priority').checked = false;
+    document.getElementById('pwd_priority').checked = false;
+    
+    if (!priorityGroupStr) return;
+    
+    const lowerStr = priorityGroupStr.toLowerCase();
+    
+    // Check for solo parent keywords
+    if (lowerStr.includes('solo parent') || lowerStr.includes('single parent')) {
+        document.getElementById('solo_parent_priority').checked = true;
+    }
+    
+    // Check for student keywords
+    if (lowerStr.includes('student') || lowerStr.includes('scholar')) {
+        document.getElementById('student_priority').checked = true;
+    }
+    
+    // Check for PWD keywords
+    if (lowerStr.includes('pwd') || lowerStr.includes('disability') || lowerStr.includes('disabled')) {
+        document.getElementById('pwd_priority').checked = true;
+    }
+}
+
 document.getElementById('recommendationForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -260,15 +374,53 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     document.getElementById('resultsContainer').style.display = 'none';
     document.getElementById('loadingState').style.display = 'block';
     
+    // Collect selected barangays from checkboxes
+    const selectedBarangays = [];
+    document.querySelectorAll('.barangay-checkbox:checked').forEach(checkbox => {
+        selectedBarangays.push(checkbox.value);
+    });
+    
+    // Validate income range
+    const minIncome = parseFloat(document.getElementById('min_income').value) || 0;
+    const maxIncome = parseFloat(document.getElementById('max_income').value) || 10000000;
+    
+    // Income validation
+    if (minIncome < 0) {
+        alert('Minimum income cannot be negative.');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    if (maxIncome < 0) {
+        alert('Maximum income cannot be negative.');
+        document.getElementById('max_income').focus();
+        return;
+    }
+    if (minIncome > 10000000) {
+        alert('Minimum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    if (maxIncome > 10000000) {
+        alert('Maximum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('max_income').focus();
+        return;
+    }
+    if (minIncome > maxIncome) {
+        alert('Minimum income cannot be greater than maximum income.');
+        document.getElementById('min_income').focus();
+        return;
+    }
+    
     // Collect form data
     const formData = {
         program_id: document.getElementById('program_id').value,
         max_beneficiaries: document.getElementById('max_beneficiaries').value,
-        priority_barangay: document.getElementById('priority_barangay').value,
-        min_income: document.getElementById('min_income').value,
-        max_income: document.getElementById('max_income').value,
+        priority_barangays: selectedBarangays,
+        min_income: minIncome,
+        max_income: maxIncome,
         solo_parent_priority: document.getElementById('solo_parent_priority').checked,
-        student_priority: document.getElementById('student_priority').checked
+        student_priority: document.getElementById('student_priority').checked,
+        pwd_priority: document.getElementById('pwd_priority').checked
     };
     
     // Make API call
@@ -325,6 +477,7 @@ function displayResults(data) {
                         <div class="mt-1">
                             ${rec.is_solo_parent ? '<span class="badge badge-info mr-1">Solo Parent</span>' : ''}
                             ${rec.is_student ? '<span class="badge badge-primary mr-1">Student</span>' : ''}
+                            ${rec.is_pwd ? '<span class="badge badge-warning mr-1">PWD</span>' : ''}
                         </div>
                     </div>
                     <div class="col-md-4 text-md-right">

@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Bootstrap CSS -->
     <link
       rel="stylesheet"
       href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
@@ -12,12 +14,6 @@
 
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <link
-      rel="stylesheet"
-      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
-      crossorigin="anonymous"
-    />
     
     <!-- Google Fonts - Elegant & Formal Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,7 +46,7 @@
             left: 0;
             width: 0;
             height: 2px;
-            background: linear-gradient(90deg, #ffffff, #gold);
+            background: linear-gradient(90deg, #ffffff, #ffd700);
             transition: width 0.3s ease;
         }
         
@@ -62,19 +58,54 @@
             transform: scale(1.05);
             filter: brightness(1.2);
         }
+
+        /* Flash Messages Styling */
+        .flash-messages {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .flash-message {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Navbar Gradient Styling */
+        .navbar {
+            background: linear-gradient(135deg, #0032A0 0%, #002270 100%) !important;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        }
     </style>
     
+    <!-- Custom Base CSS -->
     <link
       href="{{ url_for('static', filename='css/base.css') }}"
       rel="stylesheet"
     />  
 
-    <!-- Custom styles block -->
+    <!-- Custom styles block for child templates -->
     {% block styles %}{% endblock %}
-
-    <title>{% block title %}Home{% endblock %}</title>
+    {% block extra_css %}{% endblock %}
+    
+    <title>{% block title %}AYUDA - Municipal Social Welfare and Development{% endblock %}</title>
 </head>
 <body>
+    <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <a class="navbar-brand navbar-brand-elegant" href="/about">AYUDA</a>
         <button 
@@ -93,17 +124,16 @@
                 <a class="nav-item nav-link text-white" id="About" href="/about">About</a>
                 <a class="nav-item nav-link text-white" id="Programs" href="/programs">Programs</a>
                 <a class="nav-item nav-link text-white" id="Privacy" href="/privacy">Privacy</a>
-                <div class="hidden md:flex items-center space-x-3">
-                    <a class="btn btn-outline-light me-2" id="login" href="/login">Login</a>
-                    <a class="btn btn-light text-dark" id="signUp" href="/sign-up">Sign Up</a>
-                </div>                
+                <a class="btn btn-outline-light mr-2" id="login" href="/login">Login</a>
+                <a class="btn btn-light text-dark" id="signUp" href="/sign-up">Sign Up</a>
             </div>   
         </div>     
     </nav>
 
+    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+    <div class="flash-messages">
         {% for category, message in messages %}
         <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
             <div class="d-flex align-items-center">
@@ -127,31 +157,51 @@
     {% endif %}
     {% endwith %}
     
+    <!-- Main Content -->
     <div class="container">
         {% block content %}
         {% endblock %}
     </div>
+
+    <!-- jQuery -->
     <script
       src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
       integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
       crossorigin="anonymous"
     ></script>
+    
+    <!-- Popper.js -->
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
       integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
       crossorigin="anonymous"
     ></script>
+    
+    <!-- Bootstrap JS -->
     <script
-      src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
-      integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
       crossorigin="anonymous"
     ></script>
 
     <!-- Flash Messages Auto-dismiss Script -->
+    <script>
+        // Auto-dismiss flash messages after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.flash-message');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+    </script>
+
+    <!-- Custom UI Scripts -->
     <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-    <script
-        type="text/javascript"
-        src="{{ url_for('static', filename='UI.js') }}"
-    ></script>
+
+    <!-- Extra JS block for child templates -->
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -111,6 +111,48 @@
 
                 <!-- Content Body -->
                 <div class="card-body p-4 p-md-5">
+                    <!-- Program Link Action -->
+                    {% if announcement.linked_program %}
+                    <div class="alert alert-primary border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="text-white mb-2">
+                                    <i class="fas fa-bullseye mr-2"></i>Related Program
+                                </h5>
+                                <p class="text-white mb-0">
+                                    <strong>{{ announcement.linked_program.program_name }}</strong><br>
+                                    <small>{{ announcement.linked_program.description[:100] if announcement.linked_program.description else 'Click below to view details and apply' }}...</small>
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-center text-md-right mt-3 mt-md-0">
+                                <a href="{{ url_for('community.program_detail', program_id=announcement.linked_program.id) }}" 
+                                   class="btn btn-light btn-lg shadow-sm">
+                                    <i class="fas fa-arrow-right mr-2"></i>Apply Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if announcement.attachment_url %}
+                    <div class="alert alert-info border-0 shadow-sm mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-paperclip mr-2"></i>Additional Resource
+                                </h6>
+                                <small class="text-muted">Click the link to view the attachment or resource</small>
+                            </div>
+                            <div class="col-md-4 text-center text-md-right mt-2 mt-md-0">
+                                <a href="{{ announcement.attachment_url }}" target="_blank" 
+                                   class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-external-link-alt mr-1"></i>Open Link
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <!-- Main Content -->
                     <div class="content-text mb-4">
                         {{ announcement.announcement_content|safe if announcement.announcement_content else 'No content available.' }}

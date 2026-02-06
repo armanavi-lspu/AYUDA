@@ -3,7 +3,15 @@
 
 {% block extra_css %}
 <style>
-    .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    /* Header Gradient */
+    .page-header-gradient {
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        color: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    }
+    
+    .bg-gradient-primary { background: linear-gradient(135deg, #0032A0 0%, #002270 100%); }
     .bg-gradient-secondary { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
     .bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
     .bg-gradient-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
@@ -24,7 +32,7 @@
     }
     .application-card:hover { 
         transform: translateY(-2px); 
-        border-left-color: #667eea;
+        border-left-color: #0032A0;
     }
     
     .status-icon { 
@@ -70,18 +78,21 @@
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Header Section -->
+    <div class="page-header-gradient py-4 px-4 mb-4">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h1 class="h2 font-weight-bold mb-2">My Applications</h1>
-                <p class="lead mb-0">Track the status of your program applications and submissions</p>
+                <h2 class="mb-2 text-white">
+                    <i class="fas fa-file-alt mr-2"></i>My Applications
+                </h2>
+                <p class="mb-0 text-white opacity-75">Track the status of your program applications and submissions</p>
             </div>
             <div class="col-lg-4 text-lg-right">
-                <!-- Fixed: Changed from programs_list to programs -->
                 <a href="{{ url_for('community.programs') }}" class="btn btn-light font-weight-semibold">
                     <i class="fas fa-plus mr-2"></i>Apply for New Program
                 </a>
             </div>
         </div>
+    </div>
 
     <!-- Statistics Cards Row -->
     <div class="row mb-4">
@@ -306,15 +317,43 @@
                                class="btn btn-primary btn-block mb-2">
                                 <i class="fas fa-eye mr-2"></i>View Details
                             </a>
-                            <a href="{{ url_for('community.application_slip', application_id=application.id) }}" 
-                               class="btn btn-outline-secondary btn-block mb-2"
-                               target="_blank">
-                                <i class="fas fa-print mr-2"></i>Download Slip
-                            </a>
+                            {% if application.application_status == 'approved' %}
+                                {% if not application.code_used_at %}
+                                <a href="{{ url_for('community.verify_code') }}" 
+                                   class="btn btn-warning btn-block mb-2">
+                                    <i class="fas fa-key mr-2"></i>Verify Submission Code
+                                </a>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="fas fa-info-circle mr-1"></i>Enter the code from your slip after submitting documents
+                                </small>
+                                {% else %}
+                                <button class="btn btn-success btn-block mb-2" disabled
+                                        title="Documents verified on {{ application.code_used_at.strftime('%b %d, %Y') }}">
+                                    <i class="fas fa-check-circle mr-2"></i>Documents Verified
+                                </button>
+                                {% endif %}
+                            {% else %}
+                            <button class="btn btn-outline-secondary btn-block mb-2" disabled
+                                    title="Verification code is available after admin approval">
+                                <i class="fas fa-lock mr-2"></i>Code (Pending Approval)
+                            </button>
+                            {% endif %}
                             {% if application.application_status == 'rejected' or application.remarks %}
                             <!-- Note: This route might not exist, check your routes -->
-                            <button class="btn btn-outline-warning btn-block" disabled>
+                            <button class="btn btn-outline-warning btn-block mb-2" disabled>
                                 <i class="fas fa-edit mr-2"></i>Edit Application (Coming Soon)
+                            </button>
+                            {% endif %}
+                            <!-- Cancel Button -->
+                            {% if application.application_status != 'approved' %}
+                            <button type="button" 
+                                    class="btn btn-danger btn-block btn-sm"
+                                    data-toggle="modal" 
+                                    data-target="#cancelApplicationModal"
+                                    data-app-id="{{ application.id }}"
+                                    data-app-name="{{ application.program.program_name if application.program else 'Unknown Program' }}"
+                                    title="Cancel and delete this application">
+                                <i class="fas fa-times mr-1"></i>Cancel Application
                             </button>
                             {% endif %}
                         </div>
@@ -506,6 +545,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 50);
         }
     });
+    
+    // Handle cancel application modal
+    $('#cancelApplicationModal').on('show.bs.modal', function (event) {
+        const button = $(event.relatedTarget);
+        const appId = button.data('app-id');
+        const appName = button.data('app-name');
+        
+        // Update modal with application details
+        const modal = $(this);
+        modal.find('#cancelApplicationName').text(appName);
+        
+        // Update form action
+        const form = modal.find('form');
+        form.attr('action', `/community/applications/${appId}/cancel`);
+    });
             
     // Initialize Bootstrap tooltips if available
     if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
@@ -513,4 +567,51 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<!-- Cancel Application Modal -->
+<div class="modal fade" id="cancelApplicationModal" tabindex="-1" role="dialog" aria-labelledby="cancelApplicationLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="cancelApplicationLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Cancel Application
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                <p class="mb-2">
+                    Are you sure you want to cancel your application for <strong id="cancelApplicationName">Program</strong>?
+                </p>
+                <p class="mb-0 text-danger font-weight-bold">
+                    <i class="fas fa-trash mr-1"></i>This will permanently delete:
+                </p>
+                <ul class="text-danger mt-2 mb-3">
+                    <li>Your application and all submitted data</li>
+                    <li>All uploaded documents</li>
+                    <li>All shelter photos (if applicable)</li>
+                    <li>Your application slip (if issued)</li>
+                </ul>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle mr-1"></i>You can always reapply for this program later.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>No, Keep Application
+                </button>
+                <form method="POST" style="display:inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash mr-1"></i>Yes, Cancel Application
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

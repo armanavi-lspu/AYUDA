@@ -3,421 +3,346 @@
 
 {% block extra_css %}
 <style>
-    .signup-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 10px 10px 0 0;
-        margin-bottom: 0;
+    .signup-container {
+        max-width: 600px;
+        margin: 0 auto;
     }
+
     .form-section {
         background: #f8f9fc;
-        padding: 1.5rem;
+        padding: 2rem;
         border-radius: 8px;
         margin-bottom: 1.5rem;
     }
-    .form-section h5 {
-        color: #4e73df;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e3e6f0;
-    }
+
     .required-field::after {
         content: " *";
         color: #e74a3b;
     }
-    .form-control:focus {
-        border-color: #4e73df;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
     }
-    .info-text {
-        font-size: 0.875rem;
-        color: #858796;
+
+    .bg-gradient-primary h2,
+    .bg-gradient-primary p {
+        color: white !important;
+    }
+
+    /* Form Control Validation */
+    .form-control:invalid,
+    .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+
+    .form-control:valid,
+    .form-control.is-valid {
+        border-color: #28a745;
+    }
+
+    .invalid-feedback,
+    .valid-feedback {
+        display: none;
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 80%;
+    }
+
+    .invalid-feedback {
+        color: #dc3545;
+    }
+
+    .valid-feedback {
+        color: #28a745;
+    }
+
+    .was-validated .form-control:invalid ~ .invalid-feedback,
+    .form-control.is-invalid ~ .invalid-feedback {
+        display: block;
+    }
+
+    .was-validated .form-control:valid ~ .valid-feedback,
+    .form-control.is-valid ~ .valid-feedback {
+        display: block;
+    }
+
+    .date-input-wrapper {
+        position: relative;
+    }
+
+    .date-input-wrapper input[type="date"] {
+        padding-right: 40px;
+    }
+
+    .calendar-icon {
+        position: absolute;
+        right: 12px;
+        top: 38px;
+        pointer-events: none;
+        color: #667eea;
+        font-size: 1.2rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card shadow-lg border-0">
-                <!-- Header -->
-                <div class="signup-header">
-                    <h2 class="text-center mb-2">
-                        <i class="fas fa-user-plus mr-2"></i>Create Your Account
-                    </h2>
-                    <p class="text-center mb-0 lead">Join AYUDA Community Program</p>
-                </div>
+    <div class="signup-container">
+        <div class="card shadow-lg border-0">
+            <!-- Header -->
+            <div class="card-header bg-gradient-primary text-white py-4">
+                <h2 class="text-left mb-2">
+                    <i class="fas fa-user-plus mr-2"></i>Create Your Account
+                </h2>
+                <p class="text-left mb-0">Join <strong> AYUDA </strong> Community Program</p>
+            </div>
 
-                <!-- Form Body -->
-                <div class="card-body p-4">
-                    <form method="POST" id="signupForm">
-                        <!-- Account Information Section -->
-                        <div class="form-section">
-                            <h5><i class="fas fa-shield-alt mr-2"></i>Account Information</h5>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label for="email" class="required-field">Email Address</label>
-                                    <input 
-                                        type="email" 
-                                        class="form-control" 
-                                        id="email" 
-                                        name="email" 
-                                        placeholder="your.email@example.com"
-                                        required
-                                    />
-                                    <small class="info-text">We'll use this for account verification and notifications</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="password1" class="required-field">Password</label>
-                                    <input 
-                                        type="password" 
-                                        class="form-control" 
-                                        id="password1" 
-                                        name="password1" 
-                                        placeholder="Enter password (min. 7 characters)"
-                                        required
-                                    />
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="password2" class="required-field">Confirm Password</label>
-                                    <input 
-                                        type="password" 
-                                        class="form-control" 
-                                        id="password2" 
-                                        name="password2" 
-                                        placeholder="Re-enter password"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-body p-4">
+                <h5 class="mb-4"><i class="fas mr-2"></i> Please fill out the necessary information below</h5>
 
-                        <!-- Personal Information Section -->
-                        <div class="form-section">
-                            <h5><i class="fas fa-user mr-2"></i>Personal Information</h5>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
+                <!-- Sign Up Form -->
+                <form method="POST" id="signUpForm" novalidate>
+                    <div class="form-section">
+
+                        <div class="row">
+                            <!-- First Name -->
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label for="firstName" class="required-field">First Name</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="firstName" 
-                                        name="firstName" 
-                                        placeholder="Juan"
-                                        required
-                                    />
+                                    <input type="text" class="form-control" id="firstName" 
+                                           name="firstName" placeholder="Juan" 
+                                           pattern="[A-Za-z\s]+" required>
+                                    <div class="invalid-feedback">
+                                        Please provide your first name (letters only).
+                                    </div>
                                 </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="middleName">Middle Name</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="middleName" 
-                                        name="middleName" 
-                                        placeholder="Santos (Optional)"
-                                    />
-                                </div>
-                                <div class="col-md-4 mb-3">
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6">
+                                <div class="form-group">
                                     <label for="lastName" class="required-field">Last Name</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="lastName" 
-                                        name="lastName" 
-                                        placeholder="Dela Cruz"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
-                                    <label for="birth_month" class="required-field">Birth Month</label>
-                                    <select class="form-control" id="birth_month" name="birth_month" required>
-                                        <option value="">Select Month</option>
-                                        <option value="1">January</option>
-                                        <option value="2">February</option>
-                                        <option value="3">March</option>
-                                        <option value="4">April</option>
-                                        <option value="5">May</option>
-                                        <option value="6">June</option>
-                                        <option value="7">July</option>
-                                        <option value="8">August</option>
-                                        <option value="9">September</option>
-                                        <option value="10">October</option>
-                                        <option value="11">November</option>
-                                        <option value="12">December</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label for="birth_day" class="required-field">Birth Day</label>
-                                    <input 
-                                        type="number" 
-                                        class="form-control" 
-                                        id="birth_day" 
-                                        name="birth_day" 
-                                        min="1" 
-                                        max="31" 
-                                        placeholder="DD"
-                                        required
-                                    />
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label for="birth_year" class="required-field">Birth Year</label>
-                                    <input 
-                                        type="number" 
-                                        class="form-control" 
-                                        id="birth_year" 
-                                        name="birth_year" 
-                                        min="1900" 
-                                        max="2023" 
-                                        placeholder="YYYY"
-                                        required
-                                    />
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <label for="age" class="required-field">Age</label>
-                                    <input 
-                                        type="number" 
-                                        class="form-control" 
-                                        id="age" 
-                                        name="age" 
-                                        min="1" 
-                                        max="120" 
-                                        placeholder="Age"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="mobile_no">Mobile Number</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="mobile_no" 
-                                        name="mobile_no" 
-                                        placeholder="09XX-XXX-XXXX"
-                                        pattern="[0-9]{11}"
-                                    />
-                                    <small class="info-text">Format: 09XXXXXXXXX (11 digits)</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Address Information Section -->
-                        <div class="form-section">
-                            <h5><i class="fas fa-map-marker-alt mr-2"></i>Address Information</h5>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="barangay" class="required-field">Barangay</label>
-                                    <select class="form-control" id="barangay" name="barangay" required>
-                                        <option value="">Select Barangay</option>
-                                        <option value="Amuyong">Amuyong</option>
-                                        <option value="Bayanihan">Bayanihan</option>
-                                        <option value="Lambac">Lambac</option>
-                                        <option value="Libis ng Nayon">Libis ng Nayon</option>
-                                        <option value="Lucong">Lucong</option>
-                                        <option value="Maligaya">Maligaya</option>
-                                        <option value="Masikap">Masikap</option>
-                                        <option value="Matalatala">Matalatala</option>
-                                        <option value="Nanguma">Nanguma</option>
-                                        <option value="Numero Uno">Numero Uno</option>
-                                        <option value="Paagahan">Paagahan</option>
-                                        <option value="Pag-Asa">Pag-Asa</option>
-                                        <option value="San Antonio">San Antonio</option>
-                                        <option value="San Miguel">San Miguel</option>
-                                        <option value="Sinagtala">Sinagtala</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="sitio">Sitio/Purok</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="sitio" 
-                                        name="sitio" 
-                                        placeholder="Enter Sitio/Purok"
-                                    />
-                                </div>
-                                <div class="col-md-12 mb-3">
-                                    <label for="municipality">Municipality</label>
-                                    <input 
-                                        type="text" 
-                                        class="form-control" 
-                                        id="municipality" 
-                                        name="municipality" 
-                                        value="Mabitac" 
-                                        readonly
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Household & Employment Information Section -->
-                        <div class="form-section">
-                            <h5><i class="fas fa-briefcase mr-2"></i>Household & Employment Information</h5>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="family_annual_income">Family Annual Income (₱)</label>
-                                    <input 
-                                        type="number" 
-                                        class="form-control" 
-                                        id="family_annual_income" 
-                                        name="family_annual_income" 
-                                        min="0" 
-                                        step="0.01"
-                                        placeholder="0.00"
-                                    />
-                                    <small class="info-text">Combined annual income of all family members</small>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="font-weight-bold">Status Information</label>
-                                    <div class="custom-control custom-checkbox mb-2">
-                                        <input 
-                                            type="checkbox" 
-                                            class="custom-control-input" 
-                                            id="is_currently_employed" 
-                                            name="is_currently_employed"
-                                        />
-                                        <label class="custom-control-label" for="is_currently_employed">
-                                            <i class="fas fa-briefcase mr-1 text-primary"></i>Currently Employed
-                                        </label>
-                                    </div>
-                                    <div class="custom-control custom-checkbox mb-2">
-                                        <input 
-                                            type="checkbox" 
-                                            class="custom-control-input" 
-                                            id="is_student" 
-                                            name="is_student"
-                                        />
-                                        <label class="custom-control-label" for="is_student">
-                                            <i class="fas fa-graduation-cap mr-1 text-info"></i>Currently a Student
-                                        </label>
-                                    </div>
-                                    <div class="custom-control custom-checkbox mb-2">
-                                        <input 
-                                            type="checkbox" 
-                                            class="custom-control-input" 
-                                            id="is_solo_parent" 
-                                            name="is_solo_parent"
-                                        />
-                                        <label class="custom-control-label" for="is_solo_parent">
-                                            <i class="fas fa-heart mr-1 text-danger"></i>Solo Parent
-                                        </label>
+                                    <input type="text" class="form-control" id="lastName" 
+                                           name="lastName" placeholder="Dela Cruz" 
+                                           pattern="[A-Za-z\s]+" required>
+                                    <div class="invalid-feedback">
+                                        Please provide your last name (letters only).
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Terms and Conditions -->
-                        <div class="form-section">
-                            <div class="custom-control custom-checkbox mb-3">
-                                <input 
-                                    type="checkbox" 
-                                    class="custom-control-input" 
-                                    id="terms" 
-                                    name="terms" 
-                                    required
-                                />
-                                <label class="custom-control-label" for="terms">
-                                    I agree to the <a href="#" data-toggle="modal" data-target="#termsModal">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>
-                                </label>
+                        <!-- Birthdate with Calendar Picker -->
+                        <div class="form-group">
+                            <label for="birthDate" class="required-field">Birth Date</label>
+                            <div class="date-input-wrapper">
+                                <input type="date" class="form-control" id="birthDate" 
+                                       name="birthDate" required>
+                                <i class="fas calendar-icon"></i>
+                            </div>
+                            <div class="invalid-feedback" id="birthDateFeedback">
+                                Please select a valid birth date.
+                            </div>                            
+                        </div>
+
+                        <!-- Gender -->
+                        <div class="form-group">
+                            <label for="gender" class="required-field">Gender</label>
+                            <select class="form-control" id="gender" name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                                <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select your gender.
                             </div>
                         </div>
 
-                        <!-- Submit Button -->
-                        <div class="text-center">
-                            <button type="submit" class="btn btn-primary btn-lg px-5">
-                                <i class="fas fa-check-circle mr-2"></i>Create Account
-                            </button>
+                    <!-- Email and Password Section -->
+                    
+                        <!-- Email -->
+                        <div class="form-group">
+                            <label for="email" class="required-field">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="juan.delacruz@gmail.com" required>
+                            <div class="invalid-feedback">
+                                Please provide a valid email address.
+                            </div>
+                            <div class="valid-feedback">
+                                Email is valid!
+                            </div>
+                            <small class="form-text text-muted">We'll use this for account verification</small>
                         </div>
 
-                        <!-- Login Link -->
-                        <div class="text-center mt-4">
-                            <p class="text-muted">Already have an account? 
-                                <a href="{{ url_for('auth.login') }}" class="font-weight-bold">Login here</a>
-                            </p>
+                        <!-- New Password -->
+                        <div class="form-group">
+                            <label for="password" class="required-field">New Password</label>
+                            <input type="password" class="form-control" id="password" 
+                                   name="password" placeholder="Min. 8 characters" 
+                                   minlength="8" required>
+                            <div class="invalid-feedback">
+                                Password must be at least 8 characters long.
+                            </div>
+                            <div class="valid-feedback">
+                                Strong password!
+                            </div>
                         </div>
-                    </form>
-                </div>
+
+                        <!-- Confirm Password -->
+                        <div class="form-group">
+                            <label for="confirmPassword" class="required-field">Confirm Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" 
+                                   name="confirmPassword" placeholder="Re-enter password" required>
+                            <div class="invalid-feedback">
+                                Passwords must match.
+                            </div>
+                            <div class="valid-feedback">
+                                Passwords match!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Terms and Submit 
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" 
+                                   id="agreeTerms" name="agreeTerms" required>
+                            <label class="custom-control-label" for="agreeTerms">
+                                I agree to the <a href="/privacy" target="_blank">Terms and Conditions</a>
+                            </label>
+                            <div class="invalid-feedback">
+                                You must agree before submitting.
+                            </div>
+                        </div>
+                    </div>
+                    -->
+                    <!-- Submit Button -->
+                    <div class="d-flex justify-content-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check mr-2"></i>Create Account
+                        </button>
+                    </div>
+
+                    <!-- Login Link -->
+                    <div class="text-center mt-3">
+                        <p>Already have an account? <a href="/auth/login">Login here</a></p>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Terms and Conditions Modal -->
-<div class="modal fade" id="termsModal" tabindex="-1" role="dialog" aria-labelledby="termsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+        {% for category, message in messages %}
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+            <div class="d-flex align-items-center">
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle mr-2"></i>
+                {% elif category == 'error' %}
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle mr-2"></i>
+                {% endif %}
+                <span>{{ message }}</span>
             </div>
-            <div class="modal-body">
-                <h6>1. Account Registration</h6>
-                <p>By creating an account, you agree to provide accurate and complete information.</p>
-                
-                <h6>2. Privacy and Data Protection</h6>
-                <p>Your personal information will be protected and used only for program eligibility and communication purposes.</p>
-                
-                <h6>3. Program Eligibility</h6>
-                <p>AYUDA reserves the right to verify information provided and determine program eligibility.</p>
-                
-                <h6>4. User Responsibilities</h6>
-                <p>You are responsible for maintaining the confidentiality of your account credentials.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
+        {% endfor %}
     </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
+    {% endif %}
+{% endwith %}
 <script>
-// Form validation
-document.getElementById('signupForm').addEventListener('submit', function(e) {
-    const password1 = document.getElementById('password1').value;
-    const password2 = document.getElementById('password2').value;
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('signUpForm');
     
-    if (password1 !== password2) {
-        e.preventDefault();
-        alert('Passwords do not match!');
-        return false;
-    }
-    
-    if (password1.length < 7) {
-        e.preventDefault();
-        alert('Password must be at least 7 characters long!');
-        return false;
-    }
-    
-    const terms = document.getElementById('terms');
-    if (!terms.checked) {
-        e.preventDefault();
-        alert('Please accept the Terms and Conditions!');
-        return false;
-    }
-});
+    // Real-time validation for password matching
+    document.getElementById('confirmPassword').addEventListener('input', function() {
+        const pwd1 = document.getElementById('password').value;
+        const pwd2 = this.value;
+        
+        if (pwd2 && pwd1 !== pwd2) {
+            this.setCustomValidity('Passwords must match');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
 
-// Mobile number formatting
-document.getElementById('mobile_no').addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 11) {
-        value = value.slice(0, 11);
+    // Real-time validation for birth date (must be at least 18 years old)
+    document.getElementById('birthDate').addEventListener('change', function() {
+        validateAge();
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validate password match
+        const pwd1 = document.getElementById('password');
+        const pwd2 = document.getElementById('confirmPassword');
+        
+        if (pwd1.value !== pwd2.value) {
+            pwd2.setCustomValidity('Passwords must match');
+            pwd2.classList.add('is-invalid');
+        } else {
+            pwd2.setCustomValidity('');
+        }
+
+        // Validate age
+        if (!validateAge()) {
+            return false;
+        }
+        
+        // Add was-validated class for Bootstrap styling
+        form.classList.add('was-validated');
+        
+        if (form.checkValidity() === false) {
+            e.stopPropagation();
+            return false;
+        }
+        
+        // Submit the form
+        this.submit();
+    });
+
+    function validateAge() {
+        const birthDateInput = document.getElementById('birthDate').value;
+
+        if (!birthDateInput) {
+            return true;
+        }
+
+        const birthDate = new Date(birthDateInput);
+        const today = new Date();
+        
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        
+        const dateInput = document.getElementById('birthDate');
+        
+        if (age < 18) {
+            dateInput.setCustomValidity('You must be at least 18 years old');
+            dateInput.classList.add('is-invalid');
+            document.getElementById('birthDateFeedback').textContent = 'You must be at least 18 years old';
+            return false;
+        } else {
+            dateInput.setCustomValidity('');
+            dateInput.classList.remove('is-invalid');
+            return true;
+        }
     }
-    e.target.value = value;
 });
 </script>
 {% endblock %}

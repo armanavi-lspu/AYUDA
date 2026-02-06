@@ -5,7 +5,7 @@ from sqlalchemy import desc, or_
 from werkzeug.utils import secure_filename
 import os
 from app.admin import admin_bp
-from app.models import Announcements, User, AnnouncementImages
+from app.models import Announcements, User, AnnouncementImages, Programs
 from app.extensions import db
 from app.utils import role_required
 
@@ -84,6 +84,9 @@ def announcements():
         Announcements.created_at >= start_of_month
     ).count()
     
+    # Get all active programs for linking
+    programs = Programs.query.filter_by(is_active=True).order_by(Programs.program_name).all()
+    
     return render_template(
         'admin/adm_announcements.html',
         announcements=pagination.items,
@@ -92,6 +95,7 @@ def announcements():
         published_count=published_count,
         draft_count=draft_count,
         this_month_count=this_month_count,
+        programs=programs,
         user=current_user
     )
 
@@ -105,11 +109,16 @@ def add_announcement():
         content = request.form.get('content', '').strip()
         category = request.form.get('category', 'General').strip()
         status = request.form.get('status', 'draft').strip()
+        program_id = request.form.get('program_id', '').strip()
+        attachment_url = request.form.get('attachment_url', '').strip()
         
         # Validation
         if not title or not content:
             flash('Title and content are required.', 'danger')
             return redirect(url_for('admin.adm_announcements'))
+        
+        # Convert program_id to integer or None
+        program_id = int(program_id) if program_id and program_id != '' else None
         
         # Create new announcement
         new_announcement = Announcements(
@@ -118,6 +127,8 @@ def add_announcement():
             category=category,
             status=status,
             author_id=current_user.id,
+            program_id=program_id,
+            attachment_url=attachment_url if attachment_url else None,
             created_at=datetime.utcnow()
         )
         
@@ -177,17 +188,24 @@ def edit_announcement(id):
     content = request.form.get('content', '').strip()
     category = request.form.get('category', 'General').strip()
     status = request.form.get('status', 'draft').strip()
+    program_id = request.form.get('program_id', '').strip()
+    attachment_url = request.form.get('attachment_url', '').strip()
     
     # Validation
     if not title or not content:
         flash('Title and content are required.', 'danger')
         return redirect(url_for('admin.adm_announcements'))
     
+    # Convert program_id to integer or None
+    program_id = int(program_id) if program_id and program_id != '' else None
+    
     # Update announcement
     announcement.announcement_title = title
     announcement.announcement_content = content
     announcement.category = category
     announcement.status = status
+    announcement.program_id = program_id
+    announcement.attachment_url = attachment_url if attachment_url else None
     announcement.updated_at = datetime.utcnow()
     
     try:

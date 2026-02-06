@@ -3,7 +3,12 @@
 
 {% block extra_css %}
 <style>
-    .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-gradient-primary { 
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        color: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    }
     .category-card { transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #e5e7eb; }
     .category-card:hover { transform: translateY(-8px); box-shadow: 0 .5rem 1.5rem rgba(0,0,0,.15)!important; }
     .stat-bg { 
@@ -37,22 +42,16 @@
 
 {% block content %}
 <!-- Page Header -->
-<div class="bg-gradient-primary text-dark py-5 mb-4 rounded-bottom shadow-lg">
+<div class="bg-gradient-primary text-white py-4 mb-4 mx-3">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h1 class="display-5 font-weight-bold mb-3">Financial Assistance Programs</h1>
-                <p class="lead mb-0">Explore various financial assistance programs available through the MSWD Office</p>
+                <h2 class="mb-2 text-white"><i class="fas fa-hand-holding-usd mr-2"></i>Financial Assistance Programs</h2>
+                <p class="mb-0 text-white opacity-75">Explore various financial assistance programs available through the MSWD Office</p>
             </div>
             <div class="col-lg-4">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <div class="stat-bg rounded p-3 text-center">
-                            <div class="h2 font-weight-bold mb-0 text-light">{{ total_categories }}</div>
-                            <small class="text-light text-uppercase font-weight-semibold">Categories</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
+                <div class="row g-2">                    
+                    <div class="col-12">
                         <div class="stat-bg rounded p-3 text-center">
                             <div class="h2 font-weight-bold mb-0 text-light">{{ total_programs }}</div>
                             <small class="text-light text-uppercase font-weight-semibold">Programs</small>
@@ -94,6 +93,12 @@
                        class="btn btn-primary btn-block">
                         <i class="fas fa-eye mr-2"></i>View AICS Programs
                     </a>
+                    <div class="text-center mt-2">
+                        <span class="badge badge-primary badge-pill px-3 py-2">
+                            <i class="fas fa-folder-open mr-1"></i>
+                            {{ categories['AICS'].count }} Available Program{{ 's' if categories['AICS'].count != 1 else '' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -119,11 +124,17 @@
                        class="btn btn-danger btn-block">
                         <i class="fas fa-eye mr-2"></i>View Shelter Programs
                     </a>
+                    <div class="text-center mt-2">
+                        <span class="badge badge-danger badge-pill px-3 py-2">
+                            <i class="fas fa-folder-open mr-1"></i>
+                            {{ categories['ESA'].count }} Available Program{{ 's' if categories['ESA'].count != 1 else '' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>        
 
-        <!-- CAL Category -->
+        <!-- CA Category -->
         <div class="col-lg-6 col-md-12 mb-4">
             <div class="card category-card shadow h-100 border-left border-warning border-4">
                 <div class="card-body">
@@ -132,18 +143,24 @@
                             <i class="fas fa-briefcase fa-3x text-warning"></i>
                         </div>
                         <div>
-                            <h5 class="card-title mb-1 font-weight-bold">CAL</h5>
-                            <p class="text-muted small mb-0">Capital Assistance for Livelihood</p>
+                            <h5 class="card-title mb-1 font-weight-bold">CA</h5>
+                            <p class="text-muted small mb-0">Capital Assistance</p>
                         </div>
                     </div>
                     <p class="card-text text-muted">
                         Provides opportunities for improving socio-economic conditions through skills training, 
                         microenterprise development, and employment facilitation.
                     </p>
-                    <a href="{{ url_for('community.programs_by_category', category='CAL') }}" 
+                    <a href="{{ url_for('community.programs_by_category', category='CA') }}" 
                        class="btn btn-warning btn-block">
-                        <i class="fas fa-eye mr-2"></i>View CAL Programs
+                        <i class="fas fa-eye mr-2"></i>View CA Programs
                     </a>
+                    <div class="text-center mt-2">
+                        <span class="badge badge-warning badge-pill px-3 py-2">
+                            <i class="fas fa-folder-open mr-1"></i>
+                            {{ categories['CA'].count }} Available Program{{ 's' if categories['CA'].count != 1 else '' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -170,7 +187,7 @@
                 <ol class="mb-4">
                     <li class="mb-3">
                         <strong>Choose a Program Category</strong>
-                        <p class="text-muted mb-0">Browse the four main categories above and select the one that best fits your needs: AICS, ESA, 4Ps, or CAL.</p>
+                        <p class="text-muted mb-0">Browse the four main categories above and select the one that best fits your needs: AICS, ESA, 4Ps, or CA.</p>
                     </li>
                     <li class="mb-3">
                         <strong>Browse Available Programs</strong>

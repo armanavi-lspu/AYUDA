@@ -1,0 +1,379 @@
+{% extends "community/community_base.html" %}
+{% block title %}Edit Profile - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 15px 15px;
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .section-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #3a3b45;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #667eea;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-header i {
+        margin-right: 0.75rem;
+        color: #667eea;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.9rem;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: transform 0.2s ease;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #e74a3b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="edit-profile-header">
+    <div class="container">
+        <h2 class="mb-2">
+            <i class="fas fa-user-edit mr-2"></i>Edit Profile
+        </h2>
+        <p class="mb-0 text-white-50">Update your personal information and preferences</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    <form method="POST" action="{{ url_for('community.edit_profile') }}">
+        <!-- Basic Information -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-id-card"></i>
+                Basic Information
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="first_name" class="form-label required-field">First Name</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                           value="{{ user.first_name }}" required>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="middle_name" class="form-label">Middle Name</label>
+                    <input type="text" class="form-control" id="middle_name" name="middle_name" 
+                           value="{{ user.middle_name or '' }}">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="last_name" class="form-label required-field">Last Name</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                           value="{{ user.last_name }}" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="mobile_no" class="form-label">Mobile Number</label>
+                    <input type="tel" class="form-control" id="mobile_no" name="mobile_no" 
+                           value="{{ profile.mobile_no or '' }}" placeholder="09XXXXXXXXX">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="gender" class="form-label">Gender</label>
+                    <select class="form-control" id="gender" name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="Male" {% if profile and profile.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if profile and profile.gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if profile and profile.gender == 'Other' %}selected{% endif %}>Other</option>
+                        <option value="Prefer not to say" {% if profile and profile.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="birth_month" class="form-label">Birth Month</label>
+                    <select class="form-control" id="birth_month" name="birth_month">
+                        <option value="">Select Month</option>
+                        {% for month in range(1, 13) %}
+                        <option value="{{ month }}" {% if profile and profile.birth_month == month %}selected{% endif %}>
+                            {{ ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month-1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="birth_day" class="form-label">Birth Day</label>
+                    <select class="form-control" id="birth_day" name="birth_day">
+                        <option value="">Select Day</option>
+                        {% for day in range(1, 32) %}
+                        <option value="{{ day }}" {% if profile and profile.birth_day == day %}selected{% endif %}>{{ day }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="birth_year" class="form-label">Birth Year</label>
+                    <select class="form-control" id="birth_year" name="birth_year">
+                        <option value="">Select Year</option>
+                        {% for year in range(2024, 1899, -1) %}
+                        <option value="{{ year }}" {% if profile and profile.birth_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Address Information -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-map-marker-alt"></i>
+                Address Information
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="barangay" class="form-label">Barangay</label>
+                    <input type="text" class="form-control" id="barangay" name="barangay" 
+                           value="{{ profile.barangay or '' }}">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="sitio" class="form-label">Sitio</label>
+                    <input type="text" class="form-control" id="sitio" name="sitio" 
+                           value="{{ profile.sitio or '' }}">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="municipality" class="form-label">Municipality</label>
+                    <input type="text" class="form-control" id="municipality" name="municipality" 
+                           value="{{ profile.municipality or 'Mabitac' }}">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="address" class="form-label">Complete Address</label>
+                <textarea class="form-control" id="address" name="address" rows="3">{{ profile.address or '' }}</textarea>
+            </div>
+        </div>
+        
+        <!-- Employment & Education -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-briefcase"></i>
+                Employment & Education
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_currently_employed" 
+                               name="is_currently_employed" {% if profile and profile.is_currently_employed %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_currently_employed">Currently Employed</label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_student" 
+                               name="is_student" {% if profile and profile.is_student %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_student">Currently a Student</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="occupation" class="form-label">Occupation</label>
+                    <input type="text" class="form-control" id="occupation" name="occupation" 
+                           value="{{ profile.occupation or '' }}" placeholder="e.g., Teacher, Farmer, Driver">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="family_annual_income" class="form-label">Family Annual Income</label>
+                    <input type="text" class="form-control" id="family_annual_income" name="family_annual_income" 
+                           value="{{ '{:,.2f}'.format(profile.family_annual_income) if profile and profile.family_annual_income else '' }}"
+                           placeholder="e.g., 50000.00"
+                           pattern="^[0-9]{1,10}(\.[0-9]{1,2})?$|^[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?$"
+                           title="Enter a valid amount (maximum ₱10,000,000.00)">
+                    <small class="form-text text-muted">Enter annual income (₱0 - ₱10,000,000)</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Special Categories -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-heart"></i>
+                Special Categories
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_solo_parent" 
+                               name="is_solo_parent" {% if profile and profile.is_solo_parent %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_solo_parent">Solo Parent</label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_pwd" 
+                               name="is_pwd" {% if profile and profile.is_pwd %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_pwd">Person with Disability (PWD)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3" id="disability_type_container" style="display: {% if profile and profile.is_pwd %}block{% else %}none{% endif %};">
+                <label for="disability_type" class="form-label">Disability Type</label>
+                <select class="form-control" id="disability_type" name="disability_type">
+                    <option value="">Select Disability Type</option>
+                    <option value="Physical" {% if profile and profile.disability_type == 'Physical' %}selected{% endif %}>Physical</option>
+                    <option value="Visual" {% if profile and profile.disability_type == 'Visual' %}selected{% endif %}>Visual</option>
+                    <option value="Hearing" {% if profile and profile.disability_type == 'Hearing' %}selected{% endif %}>Hearing</option>
+                    <option value="Speech" {% if profile and profile.disability_type == 'Speech' %}selected{% endif %}>Speech</option>
+                    <option value="Intellectual" {% if profile and profile.disability_type == 'Intellectual' %}selected{% endif %}>Intellectual</option>
+                    <option value="Psychosocial" {% if profile and profile.disability_type == 'Psychosocial' %}selected{% endif %}>Psychosocial</option>
+                    <option value="Other" {% if profile and profile.disability_type == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-save btn-lg">
+                <i class="fas fa-save mr-2"></i>Save Changes
+            </button>
+            <a href="{{ url_for('community.profile') }}" class="btn btn-secondary btn-lg ml-2">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Show/hide disability type field based on PWD checkbox
+    $('#is_pwd').change(function() {
+        if ($(this).is(':checked')) {
+            $('#disability_type_container').slideDown();
+        } else {
+            $('#disability_type_container').slideUp();
+            $('#disability_type').val('');
+        }
+    });
+    
+    // Format and validate income input
+    $('#family_annual_income').on('blur', function() {
+        let value = $(this).val().replace(/,/g, '');
+        if (value && !isNaN(value)) {
+            let numValue = parseFloat(value);
+            
+            // Validate range
+            if (numValue < 0) {
+                alert('Family annual income cannot be negative.');
+                $(this).val('');
+                return;
+            }
+            if (numValue > 10000000) {
+                alert('Family annual income exceeds maximum allowed value (₱10,000,000).');
+                $(this).val('10000000.00');
+                return;
+            }
+            
+            $(this).val(numValue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }));
+        }
+    });
+    
+    // Validate on form submit
+    $('form').on('submit', function(e) {
+        let incomeInput = $('#family_annual_income').val().replace(/,/g, '');
+        if (incomeInput && !isNaN(incomeInput)) {
+            let numValue = parseFloat(incomeInput);
+            if (numValue < 0) {
+                e.preventDefault();
+                alert('Family annual income cannot be negative.');
+                $('#family_annual_income').focus();
+                return false;
+            }
+            if (numValue > 10000000) {
+                e.preventDefault();
+                alert('Family annual income exceeds maximum allowed value (₱10,000,000).');
+                $('#family_annual_income').focus();
+                return false;
+            }
+        }
+    });
+    
+    // Form validation
+    $('form').submit(function(e) {
+        let isValid = true;
+        
+        // Check required fields
+        if (!$('#first_name').val().trim()) {
+            alert('First name is required');
+            isValid = false;
+        }
+        
+        if (!$('#last_name').val().trim()) {
+            alert('Last name is required');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

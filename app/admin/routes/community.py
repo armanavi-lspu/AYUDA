@@ -3,10 +3,12 @@ from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 import secrets
 import string
+import os
 from app.admin import admin_bp
-from app.models import User, Applications, Notifications
+from app.models import User, Applications, Notifications, CommunityUsers
 from app.extensions import db
 from app.utils import role_required
 
@@ -327,4 +329,281 @@ def export_community_users():
         headers={
             'Content-Disposition': f'attachment; filename=community_users_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
         }
+    )
+
+
+# ============== VERIFICATION ROUTES ==============
+
+@admin_bp.route('/community/verify')
+@login_required
+@role_required('admin')
+def community_verify():
+    """Display verification requests for Senior Citizen, PWD, and Solo Parent"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    
+    # Get filter parameters
+    search = request.args.get('search', '').strip()
+    verification_type = request.args.get('type', '').strip()
+    status_filter = request.args.get('status', 'pending').strip()
+    barangay_filter = request.args.get('barangay', '').strip()
+    
+    # Base query - users with verification requests
+    query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+    
+    # Filter by verification type and status
+    if verification_type == 'senior_citizen':
+        if status_filter:
+            query = query.filter(CommunityUsers.senior_citizen_verification == status_filter)
+        else:
+            query = query.filter(CommunityUsers.senior_citizen_verification != 'none')
+    elif verification_type == 'pwd':
+        if status_filter:
+            query = query.filter(CommunityUsers.pwd_verification == status_filter)
+        else:
+            query = query.filter(CommunityUsers.pwd_verification != 'none')
+    elif verification_type == 'solo_parent':
+        if status_filter:
+            query = query.filter(CommunityUsers.solo_parent_verification == status_filter)
+        else:
+            query = query.filter(CommunityUsers.solo_parent_verification != 'none')
+    else:
+        # Show all pending verification requests by default
+        if status_filter == 'pending':
+            query = query.filter(
+                or_(
+                    CommunityUsers.senior_citizen_verification == 'pending',
+                    CommunityUsers.pwd_verification == 'pending',
+                    CommunityUsers.solo_parent_verification == 'pending'
+                )
+            )
+        elif status_filter == 'approved':
+            query = query.filter(
+                or_(
+                    CommunityUsers.senior_citizen_verification == 'approved',
+                    CommunityUsers.pwd_verification == 'approved',
+                    CommunityUsers.solo_parent_verification == 'approved'
+                )
+            )
+        elif status_filter == 'rejected':
+            query = query.filter(
+                or_(
+                    CommunityUsers.senior_citizen_verification == 'rejected',
+                    CommunityUsers.pwd_verification == 'rejected',
+                    CommunityUsers.solo_parent_verification == 'rejected'
+                )
+            )
+        else:
+            query = query.filter(
+                or_(
+                    CommunityUsers.senior_citizen_verification != 'none',
+                    CommunityUsers.pwd_verification != 'none',
+                    CommunityUsers.solo_parent_verification != 'none'
+                )
+            )
+    
+    # Apply search filter
+    if search:
+        search_filter = or_(
+            User.first_name.ilike(f'%{search}%'),
+            User.last_name.ilike(f'%{search}%'),
+            User.email.ilike(f'%{search}%'),
+            CommunityUsers.barangay.ilike(f'%{search}%')
+        )
+        query = query.filter(search_filter)
+    
+    # Apply barangay filter
+    if barangay_filter:
+        query = query.filter(CommunityUsers.barangay == barangay_filter)
+    
+    # Order by creation date
+    query = query.order_by(desc(CommunityUsers.created_at))
+    
+    # Paginate results
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get statistics
+    pending_senior = CommunityUsers.query.filter_by(senior_citizen_verification='pending').count()
+    pending_pwd = CommunityUsers.query.filter_by(pwd_verification='pending').count()
+    pending_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='pending').count()
+    total_pending = pending_senior + pending_pwd + pending_solo_parent
+    
+    approved_senior = CommunityUsers.query.filter_by(senior_citizen_verification='approved').count()
+    approved_pwd = CommunityUsers.query.filter_by(pwd_verification='approved').count()
+    approved_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='approved').count()
+    total_approved = approved_senior + approved_pwd + approved_solo_parent
+    
+    rejected_senior = CommunityUsers.query.filter_by(senior_citizen_verification='rejected').count()
+    rejected_pwd = CommunityUsers.query.filter_by(pwd_verification='rejected').count()
+    rejected_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='rejected').count()
+    total_rejected = rejected_senior + rejected_pwd + rejected_solo_parent
+    
+    # Get unique barangays
+    barangays = db.session.query(CommunityUsers.barangay)\
+        .filter(CommunityUsers.barangay.isnot(None))\
+        .distinct().order_by(CommunityUsers.barangay).all()
+    barangays = [b[0] for b in barangays if b[0]]
+    
+    return render_template(
+        'admin/community_verify.html',
+        verifications=pagination.items,
+        pagination=pagination,
+        pending_senior=pending_senior,
+        pending_pwd=pending_pwd,
+        pending_solo_parent=pending_solo_parent,
+        total_pending=total_pending,
+        approved_senior=approved_senior,
+        approved_pwd=approved_pwd,
+        approved_solo_parent=approved_solo_parent,
+        total_approved=total_approved,
+        rejected_senior=rejected_senior,
+        rejected_pwd=rejected_pwd,
+        rejected_solo_parent=rejected_solo_parent,
+        total_rejected=total_rejected,
+        barangays=barangays,
+        user=current_user
+    )
+
+
+@admin_bp.route('/community/verify/<int:user_id>/<verification_type>', methods=['POST'])
+@login_required
+@role_required('admin')
+def process_verification(user_id, verification_type):
+    """Process a verification request (approve or reject)"""
+    community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
+    user = User.query.get(user_id)
+    
+    action = request.form.get('action')  # 'approve' or 'reject'
+    rejection_reason = request.form.get('rejection_reason', '').strip()
+    id_number = request.form.get('id_number', '').strip()
+    
+    try:
+        if verification_type == 'senior_citizen':
+            if action == 'approve':
+                community_user.senior_citizen_verification = 'approved'
+                community_user.senior_citizen_verified_at = datetime.utcnow()
+                community_user.senior_citizen_verified_by = current_user.id
+                if id_number:
+                    community_user.senior_citizen_id_number = id_number
+                # Also set the is_pwd equivalent for senior (age >= 60 is already tracked)
+                
+                # Send notification
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='Senior Citizen Verification Approved',
+                    notif_message='Your Senior Citizen verification has been approved. You can now access Senior Citizen benefits.',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'Senior Citizen verification approved for {user.first_name} {user.last_name}.', 'success')
+            else:
+                community_user.senior_citizen_verification = 'rejected'
+                community_user.senior_citizen_rejection_reason = rejection_reason
+                
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='Senior Citizen Verification Rejected',
+                    notif_message=f'Your Senior Citizen verification was rejected. Reason: {rejection_reason}',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'Senior Citizen verification rejected for {user.first_name} {user.last_name}.', 'warning')
+                
+        elif verification_type == 'pwd':
+            if action == 'approve':
+                community_user.pwd_verification = 'approved'
+                community_user.pwd_verified_at = datetime.utcnow()
+                community_user.pwd_verified_by = current_user.id
+                community_user.is_pwd = True  # Set the is_pwd flag
+                if id_number:
+                    community_user.pwd_id_number = id_number
+                
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='PWD Verification Approved',
+                    notif_message='Your PWD (Person with Disability) verification has been approved. You can now access PWD benefits.',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'PWD verification approved for {user.first_name} {user.last_name}.', 'success')
+            else:
+                community_user.pwd_verification = 'rejected'
+                community_user.pwd_rejection_reason = rejection_reason
+                
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='PWD Verification Rejected',
+                    notif_message=f'Your PWD verification was rejected. Reason: {rejection_reason}',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'PWD verification rejected for {user.first_name} {user.last_name}.', 'warning')
+                
+        elif verification_type == 'solo_parent':
+            if action == 'approve':
+                community_user.solo_parent_verification = 'approved'
+                community_user.solo_parent_verified_at = datetime.utcnow()
+                community_user.solo_parent_verified_by = current_user.id
+                community_user.is_solo_parent = True  # Set the is_solo_parent flag
+                if id_number:
+                    community_user.solo_parent_id_number = id_number
+                
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='Solo Parent Verification Approved',
+                    notif_message='Your Solo Parent verification has been approved. You can now access Solo Parent benefits.',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'Solo Parent verification approved for {user.first_name} {user.last_name}.', 'success')
+            else:
+                community_user.solo_parent_verification = 'rejected'
+                community_user.solo_parent_rejection_reason = rejection_reason
+                
+                notification = Notifications(
+                    user_id=user_id,
+                    notif_title='Solo Parent Verification Rejected',
+                    notif_message=f'Your Solo Parent verification was rejected. Reason: {rejection_reason}',
+                    is_read=False,
+                    related_type='profile',
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(notification)
+                flash(f'Solo Parent verification rejected for {user.first_name} {user.last_name}.', 'warning')
+        else:
+            flash('Invalid verification type.', 'error')
+            return redirect(url_for('admin.community_verify'))
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing verification: {str(e)}', 'error')
+    
+    return redirect(url_for('admin.community_verify'))
+
+
+@admin_bp.route('/community/verify/view/<int:user_id>')
+@login_required
+@role_required('admin')
+def view_verification_details(user_id):
+    """View detailed verification information for a user"""
+    community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
+    user = User.query.get(user_id)
+    
+    return render_template(
+        'admin/view_verification.html',
+        community_user=community_user,
+        user_info=user,
+        user=current_user
     )

@@ -52,4 +52,102 @@ def format_date(timestamp):
     elif diff.days < 7:
         return timestamp.strftime('%a, %I:%M %p')
     else:
-        return timestamp.strftime('%b %d, %Y %I:%M %p')
+        return timestamp.strftime('%b %d, %Y %I:%M %p') 
+
+
+def calculate_profile_completion(user):
+    """
+    Calculate the profile completion percentage for a community user.
+    
+    Args:
+        user: User object (must have community_profile relationship)
+        
+    Returns:
+        dict: {
+            'percentage': int (0-100),
+            'is_complete': bool,
+            'missing_fields': list of str,
+            'completed_fields': list of str
+        }
+    """
+    if not user or user.role != 'community':
+        return {
+            'percentage': 0,
+            'is_complete': False,
+            'missing_fields': [],
+            'completed_fields': []
+        }
+    
+    profile = user.community_profile
+    
+    # Define required fields for profile completion
+    required_fields = {
+        'first_name': user.first_name,
+        'last_name': user.last_name,
+        'email': user.email,
+        'age': profile.age if profile else None,
+        'gender': profile.gender if profile else None,
+        'mobile_no': profile.mobile_no if profile else None,
+        'birth_year': profile.birth_year if profile else None,
+        'barangay': profile.barangay if profile else None,
+        'address': profile.address if profile else None,
+        'municipality': profile.municipality if profile else None,
+        'occupation': profile.occupation if profile else None,
+        'family_annual_income': profile.family_annual_income if profile else None,
+    }
+    
+    # Optional but important fields (not required but add to percentage)
+    optional_fields = {
+        'middle_name': user.middle_name,
+        'birth_month': profile.birth_month if profile else None,
+        'birth_day': profile.birth_day if profile else None,
+        'sitio': profile.sitio if profile else None,
+        'is_currently_employed': profile.is_currently_employed if profile else None,
+        'is_student': profile.is_student if profile else None,
+    }
+    
+    # Check required fields
+    completed_required = []
+    missing_required = []
+    
+    for field_name, field_value in required_fields.items():
+        if field_value is not None and str(field_value).strip():
+            completed_required.append(field_name)
+        else:
+            missing_required.append(field_name)
+    
+    # Check optional fields
+    completed_optional = []
+    
+    for field_name, field_value in optional_fields.items():
+        if field_value is not None and str(field_value).strip():
+            completed_optional.append(field_name)
+    
+    # Calculate percentage (Required = 80%, Optional = 20%)
+    required_percentage = (len(completed_required) / len(required_fields)) * 80
+    optional_percentage = (len(completed_optional) / len(optional_fields)) * 20
+    total_percentage = int(required_percentage + optional_percentage)
+    
+    # Profile is complete if all required fields are filled
+    is_complete = len(missing_required) == 0
+    
+    # User-friendly field names
+    field_labels = {
+        'first_name': 'First Name', 'last_name': 'Last Name', 'email': 'Email Address',
+        'age': 'Age', 'gender': 'Gender', 'mobile_no': 'Mobile Number',
+        'birth_year': 'Birth Year', 'birth_month': 'Birth Month', 'birth_day': 'Birth Day',
+        'barangay': 'Barangay', 'sitio': 'Sitio', 'address': 'Complete Address',
+        'municipality': 'Municipality', 'occupation': 'Occupation',
+        'family_annual_income': 'Family Annual Income',
+        'is_currently_employed': 'Employment Status', 'is_student': 'Student Status',
+        'middle_name': 'Middle Name'
+    }
+    
+    return {
+        'percentage': total_percentage,
+        'is_complete': is_complete,
+        'missing_fields': [field_labels.get(f, f) for f in missing_required],
+        'completed_fields': [field_labels.get(f, f) for f in completed_required],
+        'missing_count': len(missing_required),
+        'required_total': len(required_fields)
+    }
