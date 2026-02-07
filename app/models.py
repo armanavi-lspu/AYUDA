@@ -444,6 +444,8 @@ class Notifications(db.Model):
             return '/community/schedule'
         elif self.related_type == 'profile':
             return '/community/profile'
+        elif self.related_type == 'assessment':
+            return f'/admin/assessments/{self.related_id}'
         else:
             return None
     
@@ -600,3 +602,53 @@ class ApplicationWorkflowStatus(db.Model):
             self.step_data = json.dumps(data_dict)
         else:
             self.step_data = None
+
+
+class Assessment(db.Model):
+    """SCSR Assessment: interviews, home visits, and case study records"""
+    __tablename__ = 'assessments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False, index=True)
+    assessment_type = db.Column(db.String(50), nullable=False, index=True)  # 'interview', 'home_visit'
+    title = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    scheduled_date = db.Column(db.DateTime, index=True)
+    scheduled_time = db.Column(db.String(10))  # e.g. "09:00 AM"
+    location = db.Column(db.String(255))
+    status = db.Column(db.String(20), nullable=False, default='scheduled', index=True)  # 'scheduled', 'completed', 'cancelled'
+    findings = db.Column(db.Text)  # SCSR output / assessment findings
+    recommendations = db.Column(db.Text)
+    conducted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    application = db.relationship('Applications', backref='assessments')
+    conductor = db.relationship('User', backref='conducted_assessments', foreign_keys=[conducted_by])
+    documents = db.relationship('AssessmentDocument', backref='assessment', lazy=True, cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<Assessment {self.id}: {self.assessment_type} for Application {self.application_id}>'
+
+
+class AssessmentDocument(db.Model):
+    """Documents attached to an assessment (SCSR output files, photos, etc.)"""
+    __tablename__ = 'assessment_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(db.Integer, db.ForeignKey('assessments.id'), nullable=False, index=True)
+    file_path = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer)
+    file_type = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    uploader = db.relationship('User', backref='uploaded_assessment_docs', foreign_keys=[uploaded_by])
+
+    def __repr__(self):
+        return f'<AssessmentDocument {self.id} for Assessment {self.assessment_id}>'

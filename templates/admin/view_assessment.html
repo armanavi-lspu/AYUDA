@@ -1,0 +1,220 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}{{ assessment.title }} - Assessment - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge-interview { background-color: #4e73df; color: #fff; }
+    .badge-home_visit { background-color: #1cc88a; color: #fff; }
+    .badge-scheduled { background-color: #f6c23e; color: #212529; }
+    .badge-completed { background-color: #1cc88a; color: #fff; }
+    .badge-cancelled { background-color: #e74a3b; color: #fff; }
+    .detail-label { font-weight: 600; color: #5a5c69; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb bg-white shadow-sm">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.assessments') }}">Assessments</a></li>
+            <li class="breadcrumb-item active">{{ assessment.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Assessment Details -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 font-weight-bold">
+                        <i class="fas fa-clipboard-check mr-2"></i>{{ assessment.title }}
+                    </h5>
+                    <div>
+                        <span class="badge badge-{{ assessment.assessment_type }} mr-1">{{ assessment.assessment_type | replace('_', ' ') | title }}</span>
+                        <span class="badge badge-{{ assessment.status }}">{{ assessment.status | title }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('admin.update_assessment', assessment_id=assessment.id) }}">
+                        <div class="form-row">
+                            <div class="form-group col-md-8">
+                                <label class="detail-label">Title</label>
+                                <input type="text" name="title" class="form-control" value="{{ assessment.title }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label class="detail-label">Status</label>
+                                <select name="status" class="form-control">
+                                    <option value="scheduled" {% if assessment.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                                    <option value="completed" {% if assessment.status == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="cancelled" {% if assessment.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="detail-label">Description</label>
+                            <textarea name="description" class="form-control" rows="2">{{ assessment.description or '' }}</textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label class="detail-label">Scheduled Date</label>
+                                <input type="date" name="scheduled_date" class="form-control"
+                                    value="{{ assessment.scheduled_date.strftime('%Y-%m-%d') if assessment.scheduled_date else '' }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label class="detail-label">Scheduled Time</label>
+                                <input type="text" name="scheduled_time" class="form-control" value="{{ assessment.scheduled_time or '' }}" placeholder="e.g. 09:00 AM">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <label class="detail-label">Location</label>
+                                <input type="text" name="location" class="form-control" value="{{ assessment.location or '' }}">
+                            </div>
+                        </div>
+                        <hr>
+                        <h6 class="font-weight-bold"><i class="fas fa-file-medical-alt mr-1"></i> SCSR Findings &amp; Recommendations</h6>
+                        <div class="form-group">
+                            <label class="detail-label">Findings</label>
+                            <textarea name="findings" class="form-control" rows="4" placeholder="Enter assessment findings / SCSR output...">{{ assessment.findings or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="detail-label">Recommendations</label>
+                            <textarea name="recommendations" class="form-control" rows="3" placeholder="Enter recommendations...">{{ assessment.recommendations or '' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>Save Changes</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Documents Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 font-weight-bold"><i class="fas fa-folder-open mr-2"></i>Documents</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#uploadDocModal">
+                        <i class="fas fa-upload mr-1"></i>Upload Document
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    {% if assessment.documents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Filename</th>
+                                    <th>Description</th>
+                                    <th>Size</th>
+                                    <th>Uploaded</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in assessment.documents %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-file mr-1 text-primary"></i>
+                                        {{ doc.original_filename }}
+                                    </td>
+                                    <td>{{ doc.description or '-' }}</td>
+                                    <td>
+                                        {% if doc.file_size %}
+                                            {{ (doc.file_size / 1024) | round(1) }} KB
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ doc.uploaded_at.strftime('%b %d, %Y') }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-folder-open fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No documents uploaded yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0 font-weight-bold"><i class="fas fa-info-circle mr-1"></i>Application Info</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2"><span class="detail-label">Applicant:</span><br>
+                        {{ assessment.application.applicant.first_name }} {{ assessment.application.applicant.last_name }}
+                    </p>
+                    <p class="mb-2"><span class="detail-label">Program:</span><br>
+                        {{ assessment.application.program.program_name }}
+                    </p>
+                    <p class="mb-2"><span class="detail-label">Application Date:</span><br>
+                        {{ assessment.application.application_date.strftime('%b %d, %Y') }}
+                    </p>
+                    <p class="mb-2"><span class="detail-label">Application Status:</span><br>
+                        <span class="badge badge-info">{{ assessment.application.application_status | title }}</span>
+                    </p>
+                    <hr>
+                    <p class="mb-2"><span class="detail-label">Conducted By:</span><br>
+                        {{ assessment.conductor.first_name }} {{ assessment.conductor.last_name }}
+                    </p>
+                    <p class="mb-2"><span class="detail-label">Created:</span><br>
+                        {{ assessment.created_at.strftime('%b %d, %Y %I:%M %p') }}
+                    </p>
+                    {% if assessment.completed_at %}
+                    <p class="mb-0"><span class="detail-label">Completed:</span><br>
+                        {{ assessment.completed_at.strftime('%b %d, %Y %I:%M %p') }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0 font-weight-bold"><i class="fas fa-exclamation-triangle mr-1"></i>Danger Zone</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">Deleting an assessment is permanent and will remove all associated documents.</p>
+                    <form method="POST" action="{{ url_for('admin.delete_assessment', assessment_id=assessment.id) }}"
+                          onsubmit="return confirm('Are you sure you want to delete this assessment? This action cannot be undone.');">
+                        <button type="submit" class="btn btn-outline-danger btn-block">
+                            <i class="fas fa-trash mr-1"></i>Delete Assessment
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.upload_assessment_document', assessment_id=assessment.id) }}" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-upload mr-2"></i>Upload Document</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>File <span class="text-danger">*</span></label>
+                        <input type="file" name="document" class="form-control-file" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                        <small class="form-text text-muted">Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG (max 10 MB)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" name="description" class="form-control" placeholder="Brief description of this document...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-upload mr-1"></i>Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

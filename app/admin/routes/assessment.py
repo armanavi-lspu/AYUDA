@@ -1,0 +1,266 @@
+from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory
+from flask_login import login_required, current_user
+from datetime import datetime
+from sqlalchemy import desc, or_
+from app.admin import admin_bp
+from app.models import (
+    Assessment, AssessmentDocument, Applications, Programs,
+    User, Notifications
+)
+from app.extensions import db
+from app.utils import role_required
+import os
+from werkzeug.utils import secure_filename
+
+# Configuration
+ASSESSMENT_UPLOAD_FOLDER = 'static/uploads/assessments'
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@admin_bp.route('/assessments', endpoint='assessments')
+@login_required
+@role_required('admin')
+def assessments_index():
+    """List all assessments with search and filter"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # Get filter parameters
+    search_query = request.args.get('search', '').strip()
+    assessment_type = request.args.get('type', '')
+    status_filter = request.args.get('status', '')
+
+    query = Assessment.query
+
+    if search_query:
+        query = query.join(Assessment.application).join(Applications.applicant).filter(
+            or_(
+                Assessment.title.ilike(f'%{search_query}%'),
+                User.first_name.ilike(f'%{search_query}%'),
+                User.last_name.ilike(f'%{search_query}%'),
+            )
+        )
+
+    if assessment_type:
+        query = query.filter(Assessment.assessment_type == assessment_type)
+
+    if status_filter:
+        query = query.filter(Assessment.status == status_filter)
+
+    assessments = query.order_by(desc(Assessment.created_at)).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    # Get all approved applications for the schedule form dropdown
+    approved_applications = Applications.query.filter(
+        Applications.application_status == 'approved'
+    ).order_by(desc(Applications.application_date)).all()
+
+    return render_template(
+        'admin/adm_assessment.html',
+        assessments=assessments,
+        approved_applications=approved_applications,
+        search_query=search_query,
+        assessment_type=assessment_type,
+        status_filter=status_filter,
+        user=current_user,
+    )
+
+
+@admin_bp.route('/assessments/create', methods=['POST'], endpoint='create_assessment')
+@login_required
+@role_required('admin')
+def create_assessment():
+    """Create / schedule a new assessment (interview or home visit)"""
+    application_id = request.form.get('application_id', type=int)
+    a_type = request.form.get('assessment_type', '').strip()
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    scheduled_date_str = request.form.get('scheduled_date', '').strip()
+    scheduled_time = request.form.get('scheduled_time', '').strip()
+    location = request.form.get('location', '').strip()
+
+    if not application_id or not a_type or not title:
+        flash('Application, type, and title are required.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    if a_type not in ('interview', 'home_visit'):
+        flash('Invalid assessment type.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    application = Applications.query.get(application_id)
+    if not application:
+        flash('Application not found.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    scheduled_date = None
+    if scheduled_date_str:
+        try:
+            scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid date format.', 'danger')
+            return redirect(url_for('admin.assessments'))
+
+    assessment = Assessment(
+        application_id=application_id,
+        assessment_type=a_type,
+        title=title,
+        description=description,
+        scheduled_date=scheduled_date,
+        scheduled_time=scheduled_time,
+        location=location,
+        conducted_by=current_user.id,
+    )
+    db.session.add(assessment)
+
+    # Notify the applicant
+    notif = Notifications(
+        user_id=application.user_id,
+        notif_title=f'Assessment Scheduled: {title}',
+        notif_message=f'An {a_type.replace("_", " ")} has been scheduled for your application to {application.program.program_name}.',
+        related_id=application.id,
+        related_type='application',
+    )
+    db.session.add(notif)
+
+    db.session.commit()
+    flash('Assessment scheduled successfully.', 'success')
+    return redirect(url_for('admin.view_assessment', assessment_id=assessment.id))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>', endpoint='view_assessment')
+@login_required
+@role_required('admin')
+def view_assessment(assessment_id):
+    """View a single assessment with its documents"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    return render_template(
+        'admin/view_assessment.html',
+        assessment=assessment,
+        user=current_user,
+    )
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/update', methods=['POST'], endpoint='update_assessment')
+@login_required
+@role_required('admin')
+def update_assessment(assessment_id):
+    """Update assessment details (findings, status, etc.)"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+
+    title = request.form.get('title', '').strip()
+    description = request.form.get('description', '').strip()
+    scheduled_date_str = request.form.get('scheduled_date', '').strip()
+    scheduled_time = request.form.get('scheduled_time', '').strip()
+    location = request.form.get('location', '').strip()
+    status = request.form.get('status', '').strip()
+    findings = request.form.get('findings', '').strip()
+    recommendations = request.form.get('recommendations', '').strip()
+
+    if title:
+        assessment.title = title
+    if description is not None:
+        assessment.description = description
+    if scheduled_date_str:
+        try:
+            assessment.scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d')
+        except ValueError:
+            flash('Invalid date format.', 'danger')
+            return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+    if scheduled_time is not None:
+        assessment.scheduled_time = scheduled_time
+    if location is not None:
+        assessment.location = location
+    if status and status in ('scheduled', 'completed', 'cancelled'):
+        assessment.status = status
+        if status == 'completed' and not assessment.completed_at:
+            assessment.completed_at = datetime.utcnow()
+    if findings is not None:
+        assessment.findings = findings
+    if recommendations is not None:
+        assessment.recommendations = recommendations
+
+    db.session.commit()
+    flash('Assessment updated successfully.', 'success')
+    return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/upload', methods=['POST'], endpoint='upload_assessment_document')
+@login_required
+@role_required('admin')
+def upload_assessment_document(assessment_id):
+    """Upload a document / SCSR output for an assessment"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+
+    if 'document' not in request.files:
+        flash('No file selected.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    file = request.files['document']
+    if file.filename == '':
+        flash('No file selected.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if not allowed_file(file.filename):
+        flash('File type not allowed. Allowed types: PDF, DOC, DOCX, JPG, JPEG, PNG.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > MAX_FILE_SIZE:
+        flash('File size exceeds 10 MB limit.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    # Ensure upload directory exists
+    upload_dir = os.path.join(ASSESSMENT_UPLOAD_FOLDER, str(assessment_id))
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = secure_filename(file.filename)
+    # Prevent collisions by prepending a timestamp
+    unique_filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    file.save(file_path)
+
+    doc_description = request.form.get('description', '').strip()
+
+    assessment_doc = AssessmentDocument(
+        assessment_id=assessment_id,
+        file_path=file_path,
+        original_filename=filename,
+        file_size=file_size,
+        file_type=file.content_type,
+        description=doc_description,
+        uploaded_by=current_user.id,
+    )
+    db.session.add(assessment_doc)
+    db.session.commit()
+
+    flash('Document uploaded successfully.', 'success')
+    return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/delete', methods=['POST'], endpoint='delete_assessment')
+@login_required
+@role_required('admin')
+def delete_assessment(assessment_id):
+    """Delete an assessment and its documents"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+
+    # Remove uploaded files from disk
+    for doc in assessment.documents:
+        if os.path.exists(doc.file_path):
+            os.remove(doc.file_path)
+
+    db.session.delete(assessment)
+    db.session.commit()
+
+    flash('Assessment deleted successfully.', 'success')
+    return redirect(url_for('admin.assessments'))
