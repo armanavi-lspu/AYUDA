@@ -205,7 +205,7 @@ def dashboard():
     # Application Statistics
     total_applications = Applications.query.count()
     pending_applications = Applications.query.filter(
-        Applications.application_status.in_(['pending', 'submitted', 'under_review'])
+        Applications.application_status == 'pending'
     ).count()
     approved_applications = Applications.query.filter_by(application_status='approved').count()
     rejected_applications = Applications.query.filter_by(application_status='rejected').count()

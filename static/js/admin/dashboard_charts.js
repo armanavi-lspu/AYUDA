@@ -167,8 +167,8 @@ class DashboardCharts {
             'pending': this.colors.warning,
             'approved': this.colors.success,
             'rejected': this.colors.danger,
-            'under_review': this.colors.info,
-            'submitted': this.colors.secondary
+            'active': this.colors.info,
+            'completed': this.colors.secondary
         };
 
         try {

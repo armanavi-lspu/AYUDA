@@ -1,0 +1,649 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Verification Requests - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .verification-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 0.25rem;
+    }
+    
+    .verification-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #dee2e6;
+    }
+    
+    .verification-card:hover {
+        border-left-color: #4e73df;
+        background-color: #f8f9fc;
+    }
+    
+    .verification-card.pending {
+        border-left-color: #f6c23e;
+    }
+    
+    .verification-card.approved {
+        border-left-color: #1cc88a;
+    }
+    
+    .verification-card.rejected {
+        border-left-color: #e74a3b;
+    }
+    
+    .user-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    
+    .verification-type-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+    
+    .icon-senior {
+        background-color: #e3e6f0;
+        color: #5a5c69;
+    }
+    
+    .icon-pwd {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .icon-solo-parent {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .document-preview {
+        max-width: 100%;
+        max-height: 200px;
+        object-fit: contain;
+        border-radius: 0.35rem;
+        border: 1px solid #e3e6f0;
+    }
+    
+    .filter-tab {
+        border: none;
+        background: transparent;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        color: #858796;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-tab:hover {
+        color: #4e73df;
+    }
+    
+    .filter-tab.active {
+        color: #4e73df;
+        border-bottom-color: #4e73df;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold mb-1">Verification Requests</h1>
+            <p class="text-muted mb-0">Review and process Senior Citizen, PWD, and Solo Parent verification requests</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Pending Requests
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_pending }}</div>
+                            <small class="text-muted">
+                                SC: {{ pending_senior }} | PWD: {{ pending_pwd }} | SP: {{ pending_solo_parent }}
+                            </small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Approved
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_approved }}</div>
+                            <small class="text-muted">
+                                SC: {{ approved_senior }} | PWD: {{ approved_pwd }} | SP: {{ approved_solo_parent }}
+                            </small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-danger shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Rejected
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_rejected }}</div>
+                            <small class="text-muted">
+                                SC: {{ rejected_senior }} | PWD: {{ rejected_pwd }} | SP: {{ rejected_solo_parent }}
+                            </small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total Processed
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_approved + total_rejected }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-tasks fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Verification Requests
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.community_verify') }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Name, email, barangay..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Verification Type</label>
+                        <select class="form-control" name="type">
+                            <option value="">All Types</option>
+                            <option value="senior_citizen" {% if request.args.get('type')=='senior_citizen' %}selected{% endif %}>Senior Citizen</option>
+                            <option value="pwd" {% if request.args.get('type')=='pwd' %}selected{% endif %}>PWD</option>
+                            <option value="solo_parent" {% if request.args.get('type')=='solo_parent' %}selected{% endif %}>Solo Parent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Status</label>
+                        <select class="form-control" name="status">
+                            <option value="">All Status</option>
+                            <option value="pending" {% if request.args.get('status', 'pending')=='pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if request.args.get('status')=='approved' %}selected{% endif %}>Approved</option>
+                            <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Barangay</label>
+                        <select class="form-control" name="barangay">
+                            <option value="">All Barangays</option>
+                            {% for barangay in barangays %}
+                            <option value="{{ barangay }}" {% if request.args.get('barangay')==barangay %}selected{% endif %}>
+                                {{ barangay }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">&nbsp;</label>
+                        <div class="d-flex">
+                            <button type="submit" class="btn btn-primary btn-block mr-2">
+                                <i class="fas fa-search mr-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('admin.community_verify') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Verification Requests Table -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-user-check mr-2"></i>Verification Requests
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>#</th>
+                            <th>User</th>
+                            <th>Location</th>
+                            <th>Senior Citizen</th>
+                            <th>PWD</th>
+                            <th>Solo Parent</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if verifications %}
+                            {% for profile in verifications %}
+                            {% set user_info = profile.user %}
+                            <tr class="verification-card">
+                                <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {{ user_info.first_name[0] }}{{ user_info.last_name[0] }}
+                                        </div>
+                                        <div>
+                                            <div class="font-weight-bold">
+                                                {{ user_info.first_name }} 
+                                                {% if user_info.middle_name %}{{ user_info.middle_name[0] }}.{% endif %} 
+                                                {{ user_info.last_name }}
+                                            </div>
+                                            <small class="text-muted">{{ user_info.email }}</small>
+                                            {% if profile.age %}
+                                            <br><small class="text-muted">Age: {{ profile.age }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>{{ profile.barangay or 'N/A' }}</div>
+                                    <small class="text-muted">{{ profile.municipality or '' }}</small>
+                                </td>
+                                <!-- Senior Citizen Status -->
+                                <td>
+                                    {% if profile.senior_citizen_verification == 'pending' %}
+                                        <span class="badge badge-warning verification-badge">
+                                            <i class="fas fa-clock mr-1"></i>Pending
+                                        </span>
+                                    {% elif profile.senior_citizen_verification == 'approved' %}
+                                        <span class="badge badge-success verification-badge">
+                                            <i class="fas fa-check mr-1"></i>Approved
+                                        </span>
+                                        {% if profile.senior_citizen_id_number %}
+                                        <br><small class="text-muted">ID: {{ profile.senior_citizen_id_number }}</small>
+                                        {% endif %}
+                                    {% elif profile.senior_citizen_verification == 'rejected' %}
+                                        <span class="badge badge-danger verification-badge">
+                                            <i class="fas fa-times mr-1"></i>Rejected
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <!-- PWD Status -->
+                                <td>
+                                    {% if profile.pwd_verification == 'pending' %}
+                                        <span class="badge badge-warning verification-badge">
+                                            <i class="fas fa-clock mr-1"></i>Pending
+                                        </span>
+                                    {% elif profile.pwd_verification == 'approved' %}
+                                        <span class="badge badge-success verification-badge">
+                                            <i class="fas fa-check mr-1"></i>Approved
+                                        </span>
+                                        {% if profile.pwd_id_number %}
+                                        <br><small class="text-muted">ID: {{ profile.pwd_id_number }}</small>
+                                        {% endif %}
+                                    {% elif profile.pwd_verification == 'rejected' %}
+                                        <span class="badge badge-danger verification-badge">
+                                            <i class="fas fa-times mr-1"></i>Rejected
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <!-- Solo Parent Status -->
+                                <td>
+                                    {% if profile.solo_parent_verification == 'pending' %}
+                                        <span class="badge badge-warning verification-badge">
+                                            <i class="fas fa-clock mr-1"></i>Pending
+                                        </span>
+                                    {% elif profile.solo_parent_verification == 'approved' %}
+                                        <span class="badge badge-success verification-badge">
+                                            <i class="fas fa-check mr-1"></i>Approved
+                                        </span>
+                                        {% if profile.solo_parent_id_number %}
+                                        <br><small class="text-muted">ID: {{ profile.solo_parent_id_number }}</small>
+                                        {% endif %}
+                                    {% elif profile.solo_parent_verification == 'rejected' %}
+                                        <span class="badge badge-danger verification-badge">
+                                            <i class="fas fa-times mr-1"></i>Rejected
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.view_community_user', user_id=user_info.id) }}" 
+                                           class="btn btn-info" title="View User Profile">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <!-- Process Verification Buttons -->
+                                        {% if profile.senior_citizen_verification == 'pending' %}
+                                        <button type="button" class="btn btn-success" 
+                                                data-toggle="modal" 
+                                                data-target="#approveModal{{ profile.id }}_senior"
+                                                title="Approve Senior Citizen">
+                                            <i class="fas fa-user-check"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if profile.pwd_verification == 'pending' %}
+                                        <button type="button" class="btn btn-success" 
+                                                data-toggle="modal" 
+                                                data-target="#approveModal{{ profile.id }}_pwd"
+                                                title="Approve PWD">
+                                            <i class="fas fa-wheelchair"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% if profile.solo_parent_verification == 'pending' %}
+                                        <button type="button" class="btn btn-success" 
+                                                data-toggle="modal" 
+                                                data-target="#approveModal{{ profile.id }}_solo"
+                                                title="Approve Solo Parent">
+                                            <i class="fas fa-child"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-5">
+                                    <i class="fas fa-user-check fa-3x mb-3 d-block"></i>
+                                    <h5>No Verification Requests Found</h5>
+                                    <p>No verification requests match your filter criteria.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Verification pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.prev_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.community_verify', page=page_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.next_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modals for Each Verification -->
+{% for profile in verifications %}
+{% set user_info = profile.user %}
+
+<!-- Senior Citizen Approval Modal -->
+{% if profile.senior_citizen_verification == 'pending' %}
+<div class="modal fade" id="approveModal{{ profile.id }}_senior" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='senior_citizen') }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-check mr-2"></i>Senior Citizen Verification
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Process verification for:</p>
+                    <p class="font-weight-bold">
+                        {{ user_info.first_name }} {{ user_info.last_name }}<br>
+                        <small class="text-muted">Age: {{ profile.age }} years old</small>
+                    </p>
+                    
+                    {% if profile.senior_citizen_document_path %}
+                    <div class="mb-3">
+                        <label class="small font-weight-bold">Uploaded Document:</label>
+                        <div>
+                            <a href="{{ profile.senior_citizen_document_path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-file-image mr-1"></i>View Document
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Senior Citizen ID Number (optional)</label>
+                        <input type="text" class="form-control" name="id_number" placeholder="Enter ID number if available">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
+                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                        <i class="fas fa-times mr-1"></i>Reject
+                    </button>
+                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                        <i class="fas fa-check mr-1"></i>Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- PWD Approval Modal -->
+{% if profile.pwd_verification == 'pending' %}
+<div class="modal fade" id="approveModal{{ profile.id }}_pwd" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='pwd') }}">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-wheelchair mr-2"></i>PWD Verification
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Process verification for:</p>
+                    <p class="font-weight-bold">
+                        {{ user_info.first_name }} {{ user_info.last_name }}<br>
+                        {% if profile.disability_type %}
+                        <small class="text-muted">Disability Type: {{ profile.disability_type }}</small>
+                        {% endif %}
+                    </p>
+                    
+                    {% if profile.pwd_document_path %}
+                    <div class="mb-3">
+                        <label class="small font-weight-bold">Uploaded Document:</label>
+                        <div>
+                            <a href="{{ profile.pwd_document_path }}" target="_blank" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-file-image mr-1"></i>View Document
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">PWD ID Number (optional)</label>
+                        <input type="text" class="form-control" name="id_number" placeholder="Enter PWD ID number if available">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
+                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                        <i class="fas fa-times mr-1"></i>Reject
+                    </button>
+                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                        <i class="fas fa-check mr-1"></i>Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Solo Parent Approval Modal -->
+{% if profile.solo_parent_verification == 'pending' %}
+<div class="modal fade" id="approveModal{{ profile.id }}_solo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='solo_parent') }}">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-child mr-2"></i>Solo Parent Verification
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p>Process verification for:</p>
+                    <p class="font-weight-bold">
+                        {{ user_info.first_name }} {{ user_info.last_name }}
+                    </p>
+                    
+                    {% if profile.solo_parent_document_path %}
+                    <div class="mb-3">
+                        <label class="small font-weight-bold">Uploaded Document:</label>
+                        <div>
+                            <a href="{{ profile.solo_parent_document_path }}" target="_blank" class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-file-image mr-1"></i>View Document
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Solo Parent ID Number (optional)</label>
+                        <input type="text" class="form-control" name="id_number" placeholder="Enter Solo Parent ID number if available">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
+                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                        <i class="fas fa-times mr-1"></i>Reject
+                    </button>
+                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                        <i class="fas fa-check mr-1"></i>Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endfor %}
+{% endblock %}

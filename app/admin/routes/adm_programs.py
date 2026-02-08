@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications
 from app.extensions import db
 from app.utils import role_required
 import os
@@ -30,6 +30,7 @@ def programs_index():
     # Get filter parameters
     search = request.args.get('search', '').strip()
     type_filter = request.args.get('type', '').strip()
+    category_filter = request.args.get('category', '').strip()
     period_filter = request.args.get('period', '').strip()
     date_range = request.args.get('date_range', '').strip()
     
@@ -50,6 +51,10 @@ def programs_index():
     # Apply type filter
     if type_filter:
         query = query.filter_by(program_type=type_filter)
+    
+    # Apply category filter
+    if category_filter:
+        query = query.filter_by(program_type=category_filter)
     
     # Apply period filter
     if period_filter:
@@ -448,6 +453,89 @@ def edit_program(id):
                              today=datetime.utcnow().date())
     
     # POST request - update program
+    is_ajax = (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
+               request.headers.get('Content-Type', '').startswith('application/json'))
+    
+    # Determine what type of update this is based on form data
+    update_type = None
+    if 'requirements' in request.form and len(request.form) <= 2:  # Only requirements data
+        update_type = 'requirements'
+    elif 'workflow_steps_json' in request.form and len(request.form) <= 2:  # Only workflow data
+        update_type = 'workflow'
+    elif 'program_name' in request.form:  # Program info update
+        update_type = 'program_info'
+    
+    try:
+        if update_type == 'requirements':
+            # Handle requirements-only update
+            requirement_ids = request.form.getlist('requirements')
+            
+            # Delete existing requirements
+            ProgramRequirements.query.filter_by(program_id=id).delete()
+            
+            # Add new requirements (all as mandatory for now)
+            for req_id in requirement_ids:
+                prog_req = ProgramRequirements(
+                    program_id=id,
+                    requirement_id=int(req_id),
+                    is_mandatory=True  # Default to mandatory
+                )
+                db.session.add(prog_req)
+            
+            db.session.commit()
+            success_msg = 'Requirements updated successfully!'
+            if is_ajax:
+                return jsonify({'success': True, 'message': success_msg})
+            flash(success_msg, 'success')
+            return redirect(url_for('admin.edit_program', id=id))
+            
+        elif update_type == 'workflow':
+            # Handle workflow-only update
+            from app.models import ProgramWorkflowSteps
+            import json
+            
+            workflow_steps_json = request.form.get('workflow_steps_json', '[]')
+            try:
+                workflow_steps = json.loads(workflow_steps_json)
+            except:
+                workflow_steps = []
+            
+            # Delete existing workflow steps
+            ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
+            
+            # Add new workflow steps
+            for index, step_data in enumerate(workflow_steps, start=1):
+                if step_data.get('step_name', '').strip():
+                    step = ProgramWorkflowSteps(
+                        program_id=id,
+                        step_order=index,
+                        step_name=step_data.get('step_name', '').strip(),
+                        step_description=step_data.get('step_description', '').strip() or None,
+                        step_type=step_data.get('step_type', 'approval'),
+                        is_pre_approval=step_data.get('is_pre_approval', False),
+                        requires_verification=step_data.get('requires_verification', True),
+                        min_items=int(step_data.get('min_items', 1)),
+                        allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
+                        step_config=step_data.get('step_config', None)
+                    )
+                    db.session.add(step)
+            
+            db.session.commit()
+            success_msg = 'Workflow steps updated successfully!'
+            if is_ajax:
+                return jsonify({'success': True, 'message': success_msg})
+            flash(success_msg, 'success')
+            return redirect(url_for('admin.edit_program', id=id))
+            
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f'Error updating program: {str(e)}'
+        if is_ajax:
+            return jsonify({'success': False, 'message': error_msg}), 500
+        flash(error_msg, 'danger')
+        return redirect(url_for('admin.edit_program', id=id))
+    
+    # Handle program info update (existing logic)
     program_name = request.form.get('program_name', '').strip()
     program_type = request.form.get('program_type', '').strip()
     program_period = request.form.get('program_period', '').strip()
@@ -465,31 +553,37 @@ def edit_program(id):
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
     
     # Get online upload setting
-    allow_online_upload = request.form.get('allow_online_upload') == 'on'
+    allow_online_upload = request.form.get('allow_online_upload') == '1' or request.form.get('allow_online_upload') == 'on'
     
     # Validation
     if not program_name or not program_type or not program_period:
-        flash('Program name, type, and period are required.', 'danger')
+        error_msg = 'Program name, type, and period are required.'
+        if is_ajax:
+            return jsonify({'success': False, 'message': error_msg}), 400
+        flash(error_msg, 'danger')
         return redirect(url_for('admin.edit_program', id=id))
     
     # Validate date range
     if start_date and end_date and end_date < start_date:
-        flash('Program end date must be after start date.', 'danger')
+        error_msg = 'Program end date must be after start date.'
+        if is_ajax:
+            return jsonify({'success': False, 'message': error_msg}), 400
+        flash(error_msg, 'danger')
         return redirect(url_for('admin.edit_program', id=id))
     
-    # Update program
-    program.program_name = program_name
-    program.program_type = program_type
-    program.program_period = program_period
-    program.priority_group = priority_group
-    program.beneficiary_limit = beneficiary_limit
-    program.income_range = income_range
-    program.start_date = start_date
-    program.end_date = end_date
-    program.description = description
-    program.allow_online_upload = allow_online_upload
-    
     try:
+        # Update program info
+        program.program_name = program_name
+        program.program_type = program_type
+        program.program_period = program_period
+        program.priority_group = priority_group
+        program.beneficiary_limit = beneficiary_limit
+        program.income_range = income_range
+        program.start_date = start_date
+        program.end_date = end_date
+        program.description = description
+        program.allow_online_upload = allow_online_upload
+        
         # Handle file upload
         if 'attachment' in request.files:
             file = request.files['attachment']
@@ -526,60 +620,68 @@ def edit_program(id):
                 db.session.flush()
                 program.file_attachment_id = file_attachment.id
         
-        # Update requirements
-        requirement_ids = request.form.getlist('requirements')
-        mandatory_requirements = request.form.getlist('mandatory_requirements')
-        
-        # Delete existing requirements
-        ProgramRequirements.query.filter_by(program_id=id).delete()
-        
-        # Add new requirements
-        for req_id in requirement_ids:
-            is_mandatory = str(req_id) in mandatory_requirements
-            prog_req = ProgramRequirements(
-                program_id=id,
-                requirement_id=int(req_id),
-                is_mandatory=is_mandatory
-            )
-            db.session.add(prog_req)
-        
-        # Update workflow steps
-        from app.models import ProgramWorkflowSteps
-        import json
-        
-        workflow_steps_json = request.form.get('workflow_steps_json', '[]')
-        try:
-            workflow_steps = json.loads(workflow_steps_json)
-        except:
-            workflow_steps = []
-        
-        # Delete existing workflow steps
-        ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
-        
-        # Add new workflow steps
-        for index, step_data in enumerate(workflow_steps, start=1):
-            if step_data.get('step_name', '').strip():
-                step = ProgramWorkflowSteps(
+        # Update requirements (only for full program updates, not modal-specific updates)
+        if update_type != 'requirements':
+            requirement_ids = request.form.getlist('requirements')
+            mandatory_requirements = request.form.getlist('mandatory_requirements')
+            
+            # Delete existing requirements
+            ProgramRequirements.query.filter_by(program_id=id).delete()
+            
+            # Add new requirements
+            for req_id in requirement_ids:
+                is_mandatory = str(req_id) in mandatory_requirements
+                prog_req = ProgramRequirements(
                     program_id=id,
-                    step_order=index,
-                    step_name=step_data.get('step_name', '').strip(),
-                    step_description=step_data.get('step_description', '').strip() or None,
-                    step_type=step_data.get('step_type', 'approval'),
-                    is_pre_approval=step_data.get('is_pre_approval', False),
-                    requires_verification=step_data.get('requires_verification', True),
-                    min_items=int(step_data.get('min_items', 1)),
-                    allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
-                    step_config=step_data.get('step_config', None)
+                    requirement_id=int(req_id),
+                    is_mandatory=is_mandatory
                 )
-                db.session.add(step)
+                db.session.add(prog_req)
+        
+        # Update workflow steps (only for full program updates, not modal-specific updates)
+        if update_type != 'workflow':
+            from app.models import ProgramWorkflowSteps
+            import json
+            
+            workflow_steps_json = request.form.get('workflow_steps_json', '[]')
+            try:
+                workflow_steps = json.loads(workflow_steps_json)
+            except:
+                workflow_steps = []
+            
+            # Delete existing workflow steps
+            ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
+            
+            # Add new workflow steps
+            for index, step_data in enumerate(workflow_steps, start=1):
+                if step_data.get('step_name', '').strip():
+                    step = ProgramWorkflowSteps(
+                        program_id=id,
+                        step_order=index,
+                        step_name=step_data.get('step_name', '').strip(),
+                        step_description=step_data.get('step_description', '').strip() or None,
+                        step_type=step_data.get('step_type', 'approval'),
+                        is_pre_approval=step_data.get('is_pre_approval', False),
+                        requires_verification=step_data.get('requires_verification', True),
+                        min_items=int(step_data.get('min_items', 1)),
+                        allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
+                        step_config=step_data.get('step_config', None)
+                    )
+                    db.session.add(step)
         
         db.session.commit()
-        flash(f'Program "{program_name}" updated successfully!', 'success')
+        success_msg = f'Program "{program_name}" updated successfully!'
+        if is_ajax:
+            return jsonify({'success': True, 'message': success_msg})
+        flash(success_msg, 'success')
         return redirect(url_for('admin.edit_program', id=id))
         
     except Exception as e:
         db.session.rollback()
-        flash(f'Error updating program: {str(e)}', 'danger')
+        error_msg = f'Error updating program: {str(e)}'
+        if is_ajax:
+            return jsonify({'success': False, 'message': error_msg}), 500
+        flash(error_msg, 'danger')
         return redirect(url_for('admin.edit_program', id=id))
 
 @admin_bp.route('/programs/delete/<int:id>', endpoint='delete_program', methods=['POST'])
@@ -642,9 +744,9 @@ def view_program(id):
         program_id=id,
         application_status='pending'
     ).count()
-    approved_apps = Applications.query.filter_by(
-        program_id=id,
-        application_status='approved'
+    approved_apps = Applications.query.filter(
+        Applications.program_id == id,
+        Applications.application_status.in_(['approved', 'active', 'completed'])
     ).count()
     
     # Get recent applications
@@ -840,6 +942,73 @@ def delete_requirement_ajax(requirement_id):
             'success': False,
             'message': f'Error deleting requirement: {str(e)}'
         }), 500
+
+
+@admin_bp.route('/requirements/manage', endpoint='manage_requirements')
+@login_required
+@role_required('admin')
+def manage_requirements():
+    """Display comprehensive requirements management page"""
+    try:
+        # Get all requirements with usage statistics
+        requirements = db.session.query(
+            Requirements,
+            func.count(ProgramRequirements.id).label('usage_count')
+        ).outerjoin(
+            ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+        ).group_by(Requirements.id).all()
+        
+        # Separate by type
+        document_requirements = []
+        qualification_requirements = []
+        
+        for req, usage_count in requirements:
+            req_data = {
+                'requirement': req,
+                'usage_count': usage_count,
+                'programs': []
+            }
+            
+            # Get programs using this requirement
+            program_reqs = ProgramRequirements.query.filter_by(requirement_id=req.id).all()
+            for prog_req in program_reqs:
+                req_data['programs'].append({
+                    'program': prog_req.program,
+                    'is_mandatory': prog_req.is_mandatory
+                })
+            
+            if req.requirement_type == 'document':
+                document_requirements.append(req_data)
+            else:
+                qualification_requirements.append(req_data)
+        
+        # Sort by name
+        document_requirements.sort(key=lambda x: x['requirement'].requirement_name)
+        qualification_requirements.sort(key=lambda x: x['requirement'].requirement_name)
+        
+        # Get summary statistics
+        total_requirements = len(requirements)
+        document_count = len(document_requirements)
+        qualification_count = len(qualification_requirements)
+        used_requirements = len([req for req, count in requirements if count > 0])
+        unused_requirements = total_requirements - used_requirements
+        
+        stats = {
+            'total': total_requirements,
+            'document': document_count,
+            'qualification': qualification_count,
+            'used': used_requirements,
+            'unused': unused_requirements
+        }
+        
+        return render_template('admin/manage_requirements.html',
+                             document_requirements=document_requirements,
+                             qualification_requirements=qualification_requirements,
+                             stats=stats)
+        
+    except Exception as e:
+        flash(f'Error loading requirements: {str(e)}', 'danger')
+        return redirect(url_for('admin.adm_programs'))
 
 
 # ============================================
@@ -1410,3 +1579,171 @@ def create_subsidy_announcement():
         db.session.rollback()
         flash(f'Error creating announcement: {str(e)}', 'error')
         return redirect(url_for('admin.adm_subsidy'))
+
+
+# ===================== SUBSIDY ELIGIBILITY MANAGEMENT =====================
+
+@admin_bp.route('/search_eligible_users', methods=['GET'], endpoint='search_eligible_users')
+@login_required
+@role_required('admin')
+def search_eligible_users():
+    """Search for users eligible for a specific subsidy category who aren't already in the list"""
+    query = request.args.get('query', '').strip()
+    category = request.args.get('category', '').strip()
+    
+    if not query or len(query) < 2:
+        return jsonify({'users': []})
+    
+    try:
+        # Base query for community users with user details
+        base_query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+        
+        # Search filter
+        search_filter = or_(
+            User.first_name.ilike(f'%{query}%'),
+            User.last_name.ilike(f'%{query}%'),
+            User.email.ilike(f'%{query}%'),
+            CommunityUsers.barangay.ilike(f'%{query}%')
+        )
+        base_query = base_query.filter(search_filter)
+        
+        # Get users already in the current category list
+        existing_users_query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+        
+        if category == 'pwd':
+            # For PWD: search verified PWD users not already in the list
+            eligible_query = base_query.filter(
+                CommunityUsers.pwd_verification == 'approved',
+                CommunityUsers.is_pwd == False  # Not already marked as PWD in main profile
+            )
+            existing_users_query = existing_users_query.filter(CommunityUsers.is_pwd == True)
+            verification_field = 'pwd_verification'
+            
+        elif category == 'senior':
+            # For Senior Citizens: search users 60+ who aren't verified as senior yet
+            eligible_query = base_query.filter(
+                CommunityUsers.age >= 60,
+                CommunityUsers.senior_citizen_verification != 'approved'
+            )
+            existing_users_query = existing_users_query.filter(CommunityUsers.age >= 60)
+            verification_field = 'senior_citizen_verification'
+            
+        elif category == 'solo_parent':
+            # For Solo Parents: search verified solo parents not already in the list
+            eligible_query = base_query.filter(
+                CommunityUsers.solo_parent_verification == 'approved',
+                CommunityUsers.is_solo_parent == False  # Not already marked as solo parent
+            )
+            existing_users_query = existing_users_query.filter(CommunityUsers.is_solo_parent == True)
+            verification_field = 'solo_parent_verification'
+            
+        else:
+            return jsonify({'users': []})
+        
+        # Get existing user IDs to exclude
+        existing_user_ids = [u.user_id for u in existing_users_query.all()]
+        if existing_user_ids:
+            eligible_query = eligible_query.filter(~CommunityUsers.user_id.in_(existing_user_ids))
+        
+        # Execute query and limit results
+        results = eligible_query.limit(10).all()
+        
+        # Format results
+        users = []
+        for community_user in results:
+            user = community_user.user
+            verification_status = getattr(community_user, verification_field, 'none')
+            
+            users.append({
+                'id': user.id,
+                'name': f"{user.first_name} {user.last_name}",
+                'email': user.email,
+                'barangay': community_user.barangay,
+                'municipality': community_user.municipality,
+                'age': community_user.age,
+                'verification_status': verification_status
+            })
+        
+        return jsonify({'users': users})
+        
+    except Exception as e:
+        print(f"Error searching eligible users: {str(e)}")
+        return jsonify({'users': [], 'error': str(e)}), 500
+
+
+@admin_bp.route('/notify_subsidy_eligibility', methods=['POST'], endpoint='notify_subsidy_eligibility')
+@login_required
+@role_required('admin')
+def notify_subsidy_eligibility():
+    """Notify a user about their subsidy eligibility and add them to the category"""
+    user_id = request.form.get('user_id')
+    category = request.form.get('category')
+    category_name = request.form.get('category_name')
+    
+    if not all([user_id, category, category_name]):
+        return jsonify({'success': False, 'message': 'Missing required parameters'})
+    
+    try:
+        # Get the user and their community profile
+        user = User.query.get(user_id)
+        if not user or not user.community_profile:
+            return jsonify({'success': False, 'message': 'User not found or no community profile'})
+        
+        community_user = user.community_profile
+        
+        # Update the appropriate category flag
+        updated = False
+        notification_message = ""
+        required_documents = []
+        
+        if category == 'pwd':
+            if community_user.pwd_verification == 'approved' and not community_user.is_pwd:
+                community_user.is_pwd = True
+                updated = True
+                notification_message = f"You have been added to the Persons with Disability (PWD) subsidy program. You are now eligible for PWD benefits and assistance programs."
+                required_documents = ["Valid PWD ID", "Medical Certificate", "Barangay Certification"]
+                
+        elif category == 'senior':
+            if community_user.age >= 60:
+                # Mark as senior citizen
+                community_user.senior_citizen_verification = 'approved'
+                updated = True
+                notification_message = f"You have been added to the Senior Citizens subsidy program. You are now eligible for senior citizen benefits and assistance programs."
+                required_documents = ["Valid Senior Citizen ID", "Birth Certificate", "Barangay Certification"]
+                
+        elif category == 'solo_parent':
+            if community_user.solo_parent_verification == 'approved' and not community_user.is_solo_parent:
+                community_user.is_solo_parent = True
+                updated = True
+                notification_message = f"You have been added to the Solo Parents subsidy program. You are now eligible for solo parent benefits and assistance programs."
+                required_documents = ["Solo Parent ID", "Child's Birth Certificate", "Barangay Certification"]
+        
+        if not updated:
+            return jsonify({'success': False, 'message': 'User is not eligible for this subsidy category or already added'})
+        
+        # Create notification for the user
+        from app.models import Notifications
+        notification = Notifications(
+            user_id=user.id,
+            notification_title=f"Subsidy Eligibility Notification - {category_name}",
+            notification_content=f"{notification_message}\n\nRequired documents to submit:\n" + 
+                               "\n".join([f"• {doc}" for doc in required_documents]) +
+                               f"\n\nPlease prepare these documents and visit the barangay office to complete your registration. You will receive further instructions on how to claim your benefits.",
+            notification_type="subsidy_eligibility",
+            is_read=False,
+            created_at=datetime.now()
+        )
+        
+        db.session.add(notification)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{user.first_name} {user.last_name} has been successfully added to {category_name} and notified about their eligibility.'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error notifying subsidy eligibility: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+

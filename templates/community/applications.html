@@ -220,6 +220,14 @@
                            class="btn filter-btn {% if current_filter == 'approved' %}btn-success{% else %}btn-outline-success{% endif %} btn-sm">
                             <i class="fas fa-check mr-1"></i>Approved
                         </a>
+                        <a href="{{ url_for('community.applications', status='active') }}" 
+                           class="btn filter-btn {% if current_filter == 'active' %}btn-info{% else %}btn-outline-info{% endif %} btn-sm">
+                            <i class="fas fa-spinner mr-1"></i>Active
+                        </a>
+                        <a href="{{ url_for('community.applications', status='completed') }}" 
+                           class="btn filter-btn {% if current_filter == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                            <i class="fas fa-flag-checkered mr-1"></i>Completed
+                        </a>
                     </div>
                 </div>
             </div>
@@ -248,17 +256,25 @@
                     </div>
                     <div class="col-md-4 text-md-right">
                         <!-- Status Badge -->
-                        {% if application.application_status == 'pending' or application.application_status == 'submitted' or application.application_status == 'under_review' %}
+                        {% if application.application_status == 'pending' %}
                             <span class="badge badge-warning badge-lg">
-                                <i class="fas fa-alert mr-1"></i>Pending Review
-                            </span>
-                        {% elif application.application_status == 'rejected' or application.remarks %}
-                            <span class="badge badge-danger badge-lg">
-                                <i class="fas fa-reply mr-1"></i>Returned
+                                <i class="fas fa-clock mr-1"></i>Pending Review
                             </span>
                         {% elif application.application_status == 'approved' %}
                             <span class="badge badge-success badge-lg">
                                 <i class="fas fa-check-circle mr-1"></i>Approved
+                            </span>
+                        {% elif application.application_status == 'rejected' %}
+                            <span class="badge badge-danger badge-lg">
+                                <i class="fas fa-times-circle mr-1"></i>Rejected
+                            </span>
+                        {% elif application.application_status == 'active' %}
+                            <span class="badge badge-info badge-lg">
+                                <i class="fas fa-spinner mr-1"></i>Active
+                            </span>
+                        {% elif application.application_status == 'completed' %}
+                            <span class="badge badge-primary badge-lg">
+                                <i class="fas fa-flag-checkered mr-1"></i>Completed
                             </span>
                         {% else %}
                             <span class="badge badge-secondary badge-lg">
@@ -317,7 +333,7 @@
                                class="btn btn-primary btn-block mb-2">
                                 <i class="fas fa-eye mr-2"></i>View Details
                             </a>
-                            {% if application.application_status == 'approved' %}
+                            {% if application.application_status == 'active' %}
                                 {% if not application.code_used_at %}
                                 <a href="{{ url_for('community.verify_code') }}" 
                                    class="btn btn-warning btn-block mb-2">
@@ -332,6 +348,11 @@
                                     <i class="fas fa-check-circle mr-2"></i>Documents Verified
                                 </button>
                                 {% endif %}
+                            {% elif application.application_status == 'approved' %}
+                            <button class="btn btn-outline-success btn-block mb-2" disabled
+                                    title="Application approved - document processing will begin soon">
+                                <i class="fas fa-check-circle mr-2"></i>Approved
+                            </button>
                             {% else %}
                             <button class="btn btn-outline-secondary btn-block mb-2" disabled
                                     title="Verification code is available after admin approval">
@@ -345,7 +366,7 @@
                             </button>
                             {% endif %}
                             <!-- Cancel Button -->
-                            {% if application.application_status != 'approved' %}
+                            {% if application.application_status not in ['approved', 'active', 'completed'] %}
                             <button type="button" 
                                     class="btn btn-danger btn-block btn-sm"
                                     data-toggle="modal" 
@@ -380,7 +401,7 @@
                                         <div class="font-weight-bold">
                                             {% if application.application_status == 'rejected' or application.remarks %}
                                                 <span class="text-warning">High</span>
-                                            {% elif application.application_status == 'pending' or application.application_status == 'submitted' %}
+                                            {% elif application.application_status == 'pending' %}
                                                 <span class="text-info">Normal</span>
                                             {% else %}
                                                 <span class="text-muted">-</span>

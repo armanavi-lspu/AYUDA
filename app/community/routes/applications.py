@@ -1,9 +1,9 @@
-from flask import render_template, request, flash, redirect, url_for, send_file, current_app
+from flask import render_template, request, flash, redirect, url_for, send_file, current_app, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
 from app.utils import role_required
-from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User
+from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps
 from app.extensions import db
 from sqlalchemy import desc, or_
 from werkzeug.utils import secure_filename
@@ -31,8 +31,8 @@ def applications():
                 Applications.application_status == 'rejected',
                 Applications.remarks.isnot(None)
             ))  
-        elif status_filter == 'on-hold':
-            query = query.filter(Applications.application_status.in_(['on-hold']))
+        elif status_filter == 'active':
+            query = query.filter(Applications.application_status.in_(['active']))
         else:
             query = query.filter_by(application_status=status_filter)
     
@@ -50,13 +50,15 @@ def applications():
     stats = {
         'total': total_applications.count(),
         'pending': total_applications.filter(
-            Applications.application_status.in_(['pending'])
+            Applications.application_status == 'pending'
         ).count(),
         'returned': total_applications.filter(or_(
             Applications.application_status == 'rejected',
             Applications.remarks.isnot(None)
         )).count(),
-        'approved': total_applications.filter_by(application_status='approved').count()
+        'approved': total_applications.filter_by(application_status='approved').count(),
+        'active': total_applications.filter_by(application_status='active').count(),
+        'completed': total_applications.filter_by(application_status='completed').count()
     }
     
     return render_template(
@@ -115,6 +117,156 @@ def application_detail(application_id):
         user=current_user,
         today=datetime.utcnow().date()
     )
+
+
+@community_bp.route('/applications/<int:application_id>/workflow')
+@login_required
+@role_required('community')
+def application_workflow(application_id):
+    """Step-by-step workflow interface for community users"""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    # Get workflow steps for this program
+    workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order) if application.program.workflow_steps else []
+    
+    if not workflow_steps:
+        flash('This program does not have a configured workflow.', 'info')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+    
+    # Initialize workflow status for all steps if not exists
+    _initialize_workflow_status(application, workflow_steps)
+    
+    # Get current workflow status for all steps
+    workflow_status = db.session.query(ApplicationWorkflowStatus).filter_by(
+        application_id=application_id
+    ).join(ProgramWorkflowSteps).order_by(ProgramWorkflowSteps.step_order).all()
+    
+    # Determine current active step
+    current_step = None
+    current_step_status = None
+    
+    for status in workflow_status:
+        if status.step_status in ['not_started', 'in_progress']:
+            current_step = status.workflow_step
+            current_step_status = status
+            break
+    
+    # If no in-progress step, check if we can start the next step
+    if not current_step:
+        for status in workflow_status:
+            if status.step_status == 'not_started':
+                # Check if previous steps are completed
+                previous_steps_completed = True
+                for prev_status in workflow_status:
+                    if (prev_status.workflow_step.step_order < status.workflow_step.step_order and 
+                        prev_status.step_status not in ['approved', 'completed']):
+                        previous_steps_completed = False
+                        break
+                
+                if previous_steps_completed:
+                    current_step = status.workflow_step
+                    current_step_status = status
+                    break
+    
+    # Get step-specific data based on step type
+    step_content = {}
+    if current_step:
+        step_content = _get_step_content(application, current_step, current_step_status)
+    
+    # Calculate progress percentage
+    completed_steps = len([s for s in workflow_status if s.step_status in ['approved', 'completed']])
+    total_steps = len(workflow_steps)
+    progress_percentage = int((completed_steps / total_steps) * 100) if total_steps > 0 else 0
+    
+    return render_template(
+        'community/application_workflow.html',
+        application=application,
+        workflow_steps=workflow_steps,
+        workflow_status=workflow_status,
+        current_step=current_step,
+        current_step_status=current_step_status,
+        step_content=step_content,
+        progress_percentage=progress_percentage,
+        datetime=datetime,
+        user=current_user
+    )
+
+
+def _initialize_workflow_status(application, workflow_steps):
+    """Initialize workflow status for all steps if not exists"""
+    for step in workflow_steps:
+        existing_status = ApplicationWorkflowStatus.query.filter_by(
+            application_id=application.id,
+            workflow_step_id=step.id
+        ).first()
+        
+        if not existing_status:
+            status = ApplicationWorkflowStatus(
+                application_id=application.id,
+                workflow_step_id=step.id,
+                step_status='not_started'
+            )
+            db.session.add(status)
+    
+    db.session.commit()
+
+
+def _get_step_content(application, step, step_status):
+    """Get content specific to the current workflow step"""
+    content = {
+        'documents': [],
+        'uploads': [],
+        'requirements': [],
+        'instructions': step.step_description or '',
+        'form_data': step_status.step_data_json if step_status else {}
+    }
+    
+    if step.step_type in ['document_upload', 'document_submission']:
+        # Get required documents for this step
+        step_config = step.config_data if hasattr(step, 'config_data') else {}
+        required_docs = step_config.get('required_documents', [])
+        
+        if required_docs:
+            # Get specific documents required for this step
+            documents = db.session.query(Requirements).filter(
+                Requirements.id.in_(required_docs)
+            ).all()
+        else:
+            # Get all program documents if no specific requirements
+            documents = db.session.query(
+                Requirements
+            ).join(
+                ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+            ).filter(
+                ProgramRequirements.program_id == application.program_id,
+                Requirements.requirement_type == 'document'
+            ).all()
+            
+        content['documents'] = documents
+        
+        # Get existing uploads for these documents
+        uploads = ApplicationDocumentUploads.query.filter(
+            ApplicationDocumentUploads.application_id == application.id,
+            ApplicationDocumentUploads.requirement_id.in_([d.id for d in documents])
+        ).all()
+        content['uploads'] = uploads
+        
+    elif step.step_type == 'approval':
+        # Get qualification requirements
+        requirements = db.session.query(
+            Requirements
+        ).join(
+            ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+        ).filter(
+            ProgramRequirements.program_id == application.program_id,
+            Requirements.requirement_type == 'qualification'
+        ).all()
+        content['requirements'] = requirements
+    
+    return content
 
 
 @community_bp.route('/documents/<int:doc_id>/download')
@@ -628,3 +780,172 @@ def view_uploaded_document(upload_id):
     except Exception as e:
         flash(f'Error accessing document: {str(e)}', 'danger')
         return redirect(request.referrer or url_for('community.applications'))
+
+
+@community_bp.route('/applications/<int:application_id>/submit-workflow-step', methods=['POST'])
+@login_required
+@role_required('community')
+def submit_workflow_step(application_id):
+    """Submit a workflow step for admin review"""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    data = request.get_json()
+    step_id = data.get('step_id')
+    
+    if not step_id:
+        return jsonify({'success': False, 'message': 'Step ID is required'})
+    
+    # Get workflow status
+    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application_id,
+        workflow_step_id=step_id
+    ).first()
+    
+    if not workflow_status:
+        return jsonify({'success': False, 'message': 'Workflow status not found'})
+    
+    # Update status to pending review
+    workflow_status.step_status = 'pending_review'
+    workflow_status.completed_at = datetime.utcnow()
+    workflow_status.updated_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        
+        # Create notification for admins
+        from app.models import Notifications
+        
+        notification = Notifications(
+            user_id=None,  # For all admins
+            title=f'Workflow Step Submitted - {application.program.program_name}',
+            message=f'User {current_user.first_name} {current_user.last_name} has completed a workflow step for Application #{application_id}.',
+            category='workflow_submission',
+            is_read=False,
+            link=f'/admin/applications/{application_id}'
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Step submitted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@community_bp.route('/upload-workflow-document', methods=['POST'])
+@login_required
+@role_required('community')
+def upload_workflow_document():
+    """Upload document for current workflow step"""
+    try:
+        application_id = request.form.get('application_id')
+        requirement_id = request.form.get('requirement_id')
+        
+        if not application_id or not requirement_id:
+            return jsonify({'success': False, 'message': 'Missing required parameters'})
+        
+        application = Applications.query.filter_by(
+            id=application_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not application:
+            return jsonify({'success': False, 'message': 'Application not found'})
+        
+        # Check if file was uploaded
+        if 'document' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded'})
+        
+        file = request.files['document']
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'})
+        
+        # Validate file type
+        allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'message': 'Invalid file type'})
+        
+        # Create upload directory
+        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'application_documents')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        filename = secure_filename(file.filename)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f'{application_id}_{requirement_id}_{timestamp}_{filename}'
+        file_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file
+        file.save(file_path)
+        
+        # Remove existing upload for this requirement if exists
+        existing_upload = ApplicationDocumentUploads.query.filter_by(
+            application_id=application_id,
+            requirement_id=requirement_id
+        ).first()
+        
+        if existing_upload:
+            # Remove old file
+            try:
+                if os.path.exists(existing_upload.file_path):
+                    os.remove(existing_upload.file_path)
+            except:
+                pass
+            db.session.delete(existing_upload)
+        
+        # Create new upload record
+        upload = ApplicationDocumentUploads(
+            application_id=application_id,
+            requirement_id=requirement_id,
+            file_path=file_path,
+            original_filename=filename,
+            uploaded_at=datetime.utcnow(),
+            verification_status='pending'
+        )
+        
+        db.session.add(upload)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Document uploaded successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@community_bp.route('/applications/<int:application_id>/start-workflow-step/<int:step_id>', methods=['POST'])
+@login_required
+@role_required('community')
+def start_workflow_step(application_id, step_id):
+    """Start working on a workflow step"""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    # Get workflow status
+    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application_id,
+        workflow_step_id=step_id
+    ).first()
+    
+    if not workflow_status:
+        return jsonify({'success': False, 'message': 'Workflow status not found'})
+    
+    # Update status to in_progress
+    workflow_status.step_status = 'in_progress'
+    workflow_status.started_at = datetime.utcnow()
+    workflow_status.updated_at = datetime.utcnow()
+    
+    try:
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Step started successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})

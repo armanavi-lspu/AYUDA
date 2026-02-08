@@ -3,6 +3,26 @@
 
 {% block extra_css %}
 <style>
+    /* Application Header Styles */
+    .bg-gradient-primary {
+        background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%) !important;
+    }
+    
+    .card-header.bg-gradient-primary .text-light.opacity-75 {
+        opacity: 0.8;
+    }
+    
+    .badge-outline-primary {
+        color: #5e72e4;
+        border: 1px solid #5e72e4;
+        background-color: transparent;
+    }
+    
+    .application-header-card {
+        border: none;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
     .document-card {
         transition: all 0.2s ease;
         border-left: 4px solid #dee2e6;
@@ -100,6 +120,51 @@
         margin: 2px;
     }
     
+    /* Workflow steps accordion styling */
+    .bg-light-success {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+    
+    .bg-light-primary {
+        background-color: rgba(78, 115, 223, 0.1) !important;
+    }
+    
+    .bg-light-secondary {
+        background-color: rgba(108, 117, 125, 0.1) !important;
+    }
+    
+    .badge-outline-info {
+        color: #17a2b8;
+        border: 1px solid #17a2b8;
+        background-color: transparent;
+    }
+    
+    .badge-outline-success {
+        color: #28a745;
+        border: 1px solid #28a745;
+        background-color: transparent;
+    }
+    
+    .badge-outline-warning {
+        color: #ffc107;
+        border: 1px solid #ffc107;
+        background-color: transparent;
+        color: #856404;
+    }
+    
+    .workflow-step-content {
+        transition: all 0.3s ease;
+    }
+    
+    .accordion .btn-link {
+        color: inherit !important;
+        text-decoration: none !important;
+    }
+    
+    .accordion .btn-link:hover {
+        text-decoration: none !important;
+    }
+    
     .bg-gradient-primary {
         background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
     }
@@ -118,6 +183,114 @@
             <i class="fas fa-arrow-left mr-2"></i>Back to Applications
         </a>
     </div>
+
+    <!-- Application Header (Full Width) -->
+    <div class="card application-header-card shadow-lg mb-4 border-primary">
+        <div class="card-header bg-gradient-primary text-white py-4 position-relative">
+            <!-- Applicant Name with Application Number - Large and Bold -->
+            <h2 class="mb-3 font-weight-bold">
+                <i class="fas fa-user-circle mr-2"></i>
+                {{ application.applicant.first_name }} {{ application.applicant.last_name }}
+                <span class="text-light" style="font-size: 1.1rem; margin-left: 0.5rem;">#{{ application.id }}</span>
+            </h2>
+            
+            <!-- Status Badge and Date - Far Right Corner -->
+            <div class="position-absolute" style="top: 1rem; right: 1rem; text-align: right;">
+                {% set status_class = {
+                    'pending': 'warning',
+                    'approved': 'success',
+                    'rejected': 'danger',
+                    'active': 'info',
+                    'completed': 'primary'
+                } %}
+                <div class="mb-3">
+                    <span class="badge badge-{{ status_class.get(application.application_status, 'secondary') }} badge-pill px-3 py-2" style="font-size: 0.9rem;">
+                        <i class="fas fa-circle mr-1"></i>{{ application.application_status.replace('_', ' ').title() }}
+                    </span>
+                </div>
+                <div class="text-light" style="font-size: 0.85rem;">
+                    <i class="fas fa-calendar-alt mr-1"></i>
+                    <strong>Application Date:</strong> {{ application.application_date.strftime('%B %d, %Y %I:%M %p') if application.application_date else 'N/A' }}
+                </div>
+            </div>
+            
+            <!-- Program Info and Type -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-graduation-cap text-light mr-2"></i>
+                        <span class="text-light">{{ application.program.program_name }}</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-tag text-light mr-2"></i>
+                        <span class="badge badge-light text-primary">{{ application.program.program_type }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area with Left Sidebar -->
+    <div class="row">
+        <!-- Left Sidebar: Applicant Information -->
+        <div class="col-lg-3 mb-4">
+            <!-- Applicant Basic Info Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-user mr-2"></i>Applicant Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted font-weight-bold">Full Name</small>
+                        <p class="mb-0">
+                            {{ application.applicant.first_name }} {{ application.applicant.last_name }}
+                        </p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted font-weight-bold">Email</small>
+                        <p class="mb-0">
+                            <a href="mailto:{{ application.applicant.email }}">{{ application.applicant.email }}</a>
+                        </p>
+                    </div>
+                    
+                    {% if application.applicant.community_profile %}
+                    <div class="mb-3">
+                        <small class="text-muted font-weight-bold">Mobile Number</small>
+                        <p class="mb-0">
+                            {{ application.applicant.community_profile.mobile_no or 'Not provided' }}
+                        </p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted font-weight-bold">Age</small>
+                        <p class="mb-0">
+                            {{ application.applicant.community_profile.age or 'Not provided' }} years old
+                        </p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted font-weight-bold">Barangay</small>
+                        <p class="mb-0">
+                            {{ application.applicant.community_profile.barangay or 'Not provided' }}
+                        </p>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <small class="text-muted font-weight-bold">Address</small>
+                        <p class="mb-0">
+                            <small>{{ application.applicant.community_profile.address or 'Not provided' }}</small>
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-lg-9">
 
     <!-- ESA Workflow Progress (ESA Programs Only) -->
     {% if application.program.program_type == 'ESA' %}
@@ -181,7 +354,7 @@
                     <div class="small mt-1 text-muted">3. Verify Photos</div>
                     {% endif %}
                 </div>
-                <div class="flex-fill"><hr class="{% if application.application_status == 'approved' or application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                <div class="flex-fill"><hr class="{% if application.application_status in ['approved', 'active', 'completed'] %}border-success{% else %}border-secondary{% endif %}"></div>
                 
                 <!-- Step 4: Documents -->
                 <div class="text-center flex-fill">
@@ -190,7 +363,7 @@
                         <i class="fas fa-check"></i>
                     </div>
                     <div class="small mt-1 font-weight-bold text-success">4. Docs Verified</div>
-                    {% elif application.application_status == 'approved' %}
+                    {% elif application.application_status in ['approved', 'active'] %}
                     <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
                         <i class="fas fa-file-alt"></i>
                     </div>
@@ -251,7 +424,7 @@
                 <div class="text-primary"><i class="fas fa-arrow-down mr-2"></i><strong>Action Required:</strong> Verify shelter photos below, then approve or reject.</div>
                 {% elif photos_verified and application.application_status == 'pending' %}
                 <div class="text-primary"><i class="fas fa-arrow-right mr-2"></i><strong>Action Required:</strong> Approve application and set document submission deadline.</div>
-                {% elif application.application_status == 'approved' and application.completion_percentage < 100 %}
+                {% elif application.application_status == 'active' and application.completion_percentage < 100 %}
                 <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>In Progress:</strong> Verify submitted documents ({{ application.completion_percentage }}% complete)</div>
                 {% elif application.application_status == 'completed' and not application.claim_date %}
                 <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Ready:</strong> Application completed! Schedule the release date.</div>
@@ -329,7 +502,7 @@
                     <div class="small mt-1 text-muted">3. Verify</div>
                     {% endif %}
                 </div>
-                <div class="flex-fill"><hr class="{% if application.application_status == 'approved' or application.application_status == 'completed' %}border-success{% else %}border-secondary{% endif %}"></div>
+                <div class="flex-fill"><hr class="{% if application.application_status in ['approved', 'active', 'completed'] %}border-success{% else %}border-secondary{% endif %}"></div>
                 
                 <!-- Step 4: Other Documents -->
                 <div class="text-center flex-fill">
@@ -338,7 +511,7 @@
                         <i class="fas fa-check"></i>
                     </div>
                     <div class="small mt-1 font-weight-bold text-success">4. Docs Complete</div>
-                    {% elif application.application_status == 'approved' %}
+                    {% elif application.application_status in ['approved', 'active'] %}
                     <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
                         <i class="fas fa-file-alt"></i>
                     </div>
@@ -401,7 +574,7 @@
                 <div class="text-primary"><i class="fas fa-arrow-down mr-2"></i><strong>Action Required:</strong> Verify Certificate and Proposal below, then approve or reject.</div>
                 {% elif cal_docs_verified and application.application_status == 'pending' %}
                 <div class="text-primary"><i class="fas fa-arrow-right mr-2"></i><strong>Action Required:</strong> Approve application and set document submission deadline.</div>
-                {% elif application.application_status == 'approved' and application.completion_percentage < 100 %}
+                {% elif application.application_status == 'active' and application.completion_percentage < 100 %}
                 <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>In Progress:</strong> Verify submitted documents ({{ application.completion_percentage }}% complete)</div>
                 {% elif application.application_status == 'completed' and not application.claim_date %}
                 <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Ready:</strong> Application completed! Schedule the release date.</div>
@@ -434,11 +607,11 @@
                         {% if step.step_type == 'approval' and step.is_pre_approval %}
                             {% if application.application_status == 'pending' %}
                                 {% set is_current_step = true %}
-                            {% elif application.application_status in ['approved', 'completed'] %}
+                            {% elif application.application_status in ['approved', 'active', 'completed'] %}
                                 {% set is_completed = true %}
                             {% endif %}
                         {% elif step.step_type == 'document_upload' or step.step_type == 'document_submission' %}
-                            {% if application.application_status == 'approved' %}
+                            {% if application.application_status in ['approved', 'active'] %}
                                 {% if application.completion_percentage < 100 %}
                                     {% set is_current_step = true %}
                                 {% else %}
@@ -454,7 +627,7 @@
                                 {% set is_completed = true %}
                             {% endif %}
                         {% elif step.step_type == 'verification' %}
-                            {% if application.application_status == 'approved' and application.completion_percentage == 100 %}
+                            {% if application.application_status == 'active' and application.completion_percentage == 100 %}
                                 {% set is_current_step = true %}
                             {% elif application.application_status == 'completed' %}
                                 {% set is_completed = true %}
@@ -505,17 +678,147 @@
             <div class="mt-3 p-2 bg-light rounded">
                 {% if application.application_status == 'pending' %}
                 <div class="text-primary"><i class="fas fa-hourglass-half mr-2"></i><strong>Status:</strong> Application is pending admin review and approval.</div>
-                {% elif application.application_status == 'approved' and application.completion_percentage < 100 %}
-                <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>In Progress:</strong> Waiting for document submission ({{ application.completion_percentage }}% complete).</div>
-                {% elif application.application_status == 'approved' and application.completion_percentage == 100 %}
-                <div class="text-warning"><i class="fas fa-clipboard-check mr-2"></i><strong>Action Required:</strong> Verify all submitted documents.</div>
+                {% elif application.application_status == 'approved' %}
+                <div class="text-success"><i class="fas fa-check-circle mr-2"></i><strong>Approved:</strong> Application has been approved and meets qualification requirements.</div>
+                {% elif application.application_status == 'active' and application.completion_percentage < 100 %}
+                <div class="text-info"><i class="fas fa-file-alt mr-2"></i><strong>Active - In Progress:</strong> Application is being processed. Waiting for document submission ({{ application.completion_percentage }}% complete).</div>
+                {% elif application.application_status == 'active' and application.completion_percentage == 100 %}
+                <div class="text-warning"><i class="fas fa-clipboard-check mr-2"></i><strong>Active - Action Required:</strong> Verify all submitted documents.</div>
                 {% elif application.application_status == 'completed' and not application.claim_date %}
-                <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Ready:</strong> Application completed! Schedule the release date.</div>
+                <div class="text-success"><i class="fas fa-calendar-alt mr-2"></i><strong>Completed:</strong> Application completed! Schedule the release date.</div>
                 {% elif application.claim_date %}
                 <div class="text-success"><i class="fas fa-check-circle mr-2"></i><strong>Scheduled:</strong> Release scheduled for {{ application.claim_date.strftime('%B %d, %Y') }}.</div>
                 {% elif application.application_status == 'rejected' %}
                 <div class="text-danger"><i class="fas fa-times-circle mr-2"></i><strong>Rejected:</strong> This application has been rejected.</div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Workflow Steps with Associated Content (Hidden by default, shown when step is clicked) -->
+    {% if workflow_steps_data %}
+    <div class="card shadow mb-4 border-info" id="workflowStepsDetail" style="display: none;">
+        <div class="card-header bg-info text-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-list-alt mr-2"></i><span id="selectedStepTitle">Workflow Step Details</span>
+                </h6>
+                <button type="button" class="btn btn-sm btn-outline-light" onclick="hideStepDetails()">
+                    <i class="fas fa-times mr-1"></i>Close
+                </button>
+            </div>
+        </div>
+        <div class="card-body" id="stepDetailContent">
+            <!-- Content will be dynamically populated when a step is selected -->
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Admin Workflow Step Management -->
+    {% if workflow_steps_data %}
+    <div class="card shadow mb-4 border-warning">
+        <div class="card-header bg-warning text-dark py-3">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-cogs mr-2"></i>Admin Workflow Management
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Step</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for step_data in workflow_steps_data %}
+                        {% set step = step_data.step %}
+                        {% set step_status = application.workflow_status | selectattr('workflow_step_id', 'equalto', step.id) | first %}
+                        <tr class="workflow-step-row" data-step-id="{{ step.id }}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-{% if step_status and step_status.step_status in ['completed', 'approved'] %}success{% elif step_status and step_status.step_status == 'pending_review' %}warning{% elif step_status and step_status.step_status in ['in_progress', 'started'] %}primary{% else %}secondary{% endif %} text-white d-inline-flex justify-content-center align-items-center mr-3" 
+                                         style="width: 30px; height: 30px; font-size: 0.8rem;">
+                                        {% if step_status and step_status.step_status in ['completed', 'approved'] %}
+                                            <i class="fas fa-check"></i>
+                                        {% elif step_status and step_status.step_status == 'pending_review' %}
+                                            <i class="fas fa-clock"></i>
+                                        {% else %}
+                                            {{ step.step_order }}
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">{{ step.step_name }}</div>
+                                        <small class="text-muted">{{ step.step_type|title }} Step</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if step_status %}
+                                <span class="badge badge-{% if step_status.step_status == 'approved' %}success{% elif step_status.step_status == 'rejected' %}danger{% elif step_status.step_status == 'pending_review' %}warning{% elif step_status.step_status == 'in_progress' %}info{% else %}secondary{% endif %}">
+                                    {{ step_status.step_status|replace('_', ' ')|title }}
+                                </span>
+                                {% else %}
+                                <span class="badge badge-secondary">Not Started</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    {% if step_data.documents %}
+                                        {% set completed_docs = step_data.uploads | selectattr('verification_status', 'equalto', 'approved') | list | length %}
+                                        {% set total_docs = step_data.documents | length %}
+                                        <small>Documents: {{ completed_docs }}/{{ total_docs }}</small>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-success" style="width: {{ (completed_docs/total_docs*100) if total_docs > 0 else 0 }}%"></div>
+                                        </div>
+                                    {% endif %}
+                                    {% if step_data.requirements %}
+                                        <small class="mt-1">{{ step_data.requirements | length }} Requirements</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if step_status and step_status.updated_at %}
+                                    <small>{{ step_status.updated_at.strftime('%b %d, %Y') }}<br>{{ step_status.updated_at.strftime('%I:%M %p') }}</small>
+                                {% else %}
+                                    <small class="text-muted">—</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm">
+                                    {% if step_status and step_status.step_status == 'pending_review' %}
+                                    <button type="button" class="btn btn-success btn-sm mb-1" onclick="approveStep({{ step.id }})">
+                                        <i class="fas fa-check mr-1"></i>Approve
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm mb-1" onclick="rejectStep({{ step.id }})">
+                                        <i class="fas fa-times mr-1"></i>Reject
+                                    </button>
+                                    {% elif step_status and step_status.step_status in ['rejected', 'approved'] %}
+                                    <button type="button" class="btn btn-warning btn-sm mb-1" onclick="resetStep({{ step.id }})">
+                                        <i class="fas fa-undo mr-1"></i>Reset
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-info btn-sm" onclick="viewStepDetails({{ step.id }})">
+                                        <i class="fas fa-eye mr-1"></i>Details
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% if step_status and step_status.admin_feedback %}
+                        <tr class="bg-light">
+                            <td colspan="5">
+                                <small><strong>Admin Feedback:</strong> {{ step_status.admin_feedback }}</small>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -681,11 +984,11 @@
                             {% set step_complete = cal_docs_verified %}
                             {% set step_current = not cal_docs_verified %}
                         {% elif step.step_type == 'approval' and step.is_pre_approval %}
-                            {% set step_complete = application.application_status == 'approved' %}
+                            {% set step_complete = application.application_status in ['approved', 'active', 'completed'] %}
                             {% set step_current = application.application_status == 'pending' %}
                         {% elif step.step_type == 'document_submission' %}
                             {% set step_complete = application.documents_verified %}
-                            {% set step_current = application.application_status == 'approved' and not application.documents_verified %}
+                            {% set step_current = application.application_status == 'active' and not application.documents_verified %}
                         {% elif step.step_type == 'scheduling' %}
                             {% set step_complete = application.claim_date is not none %}
                             {% set step_current = application.documents_verified and not application.claim_date %}
@@ -714,8 +1017,8 @@
                             <span class="text-success">1. Application Submitted</span>
                         </div>
                         <div class="d-flex mb-2">
-                            <span class="badge badge-{% if application.application_status == 'approved' %}success{% else %}primary{% endif %} rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">{% if application.application_status == 'approved' %}✓{% else %}→{% endif %}</span>
-                            <span class="{% if application.application_status == 'approved' %}text-success{% else %}text-primary font-weight-bold{% endif %}">2. Review & Approve</span>
+                            <span class="badge badge-{% if application.application_status in ['approved', 'active', 'completed'] %}success{% else %}primary{% endif %} rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">{% if application.application_status in ['approved', 'active', 'completed'] %}✓{% else %}→{% endif %}</span>
+                            <span class="{% if application.application_status in ['approved', 'active', 'completed'] %}text-success{% else %}text-primary font-weight-bold{% endif %}">2. Review & Approve</span>
                         </div>
                         <div class="d-flex mb-2">
                             <span class="badge badge-secondary rounded-circle mr-2" style="width:25px;height:25px;line-height:18px;">3</span>
@@ -1110,14 +1413,14 @@
                         
                         {# Determine step status for generic programs #}
                         {% if step.step_type == 'approval' and step.is_pre_approval %}
-                            {% set step_complete = application.application_status == 'approved' %}
+                            {% set step_complete = application.application_status in ['approved', 'active', 'completed'] %}
                             {% set step_current = application.application_status == 'pending' %}
                         {% elif step.step_type == 'document_submission' %}
                             {% set step_complete = application.documents_verified %}
-                            {% set step_current = application.application_status == 'approved' and not application.documents_verified %}
+                            {% set step_current = application.application_status == 'active' and not application.documents_verified %}
                         {% elif step.step_type == 'verification' %}
                             {% set step_complete = application.documents_verified %}
-                            {% set step_current = application.application_status == 'approved' and not application.documents_verified %}
+                            {% set step_current = application.application_status == 'active' and not application.documents_verified %}
                         {% elif step.step_type == 'scheduling' %}
                             {% set step_complete = application.claim_date is not none %}
                             {% set step_current = application.documents_verified and not application.claim_date %}
@@ -1231,18 +1534,20 @@
     <!-- ============================================== -->
     <div id="fullDetailsSection" {% if is_pre_approval_step %}style="display: none;"{% endif %}>
 
-    <!-- Application Header -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">
-                Application #{{ application.id }}
+            <!-- Application Details Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-alt mr-2"></i>Application Details
+                    </h6>
             </h6>
             <div class="dropdown">
                 <button class="btn btn-sm dropdown-toggle 
                     {% if application.application_status == 'pending' %}btn-warning
                     {% elif application.application_status == 'approved' %}btn-success
                     {% elif application.application_status == 'rejected' %}btn-danger
-                    {% elif application.application_status == 'on-hold' %}btn-info
+                    {% elif application.application_status == 'active' %}btn-info
+                    {% elif application.application_status == 'completed' %}btn-primary
                     {% else %}btn-secondary{% endif %}" 
                     type="button" 
                     id="statusDropdown" 
@@ -1253,7 +1558,8 @@
                     {% if application.application_status == 'pending' %}Pending
                     {% elif application.application_status == 'approved' %}Approved
                     {% elif application.application_status == 'rejected' %}Rejected
-                    {% elif application.application_status == 'on-hold' %}On Hold
+                    {% elif application.application_status == 'active' %}Active
+                    {% elif application.application_status == 'completed' %}Completed
                     {% else %}Unknown{% endif %}
                 </button>
                 <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="statusDropdown" style="min-width: 250px;">
@@ -1274,10 +1580,15 @@
                        onclick="updateStatus('rejected'); return false;">
                         <i class="fas fa-times-circle text-danger mr-2"></i>Reject
                     </a>
-                    <a class="dropdown-item {% if application.application_status == 'on_hold' %}active{% endif %}" 
+                    <a class="dropdown-item {% if application.application_status == 'active' %}active{% endif %}" 
                        href="#" 
-                       onclick="updateStatus('on-hold'); return false;">
-                        <i class="fas fa-pause-circle text-info mr-2"></i>Put On Hold
+                       onclick="updateStatus('active'); return false;">
+                        <i class="fas fa-spinner text-info mr-2"></i>Set Active (Processing)
+                    </a>
+                    <a class="dropdown-item {% if application.application_status == 'completed' %}active{% endif %}" 
+                       href="#" 
+                       onclick="updateStatus('completed'); return false;">
+                        <i class="fas fa-flag-checkered text-primary mr-2"></i>Mark Completed
                     </a>
                     <div class="dropdown-divider"></div>
                     <div class="px-3 py-2">
@@ -1438,7 +1749,7 @@
 
     <!-- Quick Approve/Reject Actions -->
 
-    {% if application.application_status != 'approved' and application.application_status != 'rejected' %}
+    {% if application.application_status not in ['approved', 'active', 'rejected', 'completed'] %}
     <div class="mb-4">
         <button type="button" class="btn btn-success btn-lg mr-2" onclick="handleApprove()" id="approveBtn">
             <i class="fas fa-check-circle mr-1"></i>Approve
@@ -1450,7 +1761,7 @@
     {% endif %}
 
     <!-- Print Application Slip (Admin Only) -->
-    {% if application.application_status == 'approved' %}
+    {% if application.application_status in ['approved', 'active'] %}
     <div class="mb-4">
         <a href="{{ url_for('admin.application_slip', application_id=application.id) }}" 
            class="btn btn-primary btn-lg" 
@@ -1495,7 +1806,7 @@
                     </span>
                 </div>
             </div>
-            {% if application.application_status != 'approved' and application.application_status != 'completed' %}
+            {% if application.application_status not in ['approved', 'active', 'completed'] %}
             <div class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="top:0; left:0; background:rgba(255,255,255,0.7); z-index:10;backdrop-filter: blur(2px);">
                 <div class="text-center">
                     <i class="fas fa-lock fa-2x text-secondary mb-2"></i>
@@ -1595,7 +1906,7 @@
                     </thead>
                     <tbody>
                         {% for doc in document_requirements %}
-                        {% set doc_id = doc.id if doc.id else 'new_' ~ doc.requirement.id %}
+                        {% set doc_id = doc.id if doc.id else 'new_' ~ doc.requirement_id %}
                         <tr class="document-row" data-status="{{ doc.submission_status }}" data-mandatory="{{ doc.is_mandatory }}" data-doc-id="{{ doc_id }}">
                             <td>
                                 {% if doc.id %}
@@ -1614,12 +1925,12 @@
                                 <div class="d-flex align-items-start">
                                     <i class="fas fa-file-alt text-primary mr-2 mt-1"></i>
                                     <div>
-                                        <strong>{{ doc.requirement.requirement_name }}</strong>
+                                        <strong>{{ doc.requirement_name }}</strong>
                                         {% if doc.is_mandatory %}
                                         <span class="badge badge-danger badge-pill ml-1">Required</span>
                                         {% endif %}
-                                        {% if doc.requirement.description %}
-                                        <br><small class="text-muted">{{ doc.requirement.description }}</small>
+                                        {% if doc.description %}
+                                        <br><small class="text-muted">{{ doc.description }}</small>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -1794,7 +2105,7 @@
     </div>
 
 <!-- Financial Assistance Release Scheduling Section -->
-{% if application.application_status == 'approved' %}
+{% if application.application_status in ['approved', 'active'] %}
 <div class="card shadow mb-4 border-left-success border-4" id="claimScheduleCard">
     <div class="card-header bg-success text-white py-3">
         <div class="d-flex justify-content-between align-items-center">
@@ -2494,7 +2805,9 @@
   </div>
 </div>
 
-</div><!-- End of fullDetailsSection -->
+            </div><!-- End of main content area (col-lg-9) -->
+        </div><!-- End of main row -->
+    </div><!-- End of fullDetailsSection -->
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -2540,14 +2853,16 @@ function updateStatus(status) {
         'pending': 'Pending Review',
         'approved': 'Approved',
         'rejected': 'Rejected',
-        'on-hold': 'On Hold'
+        'active': 'Active',
+        'completed': 'Completed'
     };
     
     const statusColors = {
         'pending': 'bg-warning',
         'approved': 'bg-success',
         'rejected': 'bg-danger',
-        'on-hold': 'bg-info'
+        'active': 'bg-info',
+        'completed': 'bg-primary'
     };
     
     // Update modal content
@@ -2858,7 +3173,7 @@ function executeDocumentAction(docId, isComplete, notes) {
                 }, 1000);
             }
             // Check if all documents are now complete and show scheduling option
-            {% if application.application_status == 'approved' %}
+            {% if application.application_status in ['approved', 'active'] %}
             else if (isComplete && data.completion_percentage === 100) {
                 setTimeout(() => {
                     const shouldSchedule = confirm(
@@ -3481,6 +3796,287 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
         console.error('Error:', error);
         alert('Error verifying document. Please try again.');
     });
+}
+
+// Workflow Step Management Functions
+function approveStep(stepId) {
+    const feedback = prompt('Optional feedback for approval (leave empty if none):');
+    
+    fetch(`/admin/applications/{{ application.id }}/workflow-step/${stepId}/approve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            feedback: feedback || ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error approving step. Please try again.');
+    });
+}
+
+function rejectStep(stepId) {
+    const feedback = prompt('Feedback for rejection (required):');
+    
+    if (!feedback || feedback.trim() === '') {
+        alert('Feedback is required for rejection.');
+        return;
+    }
+    
+    fetch(`/admin/applications/{{ application.id }}/workflow-step/${stepId}/reject`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            feedback: feedback
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error rejecting step. Please try again.');
+    });
+}
+
+function resetStep(stepId) {
+    if (confirm('Are you sure you want to reset this workflow step? This will allow the user to resubmit.')) {
+        fetch(`/admin/applications/{{ application.id }}/reset-workflow-step/${stepId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error resetting step. Please try again.');
+        });
+    }
+}
+
+function viewStepDetails(stepId) {
+    // Get step data from the workflow_steps_data
+    const workflowData = {{ workflow_steps_data | tojson | safe }};
+    const stepData = workflowData.find(data => data.step.id === stepId);
+    
+    if (!stepData) {
+        alert('Step data not found');
+        return;
+    }
+    
+    const step = stepData.step;
+    
+    // Update the title
+    document.getElementById('selectedStepTitle').textContent = `Step ${step.step_order}: ${step.step_name}`;
+    
+    // Build the content HTML
+    let contentHtml = '';
+    
+    // Step description
+    if (step.step_description) {
+        contentHtml += `
+            <div class="alert alert-info mb-4">
+                <h6><i class="fas fa-info-circle mr-2"></i>Step Description</h6>
+                <p class="mb-0">${step.step_description}</p>
+            </div>
+        `;
+    }
+    
+    // Step Requirements/Qualifications
+    if (stepData.requirements && stepData.requirements.length > 0) {
+        contentHtml += `
+            <div class="mb-4">
+                <h6 class="text-muted mb-3"><i class="fas fa-clipboard-list mr-2"></i>Qualification Requirements</h6>
+                <div class="row">
+        `;
+        
+        stepData.requirements.forEach(req => {
+            const iconClass = req.is_qualified === true ? 'fas fa-check-circle text-success' : 
+                             req.is_qualified === false ? 'fas fa-times-circle text-danger' : 
+                             'fas fa-question-circle text-warning';
+            const mandatoryBadge = req.is_mandatory ? '<span class="badge badge-danger badge-sm ml-1">Required</span>' : '';
+            
+            contentHtml += `
+                <div class="col-md-6 mb-2">
+                    <div class="d-flex align-items-center">
+                        <i class="${iconClass} mr-2"></i>
+                        <div>
+                            <span class="font-weight-medium">${req.requirement_name}</span>
+                            ${mandatoryBadge}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        contentHtml += '</div></div>';
+    }
+    
+    // Step Documents
+    if (stepData.documents && stepData.documents.length > 0) {
+        contentHtml += `
+            <div class="mb-4">
+                <h6 class="text-muted mb-3"><i class="fas fa-file-alt mr-2"></i>Required Documents</h6>
+                <div class="row">
+        `;
+        
+        stepData.documents.forEach(doc => {
+            const statusBadgeClass = doc.submission_status === 'approved' ? 'success' : 
+                                   doc.submission_status === 'rejected' ? 'danger' : 
+                                   doc.submission_status === 'submitted' ? 'warning' : 'secondary';
+            const statusText = doc.submission_status === 'approved' ? '<i class="fas fa-check-circle"></i> Approved' : 
+                             doc.submission_status === 'rejected' ? '<i class="fas fa-times-circle"></i> Rejected' : 
+                             doc.submission_status === 'submitted' ? '<i class="fas fa-clock"></i> Submitted' : 
+                             '<i class="fas fa-minus-circle"></i> Not Submitted';
+            const mandatoryBadge = doc.is_mandatory ? '<span class="badge badge-danger badge-sm">Required</span>' : '';
+            const descriptionHtml = doc.description ? `<p class="text-muted small mb-2">${doc.description}</p>` : '';
+            const fileInfo = doc.file_name ? `
+                <div class="small text-muted mb-2">
+                    <i class="fas fa-file mr-1"></i>${doc.file_name}
+                    ${doc.uploaded_at ? `<br><i class="fas fa-calendar mr-1"></i>${new Date(doc.uploaded_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})}` : ''}
+                </div>
+            ` : '';
+            const feedbackHtml = doc.admin_feedback ? `
+                <div class="alert alert-info alert-sm py-2 mb-2">
+                    <small><strong>Admin Feedback:</strong> ${doc.admin_feedback}</small>
+                </div>
+            ` : '';
+            
+            contentHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-left-${statusBadgeClass}" style="border-left-width: 3px !important;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="flex-grow-1">
+                                    <h6 class="font-weight-bold mb-1">${doc.requirement_name}</h6>
+                                    ${mandatoryBadge}
+                                </div>
+                                <span class="badge badge-${statusBadgeClass}">
+                                    ${statusText}
+                                </span>
+                            </div>
+                            ${descriptionHtml}
+                            ${fileInfo}
+                            ${feedbackHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        contentHtml += '</div></div>';
+    }
+    
+    // Step Uploads
+    if (stepData.uploads && stepData.uploads.length > 0) {
+        contentHtml += `
+            <div class="mb-3">
+                <h6 class="text-muted mb-3"><i class="fas fa-cloud-upload-alt mr-2"></i>Uploaded Files</h6>
+                <div class="row">
+        `;
+        
+        stepData.uploads.forEach(upload => {
+            const statusBadgeClass = upload.verification_status === 'approved' ? 'success' : 
+                                   upload.verification_status === 'rejected' ? 'danger' : 'warning';
+            const statusText = upload.verification_status === 'approved' ? '<i class="fas fa-check-circle"></i> Verified' : 
+                             upload.verification_status === 'rejected' ? '<i class="fas fa-times-circle"></i> Rejected' : 
+                             '<i class="fas fa-clock"></i> Pending';
+            const feedbackHtml = upload.admin_feedback ? `
+                <div class="alert alert-info alert-sm py-2 mb-2">
+                    <small><strong>Admin Feedback:</strong> ${upload.admin_feedback}</small>
+                </div>
+            ` : '';
+            
+            contentHtml += `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-left-${statusBadgeClass}" style="border-left-width: 3px !important;">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="flex-grow-1">
+                                    <h6 class="font-weight-bold mb-1">${upload.original_filename}</h6>
+                                    <small class="text-muted">
+                                        <i class="far fa-clock mr-1"></i>${new Date(upload.uploaded_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'})}
+                                    </small>
+                                </div>
+                                <span class="badge badge-${statusBadgeClass}">
+                                    ${statusText}
+                                </span>
+                            </div>
+                            ${feedbackHtml}
+                            <div class="btn-group btn-group-sm btn-block" role="group">
+                                <a href="/community/uploaded-documents/${upload.id}/view" class="btn btn-outline-primary" target="_blank">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                ${upload.verification_status !== 'approved' ? `
+                                <button type="button" class="btn btn-outline-success" onclick="verifyUpload(${upload.id}, 'approved')">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                ` : ''}
+                                ${upload.verification_status !== 'rejected' ? `
+                                <button type="button" class="btn btn-outline-danger" onclick="showRejectModal(${upload.id}, '${upload.original_filename}')">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        contentHtml += '</div></div>';
+    }
+    
+    // If no content
+    if (!stepData.documents?.length && !stepData.uploads?.length && !stepData.requirements?.length) {
+        contentHtml += `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <p class="mb-0">No specific content configured for this step.</p>
+            </div>
+        `;
+    }
+    
+    // Set the content
+    document.getElementById('stepDetailContent').innerHTML = contentHtml;
+    
+    // Show the detail section
+    document.getElementById('workflowStepsDetail').style.display = 'block';
+    
+    // Scroll to the detail section
+    document.getElementById('workflowStepsDetail').scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideStepDetails() {
+    document.getElementById('workflowStepsDetail').style.display = 'none';
 }
 </script>
 

@@ -263,7 +263,7 @@
                                     <h6 class="text-warning font-weight-bold mb-2">
                                         <i class="fas fa-user-friends mr-2"></i>Beneficiary Limit
                                     </h6>
-                                    {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                                    {% set approved_count = (program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length) if program.applications else 0 %}
                                     <p class="mb-0">Maximum {{ program.beneficiary_limit }} beneficiaries</p>
                                     <small class="text-muted">Current accepted: {{ approved_count }} / {{ program.beneficiary_limit }}</small>
                                 </div>
@@ -563,12 +563,14 @@
 
         <!-- Edit Tab -->
         <div class="tab-pane fade" id="edit" role="tabpanel">
-            <div class="card shadow">
-                <div class="card-header py-3 bg-warning text-white">
-                    <h6 class="m-0 font-weight-bold">Edit Program</h6>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
+                
+                <!-- 1. Program Information Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-warning text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Program Information</h6>
+                    </div>
+                    <div class="card-body">
                         <div class="form-group">
                             <label>Program Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="program_name" value="{{ program.program_name }}" required>
@@ -633,7 +635,7 @@
                             <small class="form-text text-muted">
                                 <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program. Leave blank for no limit.
                                 {% if program.applications and program.beneficiary_limit %}
-                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length %}
+                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length %}
                                     <br><strong class="text-info">Current accepted: {{ approved_count_edit }} / {{ program.beneficiary_limit }}</strong>
                                 {% endif %}
                             </small>
@@ -729,14 +731,30 @@
                             </small>
                             {% endif %}
                         </div>
-                        
-                        <hr class="my-4">
-                        
+                    </div>
+                </div>
+                
+                <!-- 2. Requirements Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-primary text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>Program Requirements</h6>
+                            <a href="{{ url_for('admin.manage_requirements') }}" class="btn btn-sm btn-outline-light" title="Manage All Requirements">
+                                <i class="fas fa-cog mr-1"></i>Manage Requirements
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
                         <!-- Requirements Section -->
                         <div class="form-group">
-                            <label class="font-weight-bold mb-3">
-                                <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
-                            </label>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label class="font-weight-bold mb-0">
+                                    <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                                </label>
+                                <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-sm btn-outline-secondary" title="Manage All Requirements">
+                                    <i class="fas fa-cog mr-1"></i>Manage Requirements
+                                </a>
+                            </div>
                             
                             <!-- Document Requirements Section -->
                             <div class="card mb-3">
@@ -882,14 +900,17 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <hr class="my-4">
-                        
+                    </div>
+                </div>
+                
+                <!-- 3. Workflow Steps Card -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-dark text-white">
+                        <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Application Workflow Steps</h6>
+                    </div>
+                    <div class="card-body">
                         <!-- Workflow Steps Section (Edit Mode) -->
                         <div class="form-group" id="workflowSection">
-                            <label class="font-weight-bold mb-3">
-                                <i class="fas fa-tasks mr-2"></i>Application Workflow Steps
-                            </label>
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle mr-2"></i>
                                 Define the steps applicants must complete. Steps marked as "Pre-Approval" must be completed before application approval.
@@ -944,9 +965,12 @@
                             <!-- Hidden input to store workflow steps data -->
                             <input type="hidden" name="workflow_steps_json" id="workflowStepsJson" value="[]">
                         </div>
-                        
-                        <hr class="my-4">
-                        
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="card shadow">
+                    <div class="card-body">
                         <div class="text-right">
                             <button type="button" class="btn btn-secondary" onclick="$('#view-tab').tab('show')">
                                 <i class="fas fa-times mr-1"></i>Cancel
@@ -955,9 +979,9 @@
                                 <i class="fas fa-save mr-1"></i>Update Program
                             </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1383,6 +1407,41 @@
     </div>
 </div>
 
+<!-- Unsaved Changes Confirmation Modal -->
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1" role="dialog" aria-labelledby="unsavedChangesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="unsavedChangesModalLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes Detected
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning mr-2"></i>
+                    <strong>You have unsaved changes that will be lost!</strong>
+                </div>
+                <p id="unsavedChangesMessage">You have made changes to the workflow steps and/or program information that haven't been saved yet.</p>
+                <p>What would you like to do?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="discardChangesBtn">
+                    <i class="fas fa-trash mr-1"></i>Discard Changes
+                </button>
+                <button type="button" class="btn btn-warning" id="saveChangesBtn">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+                <button type="button" class="btn btn-dark" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1617,15 +1676,25 @@
         
         fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: formData
         })
         .then(response => {
             if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
                 showToast('Program information updated successfully!', 'success');
                 $('#programInfoModal').modal('hide');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                throw new Error('Failed to save');
+                throw new Error(data.message || 'Failed to save');
             }
         })
         .catch(error => {
@@ -1718,15 +1787,25 @@
         
         fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: formData
         })
         .then(response => {
             if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
                 showToast('Requirements updated successfully!', 'success');
                 $('#requirementsModal').modal('hide');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                throw new Error('Failed to save');
+                throw new Error(data.message || 'Failed to save');
             }
         })
         .catch(error => {
@@ -1740,14 +1819,142 @@
     }
     
     function openWorkflowModal() {
-        // Copy current workflow steps to modal
-        const modalContainer = document.getElementById('modalWorkflowStepsList');
-        modalContainer.innerHTML = document.getElementById('workflowStepsList').innerHTML;
-        
+        // Create a temporary copy of workflow steps for editing
+        tempWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+        // Render workflow steps properly in the modal with correct form states
+        renderWorkflowStepsModal();
         $('#workflowModal').modal('show');
     }
     
+    // Handle modal cancel/close to discard temporary changes
+    $('#workflowModal').on('hidden.bs.modal', function() {
+        // Clear temporary changes when modal is closed without saving
+        tempWorkflowSteps = [];
+    });
+    
+    function renderWorkflowStepsModal() {
+        const modalContainer = document.getElementById('modalWorkflowStepsList');
+        
+        if (tempWorkflowSteps.length === 0) {
+            modalContainer.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p class="mb-0">No workflow steps defined. Click "Add Step" to create one.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        modalContainer.innerHTML = tempWorkflowSteps.map(step => `
+            <div class="card mb-2 border-left-${stepTypes[step.step_type]?.color || 'primary'} workflow-step-card" 
+                 data-step-id="${step.id}" 
+                 draggable="true"
+                 ondragstart="handleDragStart(event, ${step.id})"
+                 ondragover="handleDragOver(event)"
+                 ondragenter="handleDragEnter(event)"
+                 ondragleave="handleDragLeave(event)"
+                 ondrop="handleDrop(event, ${step.id})"
+                 ondragend="handleDragEnd(event)"
+                 style="border-left-width: 4px !important; cursor: move;">
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-md-1 d-flex align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-grip-vertical text-muted mr-2 drag-handle" style="cursor: grab;"></i>
+                                <span class="badge badge-${stepTypes[step.step_type]?.color || 'primary'} rounded-circle" style="width:30px;height:30px;line-height:22px;font-size:14px;">
+                                    ${step.step_order}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" placeholder="Step Name *" 
+                                   value="${step.step_name}" onchange="updateWorkflowStep(${step.id}, 'step_name', this.value)">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" onchange="updateWorkflowStep(${step.id}, 'step_type', this.value)">
+                                ${Object.entries(stepTypes).map(([key, val]) => 
+                                    `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="modalPreApproval${step.id}" 
+                                       ${step.is_pre_approval ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
+                                <label class="custom-control-label small" for="modalPreApproval${step.id}">Pre-Approval</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="custom-control custom-checkbox mt-1">
+                                <input type="checkbox" class="custom-control-input" id="modalReqVerify${step.id}" 
+                                       ${step.requires_verification ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
+                                <label class="custom-control-label small" for="modalReqVerify${step.id}">Admin Verify</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-right">
+                            <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
+                                <i class="fas fa-tasks"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="toggleStepDetails(${step.id})" title="More options">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-2" id="modalStepDetails${step.id}" style="display:none;">
+                        <div class="col-md-4">
+                            <label class="small text-muted">Description</label>
+                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
+                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="small text-muted">Min Items</label>
+                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
+                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Allowed File Types</label>
+                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
+                                   value="${step.allowed_file_types || ''}"
+                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Initialize sortable for modal workflow steps
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(modalContainer, {
+                animation: 150,
+                handle: '.drag-handle',
+                onEnd: function (evt) {
+                    // Reorder the temporary workflow steps array
+                    const movedItem = tempWorkflowSteps[evt.oldIndex];
+                    tempWorkflowSteps.splice(evt.oldIndex, 1);
+                    tempWorkflowSteps.splice(evt.newIndex, 0, movedItem);
+                    
+                    // Update step orders
+                    tempWorkflowSteps.forEach((step, index) => {
+                        step.step_order = index + 1;
+                    });
+                    
+                    // Re-render modal to reflect the new order
+                    renderWorkflowStepsModal();
+                }
+            });
+        }
+    }
+    
     function saveWorkflowSteps() {
+        // Apply temporary changes to main workflow steps array
+        workflowSteps = JSON.parse(JSON.stringify(tempWorkflowSteps));
+        updateWorkflowStepsJson();
+        
         // Use the existing workflow steps save functionality
         const formData = new FormData();
         formData.append('workflow_steps_json', document.getElementById('workflowStepsJson').value);
@@ -1759,15 +1966,28 @@
         
         fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
             method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: formData
         })
         .then(response => {
             if (response.ok) {
-                showToast('Workflow steps updated successfully!', 'success');
-                $('#workflowModal').modal('hide');
-                setTimeout(() => window.location.reload(), 1000);
+                return response.json();
             } else {
                 throw new Error('Failed to save');
+            }
+        })
+        .then(data => {
+            if (data.success) {
+                showToast('Workflow steps updated successfully!', 'success');
+                // Clear change tracking since we successfully saved
+                clearChangeTracking('workflow');
+                // Refresh the main view and close modal
+                renderWorkflowSteps();
+                $('#workflowModal').modal('hide');
+            } else {
+                throw new Error(data.message || 'Failed to save');
             }
         })
         .catch(error => {
@@ -1811,36 +2031,176 @@
         'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
     };
     
+    // ===================================
+    // CHANGE TRACKING SYSTEM
+    // ===================================
+    let hasUnsavedChanges = false;
+    let unsavedWorkflowChanges = false;
+    let unsavedProgramChanges = false;
+    let originalWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+    let originalProgramData = {};
+    
+    // Track unsaved changes
+    function markAsChanged(type) {
+        if (type === 'workflow') {
+            unsavedWorkflowChanges = true;
+        } else if (type === 'program') {
+            unsavedProgramChanges = true;
+        }
+        hasUnsavedChanges = true;
+        updateChangeIndicators();
+    }
+    
+    function clearChangeTracking(type) {
+        if (type === 'workflow') {
+            unsavedWorkflowChanges = false;
+            originalWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+        } else if (type === 'program') {
+            unsavedProgramChanges = false;
+        }
+        
+        hasUnsavedChanges = unsavedWorkflowChanges || unsavedProgramChanges;
+        updateChangeIndicators();
+    }
+    
+    function updateChangeIndicators() {
+        // Add visual indicators for unsaved changes
+        const workflowTab = document.querySelector('.nav-link[href="#edit"]');
+        if (workflowTab) {
+            if (unsavedWorkflowChanges || unsavedProgramChanges) {
+                workflowTab.innerHTML = workflowTab.innerHTML.replace(' *', '') + ' <span class="text-warning">*</span>';
+            } else {
+                workflowTab.innerHTML = workflowTab.innerHTML.replace(' <span class="text-warning">*</span>', '');
+            }
+        }
+    }
+    
+    // Initialize form change detection
+    function initializeProgramFormChangeDetection() {
+        const form = document.querySelector('form[action*="edit_program"]');
+        if (!form) return;
+        
+        // Store original form data
+        const formData = new FormData(form);
+        originalProgramData = {};
+        for (let [key, value] of formData.entries()) {
+            originalProgramData[key] = value;
+        }
+        
+        // Add change listeners to all form inputs
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                markAsChanged('program');
+            });
+            
+            // Also listen for text input changes
+            if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+                input.addEventListener('input', function() {
+                    markAsChanged('program');
+                });
+            }
+        });
+        
+        // Override form submission to check for unsaved changes
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (unsavedWorkflowChanges) {
+                showUnsavedChangesModal('submit', () => {
+                    form.submit();
+                });
+                return false;
+            }
+            
+            // If no workflow changes, proceed with normal submit
+            form.submit();
+        });
+    }
+    
+    // Initialize form change detection when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeProgramFormChangeDetection();
+    });
+    
     window.addWorkflowStep = function() {
-        const stepOrder = workflowSteps.length + 1;
-        const newStep = {
-            id: Date.now(),
-            step_order: stepOrder,
-            step_name: '',
-            step_description: '',
-            step_type: 'approval',
-            is_pre_approval: false,
-            requires_verification: true,
-            min_items: 1,
-            allowed_file_types: '',
-            step_config: null
-        };
-        workflowSteps.push(newStep);
-        renderWorkflowSteps();
+        // Check if modal is open to determine which array to use
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            const stepOrder = tempWorkflowSteps.length + 1;
+            const newStep = {
+                id: Date.now(),
+                step_order: stepOrder,
+                step_name: '',
+                step_description: '',
+                step_type: 'approval',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            };
+            tempWorkflowSteps.push(newStep);
+            renderWorkflowStepsModal();
+        } else {
+            // Working in main view - use main array and mark as changed
+            const stepOrder = workflowSteps.length + 1;
+            const newStep = {
+                id: Date.now(),
+                step_order: stepOrder,
+                step_name: '',
+                step_description: '',
+                step_type: 'approval',
+                is_pre_approval: false,
+                requires_verification: true,
+                min_items: 1,
+                allowed_file_types: '',
+                step_config: null
+            };
+            workflowSteps.push(newStep);
+            markAsChanged('workflow');
+            updateWorkflowStepsJson();
+            renderWorkflowSteps();
+        }
+    };
+            renderWorkflowSteps();
+        }
     }
     
     function removeWorkflowStep(stepId) {
-        workflowSteps = workflowSteps.filter(s => s.id !== stepId);
-        // Reorder steps
-        workflowSteps.forEach((s, index) => s.step_order = index + 1);
-        renderWorkflowSteps();
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            tempWorkflowSteps = tempWorkflowSteps.filter(s => s.id !== stepId);
+            // Reorder steps
+            tempWorkflowSteps.forEach((s, index) => s.step_order = index + 1);
+            renderWorkflowStepsModal();
+        } else {
+            // Working in main view - use main array and mark as changed
+            workflowSteps = workflowSteps.filter(s => s.id !== stepId);
+            // Reorder steps
+            workflowSteps.forEach((s, index) => s.step_order = index + 1);
+            markAsChanged('workflow');
+            updateWorkflowStepsJson();
+            renderWorkflowSteps();
+        }
     }
     
     function updateWorkflowStep(stepId, field, value) {
-        const step = workflowSteps.find(s => s.id === stepId);
-        if (step) {
-            step[field] = value;
-            updateWorkflowStepsJson();
+        if ($('#workflowModal').hasClass('show')) {
+            // Working in modal - use temporary array
+            const step = tempWorkflowSteps.find(s => s.id === stepId);
+            if (step) {
+                step[field] = value;
+            }
+        } else {
+            // Working in main view - use main array and mark as changed
+            const step = workflowSteps.find(s => s.id === stepId);
+            if (step) {
+                step[field] = value;
+                markAsChanged('workflow');
+                updateWorkflowStepsJson();
+                renderWorkflowSteps(); // Re-render to show changes
+            }
         }
     }
     
@@ -1948,8 +2308,16 @@
     }
     
     function toggleStepDetails(stepId) {
+        // Try both regular and modal step details
         const details = document.getElementById('stepDetails' + stepId);
-        details.style.display = details.style.display === 'none' ? 'flex' : 'none';
+        const modalDetails = document.getElementById('modalStepDetails' + stepId);
+        
+        if (details) {
+            details.style.display = details.style.display === 'none' ? 'flex' : 'none';
+        }
+        if (modalDetails) {
+            modalDetails.style.display = modalDetails.style.display === 'none' ? 'flex' : 'none';
+        }
     }
     
     // ===================================
@@ -2620,5 +2988,93 @@
         renderWorkflowSteps();
         showToast(`Applied ${templateType.replace('_', ' ')} workflow template`, 'success');
     }
+    
+    // ===================================
+    // CONFIRMATION MODAL HANDLERS
+    // ===================================
+    
+    let pendingAction = null;
+    let pendingCallback = null;
+    
+    function showUnsavedChangesModal(action, callback) {
+        const changedItems = [];
+        if (unsavedWorkflowChanges) changedItems.push('workflow steps');
+        if (unsavedProgramChanges) changedItems.push('program information');
+        
+        const message = `You have unsaved changes to ${changedItems.join(' and ')} that will be lost!`;
+        document.getElementById('unsavedChangesMessage').textContent = message;
+        
+        pendingAction = action;
+        pendingCallback = callback;
+        
+        $('#unsavedChangesModal').modal('show');
+    }
+    
+    // Handle save changes button
+    document.getElementById('saveChangesBtn').addEventListener('click', function() {
+        $('#unsavedChangesModal').modal('hide');
+        
+        if (unsavedWorkflowChanges) {
+            saveWorkflowSteps();
+        }
+        if (unsavedProgramChanges) {
+            // Force submit the program form
+            const form = document.querySelector('form[action*="edit_program"]');
+            if (form) {
+                form.submit();
+            }
+        }
+        
+        // Execute pending action after a delay to allow saves to complete
+        setTimeout(() => {
+            if (pendingCallback) {
+                pendingCallback();
+            }
+        }, 1000);
+    });
+    
+    // Handle discard changes button  
+    document.getElementById('discardChangesBtn').addEventListener('click', function() {
+        $('#unsavedChangesModal').modal('hide');
+        
+        // Revert workflow changes
+        if (unsavedWorkflowChanges) {
+            workflowSteps = JSON.parse(JSON.stringify(originalWorkflowSteps));
+            renderWorkflowSteps();
+            updateWorkflowStepsJson();
+            clearChangeTracking('workflow');
+        }
+        
+        // Revert program form changes
+        if (unsavedProgramChanges) {
+            // Reload page or reset form fields
+            window.location.reload();
+            return;
+        }
+        
+        // Execute pending action
+        if (pendingCallback) {
+            pendingCallback();
+        }
+    });
+    
+    // Override navigation and form submissions to check for unsaved changes
+    function checkUnsavedChanges(callback) {
+        if (hasUnsavedChanges) {
+            showUnsavedChangesModal('navigate', callback);
+            return false;
+        }
+        return true;
+    }
+    
+    // Add beforeunload handler to warn about unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+    
 </script>
 {% endblock %}

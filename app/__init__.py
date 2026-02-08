@@ -2,7 +2,7 @@ from flask import Flask
 from pathlib import Path
 from flask_login import LoginManager
 from config import Config
-from app.extensions import db
+from app.extensions import db, migrate
 
 def create_app():
     root_path = Path(__file__).parent.parent
@@ -12,7 +12,10 @@ def create_app():
                 static_folder=str(root_path / "static"))
     
     app.config.from_object(Config)
+    
+    # Initialize extensions
     db.init_app(app)
+    migrate.init_app(app, db)
 
     # Import and register blueprints
     from .auth.auth import auth_bp
@@ -25,10 +28,14 @@ def create_app():
     app.register_blueprint(community_bp)  
     app.register_blueprint(home_bp)
     
+    # Import models to register them with SQLAlchemy
     from .models import User, Programs
-    
-    with app.app_context():
-        db.create_all()
+
+    # Register CLI commands
+    from . import cli
+    cli.init_app(app)
+
+    # Initialize Flask-Login
 
     login_manager = LoginManager()
     login_manager.login_view = 'auth.login'

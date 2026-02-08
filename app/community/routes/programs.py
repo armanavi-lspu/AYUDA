@@ -177,9 +177,9 @@ def program_detail(program_id):
     is_full = False
     approved_count = 0
     if program.beneficiary_limit:
-        approved_count = Applications.query.filter_by(
-            program_id=program_id,
-            application_status='approved'
+        approved_count = Applications.query.filter(
+            Applications.program_id == program_id,
+            Applications.application_status.in_(['approved', 'active', 'completed'])
         ).count()
         is_full = approved_count >= program.beneficiary_limit
     
@@ -218,7 +218,7 @@ def submit_application(program_id):
     existing_application = Applications.query.filter_by(
         user_id=current_user.id,
         program_id=program_id
-    ).filter(Applications.application_status.in_(['pending', 'submitted', 'under_review'])).first()
+    ).filter(Applications.application_status == 'pending').first()
     
     if existing_application:
         flash('You already have a pending application for this program.', 'warning')
@@ -226,9 +226,9 @@ def submit_application(program_id):
     
     # Check if program has reached beneficiary limit
     if program.beneficiary_limit:
-        approved_count = Applications.query.filter_by(
-            program_id=program_id,
-            application_status='approved'
+        approved_count = Applications.query.filter(
+            Applications.program_id == program_id,
+            Applications.application_status.in_(['approved', 'active', 'completed'])
         ).count()
         
         if approved_count >= program.beneficiary_limit:

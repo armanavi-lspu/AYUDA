@@ -113,8 +113,8 @@
         <div class="col-lg col-md-6 mb-4">
             <div class="card border-left-info shadow stats-card h-100">
                 <div class="card-body py-4">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-2">On Hold</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ on_hold_apps }}</div>
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-2">Active</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_apps }}</div>
                 </div>
             </div>
         </div>
@@ -152,7 +152,7 @@
                             <option value="pending" {% if request.args.get('status')=='pending' %}selected{% endif %}>Pending</option>
                             <option value="approved" {% if request.args.get('status')=='approved' %}selected{% endif %}>Approved</option>
                             <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>Rejected</option>
-                            <option value="on_hold" {% if request.args.get('status')=='on_hold' %}selected{% endif %}>On Hold</option>
+                            <option value="active" {% if request.args.get('status')=='active' %}selected{% endif %}>Active</option>
                             <option value="completed" {% if request.args.get('status')=='completed' %}selected{% endif %}>Completed</option>
                         </select>
                     </div>
@@ -205,8 +205,8 @@
                     <button type="button" class="btn btn-sm btn-warning" onclick="bulkUpdateStatus('pending')">
                         <i class="fas fa-clock mr-1"></i>Pending
                     </button>
-                    <button type="button" class="btn btn-sm btn-info" onclick="bulkUpdateStatus('on-hold')">
-                        <i class="fas fa-pause mr-1"></i>On Hold
+                    <button type="button" class="btn btn-sm btn-info" onclick="bulkUpdateStatus('active')">
+                        <i class="fas fa-spinner mr-1"></i>Set Active
                     </button>
                     <button type="button" class="btn btn-sm btn-danger" onclick="bulkUpdateStatus('rejected')">
                         <i class="fas fa-times mr-1"></i>Reject
@@ -263,11 +263,11 @@
                                         <span class="badge badge-warning status-badge">Pending</span>
                                     {% elif app.application_status == 'approved' %}
                                         <span class="badge badge-success status-badge">Approved</span>
-                                        <br><small class="text-success"><i class="fas fa-hand-holding-usd"></i> Ready for Release</small>
                                     {% elif app.application_status == 'rejected' %}
                                         <span class="badge badge-danger status-badge">Rejected</span>
-                                    {% elif app.application_status == 'on_hold' %}
-                                        <span class="badge badge-info status-badge">On Hold</span>
+                                    {% elif app.application_status == 'active' %}
+                                        <span class="badge badge-info status-badge">Active</span>
+                                        <br><small class="text-info"><i class="fas fa-spinner"></i> Processing</small>
                                     {% elif app.application_status == 'completed' %}
                                         <span class="badge status-badge" style="background-color: #6f42c1; color: white;">Completed</span>
                                         {% if app.claim_date %}
@@ -414,7 +414,8 @@
                             <option value="pending">Pending Review</option>
                             <option value="approved">Approve</option>
                             <option value="rejected">Reject</option>
-                            <option value="on-hold">Put On Hold</option>
+                            <option value="active">Set Active (Processing)</option>
+                            <option value="completed">Mark Completed</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -422,7 +423,7 @@
                         <textarea name="remarks" class="form-control" rows="4" 
                                   placeholder="Enter feedback or reason for status change...">{{ app.remarks or '' }}</textarea>
                         <small class="form-text text-muted">
-                            This will be visible to the applicant. Required for "On Hold" status.
+                            This will be visible to the applicant. Required for rejected status.
                         </small>
                     </div>
                 </div>
@@ -588,7 +589,8 @@ function showBulkStatusModal(selectedApps, newStatus, qualifiedCount, notQualifi
         'approved': { name: 'Approved', icon: 'check-circle', class: 'success' },
         'rejected': { name: 'Rejected', icon: 'times-circle', class: 'danger' },
         'pending': { name: 'Pending', icon: 'clock', class: 'warning' },
-        'on-hold': { name: 'On Hold', icon: 'pause-circle', class: 'info' }
+        'active': { name: 'Active', icon: 'spinner', class: 'info' },
+        'completed': { name: 'Completed', icon: 'flag-checkered', class: 'primary' }
     };
     
     const statusInfo = statusNames[newStatus];
@@ -635,7 +637,8 @@ function showBulkStatusModal(selectedApps, newStatus, qualifiedCount, notQualifi
             'approved': '<span class="badge badge-success">Approved</span>',
             'rejected': '<span class="badge badge-danger">Rejected</span>',
             'pending': '<span class="badge badge-warning">Pending</span>',
-            'on-hold': '<span class="badge badge-info">On Hold</span>'
+            'active': '<span class="badge badge-info">Active</span>',
+            'completed': '<span class="badge badge-primary">Completed</span>'
         };
         
         contentHtml += `
@@ -1000,8 +1003,8 @@ function confirmBulkApproval(approvalType) {
         if (data.success) {
             // Build message based on auto-qualification results
             let message = '';
-            if (data.on_hold_count > 0) {
-                message = `Processed ${applicationIds.length} application(s): ${data.approved_count} approved, ${data.on_hold_count} put on hold (did not meet qualifications).`;
+            if (data.rejected_count > 0) {
+                message = `Processed ${applicationIds.length} application(s): ${data.approved_count} approved, ${data.rejected_count} rejected (did not meet qualifications).`;
             } else {
                 message = qualifiedOnly 
                     ? `Successfully approved ${data.approved_count} qualified application(s).` 
@@ -1010,7 +1013,7 @@ function confirmBulkApproval(approvalType) {
             
             // Show undo toast if undo is available
             if (data.can_undo) {
-                showUndoToast(message, data.approved_count, data.on_hold_count);
+                showUndoToast(message, data.approved_count, data.rejected_count);
             } else {
                 alert(message);
                 location.reload();
@@ -1025,7 +1028,7 @@ function confirmBulkApproval(approvalType) {
     });
 }
 
-function showUndoToast(message, approvedCount, onHoldCount) {
+function showUndoToast(message, approvedCount, rejectedCount) {
     // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('undoToastContainer');
     if (!toastContainer) {
@@ -1035,8 +1038,8 @@ function showUndoToast(message, approvedCount, onHoldCount) {
         document.body.appendChild(toastContainer);
     }
     
-    // Create toast - use warning color if there are on-hold applications
-    const toastClass = onHoldCount > 0 ? 'alert-warning' : 'alert-success';
+    // Create toast - use warning color if there are rejected applications
+    const toastClass = rejectedCount > 0 ? 'alert-warning' : 'alert-success';
     const toastId = 'undoToast_' + Date.now();
     const toast = document.createElement('div');
     toast.id = toastId;
@@ -1044,17 +1047,17 @@ function showUndoToast(message, approvedCount, onHoldCount) {
     toast.style.cssText = 'min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
     
     let detailHtml = '';
-    if (onHoldCount > 0) {
+    if (rejectedCount > 0) {
         detailHtml = `
             <div class="small mt-1">
                 <span class="text-success"><i class="fas fa-check"></i> ${approvedCount} approved</span> | 
-                <span class="text-warning"><i class="fas fa-pause"></i> ${onHoldCount} on hold</span>
+                <span class="text-danger"><i class="fas fa-times"></i> ${rejectedCount} rejected</span>
             </div>
         `;
     }
     
     toast.innerHTML = `
-        <strong><i class="fas ${onHoldCount > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i>${message}</strong>
+        <strong><i class="fas ${rejectedCount > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} mr-2"></i>${message}</strong>
         ${detailHtml}
         <div class="mt-2">
             <button type="button" class="btn btn-sm btn-warning mr-2" onclick="performUndo()">

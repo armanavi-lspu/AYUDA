@@ -1,10 +1,21 @@
 """
-Script to populate the database with dummy data for testing analytics and graphs
-Run this with: python populate_dummy_data.py
+Script to populate the database with community user profiles and applications
+Run this with: flask populate-dummy-data
+Note: Run migrations first: flask db upgrade, then flask init-db for basic data
+
+This script creates:
+- Community users with realistic demographic data  
+- Time series applications data for ARIMA forecasting (18 months)
+- Does NOT create: programs, requirements, announcements, notifications, or workflow steps
 """
 
 from app import create_app, db
-from app.models import User, Programs, Applications, CommunityUsers, AdminUsers, Requirements, ProgramRequirements, ShelterPhotos
+from app.models import (
+    User, Programs, Applications, CommunityUsers, AdminUsers, Requirements, 
+    ProgramRequirements, ShelterPhotos, ProgramWorkflowSteps, 
+    ApplicationDocuments, ApplicationDocumentUploads, CALDocuments,
+    Announcements, Notifications
+)
 from datetime import datetime, timedelta
 import random
 import numpy as np
@@ -12,55 +23,56 @@ from werkzeug.security import generate_password_hash
 from sqlalchemy import func
 
 def populate_dummy_data():
-    """Populate database with realistic dummy data"""
+    """Populate database with community user profiles and applications"""
     
     app = create_app()
     
     with app.app_context():
         try:
-            print("Starting to populate dummy data...\n")
+            print("Starting to populate community users and applications...\n")
             
-            # Clear existing data (optional - comment out if you want to keep existing data)
-            print("⚠️  Clearing existing data...")
+            # Clear existing user data only (keep programs, requirements, admin)
+            print("⚠️  Clearing existing community users and applications...")
             try:
                 # Clear in proper order to respect foreign key constraints
+                CALDocuments.query.delete()
+                ApplicationDocumentUploads.query.delete()
+                ApplicationDocuments.query.delete()
                 ShelterPhotos.query.delete()
-                Applications.query.delete()
-                ProgramRequirements.query.delete()
-                Requirements.query.delete()
+                Notifications.query.filter(
+                    Notifications.user_id.in_(
+                        db.session.query(User.id).filter_by(role='community')
+                    )
+                ).delete(synchronize_session='fetch')
+                Applications.query.filter(
+                    Applications.user_id.in_(
+                        db.session.query(User.id).filter_by(role='community')
+                    )
+                ).delete(synchronize_session='fetch')
                 CommunityUsers.query.delete()
-                AdminUsers.query.delete()
-                Programs.query.delete()                
-                User.query.delete()
+                # Only delete community users, not admins or programs
+                User.query.filter_by(role='community').delete()
                 db.session.commit()
-                print("✅ Existing data cleared\n")
+                print("✅ Existing community data cleared\n")
             except Exception as e:
                 print(f"⚠️  Warning: Could not clear all existing data: {e}")
                 db.session.rollback()
                 print("   Continuing with population...\n")
             
-            # 1. Create Admin User
-            print("👤 Creating admin user...")
-            admin_user = User(
-                email='MSWDMabitac@gmail.com',
-                password_hash=generate_password_hash('MabitacMSWD_2025'),
-                first_name='MSWD',
-                middle_name='',
-                last_name='Mabitac',
-                role='admin'
-            )
-            db.session.add(admin_user)
-            db.session.commit()
+            # Get existing admin user and programs from database
+            admin_user = User.query.filter_by(role='admin').first()
+            if not admin_user:
+                print("❌ No admin user found! Please run the SQL file first.")
+                return False
             
-            # Create admin profile
-            admin_profile = AdminUsers(
-                user_id=admin_user.id
-            )
-            db.session.add(admin_profile)
-            db.session.commit()
-            print(f"✅ Admin user created: {admin_user.email}\n")
+            programs = Programs.query.all()
+            if not programs:
+                print("❌ No programs found! Please run the SQL file first.")
+                return False
             
-            # 2. Create Community Users
+            print(f"✅ Found {len(programs)} existing programs\n")
+            
+            # 1. Create Community Users
             print("👥 Creating community users...")
             barangays = ['Amuyong', 'Bayanihan', 'Lambac', 'Libis ng Nayon', 'Lucong', 
                          'Maligaya', 'Masikap', 'Matalatala', 'Nanguma', 'Numero Uno', 
@@ -95,8 +107,17 @@ def populate_dummy_data():
                 # Determine gender
                 gender = random.choice(['Male', 'Female', 'Other'])
                 
+                # Generate unique email (start from user21 to avoid conflicts with sample user)
+                email = f'user{i+21}@test.com'
+                
+                # Check if user already exists, skip if so
+                existing_user = User.query.filter_by(email=email).first()
+                if existing_user:
+                    print(f"   ⚠️  User {email} already exists, skipping...")
+                    continue
+                
                 user = User(
-                    email=f'user{i+1}@test.com',
+                    email=email,
                     password_hash=generate_password_hash('password123'),
                     first_name=first_name,
                     middle_name=random.choice(['A', 'B', 'C', 'D', 'E', 'M', 'L', '']),
@@ -158,311 +179,109 @@ def populate_dummy_data():
             db.session.commit()
             print(f"✅ Created {len(community_users)} community users\n")
             
-            # 3. Create Programs
-            print("📋 Creating programs...")
-            program_data = [
-                {
-                    'name': 'Financial Assistance Program',
-                    'type': 'AICS',
-                    'period': 'Ongoing',
-                    'description': 'Provides financial support to families in need for emergencies and basic necessities'
-                },
-                {
-                    'name': 'Burial Assistance Program',
-                    'type': 'AICS',
-                    'period': 'Emergency',
-                    'description': 'Provides financial support to families in need for burial and funeral services'
-                },                
-                {
-                    'name': 'Educational Assistance Program',
-                    'type': 'AICS',
-                    'period': 'Semi-Annual',
-                    'description': 'Educational financial assistance program for elementary to college students'
-                },
-                {
-                    'name': 'Medical Assistance Program',
-                    'type': 'AICS',
-                    'period': 'Ongoing',
-                    'description': 'Healthcare support including medicine subsidies, hospital bills, and medical procedures'
-                },
-                {
-                    'name': 'Fire Disaster',
-                    'type': 'ESA',
-                    'period': 'Emergency',
-                    'description': 'Temporary shelter and housing assistance for families affected by fire incidents'
-                },
-                {
-                    'name': 'Typhoon Disaster',
-                    'type': 'ESA',
-                    'period': 'Emergency',
-                    'description': 'Temporary shelter and housing assistance for families affected by typhoon incidents'
-                },
-                {
-                    'name': 'Capital Assistance Program',
-                    'type': 'CA',
-                    'period': 'Monthly',
-                    'description': 'Support for microenterprise development and livelihood projects'
-                },                            
-            ]
-            
-            programs = []
-            for prog in program_data:
-                program = Programs(
-                    program_name=prog['name'],
-                    program_type=prog['type'],
-                    program_period=prog['period'],
-                    description=prog['description'],
-                    user_id=admin_user.id
-                )
-                db.session.add(program)
-                db.session.flush()
-                programs.append(program)
-            
-            db.session.commit()
-            print(f"✅ Created {len(programs)} programs\n")
-            
-            # 4. Create Requirements (Documents and Qualifications)
-            print("📋 Creating requirements...")
-            
-            # Document Requirements
-            document_requirements_data = [
-                {'name': 'Valid ID', 'description': 'Any government-issued ID (PhilID, Driver\'s License, Passport, etc.)'},
-                {'name': 'PSA Birth Certificate', 'description': 'Photocopy of birth certificate from PSA (Philippine Statistics Authority)'},
-                {'name': 'Certificate of Enrollment', 'description': 'Current certificate of enrollment from school'},
-                {'name': 'Certificate of Registration (COR)', 'description': 'Certificate of Registration for current semester'},
-                {'name': 'Certificate of Grades (COG)', 'description': 'Latest grades from previous semester'},
-                {'name': 'Student ID', 'description': 'Valid student identification card (School ID)'},
-                {'name': 'Barangay Report', 'description': 'Barangay report for disaster-affected applicants'},
-                {'name': 'Barangay Indigency Certificate', 'description': 'Certificate of Indigency from Barangay'},
-                {'name': 'Barangay Clearance', 'description': 'Barangay clearance certificate'},
-                {'name': 'Medical Certificate', 'description': 'Medical certificate from licensed physician'},
-                {'name': 'Death Certificate', 'description': 'PSA Death Certificate of deceased'},
-                {'name': 'Proof of Income', 'description': 'Latest payslip, ITR, or certificate of income'},
-                {'name': 'Funeral Contract', 'description': 'Contract or agreement with funeral service provider'},
-                {'name': 'Hospital Bills/Medical Records', 'description': 'Medical bills, prescriptions, or hospital records'},
-                {'name': 'PWD ID', 'description': 'Valid Person with Disability identification card'},
-                {'name': 'Senior Citizen ID', 'description': 'Valid senior citizen identification card'},
-                {'name': 'Solo Parent ID', 'description': 'Valid solo parent identification card'},
-                {'name': 'Proof of Business', 'description': 'Business permit, DTI registration, or business-related documents'},
-            ]
-            
-            document_requirements = []
-            for req_data in document_requirements_data:
-                req = Requirements(
-                    requirement_name=req_data['name'],
-                    requirement_type='document',
-                    description=req_data['description']
-                )
-                db.session.add(req)
-                db.session.flush()
-                document_requirements.append(req)
-            
-            # Qualification Requirements
-            qualification_requirements_data = [
-                {'name': 'Student', 'description': 'Currently enrolled in any educational institution'},
-                {'name': 'Solo Parent', 'description': 'Registered solo parent with valid ID'},
-                {'name': 'Low Income Family', 'description': 'Family annual income below poverty threshold'},
-                {'name': 'Indigent Family', 'description': 'Family identified as indigent by barangay'},
-                {'name': 'Person with Disability (PWD)', 'description': 'Registered PWD with valid ID'},
-                {'name': 'Senior Citizen', 'description': '60 years old and above with valid ID'},
-                {'name': 'Resident of Mabitac', 'description': 'Bonafide resident of Mabitac, Laguna'},
-                {'name': 'Fire Victim', 'description': 'Affected by fire incident (with barangay report)'},
-                {'name': 'Typhoon Victim', 'description': 'Affected by typhoon/calamity (with barangay report)'},
-            ]
-            
-            qualification_requirements = []
-            for req_data in qualification_requirements_data:
-                req = Requirements(
-                    requirement_name=req_data['name'],
-                    requirement_type='qualification',
-                    description=req_data['description']
-                )
-                db.session.add(req)
-                db.session.flush()
-                qualification_requirements.append(req)
-            
-            db.session.commit()
-            print(f"✅ Created {len(document_requirements)} document requirements")
-            print(f"✅ Created {len(qualification_requirements)} qualification requirements\n")
-            
-            # 5. Assign Requirements to Programs
-            print("🔗 Assigning requirements to programs...")
-            
-            # Helper function to find requirement by name
-            def find_doc(name):
-                return next((r for r in document_requirements if r.requirement_name == name), None)
-            
-            def find_qual(name):
-                return next((r for r in qualification_requirements if r.requirement_name == name), None)
-            
-            # Program-specific requirements mapping
-            program_requirements_mapping = {
-                'Financial Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Indigency Certificate', True),
-                        ('Proof of Income', True),
-                    ],
-                    'qualifications': [
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                'Burial Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Death Certificate', True),
-                        ('Funeral Contract', True),
-                        ('Barangay Indigency Certificate', False),
-                    ],
-                    'qualifications': [
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },                
-                'Educational Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Student ID', True),
-                        ('Certificate of Enrollment', True),
-                        ('Certificate of Registration (COR)', True),
-                        ('Certificate of Grades (COG)', True),
-                        ('Barangay Indigency Certificate', True),
-                    ],
-                    'qualifications': [
-                        ('Student', True),
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                'Medical Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Medical Certificate', True),
-                        ('Hospital Bills/Medical Records', True),
-                        ('Barangay Indigency Certificate', True),
-                        ('Proof of Income', False),
-                    ],
-                    'qualifications': [
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                
-                'Fire Disaster': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Report', True),
-                    ],
-                    'qualifications': [
-                        ('Fire Victim', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                'Typhoon Disaster': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Report', True),
-                    ],
-                    'qualifications': [
-                        ('Typhoon Victim', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },
-                'Capital Assistance Program': {
-                    'documents': [
-                        ('Valid ID', True),
-                        ('Barangay Clearance', True),
-                        ('Proof of Business', True),
-                        ('Proof of Income', False),
-                    ],
-                    'qualifications': [
-                        ('Unemployed', False),
-                        ('Low Income Family', True),
-                        ('Resident of Mabitac', True),
-                    ]
-                },                
-            }
-            
-            # Assign requirements to each program
-            requirements_assigned = 0
-            for program in programs:
-                if program.program_name in program_requirements_mapping:
-                    mapping = program_requirements_mapping[program.program_name]
-                    
-                    # Assign document requirements
-                    for doc_name, is_mandatory in mapping['documents']:
-                        doc_req = find_doc(doc_name)
-                        if doc_req:
-                            prog_req = ProgramRequirements(
-                                program_id=program.id,
-                                requirement_id=doc_req.id,
-                                is_mandatory=is_mandatory
-                            )
-                            db.session.add(prog_req)
-                            requirements_assigned += 1
-                    
-                    # Assign qualification requirements
-                    for qual_name, is_mandatory in mapping['qualifications']:
-                        qual_req = find_qual(qual_name)
-                        if qual_req:
-                            prog_req = ProgramRequirements(
-                                program_id=program.id,
-                                requirement_id=qual_req.id,
-                                is_mandatory=is_mandatory
-                            )
-                            db.session.add(prog_req)
-                            requirements_assigned += 1
-            
-            db.session.commit()
-            print(f"✅ Assigned {requirements_assigned} requirements to programs\n")
-            
-            # 6. Create Applications (reduced volume to stay under 60 total)
-            print("📝 Creating applications...")
+            # 2. Create Applications with time series data for ARIMA forecasting
+            # Generate 18 months of data (Jan 2024 - Jun 2025) to ensure ARIMA works
+            # ARIMA requires at least 12 continuous months of data
+            print("📝 Creating applications with time series data for ARIMA...")
 
             applications_created = 0
-            current_year = 2025
 
-            # Create 30 applications (reduced from thousands)
-            num_applications = 30
-
-            for i in range(num_applications):
-                user = random.choice(community_users)
-                program = random.choice(programs)
-
-                # Random month from Jan-Dec 2025
-                month = random.randint(1, 12)
+            applications_created = 0
+            # Generate monthly data from January 2024 to June 2025 (18 months)
+            # This ensures ARIMA has sufficient data points (>= 12 months)
+            months_data = []
+            for year in [2024, 2025]:
+                month_range = range(1, 13) if year == 2024 else range(1, 7)  # Jan-Dec 2024, Jan-Jun 2025
+                for month in month_range:
+                    months_data.append((year, month))
+            
+            # Base applications per month with trend and seasonality for ARIMA to detect
+            # Trend: gradual increase over time
+            # Seasonality: higher in school months (Jun-Aug), lower in Dec-Feb
+            base_applications = 3  # Base value for calculations (minimum enforced at 2)
+            
+            for idx, (year, month) in enumerate(months_data):
+                # Trend component: increases over time (0.2 per month)
+                trend = int(idx * 0.2)
                 
+                # Seasonality component: simulate real patterns
+                # Higher in June-August (school-related programs)
+                # Lower in December-February (holiday/new year)
+                if month in [6, 7, 8]:
+                    seasonality = 2  # Peak season
+                elif month in [12, 1, 2]:
+                    seasonality = -1  # Low season
+                else:
+                    seasonality = 0  # Normal
+                
+                # Random variation (small noise)
+                noise = random.randint(-1, 1)
+                
+                # Calculate applications for this month (minimum 2)
+                num_apps_this_month = max(2, base_applications + trend + seasonality + noise)
+
                 # Last day of month
                 if month in [1, 3, 5, 7, 8, 10, 12]:
                     last_day = 31
                 elif month in [4, 6, 9, 11]:
                     last_day = 30
                 else:  # Feb
-                    last_day = 28
+                    last_day = 29 if year == 2024 else 28  # 2024 is leap year
 
-                # Random business-time application within the month
-                day = random.randint(1, last_day)
-                hour = random.randint(8, 17)
-                minute = random.randint(0, 59)
-                application_date = datetime(current_year, month, day, hour, minute)
+                # Create applications for this month
+                for _ in range(num_apps_this_month):
+                    user = random.choice(community_users)
+                    program = random.choice(programs)
 
-                # Status distribution
-                status_choices = ['pending', 'approved', 'rejected', 'under_review']
-                status_weights = [0.40, 0.30, 0.10, 0.20]
-                application_status = np.random.choice(status_choices, p=status_weights)
+                    # Random business-time application within the month
+                    day = random.randint(1, last_day)
+                    hour = random.randint(8, 17)
+                    minute = random.randint(0, 59)
+                    application_date = datetime(year, month, day, hour, minute)
+                    
+                    # Status distribution
+                    status_choices = ['pending', 'approved', 'rejected', 'active', 'completed']
+                    status_weights = [0.30, 0.25, 0.10, 0.20, 0.15]
+                    application_status = np.random.choice(status_choices, p=status_weights)
 
-                # Create application with new fields
-                application = Applications(
-                    user_id=user.id,
-                    program_id=program.id,
-                    application_date=application_date,
-                    application_status=application_status,
-                    claim_status='not_scheduled'  # Added new field
+                    # Create application with new fields
+                    document_upload_status = 'pending'
+                    claim_status = 'not_scheduled'
+                
+                    # Set document upload status based on application status
+                    if application_status == 'active':
+                        document_upload_status = random.choice(['uploaded', 'verified', 'pending'])
+                    elif application_status == 'approved':
+                        document_upload_status = 'pending'
+                    elif application_status == 'completed':
+                        document_upload_status = 'verified'
+                        if random.random() < 0.5:  # 50% chance to have claim scheduled
+                            claim_status = random.choice(['scheduled', 'claimed', 'missed'])
+                    
+                    application = Applications(
+                        user_id=user.id,
+                        program_id=program.id,
+                        application_date=application_date,
+                        application_status=application_status,
+                        document_upload_status=document_upload_status,
+                        claim_status=claim_status
                 )
                 
-                # Add verification code for some approved applications
-                if application_status == 'approved' and random.random() < 0.5:
+                # Add submission deadline for some applications
+                if random.random() < 0.6:  # 60% have deadline
+                    application.submission_deadline = application_date + timedelta(days=random.randint(7, 30))
+                
+                # Add claim scheduling for approved applications
+                if claim_status in ['scheduled', 'claimed', 'missed']:
+                    application.claim_date = application_date + timedelta(days=random.randint(7, 60))
+                    application.claim_time = random.choice(['09:00 AM', '10:00 AM', '01:00 PM', '02:00 PM', '03:00 PM'])
+                    application.claim_location = 'MSWD Office, Mabitac Municipal Hall'
+                    application.claim_instructions = 'Please bring valid ID and verification code.'
+                    application.claim_scheduled_by = admin_user.id
+                    application.claim_scheduled_at = application_date + timedelta(days=random.randint(1, 5))
+                
+                # Add verification code for some active/approved applications
+                if application_status in ['approved', 'active'] and random.random() < 0.5:
                     application.generate_verification_code()
                 
                 db.session.add(application)
@@ -475,17 +294,9 @@ def populate_dummy_data():
             print("="*70)  
             print("📊 DATA SUMMARY")
             print("="*70)
-            print(f"✅ Admin Users: 1")
             print(f"✅ Community Users: {len(community_users)}")
-            print(f"✅ Programs: {len(programs)}")
-            print(f"✅ Document Requirements: {len(document_requirements)}")
-            print(f"✅ Qualification Requirements: {len(qualification_requirements)}")
-            print(f"✅ Program-Requirement Assignments: {requirements_assigned}")
+            print(f"✅ Programs: {len(programs)} (loaded from database)")
             print(f"✅ Applications: {applications_created}")
-            print(f"✅ Barangays: {len(barangays)}")
-            print("="*70)
-            
-            # Show statistics
             print("\n📈 APPLICATION STATISTICS:")
             status_counts = db.session.query(
                 Applications.application_status,
@@ -498,6 +309,7 @@ def populate_dummy_data():
             
             print("\n📅 MONTHLY APPLICATION DISTRIBUTION:")
             month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            current_year = datetime.now().year
             for month in range(1, 13):
                 count = Applications.query.filter(
                     db.func.extract('month', Applications.application_date) == month,
@@ -544,29 +356,23 @@ def populate_dummy_data():
             avg_income = db.session.query(func.avg(CommunityUsers.family_annual_income)).scalar()
             print(f"   • Average Family Income: ₱{avg_income:,.2f}")
             
-            print("\n📋 REQUIREMENTS BREAKDOWN:")
-            print(f"   • Total Document Requirements: {len(document_requirements)}")
-            print(f"   • Total Qualification Requirements: {len(qualification_requirements)}")
+            print("\n� ASSISTANCE CLAIM STATUS:")
+            claim_statuses = ['not_scheduled', 'scheduled', 'claimed', 'missed']
+            for status in claim_statuses:
+                count = Applications.query.filter_by(claim_status=status).count()
+                percentage = (count / applications_created * 100) if applications_created > 0 else 0
+                print(f"   • {status.replace('_', ' ').upper()}: {count} ({percentage:.1f}%)")
             
-            print("\n📑 SAMPLE PROGRAM REQUIREMENTS:")
-            sample_programs = ['Educational Assistance Program', 'Medical Assistance Program', 'Fire Disaster']
-            for prog_name in sample_programs:
-                program = next((p for p in programs if p.program_name == prog_name), None)
-                if program:
-                    prog_reqs = ProgramRequirements.query.filter_by(program_id=program.id).all()
-                    doc_count = sum(1 for pr in prog_reqs if pr.requirement.requirement_type == 'document')
-                    qual_count = sum(1 for pr in prog_reqs if pr.requirement.requirement_type == 'qualification')
-                    mandatory_count = sum(1 for pr in prog_reqs if pr.is_mandatory)
-                    print(f"   • {prog_name}:")
-                    print(f"     - Documents: {doc_count}, Qualifications: {qual_count}")
-                    print(f"     - Mandatory: {mandatory_count}, Optional: {len(prog_reqs) - mandatory_count}")
+            print(f"\n📋 PROGRAMS LOADED FROM DATABASE: {len(programs)}")
             
             print("\n" + "="*70)
-            print("🎉 Dummy data population completed successfully!")
+            print("🎉 Community users and applications population completed successfully!")
             print("="*70)
             print("\n📝 Login credentials:")
             print("   Admin: MSWDMabitac@gmail.com / MabitacMSWD_2025")
-            print("   Users: user1@test.com to user20@test.com / password123")
+            print("   Sample User: user1@test.com / password123 (created via flask init-db)")
+            print("   Test Users: user21@test.com to user40@test.com / password123")
+            print("\n💡 Note: Run 'flask db upgrade' then 'flask init-db' first to set up database structure and basic data.")
             
             return True
         

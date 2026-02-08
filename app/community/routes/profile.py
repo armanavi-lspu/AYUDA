@@ -213,3 +213,161 @@ def api_profile_completion():
     
     completion_data = calculate_profile_completion(current_user)
     return jsonify(completion_data)
+
+
+# ============== VERIFICATION REQUEST ROUTES ==============
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+UPLOAD_FOLDER = os.path.join('static', 'uploads', 'verification_documents')
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@community_bp.route('/profile/verify/<verification_type>', methods=['POST'])
+@login_required
+def request_verification(verification_type):
+    """Submit a verification request for Senior Citizen, PWD, or Solo Parent status."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+    
+    community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    
+    if not community_profile:
+        flash('Please complete your profile first.', 'error')
+        return redirect(url_for('community.edit_profile'))
+    
+    # Validate verification type
+    valid_types = ['senior_citizen', 'pwd', 'solo_parent']
+    if verification_type not in valid_types:
+        flash('Invalid verification type.', 'error')
+        return redirect(url_for('community.profile'))
+    
+    # Check if user has indicated they are in this category
+    if verification_type == 'senior_citizen':
+        if community_profile.age is None or community_profile.age < 60:
+            flash('Senior Citizen verification requires you to be 60 years old or above.', 'error')
+            return redirect(url_for('community.profile'))
+        current_status = community_profile.senior_citizen_verification
+    elif verification_type == 'pwd':
+        if not community_profile.is_pwd:
+            flash('Please indicate that you are a PWD in your profile first.', 'error')
+            return redirect(url_for('community.edit_profile'))
+        current_status = community_profile.pwd_verification
+    elif verification_type == 'solo_parent':
+        if not community_profile.is_solo_parent:
+            flash('Please indicate that you are a Solo Parent in your profile first.', 'error')
+            return redirect(url_for('community.edit_profile'))
+        current_status = community_profile.solo_parent_verification
+    
+    # Check if already pending or approved
+    if current_status == 'pending':
+        flash('You already have a pending verification request. Please wait for admin review.', 'info')
+        return redirect(url_for('community.profile'))
+    elif current_status == 'approved':
+        flash('Your verification has already been approved.', 'info')
+        return redirect(url_for('community.profile'))
+    
+    # Check for uploaded file
+    if 'id_document' not in request.files:
+        flash('Please upload your ID document.', 'error')
+        return redirect(url_for('community.profile'))
+    
+    file = request.files['id_document']
+    
+    if file.filename == '':
+        flash('No file selected. Please upload your ID document.', 'error')
+        return redirect(url_for('community.profile'))
+    
+    if not allowed_file(file.filename):
+        flash('Invalid file type. Please upload a PNG, JPG, JPEG, or PDF file.', 'error')
+        return redirect(url_for('community.profile'))
+    
+    try:
+        # Create upload directory if it doesn't exist
+        upload_path = os.path.join(os.getcwd(), UPLOAD_FOLDER)
+        os.makedirs(upload_path, exist_ok=True)
+        
+        # Generate unique filename
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{current_user.id}_{verification_type}_{timestamp}_{filename}"
+        file_path = os.path.join(upload_path, unique_filename)
+        
+        # Save the file
+        file.save(file_path)
+        
+        # Update verification status and document path
+        relative_path = f'/{UPLOAD_FOLDER}/{unique_filename}'
+        id_number = request.form.get('id_number', '').strip()
+        
+        if verification_type == 'senior_citizen':
+            community_profile.senior_citizen_verification = 'pending'
+            community_profile.senior_citizen_document_path = relative_path
+            if id_number:
+                community_profile.senior_citizen_id_number = id_number
+            verification_name = 'Senior Citizen'
+        elif verification_type == 'pwd':
+            community_profile.pwd_verification = 'pending'
+            community_profile.pwd_document_path = relative_path
+            if id_number:
+                community_profile.pwd_id_number = id_number
+            verification_name = 'PWD (Person with Disability)'
+        elif verification_type == 'solo_parent':
+            community_profile.solo_parent_verification = 'pending'
+            community_profile.solo_parent_document_path = relative_path
+            if id_number:
+                community_profile.solo_parent_id_number = id_number
+            verification_name = 'Solo Parent'
+        
+        # Create notification for the user
+        notification = Notifications(
+            user_id=current_user.id,
+            notif_title=f'{verification_name} Verification Submitted',
+            notif_message=f'Your {verification_name} verification request has been submitted. Please wait for admin review.',
+            is_read=False,
+            related_type='profile',
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notification)
+        
+        db.session.commit()
+        flash(f'Your {verification_name} verification request has been submitted successfully! Please wait for admin review.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error submitting verification request: {str(e)}', 'error')
+    
+    return redirect(url_for('community.profile'))
+
+
+@community_bp.route('/profile/verification-status')
+@login_required
+def verification_status():
+    """API endpoint to get verification status for all categories."""
+    if current_user.role != 'community':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    
+    if not community_profile:
+        return jsonify({'error': 'Profile not found'}), 404
+    
+    return jsonify({
+        'senior_citizen': {
+            'status': community_profile.senior_citizen_verification or 'none',
+            'id_number': community_profile.senior_citizen_id_number,
+            'eligible': community_profile.age is not None and community_profile.age >= 60
+        },
+        'pwd': {
+            'status': community_profile.pwd_verification or 'none',
+            'id_number': community_profile.pwd_id_number,
+            'eligible': community_profile.is_pwd
+        },
+        'solo_parent': {
+            'status': community_profile.solo_parent_verification or 'none',
+            'id_number': community_profile.solo_parent_id_number,
+            'eligible': community_profile.is_solo_parent
+        }
+    })

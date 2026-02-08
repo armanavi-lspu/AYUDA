@@ -1,0 +1,509 @@
+{% extends "community/base.html" %}
+{% block title %}Application Workflow - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .workflow-progress {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        color: white;
+    }
+    
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.1rem;
+        margin: 0 auto 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .step-completed {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .step-current {
+        background-color: #007bff;
+        color: white;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+        animation: pulse 2s infinite;
+    }
+    
+    .step-pending {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .step-review {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+    }
+    
+    .document-upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .document-upload-area:hover {
+        border-color: #007bff;
+        background-color: #e7f3ff;
+    }
+    
+    .document-upload-area.dragover {
+        border-color: #28a745;
+        background-color: #d4edda;
+    }
+    
+    .uploaded-document {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-left: 4px solid #007bff;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .step-content-card {
+        border: none;
+        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .step-actions {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 1.5rem;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .btn-next-step {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-next-step:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">Application Workflow</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="{{ url_for('community.applications') }}">Applications</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('community.application_detail', application_id=application.id) }}">Application #{{ application.id }}</a></li>
+                            <li class="breadcrumb-item active">Workflow</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('community.application_detail', application_id=application.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left mr-1"></i>Back to Application
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Overview -->
+    <div class="row">
+        <div class="col-12">
+            <div class="workflow-progress">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-2">{{ application.program.program_name }}</h4>
+                        <p class="mb-2">Application #{{ application.id }} - {{ application.application_status|title }}</p>
+                        <div class="progress mb-2" style="height: 8px; border-radius: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress_percentage }}%"></div>
+                        </div>
+                        <small>{{ progress_percentage }}% Complete</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <h3 class="mb-0">{{ progress_percentage }}%</h3>
+                        <small>Progress</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Steps Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4"><i class="fas fa-tasks mr-2"></i>Workflow Steps</h5>
+                    <div class="row">
+                        {% for status in workflow_status %}
+                        {% set step = status.workflow_step %}
+                        <div class="col-md-2 col-sm-4 col-6 text-center mb-3">
+                            <div class="step-indicator 
+                                {% if status.step_status == 'completed' or status.step_status == 'approved' %}step-completed
+                                {% elif status.step_status == 'in_progress' or (current_step and step.id == current_step.id) %}step-current
+                                {% elif status.step_status == 'pending_review' %}step-review
+                                {% else %}step-pending{% endif %}">
+                                {% if status.step_status in ['completed', 'approved'] %}
+                                    <i class="fas fa-check"></i>
+                                {% elif status.step_status == 'pending_review' %}
+                                    <i class="fas fa-clock"></i>
+                                {% else %}
+                                    {{ step.step_order }}
+                                {% endif %}
+                            </div>
+                            <div class="small font-weight-bold">{{ step.step_name }}</div>
+                            <div class="small text-muted">
+                                {% if status.step_status == 'completed' or status.step_status == 'approved' %}
+                                    Complete
+                                {% elif status.step_status == 'pending_review' %}
+                                    Under Review
+                                {% elif status.step_status == 'in_progress' or (current_step and step.id == current_step.id) %}
+                                    Active
+                                {% else %}
+                                    Waiting
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Step Content -->
+    {% if current_step %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card step-content-card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-play-circle mr-2"></i>
+                        Step {{ current_step.step_order }}: {{ current_step.step_name }}
+                    </h4>
+                    {% if current_step.step_description %}
+                    <p class="mb-0 mt-2 small">{{ current_step.step_description }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body p-4">
+                    {% if current_step.step_type in ['document_upload', 'document_submission'] %}
+                        <!-- Document Upload Step -->
+                        <h5 class="mb-4"><i class="fas fa-file-upload mr-2"></i>Required Documents</h5>
+                        
+                        {% if step_content.documents %}
+                            {% for document in step_content.documents %}
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h6 class="font-weight-bold mb-1">{{ document.requirement_name }}</h6>
+                                        {% if document.description %}
+                                        <p class="text-muted small mb-2">{{ document.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', document.id) | first %}
+                                    {% if existing_upload %}
+                                    <span class="badge badge-{% if existing_upload.verification_status == 'approved' %}success{% elif existing_upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                        {% if existing_upload.verification_status == 'approved' %}
+                                            <i class="fas fa-check"></i> Approved
+                                        {% elif existing_upload.verification_status == 'rejected' %}
+                                            <i class="fas fa-times"></i> Rejected
+                                        {% else %}
+                                            <i class="fas fa-clock"></i> Pending Review
+                                        {% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if existing_upload %}
+                                <div class="uploaded-document">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-file mr-2"></i>
+                                            <strong>{{ existing_upload.original_filename }}</strong>
+                                            <small class="text-muted ml-2">
+                                                Uploaded {{ existing_upload.uploaded_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <a href="{{ url_for('community.view_uploaded_document', upload_id=existing_upload.id) }}" 
+                                               class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                            {% if existing_upload.verification_status != 'approved' %}
+                                            <button type="button" class="btn btn-sm btn-outline-secondary ml-1" 
+                                                    onclick="replaceDocument({{ document.id }}, {{ existing_upload.id }})">
+                                                <i class="fas fa-upload"></i> Replace
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if existing_upload.admin_feedback %}
+                                    <div class="alert alert-info mt-2 mb-0">
+                                        <small><strong>Admin Feedback:</strong> {{ existing_upload.admin_feedback }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="document-upload-area" onclick="uploadDocument({{ document.id }})">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">Click to Upload {{ document.requirement_name }}</h5>
+                                    <p class="text-muted mb-0">
+                                        {% if current_step.allowed_file_types %}
+                                        Supported formats: {{ current_step.allowed_file_types }}
+                                        {% else %}
+                                        PDF, JPG, PNG files accepted
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <p>No specific documents required for this step.</p>
+                        </div>
+                        {% endif %}
+                        
+                    {% elif current_step.step_type == 'approval' %}
+                        <!-- Approval Step -->
+                        <div class="text-center">
+                            <i class="fas fa-hourglass-half fa-4x text-warning mb-4"></i>
+                            <h4>Waiting for Admin Approval</h4>
+                            <p class="text-muted">Your application is being reviewed by our administrators. You will be notified once this step is approved.</p>
+                            
+                            {% if step_content.requirements %}
+                            <div class="mt-4">
+                                <h6 class="mb-3">Qualification Requirements Being Reviewed:</h6>
+                                <div class="row">
+                                    {% for req in step_content.requirements %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-check-circle text-success mr-2"></i>
+                                            {{ req.requirement_name }}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                    {% elif current_step.step_type == 'verification' %}
+                        <!-- Verification Step -->
+                        <div class="text-center">
+                            <i class="fas fa-clipboard-check fa-4x text-info mb-4"></i>
+                            <h4>Document Verification in Progress</h4>
+                            <p class="text-muted">Administrators are verifying your submitted documents. Please wait for the verification to complete.</p>
+                        </div>
+                        
+                    {% elif current_step.step_type == 'scheduling' %}
+                        <!-- Scheduling Step -->
+                        <div class="text-center">
+                            <i class="fas fa-calendar-alt fa-4x text-primary mb-4"></i>
+                            <h4>Scheduling Available</h4>
+                            <p class="text-muted">Your application has been approved! The administrator will schedule your appointment soon.</p>
+                        </div>
+                        
+                    {% else %}
+                        <!-- Default Step -->
+                        <div class="text-center">
+                            <i class="fas fa-tasks fa-4x text-secondary mb-4"></i>
+                            <h4>{{ current_step.step_name }}</h4>
+                            <p class="text-muted">{{ current_step.step_description or 'Please wait for further instructions.' }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Step Actions -->
+                <div class="step-actions">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                            <span class="badge badge-warning p-2">
+                                <i class="fas fa-clock mr-1"></i>Waiting for Admin Review
+                            </span>
+                            {% elif current_step_status and current_step_status.step_status == 'in_progress' %}
+                            <span class="badge badge-info p-2">
+                                <i class="fas fa-play mr-1"></i>In Progress
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if current_step.step_type in ['document_upload', 'document_submission'] %}
+                                {% set all_uploaded = step_content.documents | length == step_content.uploads | length %}
+                                {% if all_uploaded and step_content.documents %}
+                                <button type="button" class="btn btn-next-step text-white" onclick="submitStep()">
+                                    <i class="fas fa-check mr-2"></i>Complete This Step
+                                </button>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Active Step -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+                    <h3>Workflow Complete!</h3>
+                    <p class="text-muted mb-4">You have completed all workflow steps for this application.</p>
+                    <a href="{{ url_for('community.application_detail', application_id=application.id) }}" class="btn btn-primary">
+                        <i class="fas fa-eye mr-2"></i>View Application Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- File Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" id="requirementId" name="requirement_id">
+                    <input type="hidden" name="application_id" value="{{ application.id }}">
+                    
+                    <div class="form-group">
+                        <label>Select File:</label>
+                        <input type="file" class="form-control-file" id="documentFile" name="document" required>
+                        <small class="form-text text-muted">
+                            {% if current_step and current_step.allowed_file_types %}
+                            Accepted formats: {{ current_step.allowed_file_types }}
+                            {% else %}
+                            Accepted formats: PDF, JPG, PNG
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload mr-2"></i>Upload Document
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function uploadDocument(requirementId) {
+    document.getElementById('requirementId').value = requirementId;
+    $('#uploadModal').modal('show');
+}
+
+function replaceDocument(requirementId, uploadId) {
+    document.getElementById('requirementId').value = requirementId;
+    $('#uploadModal').modal('show');
+}
+
+function submitStep() {
+    if (confirm('Are you sure you want to complete this step? You will not be able to make changes after submission.')) {
+        // Submit current step for review
+        fetch(`/applications/{{ application.id }}/submit-workflow-step`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                step_id: {{ current_step.id if current_step else 'null' }}
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the step.');
+        });
+    }
+}
+
+// Handle file upload form
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+    
+    fetch(`/upload-workflow-document`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $('#uploadModal').modal('hide');
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while uploading the document.');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>
+{% endblock %}

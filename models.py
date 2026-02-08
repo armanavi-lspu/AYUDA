@@ -33,6 +33,7 @@ class User(db.Model, UserMixin):
     reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
     scheduled_claims = db.relationship('Applications', foreign_keys='Applications.claim_scheduled_by', backref='claim_scheduler', lazy=True)
     community_profile = db.relationship('CommunityUsers', foreign_keys='CommunityUsers.user_id', backref='user', uselist=False, cascade='all, delete-orphan')
+    community_profile = db.relationship('CommunityUsers', backref='user', uselist=False, cascade='all, delete-orphan')
     admin_profile = db.relationship('AdminUsers', backref='user', uselist=False, cascade='all, delete-orphan')
 
     def __repr__(self):
@@ -549,8 +550,6 @@ class CALDocuments(db.Model):
     
     def __repr__(self):
         return f'<CALDocument {self.document_type} for Application {self.application_id}>'
-
-
 class ApplicationWorkflowStatus(db.Model):
     """Track workflow step progress for each application"""
     __tablename__ = 'application_workflow_status'
@@ -600,3 +599,4 @@ class ApplicationWorkflowStatus(db.Model):
             self.step_data = json.dumps(data_dict)
         else:
             self.step_data = None
+        return f'<CALDocument {self.document_type} for Application {self.application_id}>'

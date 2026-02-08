@@ -1,0 +1,802 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Manage Requirements - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .requirement-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 8px;
+        transition: all 0.2s;
+        background: white;
+    }
+    
+    .requirement-card:hover {
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    .requirement-header {
+        cursor: pointer;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e3e6f0;
+        background: #f8f9fc;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .requirement-header:hover {
+        background: #eaecf4;
+    }
+    
+    .requirement-body {
+        padding: 1.25rem;
+    }
+    
+    .usage-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .program-tag {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin: 0.125rem;
+        display: inline-block;
+    }
+    
+    .program-tag.mandatory {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+    }
+    
+    .filter-section {
+        background: #f8f9fc;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e3e6f0;
+    }
+    
+    .section-divider {
+        margin: 2rem 0;
+        border-top: 2px solid #e3e6f0;
+        position: relative;
+    }
+    
+    .section-divider::before {
+        content: attr(data-section);
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 0 1rem;
+        font-weight: bold;
+        color: #5a5c69;
+    }
+    
+    .action-buttons {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .requirement-card:hover .action-buttons {
+        opacity: 1;
+    }
+    
+    .requirement-name {
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 0.5rem;
+    }
+    
+    .requirement-description {
+        color: #858796;
+        font-size: 0.875rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .requirement-meta {
+        font-size: 0.75rem;
+        color: #858796;
+    }
+    
+    .bulk-actions {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: none;
+    }
+    
+    .bulk-actions.active {
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .requirement-card {
+            margin-bottom: 1rem;
+        }
+        
+        .action-buttons {
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-clipboard-list mr-2"></i>Manage Requirements
+            </h1>
+            <p class="text-muted">Comprehensive management of program requirements</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-sm btn-secondary mr-2">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Programs
+            </a>
+            <button class="btn btn-sm btn-primary" onclick="openAddRequirementModal()">
+                <i class="fas fa-plus mr-1"></i>Add New Requirement
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 col-lg mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <div class="h4 font-weight-bold mb-1">{{ stats.total }}</div>
+                    <div class="text-xs font-weight-bold text-uppercase">Total Requirements</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg mb-3">
+            <div class="card border-left-primary shadow h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Documents</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.document }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg mb-3">
+            <div class="card border-left-success shadow h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Qualifications</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.qualification }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg mb-3">
+            <div class="card border-left-info shadow h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">In Use</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.used }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg mb-3">
+            <div class="card border-left-warning shadow h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Unused</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.unused }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    </div>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search requirements...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="typeFilter">
+                    <option value="">All Types</option>
+                    <option value="document">Document Requirements</option>
+                    <option value="qualification">Qualification Requirements</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-control" id="usageFilter">
+                    <option value="">All Requirements</option>
+                    <option value="used">In Use</option>
+                    <option value="unused">Unused</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary btn-block" onclick="clearFilters()">
+                    <i class="fas fa-undo mr-1"></i>Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions" id="bulkActionsBar">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <strong><span id="selectedCount">0</span> requirements selected</strong>
+            </div>
+            <div class="col-md-6 text-right">
+                <button class="btn btn-sm btn-warning mr-2" onclick="bulkEdit()">
+                    <i class="fas fa-edit mr-1"></i>Bulk Edit
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                    <i class="fas fa-trash mr-1"></i>Delete Selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Requirements Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-file-alt mr-2"></i>Document Requirements ({{ document_requirements|length }})
+            </h6>
+            <button class="btn btn-sm btn-light" onclick="openAddRequirementModal('document')">
+                <i class="fas fa-plus mr-1"></i>Add Document
+            </button>
+        </div>
+        <div class="card-body">
+            {% if document_requirements %}
+                <div class="row" id="documentRequirements">
+                    {% for req_data in document_requirements %}
+                    <div class="col-lg-6 col-xl-4 mb-3 requirement-item" 
+                         data-type="document" 
+                         data-usage="{{ req_data.usage_count }}"
+                         data-name="{{ req_data.requirement.requirement_name|lower }}">
+                        <div class="requirement-card">
+                            <div class="requirement-header" onclick="toggleRequirementDetails({{ req_data.requirement.id }})">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="requirement-name">
+                                            <input type="checkbox" class="mr-2 requirement-checkbox" value="{{ req_data.requirement.id }}">
+                                            {{ req_data.requirement.requirement_name }}
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="usage-badge badge badge-{% if req_data.usage_count > 0 %}info{% else %}secondary{% endif %} mr-2">
+                                                <i class="fas fa-chart-bar mr-1"></i>{{ req_data.usage_count }} programs
+                                            </span>
+                                            {% if req_data.usage_count == 0 %}
+                                            <span class="badge badge-warning">Unused</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="action-buttons ml-2">
+                                        <button class="btn btn-sm btn-outline-primary" 
+                                                onclick="editRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}', '{{ req_data.requirement.description or '' }}', 'document'); event.stopPropagation();"
+                                                title="Edit requirement">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if req_data.usage_count == 0 %}
+                                        <button class="btn btn-sm btn-outline-danger ml-1" 
+                                                onclick="deleteRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}'); event.stopPropagation();"
+                                                title="Delete requirement">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="requirement-body collapse" id="details-{{ req_data.requirement.id }}">
+                                {% if req_data.requirement.description %}
+                                <div class="requirement-description">
+                                    <strong>Description:</strong><br>
+                                    {{ req_data.requirement.description }}
+                                </div>
+                                {% endif %}
+                                
+                                {% if req_data.programs %}
+                                <div class="mb-3">
+                                    <strong class="d-block mb-2">Used in Programs:</strong>
+                                    {% for prog_data in req_data.programs %}
+                                    <span class="program-tag {% if prog_data.is_mandatory %}mandatory{% endif %}">
+                                        {{ prog_data.program.program_name }}
+                                        {% if prog_data.is_mandatory %}
+                                        <i class="fas fa-exclamation-circle ml-1" title="Mandatory"></i>
+                                        {% else %}
+                                        <i class="fas fa-star ml-1" title="Optional"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                
+                                <div class="requirement-meta">
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag mr-1"></i>Type: Document Requirement
+                                        {% if req_data.usage_count > 0 %}
+                                        | <i class="fas fa-link mr-1"></i>{{ req_data.usage_count }} program(s)
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-file-alt fa-3x mb-3"></i>
+                    <p class="mb-2">No document requirements found</p>
+                    <button class="btn btn-outline-primary" onclick="openAddRequirementModal('document')">
+                        <i class="fas fa-plus mr-1"></i>Add First Document Requirement
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Qualification Requirements Section -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-user-check mr-2"></i>Qualification Requirements ({{ qualification_requirements|length }})
+            </h6>
+            <button class="btn btn-sm btn-light" onclick="openAddRequirementModal('qualification')">
+                <i class="fas fa-plus mr-1"></i>Add Qualification
+            </button>
+        </div>
+        <div class="card-body">
+            {% if qualification_requirements %}
+                <div class="row" id="qualificationRequirements">
+                    {% for req_data in qualification_requirements %}
+                    <div class="col-lg-6 col-xl-4 mb-3 requirement-item" 
+                         data-type="qualification" 
+                         data-usage="{{ req_data.usage_count }}"
+                         data-name="{{ req_data.requirement.requirement_name|lower }}">
+                        <div class="requirement-card">
+                            <div class="requirement-header" onclick="toggleRequirementDetails({{ req_data.requirement.id }})">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <div class="requirement-name">
+                                            <input type="checkbox" class="mr-2 requirement-checkbox" value="{{ req_data.requirement.id }}">
+                                            {{ req_data.requirement.requirement_name }}
+                                        </div>
+                                        <div class="d-flex align-items-center">
+                                            <span class="usage-badge badge badge-{% if req_data.usage_count > 0 %}success{% else %}secondary{% endif %} mr-2">
+                                                <i class="fas fa-chart-bar mr-1"></i>{{ req_data.usage_count }} programs
+                                            </span>
+                                            {% if req_data.usage_count == 0 %}
+                                            <span class="badge badge-warning">Unused</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="action-buttons ml-2">
+                                        <button class="btn btn-sm btn-outline-success" 
+                                                onclick="editRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}', '{{ req_data.requirement.description or '' }}', 'qualification'); event.stopPropagation();"
+                                                title="Edit requirement">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if req_data.usage_count == 0 %}
+                                        <button class="btn btn-sm btn-outline-danger ml-1" 
+                                                onclick="deleteRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}'); event.stopPropagation();"
+                                                title="Delete requirement">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="requirement-body collapse" id="details-{{ req_data.requirement.id }}">
+                                {% if req_data.requirement.description %}
+                                <div class="requirement-description">
+                                    <strong>Description:</strong><br>
+                                    {{ req_data.requirement.description }}
+                                </div>
+                                {% endif %}
+                                
+                                {% if req_data.programs %}
+                                <div class="mb-3">
+                                    <strong class="d-block mb-2">Used in Programs:</strong>
+                                    {% for prog_data in req_data.programs %}
+                                    <span class="program-tag {% if prog_data.is_mandatory %}mandatory{% endif %}">
+                                        {{ prog_data.program.program_name }}
+                                        {% if prog_data.is_mandatory %}
+                                        <i class="fas fa-exclamation-circle ml-1" title="Mandatory"></i>
+                                        {% else %}
+                                        <i class="fas fa-star ml-1" title="Optional"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                
+                                <div class="requirement-meta">
+                                    <small class="text-muted">
+                                        <i class="fas fa-tag mr-1"></i>Type: Qualification Requirement
+                                        {% if req_data.usage_count > 0 %}
+                                        | <i class="fas fa-link mr-1"></i>{{ req_data.usage_count }} program(s)
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-user-check fa-3x mb-3"></i>
+                    <p class="mb-2">No qualification requirements found</p>
+                    <button class="btn btn-outline-success" onclick="openAddRequirementModal('qualification')">
+                        <i class="fas fa-plus mr-1"></i>Add First Qualification Requirement
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Requirement Modal -->
+<div class="modal fade" id="requirementModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="requirementModalTitle">Add New Requirement</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="requirementForm">
+                <div class="modal-body">
+                    <input type="hidden" id="requirementId" name="requirement_id">
+                    <input type="hidden" id="isEdit" value="false">
+                    
+                    <div class="form-group">
+                        <label>Requirement Type <span class="text-danger">*</span></label>
+                        <select class="form-control" id="requirementType" name="requirement_type" required>
+                            <option value="document">Document Requirement</option>
+                            <option value="qualification">Qualification Requirement</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Requirement Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="requirementName" name="requirement_name" required
+                               placeholder="e.g., Valid ID, Low Income Family">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" id="requirementDescription" name="description" rows="3"
+                                  placeholder="Optional description to help users understand this requirement"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="saveRequirementBtn">
+                        <i class="fas fa-save mr-1"></i>Save Requirement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Requirement</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the requirement "<strong id="deleteRequirementName"></strong>"?</p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash mr-1"></i>Delete Requirement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedRequirements = [];
+
+// Initialize page functionality
+$(document).ready(function() {
+    initializeFilters();
+    initializeCheckboxes();
+    initializeModals();
+});
+
+// Filter functionality
+function initializeFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const typeFilter = document.getElementById('typeFilter');
+    const usageFilter = document.getElementById('usageFilter');
+    
+    searchInput.addEventListener('input', applyFilters);
+    typeFilter.addEventListener('change', applyFilters);
+    usageFilter.addEventListener('change', applyFilters);
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const typeFilter = document.getElementById('typeFilter').value;
+    const usageFilter = document.getElementById('usageFilter').value;
+    
+    const items = document.querySelectorAll('.requirement-item');
+    
+    items.forEach(item => {
+        const name = item.dataset.name;
+        const type = item.dataset.type;
+        const usage = parseInt(item.dataset.usage);
+        
+        let showItem = true;
+        
+        // Apply search filter
+        if (searchTerm && !name.includes(searchTerm)) {
+            showItem = false;
+        }
+        
+        // Apply type filter
+        if (typeFilter && type !== typeFilter) {
+            showItem = false;
+        }
+        
+        // Apply usage filter
+        if (usageFilter === 'used' && usage === 0) {
+            showItem = false;
+        } else if (usageFilter === 'unused' && usage > 0) {
+            showItem = false;
+        }
+        
+        item.style.display = showItem ? '' : 'none';
+    });
+}
+
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('typeFilter').value = '';
+    document.getElementById('usageFilter').value = '';
+    applyFilters();
+}
+
+// Checkbox functionality
+function initializeCheckboxes() {
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('requirement-checkbox')) {
+            updateSelectedRequirements();
+        }
+    });
+}
+
+function updateSelectedRequirements() {
+    const checkboxes = document.querySelectorAll('.requirement-checkbox:checked');
+    selectedRequirements = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (selectedRequirements.length > 0) {
+        bulkActionsBar.classList.add('active');
+        selectedCount.textContent = selectedRequirements.length;
+    } else {
+        bulkActionsBar.classList.remove('active');
+    }
+}
+
+// Modal functionality
+function initializeModals() {
+    document.getElementById('requirementForm').addEventListener('submit', handleRequirementSubmit);
+}
+
+function openAddRequirementModal(type = 'document') {
+    document.getElementById('requirementModalTitle').textContent = 'Add New Requirement';
+    document.getElementById('requirementId').value = '';
+    document.getElementById('isEdit').value = 'false';
+    document.getElementById('requirementType').value = type;
+    document.getElementById('requirementName').value = '';
+    document.getElementById('requirementDescription').value = '';
+    document.getElementById('saveRequirementBtn').innerHTML = '<i class="fas fa-save mr-1"></i>Save Requirement';
+    
+    $('#requirementModal').modal('show');
+}
+
+function editRequirement(id, name, description, type) {
+    document.getElementById('requirementModalTitle').textContent = 'Edit Requirement';
+    document.getElementById('requirementId').value = id;
+    document.getElementById('isEdit').value = 'true';
+    document.getElementById('requirementType').value = type;
+    document.getElementById('requirementName').value = name;
+    document.getElementById('requirementDescription').value = description;
+    document.getElementById('saveRequirementBtn').innerHTML = '<i class="fas fa-save mr-1"></i>Update Requirement';
+    
+    $('#requirementModal').modal('show');
+}
+
+function handleRequirementSubmit(e) {
+    e.preventDefault();
+    
+    const isEdit = document.getElementById('isEdit').value === 'true';
+    const formData = new FormData(document.getElementById('requirementForm'));
+    const data = Object.fromEntries(formData.entries());
+    
+    const saveBtn = document.getElementById('saveRequirementBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+    
+    const url = isEdit 
+        ? `{{ url_for('admin.edit_requirement_ajax', requirement_id=0) }}`.replace('0', data.requirement_id)
+        : '{{ url_for("admin.add_requirement_ajax") }}';
+    
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast(result.message || 'Requirement saved successfully!', 'success');
+            $('#requirementModal').modal('hide');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast(result.message || 'Error saving requirement', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error saving requirement', 'danger');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+}
+
+function deleteRequirement(id, name) {
+    document.getElementById('deleteRequirementName').textContent = name;
+    
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Deleting...';
+        
+        fetch(`{{ url_for('admin.delete_requirement_ajax', requirement_id=0) }}`.replace('0', id), {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showToast(result.message || 'Requirement deleted successfully!', 'success');
+                $('#deleteModal').modal('hide');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showToast(result.message || 'Error deleting requirement', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error deleting requirement', 'danger');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    };
+    
+    $('#deleteModal').modal('show');
+}
+
+// Requirement details toggle
+function toggleRequirementDetails(id) {
+    const details = document.getElementById(`details-${id}`);
+    $(details).collapse('toggle');
+}
+
+// Bulk actions (placeholder functions)
+function bulkEdit() {
+    if (selectedRequirements.length === 0) {
+        showToast('Please select requirements to edit', 'warning');
+        return;
+    }
+    
+    // Implement bulk edit functionality
+    showToast('Bulk edit functionality coming soon', 'info');
+}
+
+function bulkDelete() {
+    if (selectedRequirements.length === 0) {
+        showToast('Please select requirements to delete', 'warning');
+        return;
+    }
+    
+    // Implement bulk delete functionality
+    showToast('Bulk delete functionality coming soon', 'info');
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
