@@ -66,7 +66,7 @@ CREATE TABLE applications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    application_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    application_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'active', 'completed'
     document_upload_status VARCHAR(20) DEFAULT 'pending',
     application_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_date TIMESTAMP,
@@ -370,6 +370,29 @@ CREATE INDEX idx_cal_documents_document_type ON cal_documents(document_type);
 CREATE INDEX idx_cal_documents_verified_by ON cal_documents(verified_by);
 CREATE INDEX idx_cal_documents_verification_status ON cal_documents(verification_status);
 CREATE INDEX idx_cal_documents_uploaded_at ON cal_documents(uploaded_at DESC);
+
+-- Create application workflow status table
+CREATE TABLE application_workflow_status (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    workflow_step_id INTEGER NOT NULL REFERENCES program_workflow_steps(id) ON DELETE CASCADE,
+    step_status VARCHAR(20) NOT NULL DEFAULT 'not_started', -- not_started, in_progress, pending_review, approved, rejected, completed
+    started_at TIMESTAMP, -- When user started working on this step
+    completed_at TIMESTAMP, -- When user completed their part
+    reviewed_at TIMESTAMP, -- When admin reviewed this step
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who reviewed
+    admin_feedback TEXT, -- Admin comments/feedback
+    step_data TEXT, -- JSON data specific to this step (uploaded files, form data, etc.)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(application_id, workflow_step_id) -- prevent duplicate step status per application
+);
+
+CREATE INDEX idx_workflow_status_application_id ON application_workflow_status(application_id);
+CREATE INDEX idx_workflow_status_workflow_step_id ON application_workflow_status(workflow_step_id);
+CREATE INDEX idx_workflow_status_step_status ON application_workflow_status(step_status);
+CREATE INDEX idx_workflow_status_reviewed_by ON application_workflow_status(reviewed_by);
+CREATE INDEX idx_workflow_status ON application_workflow_status(application_id, step_status);
 
 -- INSERT ADMIN USER
 INSERT INTO users (email, password_hash, first_name, middle_name, last_name, role) VALUES 
