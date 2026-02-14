@@ -56,6 +56,7 @@ class Programs(db.Model):
     file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True, index=True)  # NEW: Track active programs
     allow_online_upload = db.Column(db.Boolean, default=True)  # Enable/disable online document submission
+    enable_application_slip = db.Column(db.Boolean, default=True)  # Enable/disable application slip printing
     
     # Relationships
     applications = db.relationship('Applications', back_populates='program', lazy=True)
@@ -80,7 +81,6 @@ class ProgramWorkflowSteps(db.Model):
     step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
     is_pre_approval = db.Column(db.Boolean, default=False)  # True if step must be completed before application approval
     requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
-    min_items = db.Column(db.Integer, default=1)  # Minimum items required (e.g., 3 photos for ESA)
     allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
     step_config = db.Column(db.Text)  # JSON configuration for step-specific settings (required documents, etc.)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -88,6 +88,7 @@ class ProgramWorkflowSteps(db.Model):
     
     # Relationships
     program = db.relationship('Programs', back_populates='workflow_steps')
+    application_statuses = db.relationship('ApplicationWorkflowStatus', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<WorkflowStep {self.step_order}: {self.step_name} for Program {self.program_id}>'
@@ -103,7 +104,6 @@ class ProgramWorkflowSteps(db.Model):
             'step_type': self.step_type,
             'is_pre_approval': self.is_pre_approval,
             'requires_verification': self.requires_verification,
-            'min_items': self.min_items,
             'allowed_file_types': self.allowed_file_types,
             'step_config': self.step_config
         }
@@ -231,6 +231,15 @@ class Applications(db.Model):
     code_used_at = db.Column(db.DateTime)  # When code was used
     documents_submitted_at = db.Column(db.DateTime)  # When documents were physically submitted
     
+    # Cancellation request fields
+    cancellation_requested = db.Column(db.Boolean, default=False, index=True)  # True if cancellation has been requested
+    cancellation_reason = db.Column(db.Text)  # User's reason for requesting cancellation
+    cancellation_requested_at = db.Column(db.DateTime)  # When cancellation was requested
+    cancellation_status = db.Column(db.String(20))  # 'pending', 'approved', 'rejected'
+    cancellation_reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Admin who reviewed cancellation
+    cancellation_reviewed_at = db.Column(db.DateTime)  # When cancellation was reviewed
+    cancellation_admin_notes = db.Column(db.Text)  # Admin notes about cancellation decision
+    
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -247,6 +256,7 @@ class Applications(db.Model):
     program = db.relationship('Programs', back_populates='applications')
     shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
     cal_documents = db.relationship('CALDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
+    workflow_status = db.relationship('ApplicationWorkflowStatus', foreign_keys='ApplicationWorkflowStatus.application_id', lazy=True, cascade='all, delete-orphan')
     
     # Note: applicant, reviewer, and claim_scheduler relationships are defined in User model
     
@@ -569,9 +579,9 @@ class ApplicationWorkflowStatus(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    application = db.relationship('Applications', backref='workflow_status')
-    workflow_step = db.relationship('ProgramWorkflowSteps', backref='application_statuses')
+    application = db.relationship('Applications', foreign_keys='ApplicationWorkflowStatus.application_id')
     reviewer = db.relationship('User', backref='reviewed_workflow_steps')
+    workflow_step = db.relationship('ProgramWorkflowSteps', foreign_keys='ApplicationWorkflowStatus.workflow_step_id', lazy='select')
     
     # Composite unique constraint to prevent duplicate step status per application
     __table_args__ = (

@@ -24,7 +24,7 @@ def init_db():
         if not admin_user:
             admin_user = User(
                 email='MSWDMabitac@gmail.com',
-                password_hash=generate_password_hash('MabitacMSWD_2025'),
+                password_hash=generate_password_hash('MabitacMSWD_2025', method='pbkdf2:sha256'),
                 first_name='MSWD',
                 middle_name='',
                 last_name='Mabitac',
@@ -45,7 +45,7 @@ def init_db():
         if not sample_user:
             sample_user = User(
                 email='user1@test.com',
-                password_hash=generate_password_hash('password123'),
+                password_hash=generate_password_hash('password123', method='pbkdf2:sha256'),
                 first_name='Juan',
                 middle_name='A',
                 last_name='Dela Cruz',

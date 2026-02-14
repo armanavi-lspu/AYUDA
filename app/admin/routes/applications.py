@@ -377,6 +377,7 @@ def view_application(application_id):
     
     # Organize content by workflow steps
     workflow_steps_data = []
+    workflow_steps_json = []
     if application.program.workflow_steps:
         import json
         
@@ -419,7 +420,7 @@ def view_application(application_id):
                             # Serialize upload object to dictionary
                             upload_dict = {
                                 'id': upload_obj.id,
-                                'file_name': upload_obj.file_name,
+                                'file_name': upload_obj.original_filename,
                                 'file_path': upload_obj.file_path,
                                 'uploaded_at': upload_obj.uploaded_at.isoformat() if upload_obj.uploaded_at else None,
                                 'requirement_id': upload_obj.requirement_id,
@@ -435,7 +436,7 @@ def view_application(application_id):
                     for upload_obj in uploads_by_requirement.values():
                         upload_dict = {
                             'id': upload_obj.id,
-                            'file_name': upload_obj.file_name,
+                            'file_name': upload_obj.original_filename,
                             'file_path': upload_obj.file_path,
                             'uploaded_at': upload_obj.uploaded_at.isoformat() if upload_obj.uploaded_at else None,
                             'requirement_id': upload_obj.requirement_id,
@@ -447,6 +448,9 @@ def view_application(application_id):
                     step_data['requirements'] = qualification_requirements.copy()
             
             workflow_steps_data.append(step_data)
+        
+        # Extract just the step information for JSON serialization in template
+        workflow_steps_json = [step_data['step'] for step_data in workflow_steps_data]
     
     # Calculate date values for deadline picker
     today = datetime.utcnow()
@@ -465,6 +469,7 @@ def view_application(application_id):
         qualification_requirements=qualification_requirements,
         uploads_by_requirement=uploads_by_requirement,
         workflow_steps_data=workflow_steps_data,
+        workflow_steps_json=workflow_steps_json,
         workflow_status=workflow_status,
         min_date=min_date,
         default_deadline=default_deadline,
@@ -503,6 +508,66 @@ def update_application_status(application_id):
                 application.submission_deadline = deadline_date
             except ValueError:
                 flash('Invalid deadline date format.', 'warning')
+        
+        # Update workflow status based on application status change
+        if application.program.workflow_steps:
+            workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order)
+            
+            if new_status == 'approved':
+                # Mark approval steps as completed
+                for step in workflow_steps:
+                    if step.step_type == 'approval' and step.is_pre_approval:
+                        workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                            application_id=application_id,
+                            workflow_step_id=step.id
+                        ).first()
+                        if workflow_status:
+                            workflow_status.step_status = 'approved'
+                            workflow_status.completed_at = datetime.utcnow()
+                            workflow_status.reviewed_by = current_user.id
+                            workflow_status.updated_at = datetime.utcnow()
+            
+            elif new_status == 'active':
+                # Mark initial steps as completed, enable document submission
+                for step in workflow_steps:
+                    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                        application_id=application_id,
+                        workflow_step_id=step.id
+                    ).first()
+                    if workflow_status:
+                        if step.step_type in ['approval', 'verification'] and step.step_order < 3:
+                            workflow_status.step_status = 'approved'
+                            workflow_status.completed_at = datetime.utcnow()
+                        elif step.step_type == 'document_submission':
+                            workflow_status.step_status = 'in_progress'
+                            workflow_status.started_at = datetime.utcnow()
+                        workflow_status.updated_at = datetime.utcnow()
+            
+            elif new_status == 'completed':
+                # Mark all steps as completed
+                for step in workflow_steps:
+                    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                        application_id=application_id,
+                        workflow_step_id=step.id
+                    ).first()
+                    if workflow_status and workflow_status.step_status != 'approved':
+                        workflow_status.step_status = 'completed'
+                        workflow_status.completed_at = datetime.utcnow()
+                        workflow_status.updated_at = datetime.utcnow()
+            
+            elif new_status == 'rejected':
+                # Mark current step as rejected
+                for step in workflow_steps:
+                    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                        application_id=application_id,
+                        workflow_step_id=step.id
+                    ).first()
+                    if workflow_status and workflow_status.step_status in ['in_progress', 'pending_review']:
+                        workflow_status.step_status = 'rejected'
+                        workflow_status.reviewed_at = datetime.utcnow()
+                        workflow_status.reviewed_by = current_user.id
+                        workflow_status.updated_at = datetime.utcnow()
+                        break
         
         # Create notification for applicant
         if new_status == 'approved':
@@ -921,6 +986,32 @@ def verify_all_shelter_photos(application_id):
                         uploaded_at=datetime.utcnow()
                     )
                     db.session.add(new_doc)
+        
+        # Sync workflow step status with photo verification
+        photo_upload_step = ProgramWorkflowSteps.query.filter_by(
+            program_id=application.program_id,
+            step_type='photo_upload'
+        ).first()
+        
+        if photo_upload_step:
+            workflow_status_obj = ApplicationWorkflowStatus.query.filter_by(
+                application_id=application_id,
+                workflow_step_id=photo_upload_step.id
+            ).first()
+            
+            if workflow_status_obj:
+                if action == 'approve':
+                    workflow_status_obj.step_status = 'approved'
+                    workflow_status_obj.reviewed_at = datetime.utcnow()
+                    workflow_status_obj.reviewed_by = current_user.id
+                    workflow_status_obj.admin_feedback = admin_notes or 'Photos approved'
+                    workflow_status_obj.completed_at = datetime.utcnow()
+                else:
+                    workflow_status_obj.step_status = 'rejected'
+                    workflow_status_obj.reviewed_at = datetime.utcnow()
+                    workflow_status_obj.reviewed_by = current_user.id
+                    workflow_status_obj.admin_feedback = admin_notes or 'Photos rejected'
+                workflow_status_obj.updated_at = datetime.utcnow()
         
         # Create notification for applicant
         if action == 'approve':
@@ -1472,6 +1563,11 @@ def application_slip(application_id):
     """Display printable application slip with verification code - Admin only"""
     application = Applications.query.get_or_404(application_id)
     
+    # Check if application slip is enabled for this program
+    if not application.program.enable_application_slip:
+        flash('Application slip printing is not enabled for this program.', 'warning')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
     # Only allow slip printing for approved or active applications
     if application.application_status not in ['approved', 'active', 'completed']:
         flash('Application slip can only be printed for approved or active applications.', 'warning')
@@ -2012,6 +2108,152 @@ def reject_workflow_step(application_id, step_id):
         return jsonify({'success': False, 'message': str(e)})
 
 
+@admin_bp.route('/applications/<int:application_id>/approve-workflow-approval', methods=['POST'])
+@login_required
+@role_required('admin')
+def approve_workflow_approval_step(application_id):
+    """Approve an application through the workflow approval step - updates both workflow status and application status"""
+    application = Applications.query.get_or_404(application_id)
+    
+    feedback = request.form.get('feedback', '').strip()
+    submission_deadline = request.form.get('submission_deadline', '').strip()
+    
+    try:
+        # Find the approval workflow step for this program
+        approval_step = ProgramWorkflowSteps.query.filter_by(
+            program_id=application.program_id,
+            step_type='approval'
+        ).first()
+        
+        if approval_step:
+            # Update the workflow status for the approval step
+            workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                application_id=application_id,
+                workflow_step_id=approval_step.id
+            ).first()
+            
+            if workflow_status:
+                workflow_status.step_status = 'approved'
+                workflow_status.reviewed_at = datetime.utcnow()
+                workflow_status.reviewed_by = current_user.id
+                workflow_status.admin_feedback = feedback if feedback else None
+                workflow_status.completed_at = datetime.utcnow()
+                workflow_status.updated_at = datetime.utcnow()
+        
+        # Update the application status to approved
+        application.application_status = 'approved'
+        application.reviewed_by = current_user.id
+        application.review_date = datetime.utcnow()
+        application.updated_at = datetime.utcnow()
+        
+        if feedback:
+            application.remarks = feedback
+        
+        # Set submission deadline if provided
+        if submission_deadline:
+            try:
+                deadline_date = datetime.strptime(submission_deadline, '%Y-%m-%d')
+                application.submission_deadline = deadline_date
+            except ValueError:
+                pass
+        
+        db.session.commit()
+        
+        # Enable next workflow step
+        if approval_step:
+            _check_and_enable_next_step(application, approval_step.id)
+        
+        # Create notification for applicant
+        deadline_text = ''
+        if application.submission_deadline:
+            deadline_text = f" Please complete the next steps by {application.submission_deadline.strftime('%B %d, %Y')}."
+        
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title='Application Approved!',
+            notif_message=f'Your application for {application.program.program_name} has been approved.{deadline_text}',
+            is_read=False,
+            related_id=application.id,
+            related_type='application',
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(f'Application #{application_id} has been approved successfully.', 'success')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error approving application: {str(e)}', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+
+
+@admin_bp.route('/applications/<int:application_id>/decline-workflow-approval', methods=['POST'])
+@login_required
+@role_required('admin')
+def decline_workflow_approval_step(application_id):
+    """Decline an application through the workflow approval step - updates both workflow status and application status"""
+    application = Applications.query.get_or_404(application_id)
+    
+    feedback = request.form.get('feedback', '').strip()
+    
+    if not feedback:
+        flash('Please provide a reason for declining the application.', 'warning')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+    
+    try:
+        # Find the approval workflow step for this program
+        approval_step = ProgramWorkflowSteps.query.filter_by(
+            program_id=application.program_id,
+            step_type='approval'
+        ).first()
+        
+        if approval_step:
+            # Update the workflow status for the approval step
+            workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                application_id=application_id,
+                workflow_step_id=approval_step.id
+            ).first()
+            
+            if workflow_status:
+                workflow_status.step_status = 'rejected'
+                workflow_status.reviewed_at = datetime.utcnow()
+                workflow_status.reviewed_by = current_user.id
+                workflow_status.admin_feedback = feedback
+                workflow_status.updated_at = datetime.utcnow()
+        
+        # Update the application status to rejected
+        application.application_status = 'rejected'
+        application.reviewed_by = current_user.id
+        application.review_date = datetime.utcnow()
+        application.remarks = feedback
+        application.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Create notification for applicant
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title='Application Update',
+            notif_message=f'Your application for {application.program.program_name} has been reviewed. Reason: {feedback}',
+            is_read=False,
+            related_id=application.id,
+            related_type='application',
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(f'Application #{application_id} has been declined.', 'info')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error declining application: {str(e)}', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application_id))
+
+
 def _check_and_enable_next_step(application, completed_step_id):
     """Check if the next workflow step can be enabled"""
     # Get all workflow steps for this application
@@ -2104,3 +2346,69 @@ def reset_workflow_step(application_id, step_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
+
+
+@admin_bp.route('/applications/<int:application_id>/review-cancellation', methods=['POST'])
+@login_required
+@role_required('admin')
+def review_cancellation_request(application_id):
+    """Approve or reject a cancellation request from a community user"""
+    try:
+        application = Applications.query.get_or_404(application_id)
+        
+        # Verify cancellation is pending
+        if not application.cancellation_requested or application.cancellation_status != 'pending':
+            flash('No pending cancellation request found for this application.', 'warning')
+            return redirect(url_for('admin.view_application', application_id=application_id))
+        
+        decision = request.form.get('decision')  # 'approve' or 'reject'
+        admin_notes = request.form.get('admin_notes', '').strip()
+        
+        if decision not in ['approve', 'reject']:
+            flash('Invalid decision.', 'danger')
+            return redirect(url_for('admin.view_application', application_id=application_id))
+        
+        # Update cancellation status
+        application.cancellation_status = 'approved' if decision == 'approve' else 'rejected'
+        application.cancellation_reviewed_by = current_user.id
+        application.cancellation_reviewed_at = datetime.utcnow()
+        application.cancellation_admin_notes = admin_notes
+        application.updated_at = datetime.utcnow()
+        
+        if decision == 'approve':
+            # Mark application as cancelled
+            application.application_status = 'cancelled'
+            
+            # Create notification for user
+            notification = Notifications(
+                user_id=application.user_id,
+                notif_title=f'Cancellation Approved - {application.program.program_name}',
+                notif_message=f'Your cancellation request has been approved. Your application for {application.program.program_name} has been cancelled.',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+            
+            flash(f'Cancellation request approved. Application #{application_id} has been cancelled.', 'success')
+        else:
+            # Rejected - application continues as normal
+            notification = Notifications(
+                user_id=application.user_id,
+                notif_title=f'Cancellation Request Declined - {application.program.program_name}',
+                notif_message=f'Your cancellation request has been declined. {admin_notes if admin_notes else "Your application will continue as normal."}',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+            
+            flash(f'Cancellation request rejected. Application #{application_id} will continue as normal.', 'info')
+        
+        db.session.commit()
+        return redirect(url_for('admin.view_application', application_id=application_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error processing cancellation request: {str(e)}', 'danger')
+        return redirect(url_for('admin.view_application', application_id=application_id))

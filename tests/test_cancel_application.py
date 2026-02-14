@@ -17,7 +17,7 @@ with app.app_context():
         print('  ✓ Confirmation modal prevents accidental deletion')
         print('  ✓ Cascading delete: application + documents + photos')
         print('  ✓ File cleanup: removes uploaded files from disk')
-        print('  ✓ Cancel button hidden for approved applications')
+        print('  ✓ Cancel button hidden for active applications')
         print('')
         print('Route: POST /community/applications/<id>/cancel')
         print('Access: Application Details Page')

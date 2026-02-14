@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, redirect, url_for, request, flash, send_file
+from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, current_app
 from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
@@ -326,25 +326,26 @@ def upload_shelter_photos(application_id):
                         flash(f'File {file.filename} is too large. Maximum size is 5MB.', 'warning')
                         continue
                     
-                    # Create upload directory
-                    upload_path = os.path.join('static', 'uploads', 'shelter_photos', str(application_id))
-                    os.makedirs(upload_path, exist_ok=True)
+                    # Create upload directory in Flask's static folder
+                    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'shelter_photos', str(application_id))
+                    os.makedirs(upload_dir, exist_ok=True)
                     
                     # Secure filename and save
                     filename = secure_filename(file.filename)
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     unique_filename = f"{timestamp}_{idx}_{filename}"
-                    file_path = os.path.join(upload_path, unique_filename)
+                    file_path = os.path.join(upload_dir, unique_filename)
                     
                     file.save(file_path)
                     
                     # Get caption if provided
                     caption = captions[idx] if idx < len(captions) else ''
                     
-                    # Save to database
+                    # Save to database - store path relative to static folder
+                    relative_path = os.path.join('uploads', 'shelter_photos', str(application_id), unique_filename).replace('\\', '/')
                     shelter_photo = ShelterPhotos(
                         application_id=application_id,
-                        photo_path=file_path.replace('\\', '/'),
+                        photo_path=f'uploads/shelter_photos/{application_id}/{unique_filename}',
                         caption=caption,
                         verification_status='pending'
                     )
@@ -388,8 +389,9 @@ def delete_shelter_photo(photo_id):
     
     try:
         # Delete file from filesystem
-        if os.path.exists(photo.photo_path):
-            os.remove(photo.photo_path)
+        full_path = os.path.join(current_app.static_folder, photo.photo_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
         
         application_id = photo.application_id
         db.session.delete(photo)
@@ -401,6 +403,101 @@ def delete_shelter_photo(photo_id):
         flash(f'Error deleting photo: {str(e)}', 'danger')
     
     return redirect(url_for('community.application_detail', application_id=application_id))
+
+
+@community_bp.route('/shelter-photo/<int:photo_id>/edit-caption', methods=['POST'])
+@login_required
+@role_required('community')
+def edit_shelter_photo_caption(photo_id):
+    """Edit the caption of a shelter photo"""
+    photo = ShelterPhotos.query.get_or_404(photo_id)
+    
+    # Verify ownership
+    if photo.application.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+    
+    # Only allow editing if not approved
+    if photo.verification_status == 'approved':
+        return jsonify({'success': False, 'message': 'Cannot edit approved photo'}), 400
+    
+    try:
+        caption = request.form.get('caption', '').strip()
+        photo.caption = caption if caption else None
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Caption updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+
+@community_bp.route('/shelter-photo/<int:photo_id>/replace', methods=['POST'])
+@login_required
+@role_required('community')
+def replace_shelter_photo(photo_id):
+    """Replace an existing shelter photo with a new one"""
+    photo = ShelterPhotos.query.get_or_404(photo_id)
+    application = photo.application
+    
+    # Verify ownership
+    if application.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+    
+    # Only allow replacement if not approved
+    if photo.verification_status == 'approved':
+        return jsonify({'success': False, 'message': 'Cannot replace approved photo'}), 400
+    
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'message': 'No file selected'}), 400
+    
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+    
+    try:
+        # Validate file
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if file_ext not in ALLOWED_EXTENSIONS:
+            return jsonify({'success': False, 'message': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # Check file size
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'success': False, 'message': 'File is too large. Maximum size is 5MB.'}), 400
+        
+        # Delete old file
+        old_full_path = os.path.join(current_app.static_folder, photo.photo_path)
+        if os.path.exists(old_full_path):
+            os.remove(old_full_path)
+        
+        # Save new file in same directory
+        upload_dir = os.path.dirname(old_full_path)
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        filename = secure_filename(file.filename)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{timestamp}_replaced_{filename}"
+        new_file_path = os.path.join(upload_dir, unique_filename)
+        
+        file.save(new_file_path)
+        
+        # Update database - store relative path
+        photo.photo_path = f'uploads/shelter_photos/{application.id}/{unique_filename}'
+        photo.verification_status = 'pending'  # Reset to pending for re-review
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Photo replaced successfully!',
+            'photo_path': f'uploads/shelter_photos/{application.id}/{unique_filename}'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Upload error: {str(e)}'}), 500
 
 
 # ===================== CA (Capital Assistance) Routes =====================

@@ -121,7 +121,7 @@ def add_admin():
         # Create new admin user
         new_admin = User(
             email=email,
-            password_hash=generate_password_hash(temp_password),
+            password_hash=generate_password_hash(temp_password, method='pbkdf2:sha256'),
             first_name=first_name,
             middle_name=middle_name,
             last_name=last_name,
@@ -228,7 +228,7 @@ def reset_admin_password(admin_id):
     new_password = ''.join(secrets.choice(string.digits) for _ in range(8))
     
     try:
-        admin_user.password_hash = generate_password_hash(new_password)
+        admin_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
         
         # Create notification
         notification = Notifications(

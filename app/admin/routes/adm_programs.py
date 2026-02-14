@@ -264,14 +264,19 @@ def add_program():
         beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
         income_range = request.form.get('income_range', '').strip() or None
         
-        # Get duration fields
-        start_date_str = request.form.get('start_date', '').strip()
-        end_date_str = request.form.get('end_date', '').strip()
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        # Get toggle settings
+        use_beneficiary_limit = request.form.get('use_beneficiary_limit') == 'on'
+        use_income_range = request.form.get('use_income_range') == 'on'
         
-        # Get online upload setting
+        # Get online upload and application slip settings
         allow_online_upload = request.form.get('allow_online_upload') == 'on'
+        enable_application_slip = request.form.get('enable_application_slip') == 'on'
+        
+        # If toggles are off, clear the values
+        if not use_beneficiary_limit:
+            beneficiary_limit = None
+        if not use_income_range:
+            income_range = None
         
         # Get selected requirements
         requirement_ids = request.form.getlist('requirements')
@@ -323,14 +328,17 @@ def add_program():
             program_period=program_period,
             priority_group=priority_group,
             beneficiary_limit=beneficiary_limit,
+            use_beneficiary_limit=use_beneficiary_limit,
             income_range=income_range,
+            use_income_range=use_income_range,
             start_date=start_date,
             end_date=end_date,
             description=description,
             user_id=current_user.id,
             file_attachment_id=file_attachment.id if file_attachment else None,
             date=datetime.utcnow(),
-            allow_online_upload=allow_online_upload
+            allow_online_upload=allow_online_upload,
+            enable_application_slip=enable_application_slip
         )
         
         try:
@@ -358,7 +366,7 @@ def add_program():
                 workflow_steps = []
             
             if workflow_steps:
-                # Add custom workflow steps from form
+                # Add custom workflow steps from form (non-ESA programs only)
                 for index, step_data in enumerate(workflow_steps, start=1):
                     if step_data.get('step_name', '').strip():
                         step = ProgramWorkflowSteps(
@@ -369,7 +377,6 @@ def add_program():
                             step_type=step_data.get('step_type', 'approval'),
                             is_pre_approval=step_data.get('is_pre_approval', False),
                             requires_verification=step_data.get('requires_verification', True),
-                            min_items=int(step_data.get('min_items', 1)),
                             allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
                             step_config=step_data.get('step_config', None)
                         )
@@ -378,23 +385,16 @@ def add_program():
                 # Add default workflow steps based on program type
                 if program_type == 'ESA':
                     default_steps = [
-                        {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 3, 'allowed_file_types': 'jpg,jpeg,png,gif'},
-                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': None},
-                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': None}
-                    ]
-                elif program_type == 'CA':
-                    default_steps = [
-                        {'step_name': 'Upload Certificate of Participation', 'step_description': 'Upload your Certificate of Participation from the livelihood training seminar', 'step_type': 'document_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'jpg,jpeg,png,pdf'},
-                        {'step_name': 'Upload Capital Assistance Proposal', 'step_description': 'Upload your business plan/proposal for the capital assistance', 'step_type': 'document_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'jpg,jpeg,png,pdf,doc,docx'},
-                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': None},
-                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': None}
+                        {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'allowed_file_types': 'jpg,jpeg,png,gif'},
+                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 else:
                     # Default steps for other programs (AICS, CA, etc.)
                     default_steps = [
-                        {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': None},
-                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': None},
-                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': None}
+                        {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
+                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 
                 for index, step_data in enumerate(default_steps, start=1):
@@ -406,13 +406,13 @@ def add_program():
                         step_type=step_data['step_type'],
                         is_pre_approval=step_data['is_pre_approval'],
                         requires_verification=step_data['requires_verification'],
-                        min_items=step_data['min_items'],
                         allowed_file_types=step_data['allowed_file_types']
                     )
                     db.session.add(step)
             
             db.session.commit()
-            flash(f'Program "{program_name}" created successfully!', 'success')
+            success_msg = f'Program "{program_name}" created successfully!'
+            flash(success_msg, 'success')
             return redirect(url_for('admin.adm_programs'))
             
         except Exception as e:
@@ -482,6 +482,9 @@ def edit_program(id):
                 )
                 db.session.add(prog_req)
             
+            # Update the last modified timestamp
+            Programs.query.filter_by(id=id).update({'updated_at': datetime.utcnow()})
+            
             db.session.commit()
             success_msg = 'Requirements updated successfully!'
             if is_ajax:
@@ -491,7 +494,7 @@ def edit_program(id):
             
         elif update_type == 'workflow':
             # Handle workflow-only update
-            from app.models import ProgramWorkflowSteps
+            from app.models import ProgramWorkflowSteps, ApplicationWorkflowStatus
             import json
             
             workflow_steps_json = request.form.get('workflow_steps_json', '[]')
@@ -500,25 +503,63 @@ def edit_program(id):
             except:
                 workflow_steps = []
             
+            # Delete dependent application workflow statuses first
+            workflow_step_ids = db.session.query(ProgramWorkflowSteps.id).filter_by(program_id=id).all()
+            if workflow_step_ids:
+                workflow_step_ids = [id[0] for id in workflow_step_ids]
+                ApplicationWorkflowStatus.query.filter(ApplicationWorkflowStatus.workflow_step_id.in_(workflow_step_ids)).delete(synchronize_session='fetch')
+            
             # Delete existing workflow steps
             ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
             
-            # Add new workflow steps
-            for index, step_data in enumerate(workflow_steps, start=1):
-                if step_data.get('step_name', '').strip():
+            # Add workflow steps
+            if workflow_steps:
+                # Add custom workflow steps (non-ESA programs only)
+                for index, step_data in enumerate(workflow_steps, start=1):
+                    if step_data.get('step_name', '').strip():
+                        step = ProgramWorkflowSteps(
+                            program_id=id,
+                            step_order=index,
+                            step_name=step_data.get('step_name', '').strip(),
+                            step_description=step_data.get('step_description', '').strip() or None,
+                            step_type=step_data.get('step_type', 'approval'),
+                            is_pre_approval=step_data.get('is_pre_approval', False),
+                            requires_verification=step_data.get('requires_verification', True),
+                            allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
+                            step_config=step_data.get('step_config', None)
+                        )
+                        db.session.add(step)
+            else:
+                # Add default workflow steps based on program type
+                if program.program_type == 'ESA':
+                    default_steps = [
+                        {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'allowed_file_types': 'jpg,jpeg,png,gif'},
+                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
+                    ]
+                else:
+                    # Default steps for other programs (AICS, CA, etc.)
+                    default_steps = [
+                        {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
+                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
+                    ]
+                
+                for index, step_data in enumerate(default_steps, start=1):
                     step = ProgramWorkflowSteps(
                         program_id=id,
                         step_order=index,
-                        step_name=step_data.get('step_name', '').strip(),
-                        step_description=step_data.get('step_description', '').strip() or None,
-                        step_type=step_data.get('step_type', 'approval'),
-                        is_pre_approval=step_data.get('is_pre_approval', False),
-                        requires_verification=step_data.get('requires_verification', True),
-                        min_items=int(step_data.get('min_items', 1)),
-                        allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
-                        step_config=step_data.get('step_config', None)
+                        step_name=step_data['step_name'],
+                        step_description=step_data['step_description'],
+                        step_type=step_data['step_type'],
+                        is_pre_approval=step_data['is_pre_approval'],
+                        requires_verification=step_data['requires_verification'],
+                        allowed_file_types=step_data['allowed_file_types']
                     )
                     db.session.add(step)
+            
+            # Update the last modified timestamp
+            Programs.query.filter_by(id=id).update({'updated_at': datetime.utcnow()})
             
             db.session.commit()
             success_msg = 'Workflow steps updated successfully!'
@@ -546,14 +587,25 @@ def edit_program(id):
     beneficiary_limit = int(beneficiary_limit_str) if beneficiary_limit_str and beneficiary_limit_str.isdigit() else None
     income_range = request.form.get('income_range', '').strip() or None
     
+    # Get toggle settings
+    use_beneficiary_limit = request.form.get('use_beneficiary_limit') == 'on'
+    use_income_range = request.form.get('use_income_range') == 'on'
+    
+    # If toggles are off, clear the values
+    if not use_beneficiary_limit:
+        beneficiary_limit = None
+    if not use_income_range:
+        income_range = None
+    
     # Get duration fields
     start_date_str = request.form.get('start_date', '').strip()
     end_date_str = request.form.get('end_date', '').strip()
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
     
-    # Get online upload setting
+    # Get online upload and application slip settings
     allow_online_upload = request.form.get('allow_online_upload') == '1' or request.form.get('allow_online_upload') == 'on'
+    enable_application_slip = request.form.get('enable_application_slip') == '1' or request.form.get('enable_application_slip') == 'on'
     
     # Validation
     if not program_name or not program_type or not program_period:
@@ -578,11 +630,14 @@ def edit_program(id):
         program.program_period = program_period
         program.priority_group = priority_group
         program.beneficiary_limit = beneficiary_limit
+        program.use_beneficiary_limit = use_beneficiary_limit
         program.income_range = income_range
+        program.use_income_range = use_income_range
         program.start_date = start_date
         program.end_date = end_date
         program.description = description
         program.allow_online_upload = allow_online_upload
+        program.enable_application_slip = enable_application_slip
         
         # Handle file upload
         if 'attachment' in request.files:
@@ -640,7 +695,7 @@ def edit_program(id):
         
         # Update workflow steps (only for full program updates, not modal-specific updates)
         if update_type != 'workflow':
-            from app.models import ProgramWorkflowSteps
+            from app.models import ProgramWorkflowSteps, ApplicationWorkflowStatus
             import json
             
             workflow_steps_json = request.form.get('workflow_steps_json', '[]')
@@ -648,6 +703,12 @@ def edit_program(id):
                 workflow_steps = json.loads(workflow_steps_json)
             except:
                 workflow_steps = []
+            
+            # Delete dependent application workflow statuses first
+            workflow_step_ids = db.session.query(ProgramWorkflowSteps.id).filter_by(program_id=id).all()
+            if workflow_step_ids:
+                workflow_step_ids = [id[0] for id in workflow_step_ids]
+                ApplicationWorkflowStatus.query.filter(ApplicationWorkflowStatus.workflow_step_id.in_(workflow_step_ids)).delete(synchronize_session='fetch')
             
             # Delete existing workflow steps
             ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
@@ -663,11 +724,13 @@ def edit_program(id):
                         step_type=step_data.get('step_type', 'approval'),
                         is_pre_approval=step_data.get('is_pre_approval', False),
                         requires_verification=step_data.get('requires_verification', True),
-                        min_items=int(step_data.get('min_items', 1)),
                         allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
                         step_config=step_data.get('step_config', None)
                     )
                     db.session.add(step)
+        
+        # Update the last modified timestamp
+        program.updated_at = datetime.utcnow()
         
         db.session.commit()
         success_msg = f'Program "{program_name}" updated successfully!'
@@ -1032,7 +1095,6 @@ def add_workflow_step(program_id):
         step_type = data.get('step_type', 'approval').strip()
         is_pre_approval = data.get('is_pre_approval') in [True, 'true', 'True', '1', 1, 'on']
         requires_verification = data.get('requires_verification') in [True, 'true', 'True', '1', 1, 'on']
-        min_items = int(data.get('min_items', 1))
         allowed_file_types = data.get('allowed_file_types', '').strip()
         
         if not step_name:
@@ -1050,7 +1112,6 @@ def add_workflow_step(program_id):
             step_type=step_type,
             is_pre_approval=is_pre_approval,
             requires_verification=requires_verification,
-            min_items=min_items,
             allowed_file_types=allowed_file_types if allowed_file_types else None
         )
         
@@ -1068,7 +1129,6 @@ def add_workflow_step(program_id):
                 'step_type': new_step.step_type,
                 'is_pre_approval': new_step.is_pre_approval,
                 'requires_verification': new_step.requires_verification,
-                'min_items': new_step.min_items,
                 'allowed_file_types': new_step.allowed_file_types
             }
         })
@@ -1100,8 +1160,6 @@ def update_workflow_step(program_id, step_id):
             step.is_pre_approval = data['is_pre_approval'] in [True, 'true', 'True', '1', 1, 'on']
         if 'requires_verification' in data:
             step.requires_verification = data['requires_verification'] in [True, 'true', 'True', '1', 1, 'on']
-        if 'min_items' in data:
-            step.min_items = int(data['min_items'])
         if 'allowed_file_types' in data:
             step.allowed_file_types = data['allowed_file_types'].strip() or None
         if 'step_config' in data:
@@ -1121,7 +1179,6 @@ def update_workflow_step(program_id, step_id):
                 'step_type': step.step_type,
                 'is_pre_approval': step.is_pre_approval,
                 'requires_verification': step.requires_verification,
-                'min_items': step.min_items,
                 'allowed_file_types': step.allowed_file_types,
                 'step_config': step.step_config
             }
@@ -1274,17 +1331,6 @@ def get_workflow_templates():
             'steps': [
                 {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 3, 'allowed_file_types': 'jpg,jpeg,png,gif'},
                 {'step_name': 'Application Review', 'step_description': 'Admin reviews shelter photos and application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
-                {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
-                {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
-            ]
-        },
-        'CA': {
-            'name': 'Capital Assistance',
-            'description': 'Workflow for CA programs with certificate and proposal upload',
-            'steps': [
-                {'step_name': 'Upload Certificate of Participation', 'step_description': 'Upload your Certificate of Participation from the livelihood training seminar', 'step_type': 'document_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'jpg,jpeg,png,pdf'},
-                {'step_name': 'Upload Capital Assistance Proposal', 'step_description': 'Upload your business plan/proposal for the capital assistance', 'step_type': 'document_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'jpg,jpeg,png,pdf,doc,docx'},
-                {'step_name': 'Application Review', 'step_description': 'Admin reviews documents and approves application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
             ]

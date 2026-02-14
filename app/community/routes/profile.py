@@ -145,7 +145,7 @@ def change_password():
         return redirect(url_for('community.settings'))
     
     try:
-        current_user.password_hash = generate_password_hash(new_password)
+        current_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
         db.session.commit()
         flash('Password changed successfully!', 'success')
     except Exception as e:

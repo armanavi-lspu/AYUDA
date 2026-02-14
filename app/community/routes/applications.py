@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
 from app.utils import role_required
-from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps
+from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers
 from app.extensions import db
 from sqlalchemy import desc, or_
 from werkzeug.utils import secure_filename
@@ -74,49 +74,14 @@ def applications():
 @login_required
 @role_required('community')
 def application_detail(application_id):
-    """Display detailed information about a specific application"""
+    """Redirect to workflow view to track application progress"""
     application = Applications.query.filter_by(
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
     
-    # Get all requirements with their details
-    all_requirements = db.session.query(
-        ApplicationDocuments,
-        ProgramRequirements.is_mandatory,
-        Requirements.requirement_name,
-        Requirements.description,
-        Requirements.requirement_type
-    ).join(
-        Requirements,
-        ApplicationDocuments.requirement_id == Requirements.id
-    ).join(
-        ProgramRequirements,
-        (ApplicationDocuments.requirement_id == ProgramRequirements.requirement_id) &
-        (ProgramRequirements.program_id == application.program_id)
-    ).filter(
-        ApplicationDocuments.application_id == application_id
-    ).all()
-    
-    # Separate documents and qualifications
-    document_requirements = []
-    qualification_requirements = []
-    
-    for doc, is_mandatory, req_name, description, req_type in all_requirements:
-        if req_type == 'document':
-            document_requirements.append((doc, is_mandatory, req_name, description))
-        elif req_type == 'qualification':
-            qualification_requirements.append((doc, is_mandatory, req_name, description))
-    
-    return render_template(
-        'community/application_details.html',
-        application=application,
-        document_requirements=document_requirements,
-        qualification_requirements=qualification_requirements,
-        datetime=datetime,
-        user=current_user,
-        today=datetime.utcnow().date()
-    )
+    # Always redirect to workflow view for applications
+    return redirect(url_for('community.application_workflow', application_id=application_id))
 
 
 @community_bp.route('/applications/<int:application_id>/workflow')
@@ -133,8 +98,22 @@ def application_workflow(application_id):
     workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order) if application.program.workflow_steps else []
     
     if not workflow_steps:
-        flash('This program does not have a configured workflow.', 'info')
-        return redirect(url_for('community.application_detail', application_id=application_id))
+        # Show application status information even without workflow steps
+        flash('This program does not have a detailed workflow configured. Showing application status.', 'info')
+        return render_template(
+            'community/application_workflow.html',
+            application=application,
+            workflow_steps=[],
+            workflow_status=[],
+            active_step=None,
+            current_step=None,
+            current_step_status=None,
+            step_content={},
+            progress_percentage=0,
+            datetime=datetime,
+            user=current_user,
+            no_workflow=True
+        )
     
     # Initialize workflow status for all steps if not exists
     _initialize_workflow_status(application, workflow_steps)
@@ -144,18 +123,22 @@ def application_workflow(application_id):
         application_id=application_id
     ).join(ProgramWorkflowSteps).order_by(ProgramWorkflowSteps.step_order).all()
     
-    # Determine current active step
-    current_step = None
-    current_step_status = None
+    # Check if user is requesting a specific step to view (e.g., from step history)
+    requested_step_id = request.args.get('step_id', type=int)
     
+    # FIRST: Determine the actual active step (what the user should be working on)
+    active_step = None
+    active_step_status = None
+    
+    # Find the step user should be working on
     for status in workflow_status:
-        if status.step_status in ['not_started', 'in_progress']:
-            current_step = status.workflow_step
-            current_step_status = status
+        if status.step_status in ['not_started', 'in_progress', 'rejected']:
+            active_step = status.workflow_step
+            active_step_status = status
             break
     
     # If no in-progress step, check if we can start the next step
-    if not current_step:
+    if not active_step:
         for status in workflow_status:
             if status.step_status == 'not_started':
                 # Check if previous steps are completed
@@ -167,9 +150,24 @@ def application_workflow(application_id):
                         break
                 
                 if previous_steps_completed:
+                    active_step = status.workflow_step
+                    active_step_status = status
+                    break
+    
+    # SECOND: Determine which step to display content for (may differ from active step)
+    current_step = active_step
+    current_step_status = active_step_status
+    
+    # If specific step is requested, display that step instead
+    if requested_step_id:
+        # Only allow viewing completed or current steps
+        for status in workflow_status:
+            if status.workflow_step.id == requested_step_id:
+                # Allow viewing if step is completed, approved, or is the current step
+                if status.step_status in ['completed', 'approved', 'in_progress', 'pending_review']:
                     current_step = status.workflow_step
                     current_step_status = status
-                    break
+                break
     
     # Get step-specific data based on step type
     step_content = {}
@@ -186,12 +184,14 @@ def application_workflow(application_id):
         application=application,
         workflow_steps=workflow_steps,
         workflow_status=workflow_status,
+        active_step=active_step,
         current_step=current_step,
         current_step_status=current_step_status,
         step_content=step_content,
         progress_percentage=progress_percentage,
         datetime=datetime,
-        user=current_user
+        user=current_user,
+        no_workflow=False
     )
 
 
@@ -254,19 +254,115 @@ def _get_step_content(application, step, step_status):
         ).all()
         content['uploads'] = uploads
         
+    elif step.step_type == 'photo_upload':
+        # Get shelter photos for this application
+        photos = ShelterPhotos.query.filter_by(
+            application_id=application.id
+        ).order_by(ShelterPhotos.uploaded_at.desc()).all()
+        content['photos'] = photos
+        content['photo_count'] = len(photos)
+        content['min_photos'] = 3  # Default minimum
+        content['has_min_photos'] = len(photos) >= 3
+        # Check verification status
+        approved_photos = [p for p in photos if p.verification_status == 'approved']
+        rejected_photos = [p for p in photos if p.verification_status == 'rejected']
+        pending_photos = [p for p in photos if p.verification_status == 'pending']
+        content['approved_count'] = len(approved_photos)
+        content['rejected_count'] = len(rejected_photos)
+        content['pending_count'] = len(pending_photos)
+        content['all_approved'] = len(approved_photos) >= 3
+        content['has_rejected'] = len(rejected_photos) > 0
+    
     elif step.step_type == 'approval':
-        # Get qualification requirements
-        requirements = db.session.query(
-            Requirements
+        # Get qualification requirements with mandatory status
+        qual_data = db.session.query(
+            Requirements, ProgramRequirements
         ).join(
             ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
         ).filter(
             ProgramRequirements.program_id == application.program_id,
             Requirements.requirement_type == 'qualification'
         ).all()
-        content['requirements'] = requirements
+        
+        # Get applicant community profile for qualification checking
+        community_profile = CommunityUsers.query.filter_by(user_id=application.user_id).first()
+        
+        qualification_list = []
+        for req, prog_req in qual_data:
+            is_met = _check_community_qualification(req.requirement_name, community_profile)
+            qualification_list.append({
+                'id': req.id,
+                'name': req.requirement_name,
+                'description': req.description,
+                'is_mandatory': prog_req.is_mandatory,
+                'is_met': is_met  # True, False, or None (needs manual review)
+            })
+        
+        content['qualifications'] = qualification_list
+        content['total_qualifications'] = len(qualification_list)
+        content['met_count'] = len([q for q in qualification_list if q['is_met'] is True])
+        content['not_met_count'] = len([q for q in qualification_list if q['is_met'] is False])
+        content['review_count'] = len([q for q in qualification_list if q['is_met'] is None])
+        
+        # Include basic applicant profile info for display
+        if community_profile:
+            content['applicant_profile'] = {
+                'age': community_profile.age,
+                'barangay': community_profile.barangay,
+                'municipality': community_profile.municipality,
+                'is_employed': community_profile.is_currently_employed,
+                'occupation': community_profile.occupation,
+                'is_student': community_profile.is_student,
+                'is_solo_parent': community_profile.is_solo_parent,
+                'is_pwd': community_profile.is_pwd,
+                'family_income': str(community_profile.family_annual_income) if community_profile.family_annual_income else None
+            }
+        
+        # Preserve old 'requirements' key for backward compatibility
+        content['requirements'] = [req for req, _ in qual_data]
     
     return content
+
+
+def _check_community_qualification(qual_name, community_profile):
+    """Check if an applicant meets a qualification requirement based on their profile"""
+    if not community_profile:
+        return None
+    
+    qual_name_lower = qual_name.lower()
+    
+    # Employment status
+    if 'unemployed' in qual_name_lower:
+        return not community_profile.is_currently_employed
+    
+    # Student status
+    if 'student' in qual_name_lower:
+        return community_profile.is_student
+    
+    # Solo parent
+    if 'solo parent' in qual_name_lower:
+        return community_profile.is_solo_parent
+    
+    # PWD
+    if 'pwd' in qual_name_lower or 'disability' in qual_name_lower or 'person with disability' in qual_name_lower:
+        return community_profile.is_pwd
+    
+    # Senior citizen
+    if 'senior' in qual_name_lower:
+        return community_profile.age >= 60 if community_profile.age else None
+    
+    # Low income
+    if 'low income' in qual_name_lower or 'indigent' in qual_name_lower:
+        if community_profile.family_annual_income is not None:
+            return float(community_profile.family_annual_income) < 200000
+        return None
+    
+    # Residency
+    if 'resident' in qual_name_lower and 'mabitac' in qual_name_lower:
+        return community_profile.municipality and 'mabitac' in community_profile.municipality.lower()
+    
+    # Manual verification needed for: fire victim, typhoon victim, deceased family, medical emergency
+    return None
 
 
 @community_bp.route('/documents/<int:doc_id>/download')
@@ -304,7 +400,7 @@ def download_document(doc_id):
 def application_slip(application_id):
     """Application slip viewing is disabled for community users"""    
     flash('Application slips can only be obtained from the MSWD Office. Please submit your documents to receive your application slip with verification code.', 'info')
-    return redirect(url_for('community.application_detail', application_id=application_id))
+    return redirect(url_for('community.application_workflow', application_id=application_id))
 
 
 @community_bp.route('/verify-code', methods=['GET', 'POST'])
@@ -332,7 +428,7 @@ def verify_code():
         # Check if code has already been used
         if application.code_used_at:
             flash(f'This verification code has already been used on {application.code_used_at.strftime("%B %d, %Y at %I:%M %p")}.', 'warning')
-            return redirect(url_for('community.application_detail', application_id=application.id))
+            return redirect(url_for('community.application_workflow', application_id=application.id))
         
         # Mark code as used and update application status
         try:
@@ -348,7 +444,7 @@ def verify_code():
             db.session.commit()
             
             flash(f'Verification successful! Your documents for {application.program.program_name} are now marked as submitted and pending review.', 'success')
-            return redirect(url_for('community.application_detail', application_id=application.id))
+            return redirect(url_for('community.application_workflow', application_id=application.id))
             
         except Exception as e:
             db.session.rollback()
@@ -389,9 +485,11 @@ def cancel_application(application_id):
         # Delete all shelter photos and their files
         if application.shelter_photos:
             for photo in application.shelter_photos:
-                if photo.photo_path and os.path.exists(photo.photo_path):
+                if photo.photo_path:
                     try:
-                        os.remove(photo.photo_path)
+                        full_path = os.path.join(current_app.static_folder, photo.photo_path)
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
                     except:
                         pass
                 db.session.delete(photo)
@@ -406,6 +504,66 @@ def cancel_application(application_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error cancelling application: {str(e)}', 'danger')
+        return redirect(url_for('community.application_workflow', application_id=application_id))
+
+
+@community_bp.route('/applications/<int:application_id>/request-cancel', methods=['POST'])
+@login_required
+@role_required('community')
+def request_cancel_application(application_id):
+    """Request cancellation of an approved/active application (requires admin approval)"""
+    try:
+        # Get the application and verify user owns it
+        application = Applications.query.filter_by(
+            id=application_id,
+            user_id=current_user.id
+        ).first_or_404()
+        
+        # Only allow cancellation requests for approved or active applications
+        if application.application_status not in ['approved', 'active']:
+            flash('Cancellation requests are only available for approved or active applications.', 'warning')
+            return redirect(url_for('community.application_detail', application_id=application_id))
+        
+        # Check if cancellation already requested
+        if application.cancellation_requested and application.cancellation_status == 'pending':
+            flash('You have already submitted a cancellation request for this application. Please wait for admin review.', 'info')
+            return redirect(url_for('community.application_detail', application_id=application_id))
+        
+        # Get cancellation reason from form
+        cancellation_reason = request.form.get('cancellation_reason', '').strip()
+        
+        if not cancellation_reason:
+            flash('Please provide a reason for cancellation.', 'warning')
+            return redirect(url_for('community.application_detail', application_id=application_id))
+        
+        # Update application with cancellation request
+        application.cancellation_requested = True
+        application.cancellation_reason = cancellation_reason
+        application.cancellation_requested_at = datetime.utcnow()
+        application.cancellation_status = 'pending'
+        application.updated_at = datetime.utcnow()
+        
+        # Create notifications for admins
+        admin_users = User.query.filter_by(role='admin').all()
+        for admin in admin_users:
+            notification = Notifications(
+                user_id=admin.id,
+                notif_title=f'Cancellation Request - {application.program.program_name}',
+                notif_message=f'{current_user.first_name} {current_user.last_name} has requested to cancel their {application.application_status} application for {application.program.program_name}.',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+        
+        db.session.commit()
+        
+        flash(f'Your cancellation request has been submitted. An administrator will review your request shortly.', 'success')
+        return redirect(url_for('community.application_detail', application_id=application_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error submitting cancellation request: {str(e)}', 'danger')
         return redirect(url_for('community.application_detail', application_id=application_id))
 
 
@@ -422,18 +580,18 @@ def upload_documents(application_id):
     # Check if online upload is enabled for this program
     if not application.program.allow_online_upload:
         flash('Online document upload is not available for this program. Please submit your documents physically at the MSWD office.', 'info')
-        return redirect(url_for('community.application_detail', application_id=application_id))
+        return redirect(url_for('community.application_workflow', application_id=application_id))
     
     # For ESA programs, check if shelter photos are verified first
     if application.program.program_type == 'ESA':
         if not application.shelter_photos or len(application.shelter_photos) < 3:
             flash('Please upload at least 3 shelter photos before submitting documents.', 'warning')
-            return redirect(url_for('community.application_detail', application_id=application_id))
+            return redirect(url_for('community.application_workflow', application_id=application_id))
         
         approved_photos = [p for p in application.shelter_photos if p.verification_status == 'approved']
         if len(approved_photos) < 3:
             flash('Your shelter photos must be verified before you can submit documents. Please wait for admin verification.', 'info')
-            return redirect(url_for('community.application_detail', application_id=application_id))
+            return redirect(url_for('community.application_workflow', application_id=application_id))
     
     # Get document requirements for this program (exclude qualifications)
     program_requirements = db.session.query(
@@ -589,7 +747,7 @@ def submit_documents(application_id):
     # Check if online upload is enabled for this program
     if not application.program.allow_online_upload:
         flash('Online document upload is not available for this program.', 'warning')
-        return redirect(url_for('community.application_details', application_id=application_id))
+        return redirect(url_for('community.application_workflow', application_id=application_id))
     
     try:
         # Get document requirements for this program
@@ -738,7 +896,7 @@ def submit_documents(application_id):
         else:
             flash('No new documents were uploaded.', 'info')
         
-        return redirect(url_for('community.application_detail', application_id=application_id))
+        return redirect(url_for('community.application_workflow', application_id=application_id))
         
     except Exception as e:
         db.session.rollback()
@@ -759,15 +917,20 @@ def view_uploaded_document(upload_id):
             return redirect(url_for('community.applications'))
     
     # Handle file path - stored paths are relative from project root
-    file_path = upload.file_path
+    file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
+    
+    # If path is relative, make it absolute using app root
     if not os.path.isabs(file_path):
-        # Convert relative path to absolute from project root (FLASK directory)
-        # Go up 3 levels from this file: routes -> community -> app -> FLASK
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        file_path = os.path.join(project_root, file_path)
+        file_path = os.path.join(current_app.root_path, file_path)
+    
+    # Normalize the path (handles .. and other path issues)
+    file_path = os.path.normpath(file_path)
     
     # Check if file exists
     if not os.path.exists(file_path):
+        print(f'Document file not found: {file_path}')
+        print(f'Stored path: {upload.file_path}')
+        print(f'App root: {current_app.root_path}')
         flash(f'Document file not found. Please contact support.', 'danger')
         return redirect(request.referrer or url_for('community.applications'))
     
@@ -778,8 +941,270 @@ def view_uploaded_document(upload_id):
             download_name=upload.original_filename
         )
     except Exception as e:
+        print(f'Error accessing document at {file_path}: {str(e)}')
         flash(f'Error accessing document: {str(e)}', 'danger')
         return redirect(request.referrer or url_for('community.applications'))
+
+
+@community_bp.route('/document-uploads/<int:upload_id>/view-data')
+@login_required
+def get_document_view_data(upload_id):
+    """Get document URLs for viewing in modal"""
+    try:
+        upload = ApplicationDocumentUploads.query.get_or_404(upload_id)
+        
+        # Security check: ensure user owns the application or is an admin
+        if current_user.role != 'admin':
+            if upload.application.user_id != current_user.id:
+                return jsonify({'success': False, 'message': 'Permission denied'}), 403
+        
+        # Handle file path - stored paths are relative from project root
+        file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
+        
+        # If path is relative, make it absolute using app root
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(current_app.root_path, file_path)
+        
+        # Normalize the path
+        file_path = os.path.normpath(file_path)
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return jsonify({'success': False, 'message': 'Document file not found'}), 404
+        
+        # Generate view and download URLs
+        view_url = url_for('community.view_uploaded_document', upload_id=upload_id)
+        download_url = url_for('community.download_workflow_document', upload_id=upload_id)
+        
+        return jsonify({
+            'success': True,
+            'document_url': view_url,
+            'download_url': download_url,
+            'filename': upload.original_filename
+        })
+    
+    except Exception as e:
+        print(f'Error getting document view data: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@community_bp.route('/document-uploads/<int:upload_id>/download')
+@login_required
+def download_workflow_document(upload_id):
+    """Download an uploaded document from workflow"""
+    upload = ApplicationDocumentUploads.query.get_or_404(upload_id)
+    
+    # Security check: ensure user owns the application or is an admin
+    if current_user.role != 'admin':
+        if upload.application.user_id != current_user.id:
+            flash('You do not have permission to download this document.', 'danger')
+            return redirect(url_for('community.applications'))
+    
+    # Handle file path - stored paths are relative from project root
+    file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
+    
+    # If path is relative, make it absolute using app root
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(current_app.root_path, file_path)
+    
+    # Normalize the path
+    file_path = os.path.normpath(file_path)
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        flash(f'Document file not found.', 'danger')
+        return redirect(request.referrer or url_for('community.applications'))
+    
+    try:
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=upload.original_filename
+        )
+    except Exception as e:
+        print(f'Error downloading document at {file_path}: {str(e)}')
+        flash(f'Error downloading document: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('community.applications'))
+
+
+@community_bp.route('/applications/<int:application_id>/upload-workflow-photo', methods=['POST'])
+@login_required
+@role_required('community')
+def upload_workflow_photo(application_id):
+    """Upload shelter photos from the workflow step interface (AJAX)"""
+    try:
+        application = Applications.query.filter_by(
+            id=application_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not application:
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
+        
+        # Check if file was uploaded
+        if 'shelter_photo' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+        
+        file = request.files['shelter_photo']
+        caption = request.form.get('caption', '').strip()
+        
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+        
+        ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+        
+        # Check file extension
+        file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if file_ext not in ALLOWED_EXTENSIONS:
+            return jsonify({'success': False, 'message': f'Invalid file type. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+        
+        # Check file size
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({'success': False, 'message': 'File is too large. Maximum size is 5MB.'}), 400
+        
+        # Create upload directory
+        try:
+            upload_path = os.path.join(current_app.static_folder, 'uploads', 'shelter_photos', str(application_id))
+            os.makedirs(upload_path, exist_ok=True)
+            
+            if not os.path.isdir(upload_path):
+                return jsonify({'success': False, 'message': f'Failed to create upload directory: {upload_path}'}), 500
+        except Exception as dir_error:
+            return jsonify({'success': False, 'message': f'Directory creation error: {str(dir_error)}'}), 500
+        
+        # Secure filename and save
+        try:
+            filename = secure_filename(file.filename)
+            if not filename:
+                filename = 'photo.jpg'  # Fallback if secure_filename returns empty
+            
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_filename = f"{timestamp}_{filename}"
+            file_path = os.path.join(upload_path, unique_filename)
+            
+            file.save(file_path)
+            
+            # Verify file was saved
+            if not os.path.exists(file_path):
+                return jsonify({'success': False, 'message': f'File was not saved successfully'}), 500
+        except Exception as save_error:
+            return jsonify({'success': False, 'message': f'File save error: {str(save_error)}'}), 500
+        
+        # Store relative path in database
+        try:
+            # Save to database - store path relative to static folder
+            shelter_photo = ShelterPhotos(
+                application_id=application_id,
+                photo_path=f'uploads/shelter_photos/{application_id}/{unique_filename}',
+                caption=caption,
+                verification_status='pending'
+            )
+            db.session.add(shelter_photo)
+            db.session.flush()  # Get the ID without committing yet
+            
+            # Update workflow step status to in_progress if not already
+            photo_upload_step = ProgramWorkflowSteps.query.filter_by(
+                program_id=application.program_id,
+                step_type='photo_upload'
+            ).first()
+            
+            if photo_upload_step:
+                workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                    application_id=application_id,
+                    workflow_step_id=photo_upload_step.id
+                ).first()
+                
+                if workflow_status and workflow_status.step_status == 'not_started':
+                    workflow_status.step_status = 'in_progress'
+                    workflow_status.started_at = datetime.utcnow()
+                    workflow_status.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+        except Exception as db_error:
+            db.session.rollback()
+            # Try to clean up the saved file
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except:
+                pass
+            return jsonify({'success': False, 'message': f'Database error: {str(db_error)}'}), 500
+        
+        # Get updated photo count
+        try:
+            total_photos = ShelterPhotos.query.filter_by(application_id=application_id).count()
+        except Exception as count_error:
+            return jsonify({'success': False, 'message': f'Error counting photos: {str(count_error)}'}), 500
+        
+        return jsonify({
+            'success': True,
+            'message': f'Photo uploaded successfully! ({total_photos} total)',
+            'photo': {
+                'id': shelter_photo.id,
+                'photo_path': '/' + shelter_photo.photo_path,
+                'caption': shelter_photo.caption,
+                'verification_status': shelter_photo.verification_status
+            },
+            'total_photos': total_photos,
+            'has_min_photos': total_photos >= 3
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_msg = f'Upload error: {str(e)}'
+        print(f'Photo upload traceback: {traceback.format_exc()}')
+        return jsonify({'success': False, 'message': error_msg}), 500
+
+
+@community_bp.route('/applications/<int:application_id>/delete-workflow-photo/<int:photo_id>', methods=['POST'])
+@login_required
+@role_required('community')
+def delete_workflow_photo(application_id, photo_id):
+    """Delete a shelter photo from workflow (AJAX)"""
+    photo = ShelterPhotos.query.get_or_404(photo_id)
+    
+    # Verify ownership
+    if photo.application.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+    
+    # Only allow deletion if not approved
+    if photo.verification_status == 'approved':
+        return jsonify({'success': False, 'message': 'Cannot delete an approved photo'}), 400
+    
+    try:
+        # Delete file from filesystem
+        # Convert relative path to absolute path
+        file_path = photo.photo_path
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(current_app.root_path, file_path)
+        
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        db.session.delete(photo)
+        db.session.commit()
+        
+        # Get updated count
+        total_photos = ShelterPhotos.query.filter_by(application_id=application_id).count()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Photo deleted successfully',
+            'total_photos': total_photos,
+            'has_min_photos': total_photos >= 3
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f'Delete photo traceback: {traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'Error deleting photo: {str(e)}'}), 500
 
 
 @community_bp.route('/applications/<int:application_id>/submit-workflow-step', methods=['POST'])
@@ -807,6 +1232,16 @@ def submit_workflow_step(application_id):
     if not workflow_status:
         return jsonify({'success': False, 'message': 'Workflow status not found'})
     
+    # Validate photo_upload step type - must have minimum 3 photos
+    workflow_step = ProgramWorkflowSteps.query.get(step_id)
+    if workflow_step and workflow_step.step_type == 'photo_upload':
+        photo_count = ShelterPhotos.query.filter_by(application_id=application_id).count()
+        if photo_count < 3:
+            return jsonify({
+                'success': False, 
+                'message': f'Please upload at least 3 shelter photos before submitting. Currently uploaded: {photo_count}'
+            })
+    
     # Update status to pending review
     workflow_status.step_status = 'pending_review'
     workflow_status.completed_at = datetime.utcnow()
@@ -818,15 +1253,18 @@ def submit_workflow_step(application_id):
         # Create notification for admins
         from app.models import Notifications
         
-        notification = Notifications(
-            user_id=None,  # For all admins
-            title=f'Workflow Step Submitted - {application.program.program_name}',
-            message=f'User {current_user.first_name} {current_user.last_name} has completed a workflow step for Application #{application_id}.',
-            category='workflow_submission',
-            is_read=False,
-            link=f'/admin/applications/{application_id}'
-        )
-        db.session.add(notification)
+        admin_users = User.query.filter_by(role='admin').all()
+        for admin in admin_users:
+            notification = Notifications(
+                user_id=admin.id,
+                notif_title=f'Workflow Step Submitted - {application.program.program_name}',
+                notif_message=f'User {current_user.first_name} {current_user.last_name} has completed a workflow step for Application #{application_id}.',
+                is_read=False,
+                related_id=application_id,
+                related_type='application'
+            )
+            db.session.add(notification)
+        
         db.session.commit()
         
         return jsonify({'success': True, 'message': 'Step submitted successfully'})
@@ -841,12 +1279,13 @@ def submit_workflow_step(application_id):
 @role_required('community')
 def upload_workflow_document():
     """Upload document for current workflow step"""
+    file_path = None
     try:
         application_id = request.form.get('application_id')
         requirement_id = request.form.get('requirement_id')
         
         if not application_id or not requirement_id:
-            return jsonify({'success': False, 'message': 'Missing required parameters'})
+            return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
         
         application = Applications.query.filter_by(
             id=application_id,
@@ -854,69 +1293,121 @@ def upload_workflow_document():
         ).first()
         
         if not application:
-            return jsonify({'success': False, 'message': 'Application not found'})
+            return jsonify({'success': False, 'message': 'Application not found'}), 404
         
         # Check if file was uploaded
         if 'document' not in request.files:
-            return jsonify({'success': False, 'message': 'No file uploaded'})
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
         
         file = request.files['document']
         if not file or file.filename == '':
-            return jsonify({'success': False, 'message': 'No file selected'})
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
         
         # Validate file type
         allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'}
         file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
         
         if file_ext not in allowed_extensions:
-            return jsonify({'success': False, 'message': 'Invalid file type'})
+            return jsonify({'success': False, 'message': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'}), 400
+        
+        # Check file size (10MB limit for documents)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        MAX_DOCUMENT_SIZE = 10 * 1024 * 1024  # 10MB
+        if file_size > MAX_DOCUMENT_SIZE:
+            return jsonify({'success': False, 'message': 'File is too large. Maximum size is 10MB.'}), 400
         
         # Create upload directory
-        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'application_documents')
-        os.makedirs(upload_dir, exist_ok=True)
+        try:
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'application_documents')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            if not os.path.isdir(upload_dir):
+                return jsonify({'success': False, 'message': f'Failed to create upload directory'}), 500
+        except Exception as dir_error:
+            return jsonify({'success': False, 'message': f'Directory creation error: {str(dir_error)}'}), 500
         
         # Generate unique filename
-        filename = secure_filename(file.filename)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        unique_filename = f'{application_id}_{requirement_id}_{timestamp}_{filename}'
-        file_path = os.path.join(upload_dir, unique_filename)
+        try:
+            filename = secure_filename(file.filename)
+            if not filename:
+                filename = f'document.{file_ext}'  # Fallback if secure_filename returns empty
+            
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_filename = f'{application_id}_{requirement_id}_{timestamp}_{filename}'
+            file_path = os.path.join(upload_dir, unique_filename)
+            
+            # Save file
+            file.save(file_path)
+            
+            # Verify file was saved
+            if not os.path.exists(file_path):
+                return jsonify({'success': False, 'message': 'File was not saved successfully'}), 500
+        except Exception as save_error:
+            return jsonify({'success': False, 'message': f'File save error: {str(save_error)}'}), 500
         
-        # Save file
-        file.save(file_path)
-        
-        # Remove existing upload for this requirement if exists
-        existing_upload = ApplicationDocumentUploads.query.filter_by(
-            application_id=application_id,
-            requirement_id=requirement_id
-        ).first()
-        
-        if existing_upload:
-            # Remove old file
+        # Database operations
+        try:
+            # Remove existing upload for this requirement if exists
+            existing_upload = ApplicationDocumentUploads.query.filter_by(
+                application_id=application_id,
+                requirement_id=requirement_id
+            ).first()
+            
+            if existing_upload:
+                # Remove old file
+                try:
+                    old_file_path = existing_upload.file_path
+                    if not old_file_path.startswith('/'):
+                        old_file_path = os.path.join(current_app.root_path, old_file_path)
+                    if os.path.exists(old_file_path):
+                        os.remove(old_file_path)
+                except Exception as cleanup_error:
+                    print(f'Error cleaning up old file: {cleanup_error}')
+                
+                db.session.delete(existing_upload)
+                db.session.flush()
+            
+            # Store relative path in database
+            relative_path = os.path.join('static', 'uploads', 'application_documents', unique_filename)
+            
+            # Create new upload record
+            upload = ApplicationDocumentUploads(
+                application_id=application_id,
+                requirement_id=requirement_id,
+                file_path=relative_path.replace('\\', '/'),
+                original_filename=filename,
+                uploaded_at=datetime.utcnow(),
+                verification_status='pending'
+            )
+            
+            db.session.add(upload)
+            db.session.commit()
+        except Exception as db_error:
+            db.session.rollback()
+            # Clean up saved file on database error
             try:
-                if os.path.exists(existing_upload.file_path):
-                    os.remove(existing_upload.file_path)
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
             except:
                 pass
-            db.session.delete(existing_upload)
+            return jsonify({'success': False, 'message': f'Database error: {str(db_error)}'}), 500
         
-        # Create new upload record
-        upload = ApplicationDocumentUploads(
-            application_id=application_id,
-            requirement_id=requirement_id,
-            file_path=file_path,
-            original_filename=filename,
-            uploaded_at=datetime.utcnow(),
-            verification_status='pending'
-        )
-        
-        db.session.add(upload)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Document uploaded successfully'})
+        return jsonify({'success': True, 'message': 'Document uploaded successfully'}), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+        # Clean up file on any error
+        try:
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+        except:
+            pass
+        import traceback
+        print(f'Document upload traceback: {traceback.format_exc()}')
+        return jsonify({'success': False, 'message': f'Upload error: {str(e)}'}), 500
 
 
 @community_bp.route('/applications/<int:application_id>/start-workflow-step/<int:step_id>', methods=['POST'])

@@ -116,7 +116,7 @@ FUNCTION VerifyDocument(application_id, document_id, verification_data)
         
         // Auto-approve application if all mandatory docs verified
         IF allComplete AND application.status = "pending" THEN
-            application.application_status = "approved"
+            application.application_status = "active"
             application.reviewed_by = currentAdmin.id
             application.review_date = NOW()
             SAVE application

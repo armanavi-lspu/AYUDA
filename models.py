@@ -81,7 +81,6 @@ class ProgramWorkflowSteps(db.Model):
     step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
     is_pre_approval = db.Column(db.Boolean, default=False)  # True if step must be completed before application approval
     requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
-    min_items = db.Column(db.Integer, default=1)  # Minimum items required (e.g., 3 photos for ESA)
     allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
     step_config = db.Column(db.Text)  # JSON configuration for step-specific settings (required documents, etc.)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -104,7 +103,6 @@ class ProgramWorkflowSteps(db.Model):
             'step_type': self.step_type,
             'is_pre_approval': self.is_pre_approval,
             'requires_verification': self.requires_verification,
-            'min_items': self.min_items,
             'allowed_file_types': self.allowed_file_types,
             'step_config': self.step_config
         }

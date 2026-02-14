@@ -174,7 +174,7 @@ def reset_user_password(user_id):
     new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
     
     # Update password
-    community_user.password = generate_password_hash(new_password)
+    community_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
     
     try:
         # Create notification for user

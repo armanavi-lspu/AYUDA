@@ -118,7 +118,7 @@ def populate_dummy_data():
                 
                 user = User(
                     email=email,
-                    password_hash=generate_password_hash('password123'),
+                    password_hash=generate_password_hash('password123', method='pbkdf2:sha256'),
                     first_name=first_name,
                     middle_name=random.choice(['A', 'B', 'C', 'D', 'E', 'M', 'L', '']),
                     last_name=last_name,
