@@ -88,8 +88,7 @@ class TestBeneficiaryRecommender:
             'low_income': 0.1,
             'solo_parent': 0.5,
             'student': 0.1,
-            'pwd': 0.1,
-            'unemployed': 0.1
+            'pwd': 0.1
         }
         
         scored = recommender.score_beneficiaries(sample_beneficiaries, priority_weights)

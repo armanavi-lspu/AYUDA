@@ -35,10 +35,7 @@ def check_qualification(requirement, user_profile):
     
     # Employment status
     if 'employed' in combined or 'employment' in combined:
-        if 'unemployed' in combined or 'not employed' in combined:
-            return not user_profile.is_currently_employed
-        else:
-            return user_profile.is_currently_employed
+        return user_profile.is_currently_employed
     
     # Student status
     if 'student' in combined:
@@ -262,10 +259,6 @@ def view_application(application_id):
             return False
         
         qual_name_lower = qual_name.lower()
-        
-        # Check employment status
-        if 'unemployed' in qual_name_lower:
-            return not community_profile.is_currently_employed
         
         # Check student status
         if 'student' in qual_name_lower:
@@ -576,7 +569,7 @@ def update_application_status(application_id):
         else:
             status_messages = {
                 'rejected': f'Your application for {application.program.program_name} has been rejected. Please check the remarks for more information.',
-                'active': f'Your application for {application.program.program_name} is now being processed. Please submit the required documents and complete any pending verifications.',
+                'active': f'Your application for {application.program.program_name} is now active. Please proceed with the required steps.',
                 'pending': f'Your application for {application.program.program_name} status has been updated to pending.',
                 'completed': f'Your application for {application.program.program_name} has been completed and is ready for release/claiming.'
             }
@@ -1457,6 +1450,69 @@ def schedule_claim(application_id):
         return jsonify(success=False, message=f'Error scheduling release: {str(e)}')
 
 
+@admin_bp.route('/applications/<int:application_id>/remove-schedule', methods=['POST'])
+@login_required
+@role_required('admin')
+def remove_schedule(application_id):
+    """Remove the scheduled release date and revert application status to active"""
+    application = Applications.query.get_or_404(application_id)
+    
+    # Verify that application has a schedule
+    if not application.claim_date:
+        return jsonify(success=False, message='This application does not have a scheduled release date.')
+    
+    # Verify that application is in completed status
+    if application.application_status != 'completed':
+        return jsonify(success=False, message='Only completed applications with a schedule can have their schedule removed.')
+    
+    try:
+        # Store the old schedule info for the notification
+        old_claim_date = application.claim_date.strftime('%A, %B %d, %Y') if application.claim_date else 'Not set'
+        old_claim_time = application.claim_time or 'Not set'
+        
+        # Clear the schedule details
+        application.claim_date = None
+        application.claim_time = None
+        application.claim_location = None
+        application.claim_instructions = None
+        application.claim_status = None
+        application.claim_scheduled_by = None
+        application.claim_scheduled_at = None
+        
+        # Revert application status to active
+        application.application_status = 'active'
+        application.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Create notification for the applicant
+        notif_message = (
+            f'📅 Release Schedule Removed\n\n'
+            f'The previously scheduled release date for your {application.program.program_name} application has been removed:\n\n'
+            f'❌ Previous Date: {old_claim_date}\n'
+            f'❌ Previous Time: {old_claim_time}\n\n'
+            f'Your application status has been reverted to Active. '
+            f'You will be notified when a new release date is scheduled.\n\n'
+            f'If you have any questions, please contact the MSWD Office.'
+        )
+        
+        notif = Notifications(
+            user_id=application.user_id,
+            notif_title='Release Schedule Removed',
+            notif_message=notif_message,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(notif)
+        db.session.commit()
+        
+        return jsonify(success=True, message='Release schedule removed successfully!')
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error removing schedule: {str(e)}')
+
+
 @admin_bp.route('/applications/<int:application_id>/send-approval-notification', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -1554,6 +1610,63 @@ def update_claim_status(application_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=f'Error updating claim status: {str(e)}')
+
+
+@admin_bp.route('/applications/<int:application_id>/mark-claimed-without-schedule', methods=['POST'])
+@login_required
+@role_required('admin')
+def mark_claimed_without_schedule(application_id):
+    """Mark application as claimed and completed without setting a schedule - also closes the scheduling workflow step"""
+    application = Applications.query.get_or_404(application_id)
+    
+    data = request.json or {}
+    workflow_step_id = data.get('workflow_step_id')
+    
+    try:
+        # Update application status to completed
+        application.application_status = 'completed'
+        application.claim_status = 'claimed'
+        application.updated_at = datetime.utcnow()
+        
+        # Mark the scheduling workflow step as approved/completed
+        if workflow_step_id:
+            workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                application_id=application_id,
+                workflow_step_id=workflow_step_id
+            ).first()
+            
+            if workflow_status:
+                workflow_status.step_status = 'approved'
+                workflow_status.reviewed_at = datetime.utcnow()
+                workflow_status.reviewed_by = current_user.id
+                workflow_status.admin_feedback = 'Application marked as claimed without formal scheduling.'
+                workflow_status.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Create notification for user
+        notif_message = (
+            f'Congratulations! Your financial assistance for {application.program.program_name} '
+            f'has been successfully marked as completed and claimed.\n\n'
+            f'Thank you for availing our services. We hope this assistance helps with your needs.'
+        )
+        notif_title = 'Application Completed - Assistance Claimed'
+        
+        notif = Notifications(
+            user_id=application.user_id,
+            notif_title=notif_title,
+            notif_message=notif_message,
+            related_type='application',
+            related_id=application_id
+        )
+        db.session.add(notif)
+        db.session.commit()
+        
+        return jsonify(success=True, message='Application marked as claimed and completed successfully!')
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=f'Error marking application as claimed: {str(e)}')
 
 
 @admin_bp.route('/applications/<int:application_id>/slip')
@@ -1680,7 +1793,9 @@ def bulk_update_status():
                     is_read=False,
                     related_id=application.id,
                     related_type='application',
+
                     created_at=datetime.utcnow()
+                    
                 )
                 
                 db.session.add(notification)
@@ -1891,6 +2006,40 @@ def verify_uploaded_document(application_id, upload_id):
         return jsonify(success=False, message=str(e)), 500
 
 
+@admin_bp.route('/applications/<int:application_id>/document/<int:doc_id>/verify-status', methods=['POST'])
+@login_required
+@role_required('admin')
+def verify_document_status(application_id, doc_id):
+    """Toggle doc  ument verification status (verified/pending)"""
+    doc = ApplicationDocuments.query.filter_by(
+        id=doc_id,
+        application_id=application_id
+    ).first_or_404()
+    
+    try:
+        submission_status = request.form.get('submission_status')  # 'verified' or 'pending'
+        
+        if submission_status not in ['verified', 'pending']:
+            return jsonify(success=False, message='Invalid submission status'), 400
+        
+        # Update document record
+        doc.submission_status = submission_status
+        doc.verified_by = current_user.id
+        doc.verified_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify(
+            success=True,
+            message=f'Document {submission_status}',
+            new_status=submission_status
+        )
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, message=str(e)), 500
+
+
 @admin_bp.route('/generate-beneficiaries-list')
 @login_required
 @role_required('admin')
@@ -2031,21 +2180,37 @@ def approve_workflow_step(application_id, step_id):
     workflow_status.reviewed_by = current_user.id
     workflow_status.admin_feedback = feedback
     workflow_status.updated_at = datetime.utcnow()
-    
+
+    # If this is the Application Review step, set application status to 'approved'
+    # Status will transition to 'active' when the user opens/views the application
+    step = workflow_status.workflow_step
+    if step and 'application review' in step.step_name.lower():
+        application.application_status = 'approved'
+        application.reviewed_by = current_user.id
+        application.review_date = datetime.utcnow()
+        application.updated_at = datetime.utcnow()
+
     try:
         db.session.commit()
         
         # Check if this enables the next step
         _check_and_enable_next_step(application, step_id)
-        
+
+        # Determine notification message based on step type
+        if step and 'application review' in step.step_name.lower():
+            notif_title = f'Application Approved - {application.program.program_name}'
+            notif_message = f'Congratulations! Your application for {application.program.program_name} has been approved! Please open your application to view the next steps.'
+        else:
+            notif_title = f'Workflow Step Approved - {application.program.program_name}'
+            notif_message = f'Your workflow step has been approved. You can now proceed to the next step.'
+
         # Create notification for user
         notification = Notifications(
             user_id=application.user_id,
-            title=f'Workflow Step Approved - {application.program.program_name}',
-            message=f'Your workflow step has been approved. You can now proceed to the next step.',
-            category='workflow_update',
-            is_read=False,
-            link=f'/applications/{application_id}/workflow'
+            notif_title=notif_title,
+            notif_message=notif_message,
+            related_type='application',
+            related_id=application_id
         )
         db.session.add(notification)
         db.session.commit()
@@ -2092,11 +2257,10 @@ def reject_workflow_step(application_id, step_id):
         # Create notification for user
         notification = Notifications(
             user_id=application.user_id,
-            title=f'Workflow Step Rejected - {application.program.program_name}',
-            message=f'Your workflow step has been rejected. Please review the feedback and resubmit.',
-            category='workflow_update',
-            is_read=False,
-            link=f'/applications/{application_id}/workflow'
+            notif_title=f'Workflow Step Rejected - {application.program.program_name}',
+            notif_message=f'Your workflow step has been rejected. Please review the feedback and resubmit.',
+            related_type='application',
+            related_id=application_id
         )
         db.session.add(notification)
         db.session.commit()
@@ -2295,7 +2459,8 @@ def _check_and_enable_next_step(application, completed_step_id):
     
     # Enable the next step if it's not already started
     if next_step_status.step_status == 'not_started':
-        next_step_status.step_status = 'not_started'  # Ready to start
+        next_step_status.step_status = 'in_progress'
+        next_step_status.started_at = datetime.utcnow()
         next_step_status.updated_at = datetime.utcnow()
     
     db.session.commit()

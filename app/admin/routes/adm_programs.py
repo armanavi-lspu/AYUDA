@@ -106,6 +106,7 @@ def programs_index():
     # Add application count to each program
     for program in pagination.items:
         program.application_count = Applications.query.filter_by(program_id=program.id).count()
+        program.active_application_count = Applications.query.filter_by(program_id=program.id, application_status='active').count()
         program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
     
     # Get all requirements for the add program modal

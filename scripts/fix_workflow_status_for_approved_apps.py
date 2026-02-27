@@ -25,12 +25,17 @@ with app.app_context():
                         fixed_count += 1
                         print(f"[FIXED] App #{app_obj.id}: {step.step_name} -> approved")
                 
-                # For active applications, mark document submission steps as in progress if needed
-                if app_obj.application_status == 'active' and step.step_type in ['document_submission', 'document_upload']:
+                # For active applications, mark only document_upload as in_progress
+                if app_obj.application_status == 'active' and step.step_type == 'document_upload':
                     if status.step_status == 'not_started':
                         status.step_status = 'in_progress'
                         fixed_count += 1
                         print(f"[FIXED] App #{app_obj.id}: {step.step_name} -> in_progress")
+                
+                # Physical submission steps stay not_started until document_upload is completed
+                if app_obj.application_status == 'active' and step.step_type in ['document_submission', 'physical_submission']:
+                    if status.step_status == 'not_started':
+                        status.step_status = 'not_started'  # Keep waiting for document upload to complete
     
     db.session.commit()
     print(f"\n[SUCCESS] Fixed {fixed_count} workflow status records")

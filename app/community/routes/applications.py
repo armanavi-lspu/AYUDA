@@ -80,6 +80,12 @@ def application_detail(application_id):
         user_id=current_user.id
     ).first_or_404()
     
+    # Auto-transition from 'approved' to 'active' when the user opens/views their approved application
+    if application.application_status == 'approved':
+        application.application_status = 'active'
+        application.updated_at = datetime.utcnow()
+        db.session.commit()
+    
     # Always redirect to workflow view for applications
     return redirect(url_for('community.application_workflow', application_id=application_id))
 
@@ -93,6 +99,12 @@ def application_workflow(application_id):
         id=application_id,
         user_id=current_user.id
     ).first_or_404()
+    
+    # Auto-transition from 'approved' to 'active' when the user opens/views their approved application
+    if application.application_status == 'approved':
+        application.application_status = 'active'
+        application.updated_at = datetime.utcnow()
+        db.session.commit()
     
     # Get workflow steps for this program
     workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order) if application.program.workflow_steps else []
@@ -901,7 +913,7 @@ def submit_documents(application_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error uploading documents: {str(e)}', 'danger')
-        return redirect(url_for('community.upload_documents', application_id=application_id))
+        return redirect(url_for('community.application_workflow', application_id=application_id))
 
 
 @community_bp.route('/document-uploads/<int:upload_id>/view')

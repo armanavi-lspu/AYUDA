@@ -502,44 +502,77 @@
                         
                         {% if current_step_status and current_step_status.step_status == 'pending_review' %}
                         <!-- Documents submitted and waiting for admin review -->
-                        <div class=\"text-center mb-4\">
-                            <i class=\"fas fa-hourglass-half fa-4x text-warning mb-3\"></i>
-                            <h4 class=\"font-weight-bold\">Documents Under Review</h4>
-                            <p class=\"text-muted\">Your documents have been submitted and are currently being reviewed by an administrator.</p>
-                            <div class=\"alert alert-info mt-3\">
-                                <i class=\"fas fa-info-circle mr-2\"></i>
-                                <strong>Please wait:</strong> You will be notified once the review is complete. You cannot make changes while documents are under review.
+                        
+                        {% set verified_count = step_content.uploads | selectattr('verification_status', 'equalto', 'approved') | list | length %}
+                        {% set total_docs = step_content.documents | length %}
+                        
+                        <!-- Header Banner -->
+                        <div class="alert alert-warning mb-4" style="border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <h5 class="mb-0 font-weight-bold">
+                                <i class="fas fa-file-check mr-2"></i>Document Requirements Verification
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <span class="badge badge-light" style="background-color: #f0f0f0; color: #333; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                                    <i class="fas fa-cloud-upload-alt mr-1"></i>ONLINE UPLOADS: {% if verified_count == total_docs %}VERIFIED{% else %}PENDING{% endif %}
+                                </span>
+                                <span class="badge badge-light" style="background-color: #f0f0f0; color: #333; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                                    {{ verified_count }} / {{ total_docs }} VERIFIED ({{ (verified_count / total_docs * 100) | int }}%)
+                                </span>
                             </div>
                         </div>
                         
-                        <!-- Show submitted documents (read-only) -->
-                        <h6 class=\"mb-3 text-muted\"><i class=\"fas fa-file-alt mr-2\"></i>Submitted Documents</h6>
+                        <!-- Show submitted documents in grid layout -->
+                        <h6 class="mb-3 font-weight-bold"><i class="fas fa-file-alt mr-2"></i>Required Documents</h6>
                         {% if step_content.documents %}
-                            {% for document in step_content.documents %}
-                            {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', document.id) | first %}
-                            {% if existing_upload %}
-                            <div class=\"mb-3\">
-                                <div class=\"uploaded-document\">
-                                    <div class=\"d-flex justify-content-between align-items-start\">
-                                        <div class=\"flex-grow-1\">
-                                            <h6 class=\"font-weight-bold mb-1\">{{ document.requirement_name }}</h6>
-                                            <div class=\"d-flex align-items-center mb-2\">
-                                                <i class=\"fas fa-file mr-2 text-primary\"></i>
-                                                <small class=\"text-muted\">{{ existing_upload.original_filename }}</small>
+                            <div class="row">
+                                {% for document in step_content.documents %}
+                                {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', document.id) | first %}
+                                {% if existing_upload %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100" style="border-left: 4px solid #007bff; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <h6 class="card-title font-weight-bold mb-0">{{ document.requirement_name }}</h6>
+                                                <span class="badge badge-success">
+                                                    <i class="fas fa-check mr-1"></i>
+                                                    {% if existing_upload.verification_status == 'approved' %}
+                                                        VERIFIED
+                                                    {% elif existing_upload.verification_status == 'rejected' %}
+                                                        REJECTED
+                                                    {% else %}
+                                                        PENDING
+                                                    {% endif %}
+                                                </span>
                                             </div>
-                                            <span class=\"badge badge-warning\">
-                                                <i class=\"fas fa-clock mr-1\"></i>Pending Review
-                                            </span>
+                                            
+                                            <div class="mb-2">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-file mr-1"></i>{{ existing_upload.original_filename }}
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-calendar mr-1"></i>Uploaded {{ existing_upload.uploaded_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                                </small>
+                                            </div>
+                                            
+                                            {% if existing_upload.admin_feedback %}
+                                            <div class="alert alert-info mt-2 mb-2 p-2">
+                                                <small><strong>Admin Feedback:</strong> {{ existing_upload.admin_feedback }}</small>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
+                                                <i class="fas fa-eye mr-1"></i>View
+                                            </button>
                                         </div>
-                                        <button type=\"button\" class=\"btn btn-sm btn-outline-primary\" 
-                                                onclick=\"viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}')\">
-                                            <i class=\"fas fa-eye\"></i> View
-                                        </button>
                                     </div>
                                 </div>
+                                {% endif %}
+                                {% endfor %}
                             </div>
-                            {% endif %}
-                            {% endfor %}
                         {% endif %}
                         
                         {% else %}
@@ -580,7 +613,7 @@
                                         </div>
                                         <div>
                                             <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}')">
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
                                                 <i class="fas fa-eye"></i> View
                                             </button>
                                             {% if existing_upload.verification_status != 'approved' %}
@@ -696,11 +729,7 @@
                                                 {% endif %}
                                             </div>
                                             <div class="ml-2">
-                                                {% if qual.is_mandatory %}
                                                 <span class="badge badge-outline-danger" style="border: 1px solid #dc3545; color: #dc3545;">Required</span>
-                                                {% else %}
-                                                <span class="badge badge-outline-secondary" style="border: 1px solid #6c757d; color: #6c757d;">Optional</span>
-                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -936,34 +965,78 @@
 
 <!-- File Upload Modal -->
 <div class="modal fade" id="uploadModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg" role="document" style="max-width: 90vw;">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">Upload Document</h5>
-                <button type="button" class="close" data-dismiss="modal">
+                <button type="button" class="close text-white" data-dismiss="modal">
                     <span>&times;</span>
                 </button>
             </div>
             <form id="uploadForm" enctype="multipart/form-data">
-                <div class="modal-body">
+                <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
                     <input type="hidden" id="requirementId" name="requirement_id">
                     <input type="hidden" name="application_id" value="{{ application.id }}">
                     
                     <div class="form-group">
-                        <label>Select File:</label>
-                        <input type="file" class="form-control-file" id="documentFile" name="document" required>
-                        <small class="form-text text-muted">
+                        <label><strong>Select File:</strong></label>
+                        <div class="custom-file mb-2">
+                            <input type="file" class="custom-file-input" id="documentFile" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                            <label class="custom-file-label" for="documentFile">Choose file...</label>
+                        </div>
+                        <small class="form-text text-muted d-block">
                             {% if current_step and current_step.allowed_file_types %}
                             Accepted formats: {{ current_step.allowed_file_types }}
                             {% else %}
-                            Accepted formats: PDF, JPG, PNG
+                            Accepted formats: PDF, JPG, PNG, DOC, DOCX
                             {% endif %}
                         </small>
+                    </div>
+                    
+                    <!-- File Preview Section -->
+                    <div id="filePreviewSection" style="display: none; margin-top: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                        <h6 class="font-weight-bold mb-3">
+                            <i class="fas fa-eye mr-2"></i>File Preview
+                        </h6>
+                        
+                        <!-- Image Preview -->
+                        <div id="imagePreview" style="display: none;">
+                            <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 400px; border-radius: 6px;">
+                            <p id="imageInfo" class="text-muted small mt-2 mb-0"></p>
+                        </div>
+                        
+                        <!-- PDF Preview -->
+                        <div id="pdfPreview" style="display: none;">
+                            <iframe id="previewPdf" src="" style="width: 100%; height: 400px; border: 1px solid #dee2e6; border-radius: 6px;"></iframe>
+                            <p id="pdfInfo" class="text-muted small mt-2 mb-0"></p>
+                        </div>
+                        
+                        <!-- Document Preview (for other types) -->
+                        <div id="documentPreview" style="display: none;">
+                            <div style="padding: 1rem; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file fa-4x text-primary mr-3"></i>
+                                    <div>
+                                        <p id="docFileName" class="mb-1"><strong></strong></p>
+                                        <p id="docFileSize" class="text-muted small mb-0"></p>
+                                        <p id="docFileType" class="text-muted small mb-0"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- No Preview Available -->
+                        <div id="noPreview" style="display: none;">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <strong>Preview not available</strong> for this file type, but it's ready to upload.
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="uploadSubmitBtn">
                         <i class="fas fa-upload mr-2"></i>Upload Document
                     </button>
                 </div>
@@ -989,9 +1062,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <a id="documentDownloadBtn" href="#" class="btn btn-primary" style="display: none;">
-                    <i class="fas fa-download mr-2"></i>Download
-                </a>
+                <button type="button" id="documentReuploadBtn" class="btn btn-primary" style="display: none;" onclick="reuploadDocumentFromModal()">
+                    <i class="fas fa-upload mr-2"></i>Reupload
+                </button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
@@ -1154,8 +1227,79 @@
 <script>
 function uploadDocument(requirementId) {
     document.getElementById('requirementId').value = requirementId;
+    // Clear previous file and preview
+    document.getElementById('documentFile').value = '';
+    document.getElementById('filePreviewSection').style.display = 'none';
+    document.querySelector('.custom-file-label').textContent = 'Choose file...';
     $('#uploadModal').modal('show');
 }
+
+// Handle file preview
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('documentFile');
+    const previewSection = document.getElementById('filePreviewSection');
+    const customFileLabel = document.querySelector('.custom-file-label');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = this.files[0];
+            
+            if (!file) {
+                previewSection.style.display = 'none';
+                return;
+            }
+            
+            // Update file label with actual filename
+            customFileLabel.textContent = file.name;
+            
+            // Check file type and show appropriate preview
+            const fileType = file.type;
+            const fileName = file.name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            // Show preview section
+            previewSection.style.display = 'block';
+            
+            // Hide all preview types first
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('pdfPreview').style.display = 'none';
+            document.getElementById('documentPreview').style.display = 'none';
+            document.getElementById('noPreview').style.display = 'none';
+            
+            // Show image preview for image files
+            if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('imageInfo').textContent = `File: ${fileName} | Size: ${(file.size / 1024).toFixed(2)} KB`;
+                    document.getElementById('imagePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+            // Show PDF preview for PDF files
+            else if (fileExt === 'pdf') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewPdf').src = e.target.result;
+                    document.getElementById('pdfInfo').textContent = `File: ${fileName} | Size: ${(file.size / 1024).toFixed(2)} KB`;
+                    document.getElementById('pdfPreview').style.display = 'block';
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            // Show document preview for other file types
+            else if (['doc', 'docx', 'txt'].includes(fileExt)) {
+                document.getElementById('docFileName').textContent = fileName;
+                document.getElementById('docFileSize').textContent = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+                document.getElementById('docFileType').textContent = `Type: ${fileType || 'Document'}`;
+                document.getElementById('documentPreview').style.display = 'block';
+            }
+            // No preview available for other types
+            else {
+                document.getElementById('noPreview').style.display = 'block';
+            }
+        });
+    }
+});
 
 function replaceDocument(requirementId, uploadId) {
     document.getElementById('requirementId').value = requirementId;
@@ -1496,10 +1640,15 @@ if (uploadFormEl) {
 
 // ==================== Document Viewer Functions ====================
 
-function viewDocument(uploadId, filename) {
+function viewDocument(uploadId, filename, requirementId) {
     const title = document.getElementById('documentViewerTitle');
     const body = document.getElementById('documentViewerBody');
-    const downloadBtn = document.getElementById('documentDownloadBtn');
+    const reuploadBtn = document.getElementById('documentReuploadBtn');
+    const modal = document.getElementById('documentViewerModal');
+    
+    // Store IDs in modal for reupload
+    modal.dataset.uploadId = uploadId;
+    modal.dataset.requirementId = requirementId || '';
     
     // Set title
     title.textContent = filename;
@@ -1529,11 +1678,13 @@ function viewDocument(uploadId, filename) {
             }
             
             const documentUrl = data.document_url;
-            const downloadUrl = data.download_url;
             
-            // Set download button
-            downloadBtn.href = downloadUrl;
-            downloadBtn.style.display = 'block';
+            // Show reupload button if document is not approved
+            if (data.verification_status !== 'approved') {
+                reuploadBtn.style.display = 'block';
+            } else {
+                reuploadBtn.style.display = 'none';
+            }
             
             // Display document based on type
             if (isImage) {
@@ -1545,7 +1696,7 @@ function viewDocument(uploadId, filename) {
             } else {
                 body.innerHTML = `<div class="alert alert-info">
                     <p><strong>${filename}</strong></p>
-                    <p class="mb-0">This file type cannot be previewed. Please use the Download button below to download and open the file.</p>
+                    <p class="mb-0">This file type cannot be previewed. You can reupload the document if needed.</p>
                 </div>`;
             }
             
@@ -1556,9 +1707,27 @@ function viewDocument(uploadId, filename) {
             body.innerHTML = `<div class="alert alert-danger">
                 <strong>Error:</strong> ${error.message}
             </div>`;
-            downloadBtn.style.display = 'none';
+            reuploadBtn.style.display = 'none';
             $('#documentViewerModal').modal('show');
         });
+}
+
+// Handle reupload from document viewer modal
+function reuploadDocumentFromModal() {
+    const modal = document.getElementById('documentViewerModal');
+    const requirementId = modal.dataset.requirementId;
+    
+    if (!requirementId) {
+        alert('Error: Requirement ID not found');
+        return;
+    }
+    
+    // Close the viewer modal
+    $('#documentViewerModal').modal('hide');
+    
+    // Open upload modal with the requirement ID
+    document.getElementById('requirementId').value = requirementId;
+    $('#uploadModal').modal('show');
 }
 
 // Photo preview modal function

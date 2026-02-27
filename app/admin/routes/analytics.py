@@ -1,5 +1,5 @@
 
-from flask import render_template, jsonify, request
+from flask import render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
 from app.admin import admin_bp
 from app.utils import role_required
@@ -15,8 +15,8 @@ import json
 @login_required
 @role_required('admin')
 def analytics():
-    """Main analytics dashboard"""
-    return render_template('admin/analytics_analysis.html', user=current_user)
+    """Main analytics dashboard - redirect to analysis page"""
+    return redirect(url_for('admin.analytics_analysis'))
 
 @admin_bp.route('/adm_analytics/analysis')
 @login_required

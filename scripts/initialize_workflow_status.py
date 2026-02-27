@@ -35,9 +35,12 @@ with app.app_context():
                     else:
                         initial_status = 'not_started'
                 elif app_obj.application_status == 'active':
-                    # Document submission steps should be in progress
-                    if step.step_type in ['document_submission', 'document_upload']:
+                    # Only the first document step should be in progress
+                    if step.step_type == 'document_upload':
                         initial_status = 'in_progress'
+                    elif step.step_type in ['document_submission', 'physical_submission']:
+                        # These come after document_upload, so leave them as not_started
+                        initial_status = 'not_started'
                     elif step.step_type in ['approval', 'photo_upload'] and step.is_pre_approval:
                         initial_status = 'approved'
                     else:

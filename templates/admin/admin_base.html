@@ -993,38 +993,40 @@
     <!-- Side Navigation Bar -->
     <nav class="col-md-2 d-none d-md-block sidebar collapse" id="sidebarMenu">
         <div class="sidebar-sticky">
+            {% set prog_active = request.path.startswith('/admin/programs') or request.path.startswith('/admin/subsidy') %}
+            {% set comm_active = request.path.startswith('/admin/community') %}
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="{{ url_for('admin.dashboard') }}">
+                    <a class="nav-link{% if request.path == '/admin/dashboard' %} active{% endif %}" href="{{ url_for('admin.dashboard') }}">
                         <i class="fas fa-tachometer-alt mr-2"></i>
                         Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.adm_announcements') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/announcement') %} active{% endif %}" href="{{ url_for('admin.adm_announcements') }}">
                         <i class="fas fa-bullhorn mr-2"></i>
                         Announcements
                     </a>
                 </li>
                 <!-- Programs Dropdown -->
                 <li class="nav-item">
-                    <a class="nav-link d-flex justify-content-between align-items-center" href="#programsSubmenu" data-toggle="collapse" aria-expanded="false">
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if prog_active %} active{% endif %}" href="#programsSubmenu" data-toggle="collapse" aria-expanded="{{ 'true' if prog_active else 'false' }}">
                         <span>
                             <i class="fas fa-calendar-alt mr-2"></i>
                             Programs
                         </span>
                         <i class="fas fa-chevron-down small"></i>
                     </a>
-                    <div class="collapse" id="programsSubmenu">
+                    <div class="collapse{% if prog_active %} show{% endif %}" id="programsSubmenu">
                         <ul class="nav flex-column pl-4">
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.adm_programs') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/programs') %} active{% endif %}" href="{{ url_for('admin.adm_programs') }}">
                                     <i class="fas fa-hand-holding-usd mr-2"></i>
                                     Financial Assistance
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.adm_subsidy') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/subsidy') %} active{% endif %}" href="{{ url_for('admin.adm_subsidy') }}">
                                     <i class="fas fa-money-check-alt mr-2"></i>
                                     Subsidy
                                 </a>
@@ -1033,42 +1035,42 @@
                     </div>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.applications') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/applications') %} active{% endif %}" href="{{ url_for('admin.applications') }}">
                         <i class="fas fa-file mr-2"></i>
                         Applications
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.analytics') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/analytics') %} active{% endif %}" href="{{ url_for('admin.analytics') }}">
                         <i class="fas fa-chart-line mr-2"></i>
                         Analytics
                     </a>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.admin_management') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/admin_management') %} active{% endif %}" href="{{ url_for('admin.admin_management') }}">
                         <i class="fas fa-user-shield mr-2"></i>
                         Admin Management
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link d-flex justify-content-between align-items-center" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="false">
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if comm_active %} active{% endif %}" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="{{ 'true' if comm_active else 'false' }}">
                         <span>
                             <i class="fas fa-user-circle mr-2"></i>
                             Community
                         </span>
                         <i class="fas fa-chevron-down small"></i>
                     </a>
-                    <div class="collapse" id="communitySubmenu">
+                    <div class="collapse{% if comm_active %} show{% endif %}" id="communitySubmenu">
                         <ul class="nav flex-column pl-4">
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.community') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community') and not request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community') }}">
                                     <i class="fas fa-users mr-2"></i>
                                     Users
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.community_verify') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community_verify') }}">
                                     <i class="fas fa-user-check mr-2"></i>
                                     Verify
                                     {% if pending_verifications_count is defined and pending_verifications_count > 0 %}

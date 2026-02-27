@@ -2,11 +2,11 @@
 Migration script to update application_status values in the database.
 
 New status types:
-  - 'pending'    : Application submitted, awaiting admin approval
-  - 'approved'   : Met qualification requirements, approved by admin or auto-approved
+  - 'pending'    : Application submitted, not yet approved by admin (approval step type)
+  - 'approved'   : Approved by admin, but not yet opened/recognized by the user
   - 'rejected'   : Not approved by admin or system
-  - 'active'     : Approved and documents are for submission / verifications required (being processed)
-  - 'completed'  : Processing completed from step 1 to final, ready for release / claiming
+  - 'active'     : Approved and opened/recognized by the user (auto-transitions when user views the application)
+  - 'completed'  : A schedule/claim has been given to the user (ready for release/claiming)
 
 Old statuses being migrated:
   - 'on-hold' / 'on_hold' → 'rejected' (with remark added)

@@ -179,8 +179,7 @@ class BeneficiaryRecommender:
                 'low_income': 0.3,
                 'solo_parent': 0.2,
                 'student': 0.15,
-                'pwd': 0.2,
-                'unemployed': 0.15
+                'pwd': 0.2
             }
         
         scored_beneficiaries = []
@@ -219,10 +218,6 @@ class BeneficiaryRecommender:
             # PWD bonus
             if b.get('is_pwd'):
                 score += priority_weights.get('pwd', 0.2)
-            
-            # Unemployed bonus
-            if not b.get('is_currently_employed'):
-                score += priority_weights.get('unemployed', 0.15)
             
             b_copy = dict(b)
             b_copy['score'] = round(score, 4)
@@ -299,8 +294,7 @@ def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
         'low_income': 0.3,
         'solo_parent': 0.3 if solo_parent_priority else 0.1,
         'student': 0.2 if student_priority else 0.1,
-        'pwd': 0.3 if pwd_priority else 0.1,
-        'unemployed': 0.1
+        'pwd': 0.3 if pwd_priority else 0.1
     }
     
     # Normalize weights

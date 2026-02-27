@@ -29,11 +29,7 @@ FUNCTION CheckQualification(requirement, user_profile)
     
     // Employment status
     IF combined_text CONTAINS ["employed", "employment"] THEN
-        IF "unemployed" OR "not employed" IN combined_text THEN
-            RETURN NOT user_profile.is_currently_employed
-        ELSE
-            RETURN user_profile.is_currently_employed
-        END IF
+        RETURN user_profile.is_currently_employed
     END IF
     
     // Student status

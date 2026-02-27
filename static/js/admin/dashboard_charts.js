@@ -379,11 +379,10 @@ class DashboardCharts {
             this.charts.employment = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Employed', 'Unemployed', 'Student', 'Solo Parent'],
+                    labels: ['Employed', 'Student', 'Solo Parent'],
                     datasets: [{
                         data: [
                             this.employmentData.employed || 0,
-                            this.employmentData.unemployed || 0,
                             this.employmentData.student || 0,
                             this.employmentData.solo_parent || 0
                         ],

@@ -209,7 +209,7 @@ class Applications(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)
-    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # 'pending', 'approved', 'rejected', 'active', 'completed'
+    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # 'pending' (not yet approved), 'approved' (approved but not yet opened by user), 'rejected', 'active' (approved and opened/recognized by user), 'completed' (scheduled/claimed)
     document_upload_status = db.Column(db.String(20), default='pending', index=True)  # 'pending', 'uploaded', 'verified', 'rejected'
     application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     review_date = db.Column(db.DateTime, index=True)

@@ -270,10 +270,10 @@ def submit_application(program_id):
     db.session.add(notification)
     db.session.commit()
     
-    flash('Application submitted! Please upload your documents for initial verification before proceeding to physical submission.', 'success')
+    flash('Application submitted! Please proceed with the workflow steps for initial verification.', 'success')
     
-    # Redirect to document upload page
-    return redirect(url_for('community.upload_documents', application_id=new_application.id))
+    # Redirect to application workflow
+    return redirect(url_for('community.application_workflow', application_id=new_application.id))
 
 @community_bp.route('/application/<int:application_id>/upload-shelter-photos', methods=['POST'])
 @login_required

@@ -425,72 +425,9 @@
                             </button>
                         </div>
                         <div class="card-body">
-                            {% if program.workflow_steps %}
-                            <div class="timeline">
-                                {% for step in program.workflow_steps|sort(attribute='step_order') %}
-                                <div class="d-flex mb-3">
-                                    <div class="mr-3 text-center" style="min-width: 50px;">
-                                        <span class="badge badge-{% if step.is_pre_approval %}warning{% else %}primary{% endif %} rounded-circle" style="width:35px;height:35px;line-height:27px;font-size:16px;">
-                                            {{ step.step_order }}
-                                        </span>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="font-weight-bold mb-1">
-                                            {% if step.step_type == 'photo_upload' %}
-                                            <i class="fas fa-camera text-info mr-2"></i>
-                                            {% elif step.step_type == 'document_upload' %}
-                                            <i class="fas fa-file-upload text-primary mr-2"></i>
-                                            {% elif step.step_type == 'approval' %}
-                                            <i class="fas fa-check-circle text-success mr-2"></i>
-                                            {% elif step.step_type == 'verification' %}
-                                            <i class="fas fa-clipboard-check text-warning mr-2"></i>
-                                            {% elif step.step_type == 'document_submission' %}
-                                            <i class="fas fa-building text-secondary mr-2"></i>
-                                            {% elif step.step_type == 'scheduling' %}
-                                            <i class="fas fa-calendar-alt text-dark mr-2"></i>
-                                            {% endif %}
-                                            {{ step.step_name }}
-                                        </h6>
-                                        {% if step.step_description %}
-                                        <p class="text-muted small mb-1">{{ step.step_description }}</p>
-                                        {% endif %}
-                                        <div class="d-flex flex-wrap">
-                                            {% if step.is_pre_approval %}
-                                            <span class="badge badge-warning mr-1 mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Pre-Approval Required</span>
-                                            {% endif %}
-                                            {% if step.requires_verification %}
-                                            <span class="badge badge-info mr-1 mb-1"><i class="fas fa-user-check mr-1"></i>Admin Verification</span>
-                                            {% endif %}
-                                        </div>
-                                        {% if step.step_type in ['document_upload', 'document_submission', 'photo_upload'] %}
-                                        <div class="mt-2 small">
-                                            {% if step.allowed_file_types %}
-                                            <span class="badge badge-light text-secondary"><i class="fas fa-file mr-1"></i>{{ step.allowed_file_types }}</span>
-                                            {% endif %}
-                                            {% set config = step.config_data %}
-                                            {% if config.get('required_documents') %}
-                                            <p class="mb-1 mt-2"><strong>Required Documents:</strong></p>
-                                            <ul class="list-unstyled ms-3 mb-0">
-                                                {% for req_id in config.required_documents %}
-                                                    {% set req = requirements|selectattr('id', 'equalto', req_id)|first %}
-                                                    {% if req %}
-                                                    <li><i class="fas fa-check text-success mr-1"></i>{{ req.requirement_name }}</li>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </ul>
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% endfor %}
+                            <div id="viewWorkflowStepsContainer">
+                                <!-- Rendered by renderViewWorkflowSteps() -->
                             </div>
-                            {% else %}
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-stream fa-2x mb-2"></i>
-                                <p class="mb-0">No workflow steps defined. Click "Edit Steps" to add steps.</p>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -810,8 +747,8 @@
                                     <label class="custom-control-label" for="editPriority6">Indigent Families</label>
                                 </div>
                                 <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Unemployed Individuals" id="editPriority7" {% if "Unemployed Individuals" in selected_groups %}checked{% endif %}>
-                                    <label class="custom-control-label" for="editPriority7">Unemployed Individuals</label>
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Not Employed Individuals" id="editPriority7" {% if "Not Employed Individuals" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority7">Not Employed Individuals</label>
                                 </div>
                                 <div class="custom-control custom-checkbox">
                                     <input type="checkbox" class="custom-control-input" name="priority_group" value="Informal Settlers" id="editPriority8" {% if "Informal Settlers" in selected_groups %}checked{% endif %}>
@@ -919,7 +856,7 @@
                                                 <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditDocForm()">
                                                     <i class="fas fa-times"></i> Cancel
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document')">
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document', this)">
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
@@ -991,7 +928,7 @@
                                                 <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditQualForm()">
                                                     <i class="fas fa-times"></i> Cancel
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification')">
+                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification', this)">
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
@@ -1234,14 +1171,14 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-danger" onclick="deleteFromEditModal()">
+                <button type="button" class="btn btn-danger" onclick="deleteFromEditModal(this)">
                     <i class="fas fa-trash-alt mr-1"></i>Delete Requirement
                 </button>
                 <div class="ml-auto">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">
                         <i class="fas fa-times mr-1"></i>Cancel
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="saveRequirementEdit()">
+                    <button type="button" class="btn btn-primary" onclick="saveRequirementEdit(this)">
                         <i class="fas fa-save mr-1"></i>Save Changes
                     </button>
                 </div>
@@ -1468,8 +1405,8 @@
                                 <label class="custom-control-label" for="modalPriority6">Indigent Families</label>
                             </div>
                             <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Unemployed Individuals" id="modalPriority7">
-                                <label class="custom-control-label" for="modalPriority7">Unemployed Individuals</label>
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Not Employed Individuals" id="modalPriority7">
+                                <label class="custom-control-label" for="modalPriority7">Not Employed Individuals</label>
                             </div>
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Informal Settlers" id="modalPriority8">
@@ -1535,7 +1472,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-info" onclick="saveProgramInfo()">
+                <button type="button" class="btn btn-info" onclick="saveProgramInfo(this)">
                     <i class="fas fa-save mr-1"></i>Save Changes
                 </button>
             </div>
@@ -1584,7 +1521,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveRequirements()">
+                <button type="button" class="btn btn-primary" onclick="saveRequirements(this)">
                     <i class="fas fa-save mr-1"></i>Save Changes
                 </button>
             </div>
@@ -1623,7 +1560,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-dark" onclick="console.log('Save workflow steps clicked'); saveWorkflowSteps(); return false;">
+                <button type="button" class="btn btn-dark" onclick="console.log('Save workflow steps clicked'); saveWorkflowSteps(this); return false;">
                     <i class="fas fa-save mr-1"></i>Save Changes
                 </button>
             </div>
@@ -1759,9 +1696,9 @@
     };
     
     // Make saveWorkflowSteps globally accessible
-    window.saveWorkflowSteps = function() {
+    window.saveWorkflowSteps = function(button) {
         try {
-            return saveWorkflowStepsImpl();
+            return saveWorkflowStepsImpl(button);
         } catch (error) {
             console.error('Error in saveWorkflowSteps:', error);
             alert('Error: Could not save workflow steps. Please refresh the page and try again.');
@@ -1830,7 +1767,7 @@
         }
     }
     
-    function addNewRequirementEdit(type) {
+    function addNewRequirementEdit(type, button) {
         const nameField = type === 'document' ? 'editNewDocName' : 'editNewQualName';
         const descField = type === 'document' ? 'editNewDocDesc' : 'editNewQualDesc';
         const listId = type === 'document' ? 'editDocumentReqsList' : 'editQualificationReqsList';
@@ -1844,7 +1781,7 @@
             return;
         }
         
-        const btn = event.target;
+        const btn = button;
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
@@ -2061,7 +1998,7 @@
         $('#programInfoModal').modal('show');
     }
     
-    function saveProgramInfo() {
+    function saveProgramInfo(button) {
         const formData = new FormData();
         formData.append('program_name', document.getElementById('modalProgramName').value);
         formData.append('program_type', document.getElementById('modalProgramType').value);
@@ -2095,7 +2032,7 @@
             formData.append('attachment', attachmentFile);
         }
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -2197,7 +2134,7 @@
         $('#requirementsModal').modal('show');
     }
     
-    function saveRequirements() {
+    function saveRequirements(button) {
         const selectedReqs = [];
         document.querySelectorAll('#requirementsModal input[type="checkbox"]:checked').forEach(checkbox => {
             selectedReqs.push(checkbox.value);
@@ -2206,7 +2143,7 @@
         const formData = new FormData();
         selectedReqs.forEach(reqId => formData.append('requirements', reqId));
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -2355,7 +2292,7 @@
         }
     }
     
-    function saveWorkflowStepsImpl() {
+    function saveWorkflowStepsImpl(button) {
         // Apply temporary changes to main workflow steps array
         workflowSteps = JSON.parse(JSON.stringify(tempWorkflowSteps));
         updateWorkflowStepsJson();
@@ -2364,7 +2301,7 @@
         const formData = new FormData();
         formData.append('workflow_steps_json', document.getElementById('workflowStepsJson').value);
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -2390,6 +2327,7 @@
                 clearChangeTracking('workflow');
                 // Refresh the main view and close modal
                 renderWorkflowSteps();
+                renderViewWorkflowSteps();
                 $('#workflowModal').modal('hide');
             } else {
                 throw new Error(data.message || 'Failed to save');
@@ -2526,6 +2464,7 @@
     // Initialize form change detection when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         initializeProgramFormChangeDetection();
+        renderViewWorkflowSteps();
     });
     
     window.addWorkflowStepImpl = function() {
@@ -2610,6 +2549,54 @@
         document.getElementById('workflowStepsJson').value = JSON.stringify(workflowSteps);
     }
     
+    function renderViewWorkflowSteps() {
+        const container = document.getElementById('viewWorkflowStepsContainer');
+        if (!container) return;
+
+        const stepIconMap = {
+            'photo_upload': '<i class="fas fa-camera text-info mr-2"></i>',
+            'document_upload': '<i class="fas fa-file-upload text-primary mr-2"></i>',
+            'approval': '<i class="fas fa-check-circle text-success mr-2"></i>',
+            'verification': '<i class="fas fa-clipboard-check text-warning mr-2"></i>',
+            'document_submission': '<i class="fas fa-building text-secondary mr-2"></i>',
+            'scheduling': '<i class="fas fa-calendar-alt text-dark mr-2"></i>'
+        };
+
+        if (workflowSteps.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p class="mb-0">No workflow steps defined. Click "Edit Steps" to add steps.</p>
+                </div>`;
+            return;
+        }
+
+        const sorted = [...workflowSteps].sort((a, b) => a.step_order - b.step_order);
+        container.innerHTML = `<div class="timeline">${sorted.map(step => `
+            <div class="d-flex mb-3">
+                <div class="mr-3 text-center" style="min-width: 50px;">
+                    <span class="badge badge-${step.is_pre_approval ? 'warning' : 'primary'} rounded-circle"
+                          style="width:35px;height:35px;line-height:27px;font-size:16px;">
+                        ${step.step_order}
+                    </span>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="font-weight-bold mb-1">
+                        ${stepIconMap[step.step_type] || ''}
+                        ${step.step_name}
+                    </h6>
+                    ${step.step_description ? `<p class="text-muted small mb-1">${step.step_description}</p>` : ''}
+                    <div class="d-flex flex-wrap">
+                        ${step.is_pre_approval ? '<span class="badge badge-warning mr-1 mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Pre-Approval Required</span>' : ''}
+                        ${step.requires_verification ? '<span class="badge badge-info mr-1 mb-1"><i class="fas fa-user-check mr-1"></i>Admin Verification</span>' : ''}
+                    </div>
+                    ${['document_upload','document_submission','photo_upload'].includes(step.step_type) && step.allowed_file_types
+                        ? `<div class="mt-2 small"><span class="badge badge-light text-secondary"><i class="fas fa-file mr-1"></i>${step.allowed_file_types}</span></div>`
+                        : ''}
+                </div>
+            </div>`).join('')}</div>`;
+    }
+
     function renderWorkflowSteps() {
         const container = document.getElementById('workflowStepsList');
         
@@ -3088,7 +3075,7 @@
         $('#editRequirementModal').modal('show');
     }
     
-    function saveRequirementEdit() {
+    function saveRequirementEdit(button) {
         const form = document.getElementById('editRequirementForm');
         const formData = new FormData(form);
         
@@ -3103,7 +3090,7 @@
         }
         
         // Disable submit button
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -3141,7 +3128,7 @@
         });
     }
     
-    function deleteFromEditModal() {
+    function deleteFromEditModal(button) {
         const requirementId = document.getElementById('editReqId').value;
         const requirementName = document.getElementById('editReqName').value;
         

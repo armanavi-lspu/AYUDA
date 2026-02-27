@@ -129,9 +129,9 @@ def populate_dummy_data():
                 
                 # Generate occupation if employed
                 occupations = ['Farmer', 'Driver', 'Store Owner', 'Teacher', 'Security Guard', 
-                              'Factory Worker', 'Carpenter', 'Electrician', 'Unemployed']
+                              'Factory Worker', 'Carpenter', 'Electrician']
                 is_employed = random.choice([True, False])
-                occupation = random.choice(occupations) if is_employed else 'Unemployed'
+                occupation = random.choice(occupations) if is_employed else None
                 
                 # Check disability status and type
                 is_pwd = random.choice([True, False]) if random.random() < 0.1 else False

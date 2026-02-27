@@ -113,6 +113,9 @@ def community():
             user_id=user.id, 
             application_status='approved'
         ).count()
+        user.active_apps = Applications.query.filter_by(user_id=user.id).filter(
+            Applications.application_status.notin_(['approved', 'rejected', 'completed'])
+        ).count()
     
     return render_template(
         'admin/community.html',

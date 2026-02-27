@@ -49,7 +49,10 @@ CREATE TABLE programs (
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who created the program
     file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
     is_active BOOLEAN DEFAULT TRUE, -- Track active programs
-    allow_online_upload BOOLEAN DEFAULT TRUE -- Enable/disable online document submission
+    allow_online_upload BOOLEAN DEFAULT TRUE, -- Enable/disable online document submission
+    enable_application_slip BOOLEAN DEFAULT TRUE, -- Enable/disable application slip generation
+    use_beneficiary_limit BOOLEAN, -- Whether to enforce beneficiary limit
+    use_income_range BOOLEAN -- Whether to enforce income range requirement
 );
 
 --Create index on programs 
@@ -87,6 +90,15 @@ CREATE TABLE applications (
     code_generated_at TIMESTAMP, -- When code was generated
     code_used_at TIMESTAMP, -- When code was used
     documents_submitted_at TIMESTAMP, -- When documents were physically submitted
+    
+    -- Cancellation request fields
+    cancellation_requested BOOLEAN DEFAULT FALSE, -- Whether applicant requested cancellation
+    cancellation_reason TEXT, -- Reason for cancellation
+    cancellation_requested_at TIMESTAMP, -- When cancellation was requested
+    cancellation_status VARCHAR(20), -- 'pending', 'approved', 'rejected'
+    cancellation_reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who reviewed
+    cancellation_reviewed_at TIMESTAMP, -- When cancellation was reviewed
+    cancellation_admin_notes TEXT, -- Admin notes on cancellation
     
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -298,7 +310,6 @@ CREATE TABLE program_workflow_steps (
     step_type VARCHAR(50) NOT NULL DEFAULT 'approval', -- 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
     is_pre_approval BOOLEAN DEFAULT FALSE, -- True if step must be completed before application approval
     requires_verification BOOLEAN DEFAULT TRUE, -- True if admin must verify this step
-    min_items INTEGER DEFAULT 1, -- Minimum items required
     allowed_file_types VARCHAR(255), -- Comma-separated file extensions
     step_config TEXT, -- JSON configuration for step-specific settings
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -394,23 +405,43 @@ CREATE INDEX idx_workflow_status_step_status ON application_workflow_status(step
 CREATE INDEX idx_workflow_status_reviewed_by ON application_workflow_status(reviewed_by);
 CREATE INDEX idx_workflow_status ON application_workflow_status(application_id, step_status);
 
+-- Create application workflow history table (tracks revisions and changes)
+CREATE TABLE application_workflow_history (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    workflow_step_id INTEGER NOT NULL REFERENCES program_workflow_steps(id) ON DELETE CASCADE,
+    revision_number INTEGER, -- Revision number for this step
+    step_status VARCHAR(20) NOT NULL, -- 'not_started', 'in_progress', 'pending_review', 'approved', 'rejected', 'completed'
+    action_type VARCHAR(20) NOT NULL, -- 'submitted', 'reviewed', 'approved', 'rejected', 'returned'
+    action_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- User who took the action
+    admin_feedback TEXT, -- Admin comments/feedback
+    step_data TEXT, -- JSON data specific to this step
+    submitted_at TIMESTAMP, -- When user submitted this step
+    reviewed_at TIMESTAMP, -- When admin reviewed this step
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_application_workflow_history_application_id ON application_workflow_history(application_id);
+CREATE INDEX idx_application_workflow_history_workflow_step_id ON application_workflow_history(workflow_step_id);
+CREATE INDEX idx_application_workflow_history_action_type ON application_workflow_history(action_type);
+
 -- INSERT ADMIN USER
 INSERT INTO users (email, password_hash, first_name, middle_name, last_name, role) VALUES 
-('MSWDMabitac@gmail.com', 'scrypt:32768:8:1$pzDgHGQyDp5s3MJT$b8f2e4c8d9c5e1a7b3f6d2c9e8a4b7f1c3d6e9a2b5c8f1d4e7a0b3c6f9d2e5a8b1c4f7e0d3a6b9c2e5f8a1d4e7c0f3a6b9e2d5c8b1e4f7c0d3a6b9e2d5c8f1e4a7c0d3f6b9e2a5c8b1e4f7d0c3a6b9e2d5c8f1e4a7d0c3f6b9e2a5c8b1e4f7', 'MSWD', '', 'Mabitac', 'admin'),
-('user1@test.com', 'scrypt:32768:8:1$pzDgHGQyDp5s3MJT$b8f2e4c8d9c5e1a7b3f6d2c9e8a4b7f1c3d6e9a2b5c8f1d4e7a0b3c6f9d2e5a8b1c4f7e0d3a6b9c2e5f8a1d4e7c0f3a6b9e2d5c8b1e4f7c0d3a6b9e2d5c8f1e4a7c0d3f6b9e2a5c8b1e4f7d0c3a6b9e2d5c8f1e4a7d0c3f6b9e2a5c8b1e4f7', 'Juan', 'A', 'Dela Cruz', 'community');
+('MSWDMabitac@gmail.com', 'pbkdf2:sha256:1000000$IuS9gs8xouS7Dpkz$78e22fb46ebc399b101305b6055e847d5adb834b360b587429c1bab19afc2808', 'Admin', NULL, 'User', 'admin'),
+('user1@test.com', 'pbkdf2:sha256:1000000$IuS9gs8xouS7Dpkz$78e22fb46ebc399b101305b6055e847d5adb834b360b587429c1bab19afc2808', 'Juan', 'A', 'Dela Cruz', 'community');
 
 -- INSERT ADMIN PROFILE
 INSERT INTO admin_users (user_id) VALUES (1);
 
 -- INSERT PROGRAMS
 INSERT INTO programs (program_name, program_type, program_period, priority_group, beneficiary_limit, income_range, start_date, end_date, description, user_id, is_active, allow_online_upload) VALUES
-('Financial Assistance Program', 'AICS', 'Ongoing', 'Low-income families', 100, '₱0 - ₱150,000', '2024-01-01', '2024-12-31', 'Provides financial support to families in need for emergencies and basic necessities', 1, TRUE, TRUE),
-('Burial Assistance Program', 'AICS', 'Emergency', 'Families in need', 50, '₱0 - ₱200,000', '2024-01-01', '2024-12-31', 'Provides financial support to families in need for burial and funeral services', 1, TRUE, TRUE),
-('Educational Assistance Program', 'AICS', 'Semi-Annual', 'Students from low-income families', 200, '₱0 - ₱150,000', '2024-06-01', '2024-12-31', 'Educational financial assistance program for elementary to college students', 1, TRUE, TRUE),
-('Medical Assistance Program', 'AICS', 'Ongoing', 'Low-income families needing medical help', 150, '₱0 - ₱200,000', '2024-01-01', '2024-12-31', 'Healthcare support including medicine subsidies, hospital bills, and medical procedures', 1, TRUE, TRUE),
-('Fire Disaster', 'ESA', 'Emergency', 'Fire victims', 30, 'All income levels', '2024-01-01', '2024-12-31', 'Temporary shelter and housing assistance for families affected by fire incidents', 1, TRUE, TRUE),
-('Typhoon Disaster', 'ESA', 'Emergency', 'Typhoon victims', 50, 'All income levels', '2024-01-01', '2024-12-31', 'Temporary shelter and housing assistance for families affected by typhoon incidents', 1, TRUE, TRUE),
-('Capital Assistance Program', 'CA', 'Monthly', 'Aspiring entrepreneurs', 75, '₱0 - ₱300,000', '2024-01-01', '2024-12-31', 'Support for microenterprise development and livelihood projects', 1, TRUE, TRUE);
+('Financial Assistance Program', 'AICS', 'Ongoing', 'Low-income families', 100, '₱0 - ₱150,000', '2026-01-01', '2026-12-31', 'Provides financial support to families in need for emergencies and basic necessities', 1, TRUE, TRUE),
+('Burial Assistance Program', 'AICS', 'Emergency', 'Families in need', 50, '₱0 - ₱200,000', '2026-01-01', '2026-12-31', 'Provides financial support to families in need for burial and funeral services', 1, TRUE, TRUE),
+('Educational Assistance Program', 'AICS', 'Semi-Annual', 'Students from low-income families', 200, '₱0 - ₱150,000', '2026-06-01', '2026-12-31', 'Educational financial assistance program for elementary to college students', 1, TRUE, TRUE),
+('Medical Assistance Program', 'AICS', 'Ongoing', 'Low-income families needing medical help', 150, '₱0 - ₱200,000', '2026-01-01', '2026-12-31', 'Healthcare support including medicine subsidies, hospital bills, and medical procedures', 1, TRUE, TRUE),
+('Fire Disaster', 'ESA', 'Emergency', 'Fire victims', 30, 'All income levels', '2026-01-01', '2026-12-31', 'Temporary shelter and housing assistance for families affected by fire incidents', 1, TRUE, TRUE),
+('Typhoon Disaster', 'ESA', 'Emergency', 'Typhoon victims', 50, 'All income levels', '2026-01-01', '2026-12-31', 'Temporary shelter and housing assistance for families affected by typhoon incidents', 1, TRUE, TRUE),
+('Capital Assistance Program', 'CA', 'Monthly', 'Aspiring entrepreneurs', 75, '₱0 - ₱300,000', '2026-01-01', '2026-12-31', 'Support for microenterprise development and livelihood projects', 1, TRUE, TRUE);
 
 -- INSERT DOCUMENT REQUIREMENTS
 INSERT INTO requirements (requirement_name, requirement_type, description) VALUES
