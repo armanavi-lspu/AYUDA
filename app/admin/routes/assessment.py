@@ -1,7 +1,7 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory
 from flask_login import login_required, current_user
 from datetime import datetime
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.models import (
     Assessment, AssessmentDocument, Applications, Programs,
@@ -57,6 +57,12 @@ def assessments_index():
         page=page, per_page=per_page, error_out=False
     )
 
+    # Statistics for summary cards
+    total_assessments = Assessment.query.count()
+    scheduled_assessments = Assessment.query.filter_by(status='scheduled').count()
+    completed_assessments = Assessment.query.filter_by(status='completed').count()
+    cancelled_assessments = Assessment.query.filter_by(status='cancelled').count()
+
     # Get all approved applications for the schedule form dropdown
     approved_applications = Applications.query.filter(
         Applications.application_status == 'approved'
@@ -66,6 +72,10 @@ def assessments_index():
         'admin/adm_assessment.html',
         assessments=assessments,
         approved_applications=approved_applications,
+        total_assessments=total_assessments,
+        scheduled_assessments=scheduled_assessments,
+        completed_assessments=completed_assessments,
+        cancelled_assessments=cancelled_assessments,
         search_query=search_query,
         assessment_type=assessment_type,
         status_filter=status_filter,
