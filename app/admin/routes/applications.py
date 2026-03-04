@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.utils import role_required
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument
 from app.extensions import db
 import re
 from PIL import Image, ImageDraw, ImageFont
@@ -445,6 +445,21 @@ def view_application(application_id):
                 elif step.step_type == 'approval':
                     # Show qualification requirements for approval steps (already serialized)
                     step_data['requirements'] = qualification_requirements.copy()
+                elif step.step_type == 'assessment':
+                    # Fetch assessments linked to this application
+                    app_assessments = Assessment.query.filter_by(
+                        application_id=application_id
+                    ).order_by(Assessment.created_at.desc()).all()
+                    step_data['assessments'] = [{
+                        'id': a.id,
+                        'assessment_type': a.assessment_type,
+                        'title': a.title,
+                        'status': a.status,
+                        'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
+                        'scheduled_time': a.scheduled_time,
+                        'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
+                        'document_count': len(a.documents),
+                    } for a in app_assessments]
             
             workflow_steps_data.append(step_data)
     

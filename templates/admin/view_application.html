@@ -625,6 +625,15 @@
                             {% elif application.claim_date %}
                                 {% set is_completed = true %}
                             {% endif %}
+                        {% elif step.step_type == 'assessment' %}
+                            {% set step_status_obj = application.workflow_status | selectattr('workflow_step_id', 'equalto', step.id) | first %}
+                            {% if step_status_obj and step_status_obj.step_status in ['completed', 'approved'] %}
+                                {% set is_completed = true %}
+                            {% elif step_status_obj and step_status_obj.step_status in ['in_progress', 'pending_review'] %}
+                                {% set is_current_step = true %}
+                            {% elif application.application_status == 'approved' %}
+                                {% set is_current_step = true %}
+                            {% endif %}
                         {% elif step.step_type == 'verification' %}
                             {% if application.application_status == 'approved' and application.completion_percentage == 100 %}
                                 {% set is_current_step = true %}
@@ -648,6 +657,8 @@
                                 <i class="fas fa-file-alt"></i>
                             {% elif step.step_type == 'scheduling' %}
                                 <i class="fas fa-calendar"></i>
+                            {% elif step.step_type == 'assessment' %}
+                                <i class="fas fa-clipboard-list"></i>
                             {% elif step.step_type == 'verification' %}
                                 <i class="fas fa-clipboard-check"></i>
                             {% else %}
@@ -777,6 +788,18 @@
                                     {% if step_data.requirements %}
                                         <small class="mt-1">{{ step_data.requirements | length }} Requirements</small>
                                     {% endif %}
+                                    {% if step_data.assessments is defined and step_data.assessments %}
+                                        {% set completed_assessments = step_data.assessments | selectattr('status', 'equalto', 'completed') | list | length %}
+                                        {% set total_assessments = step_data.assessments | length %}
+                                        {% set docs_uploaded = step_data.assessments | sum(attribute='document_count') %}
+                                        <small>Assessments: {{ completed_assessments }}/{{ total_assessments }}</small>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-success" style="width: {{ (completed_assessments/total_assessments*100) if total_assessments > 0 else 0 }}%"></div>
+                                        </div>
+                                        <small class="text-muted">SCSR Docs: {{ docs_uploaded }}</small>
+                                    {% elif step.step_type == 'assessment' %}
+                                        <small class="text-muted">No assessments yet</small>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>
@@ -788,6 +811,11 @@
                             </td>
                             <td>
                                 <div class="btn-group-vertical btn-group-sm">
+                                    {% if step.step_type == 'assessment' %}
+                                    <a href="{{ url_for('admin.assessments') }}?search={{ application.applicant.last_name }}" class="btn btn-primary btn-sm mb-1" title="View Assessments">
+                                        <i class="fas fa-clipboard-list mr-1"></i>Assessments
+                                    </a>
+                                    {% endif %}
                                     {% if step_status and step_status.step_status == 'pending_review' %}
                                     <button type="button" class="btn btn-success btn-sm mb-1" onclick="approveStep({{ step.id }})">
                                         <i class="fas fa-check mr-1"></i>Approve
