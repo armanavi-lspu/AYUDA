@@ -447,7 +447,10 @@ def view_application(application_id):
                     step_data['requirements'] = qualification_requirements.copy()
                 elif step.step_type == 'assessment':
                     # Fetch assessments linked to this application
-                    app_assessments = Assessment.query.filter_by(
+                    from sqlalchemy.orm import joinedload
+                    app_assessments = Assessment.query.options(
+                        joinedload(Assessment.documents)
+                    ).filter_by(
                         application_id=application_id
                     ).order_by(Assessment.created_at.desc()).all()
                     step_data['assessments'] = [{
