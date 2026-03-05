@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
 from ..utils import redirect_user_by_role
+from ..user_activity_logger import log_login, log_logout
 from datetime import datetime, date
 
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
@@ -30,6 +31,12 @@ def login():
 
         # Successful login
         login_user(user, remember=True)
+        
+        # Log login activity (only for community users)
+        if user.role == 'community':
+            log_login(user.id)
+            db.session.commit()
+        
         flash('Logged in successfully!', category='success')
 
         # Use utility function for role-based redirect
@@ -121,6 +128,11 @@ def sign_up():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Log logout activity (only for community users)
+    if current_user.role == 'community':
+        log_logout()
+        db.session.commit()
+    
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('auth.login'))

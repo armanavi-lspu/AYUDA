@@ -25,7 +25,7 @@ def schedule():
     
     for app in user_applications:
         # Add submission deadline event (placeholder - currently using application_date + 30 days)
-        if app.application_status == 'pending' or app.application_status == 'on_hold':
+        if app.application_status == 'pending':
             deadline_date = app.application_date + timedelta(days=30) if app.application_date else None
             if deadline_date:
                 schedule_events.append({
@@ -39,7 +39,7 @@ def schedule():
                 })
         
         # Add actual claiming date event if scheduled (for approved or completed applications)
-        if app.application_status in ['approved', 'completed'] and app.claim_date:
+        if app.application_status in ['active', 'approved', 'completed'] and app.claim_date:
             # Create a full datetime from claim_date and claim_time
             claim_datetime = app.claim_date
             if app.claim_time:

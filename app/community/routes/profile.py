@@ -7,12 +7,14 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.extensions import db
-from app.models import User, CommunityUsers, Notifications
+from app.models import User, CommunityUsers, Notifications, UserActivityLog
 from app.utils import calculate_profile_completion
+from app.user_activity_logger import log_profile_edit
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from sqlalchemy import desc
 
 
 @community_bp.route('/profile')
@@ -92,6 +94,9 @@ def edit_profile():
                     current_year = datetime.now().year
                     community_profile.age = current_year - int(community_profile.birth_year)
             
+            # Log profile edit
+            log_profile_edit()
+            
             db.session.commit()
             flash('Profile updated successfully!', 'success')
             return redirect(url_for('community.profile'))
@@ -145,7 +150,7 @@ def change_password():
         return redirect(url_for('community.settings'))
     
     try:
-        current_user.password_hash = generate_password_hash(new_password)
+        current_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
         db.session.commit()
         flash('Password changed successfully!', 'success')
     except Exception as e:
@@ -371,3 +376,52 @@ def verification_status():
             'eligible': community_profile.is_solo_parent
         }
     })
+
+
+@community_bp.route('/activity-logs')
+@login_required
+def activity_logs():
+    """Display user's own activity logs."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    query = UserActivityLog.query.filter_by(user_id=current_user.id)
+    
+    # Filters
+    action_type = request.args.get('action_type', '').strip()
+    if action_type:
+        query = query.filter(UserActivityLog.action_type == action_type)
+    
+    entity_type = request.args.get('entity_type', '').strip()
+    if entity_type:
+        query = query.filter(UserActivityLog.entity_type == entity_type)
+    
+    date_range = request.args.get('date_range', '').strip()
+    if date_range == 'today':
+        from datetime import datetime, timedelta
+        start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    elif date_range == 'week':
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        start = now - timedelta(days=now.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    elif date_range == 'month':
+        from datetime import datetime
+        now = datetime.utcnow()
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    
+    pagination = query.order_by(UserActivityLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('community/activity_logs.html',
+                         activities=pagination.items,
+                         pagination=pagination,
+                         user=current_user)

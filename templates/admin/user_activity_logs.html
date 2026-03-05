@@ -1,0 +1,300 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}User Activity Logs - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    .activity-row {
+        transition: all 0.2s ease;
+    }
+    .activity-row:hover {
+        background-color: #f8f9fc;
+        transform: translateX(3px);
+    }
+    .badge-action-view { background-color: #4e73df; color: white; }
+    .badge-action-create { background-color: #1cc88a; color: white; }
+    .badge-action-update { background-color: #f6c23e; color: #333; }
+    .badge-action-delete { background-color: #e74a3b; color: white; }
+    .badge-action-search { background-color: #6f42c1; color: white; }
+    .badge-action-auth { background-color: #5a5c69; color: white; }
+    .badge-action-upload { background-color: #36b9cc; color: white; }
+    .badge-action-save { background-color: #fd7e14; color: white; }
+    .badge-action-hide { background-color: #858796; color: white; }
+    
+    .badge-entity-program { background-color: #4e73df; color: white; }
+    .badge-entity-application { background-color: #1cc88a; color: white; }
+    .badge-entity-document { background-color: #36b9cc; color: white; }
+    .badge-entity-profile { background-color: #f6c23e; color: #333; }
+    .badge-entity-session { background-color: #5a5c69; color: white; }
+    .badge-entity-search { background-color: #6f42c1; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold mb-2">User Activity Logs</h1>
+            <p class="text-muted mb-0">Track community user interactions and behavior across the system</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.export_user_activity_logs') }}" class="btn btn-success">
+                <i class="fas fa-file-export mr-2"></i>Export Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-primary shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Activities</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_activities }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Today</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ today_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">This Week</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ week_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Users (Week)</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_users }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Activities
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.user_activity_logs') }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Search description..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Action Type</label>
+                        <select class="form-control" name="action_type">
+                            <option value="">All Actions</option>
+                            <option value="view" {% if request.args.get('action_type')=='view' %}selected{% endif %}>View</option>
+                            <option value="create" {% if request.args.get('action_type')=='create' %}selected{% endif %}>Create</option>
+                            <option value="update" {% if request.args.get('action_type')=='update' %}selected{% endif %}>Update</option>
+                            <option value="search" {% if request.args.get('action_type')=='search' %}selected{% endif %}>Search</option>
+                            <option value="upload" {% if request.args.get('action_type')=='upload' %}selected{% endif %}>Upload</option>
+                            <option value="save" {% if request.args.get('action_type')=='save' %}selected{% endif %}>Save</option>
+                            <option value="hide" {% if request.args.get('action_type')=='hide' %}selected{% endif %}>Hide</option>
+                            <option value="auth" {% if request.args.get('action_type')=='auth' %}selected{% endif %}>Auth</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Entity</label>
+                        <select class="form-control" name="entity_type">
+                            <option value="">All Entities</option>
+                            <option value="program" {% if request.args.get('entity_type')=='program' %}selected{% endif %}>Program</option>
+                            <option value="application" {% if request.args.get('entity_type')=='application' %}selected{% endif %}>Application</option>
+                            <option value="document" {% if request.args.get('entity_type')=='document' %}selected{% endif %}>Document</option>
+                            <option value="profile" {% if request.args.get('entity_type')=='profile' %}selected{% endif %}>Profile</option>
+                            <option value="session" {% if request.args.get('entity_type')=='session' %}selected{% endif %}>Session</option>
+                            <option value="search" {% if request.args.get('entity_type')=='search' %}selected{% endif %}>Search</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">User</label>
+                        <select class="form-control" name="user_id">
+                            <option value="">All Users</option>
+                            {% for u in community_users %}
+                            <option value="{{ u.id }}" {% if request.args.get('user_id')==u.id|string %}selected{% endif %}>
+                                {{ u.first_name }} {{ u.last_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 mb-3 d-flex align-items-end">
+                        <div class="d-flex gap-1 w-100">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{{ url_for('admin.user_activity_logs') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Info -->
+    <div class="mb-3">
+        <span class="text-muted">Showing {{ activities|length }} of {{ total_activities }} activities</span>
+    </div>
+
+    <!-- Activity Table -->
+    <div class="card shadow mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-gradient-info text-white">
+                        <tr>
+                            <th class="py-3 pl-4">Date & Time</th>
+                            <th class="py-3">User</th>
+                            <th class="py-3">Action</th>
+                            <th class="py-3">Entity</th>
+                            <th class="py-3">Description</th>
+                            <th class="py-3">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if activities %}
+                        {% for activity in activities %}
+                        <tr class="activity-row">
+                            <td class="pl-4">
+                                <div class="small font-weight-bold">{{ activity.created_at.strftime('%b %d, %Y') }}</div>
+                                <div class="small text-muted">{{ activity.created_at.strftime('%I:%M:%S %p') }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center mr-2" style="width:32px;height:32px;font-size:0.75rem;">
+                                        {{ activity.user.first_name[0] }}{{ activity.user.last_name[0] }}
+                                    </div>
+                                    <div>
+                                        <div class="small font-weight-bold">{{ activity.user.first_name }} {{ activity.user.last_name }}</div>
+                                        <div class="small text-muted">{{ activity.user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-action-{{ activity.action_type }} px-2 py-1">
+                                    {% if activity.action_type == 'view' %}
+                                        <i class="fas fa-eye mr-1"></i>
+                                    {% elif activity.action_type == 'create' %}
+                                        <i class="fas fa-plus mr-1"></i>
+                                    {% elif activity.action_type == 'update' %}
+                                        <i class="fas fa-edit mr-1"></i>
+                                    {% elif activity.action_type == 'search' %}
+                                        <i class="fas fa-search mr-1"></i>
+                                    {% elif activity.action_type == 'upload' %}
+                                        <i class="fas fa-upload mr-1"></i>
+                                    {% elif activity.action_type == 'save' %}
+                                        <i class="fas fa-bookmark mr-1"></i>
+                                    {% elif activity.action_type == 'hide' %}
+                                        <i class="fas fa-eye-slash mr-1"></i>
+                                    {% elif activity.action_type == 'auth' %}
+                                        <i class="fas fa-sign-in-alt mr-1"></i>
+                                    {% elif activity.action_type == 'delete' %}
+                                        <i class="fas fa-trash mr-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-cog mr-1"></i>
+                                    {% endif %}
+                                    {{ activity.action_type|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-entity-{{ activity.entity_type }} px-2 py-1">
+                                    {{ activity.entity_type|title }}
+                                </span>
+                                {% if activity.entity_id %}
+                                <small class="text-muted d-block">#{{ activity.entity_id }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small" style="max-width: 350px;" title="{{ activity.description }}">
+                                    {{ activity.description[:120] }}{% if activity.description|length > 120 %}...{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ activity.ip_address or 'N/A' }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                                <h5 class="text-muted">No user activity logs found</h5>
+                                <p class="text-muted mb-0">Activity logs will appear here as users interact with the system.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} total)
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.user_activity_logs', page=pagination.prev_num, **request.args) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('admin.user_activity_logs', page=p, **request.args) }}">{{ p }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.user_activity_logs', page=pagination.next_num, **request.args) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -40,15 +40,137 @@
     .announcement-image {
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, cursor 0.2s ease;
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+        cursor: pointer;
     }
     .announcement-image:hover {
-        transform: scale(1.02);
+        transform: scale(1.04);
+        cursor: pointer;
     }
     .content-text {
         font-size: 1.1rem;
         line-height: 1.7;
         color: #495057;
+    }
+    .announcement-images-section {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2rem;
+    }
+    .announcement-image-item {
+        flex: 0 1 auto;
+        max-width: 90%;
+        text-align: center;
+    }
+    @media (min-width: 768px) {
+        .announcement-image-item {
+            flex: 0 1 calc(50% - 1rem);
+            max-width: 100%;
+        }
+    }
+    @media (min-width: 1200px) {
+        .announcement-image-item {
+            flex: 0 1 calc(50% - 1rem);
+        }
+    }
+    
+    /* Image Preview Modal Styles */
+    .image-preview-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .image-preview-modal.show {
+        display: flex;
+        opacity: 1;
+    }
+    .image-preview-content {
+        position: relative;
+        max-width: 90vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .image-preview-content img {
+        max-width: 100%;
+        max-height: 80vh;
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+    }
+    .image-preview-caption {
+        color: #fff;
+        text-align: center;
+        margin-top: 1rem;
+        font-style: italic;
+        font-size: 0.95rem;
+    }
+    .image-preview-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 2rem;
+        cursor: pointer;
+        transition: color 0.3s ease;
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .image-preview-close:hover {
+        color: #ccc;
+    }
+    .image-preview-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: #fff;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 10px 15px;
+        border-radius: 4px;
+        transition: background 0.3s ease;
+    }
+    .image-preview-nav:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+    .image-preview-prev {
+        left: 10px;
+    }
+    .image-preview-next {
+        right: 10px;
+    }
+    .image-preview-counter {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
     }
     
     @media print {
@@ -73,7 +195,7 @@
 
     <!-- Announcement Card -->
     <div class="row justify-content-center">
-        <div class="col-lg-10 col-xl-8">
+        <div class="col-lg-8 col-xl-7">
             <div class="card shadow-lg border-0">
                 <!-- Header -->
                 <div class="card-header bg-gradient-light border-0 p-4">
@@ -160,14 +282,15 @@
 
                     <!-- Images Section -->
                     {% if announcement.images %}
-                    <div class="row">
+                    <div class="announcement-images-section">
                         {% for image in announcement.images %}
-                        <div class="col-md-6 mb-4">
-                            <img src="{{ url_for('static', filename='uploads/announcements/' + image.image_path) }}" 
+                        <div class="announcement-image-item">
+                            <img src="/{{ image.image_path }}" 
                                  alt="{{ image.caption or 'Announcement Image' }}"
-                                 class="img-fluid announcement-image w-100">
+                                 class="img-fluid announcement-image"
+                                 onclick="openImagePreview('{{ loop.index0 }}')">
                             {% if image.caption %}
-                            <div class="text-center mt-2">
+                            <div class="text-center mt-3">
                                 <small class="text-muted font-italic">{{ image.caption }}</small>
                             </div>
                             {% endif %}
@@ -231,39 +354,148 @@
         </div>
     </div>
 </div>
+
+<!-- Image Preview Modal -->
+<div id="imagePreviewModal" class="image-preview-modal">
+    <div class="image-preview-content">
+        <button class="image-preview-close" onclick="closeImagePreview()">&times;</button>
+        {% if announcement.images %}
+            {% if announcement.images|length > 1 %}
+            <button class="image-preview-nav image-preview-prev" onclick="previousImage()">&lsaquo;</button>
+            <button class="image-preview-nav image-preview-next" onclick="nextImage()">&rsaquo;</button>
+            {% endif %}
+        {% endif %}
+        <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 80vh;">
+        <div id="previewCaption" class="image-preview-caption"></div>
+        {% if announcement.images and announcement.images|length > 1 %}
+        <div class="image-preview-counter">
+            <span id="imageCounter">1</span> / <span id="imageTotalCount">{{ announcement.images|length }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Store image data for JavaScript -->
+<script>
+    const announcementImages = [
+        {% for image in announcement.images %}
+        {
+            src: '/{{ image.image_path }}',
+            caption: '{{ image.caption or "" }}'
+        }{{ "," if not loop.last else "" }}
+        {% endfor %}
+    ];
+</script>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function copyToClipboard() {
-    navigator.clipboard.writeText(window.location.href).then(function() {
-        const btn = event.target.closest('.share-btn');
-        const originalHTML = btn.innerHTML;
-        
-        // Success feedback
-        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-        btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-        
-        // Reset after 2 seconds
-        setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        }, 2000);
-    }).catch(err => {
-        console.error('Could not copy text: ', err);
-        alert('Failed to copy link to clipboard');
-    });
-}
+    let currentImageIndex = 0;
 
-function printAnnouncement() {
-    window.print();
-}
-
-// Initialize tooltips if using Bootstrap JS
-$(document).ready(function(){
-    if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
-        $('[data-toggle="tooltip"]').tooltip();
+    function openImagePreview(index) {
+        if (announcementImages.length === 0) return;
+        
+        currentImageIndex = parseInt(index);
+        const modal = document.getElementById('imagePreviewModal');
+        const previewImage = document.getElementById('previewImage');
+        const previewCaption = document.getElementById('previewCaption');
+        const imageCounter = document.getElementById('imageCounter');
+        
+        previewImage.src = announcementImages[currentImageIndex].src;
+        previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        
+        if (imageCounter) {
+            imageCounter.textContent = currentImageIndex + 1;
+        }
+        
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
     }
-});
+
+    function closeImagePreview() {
+        const modal = document.getElementById('imagePreviewModal');
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
+    function previousImage() {
+        if (announcementImages.length === 0) return;
+        currentImageIndex = (currentImageIndex - 1 + announcementImages.length) % announcementImages.length;
+        updateImagePreview();
+    }
+
+    function nextImage() {
+        if (announcementImages.length === 0) return;
+        currentImageIndex = (currentImageIndex + 1) % announcementImages.length;
+        updateImagePreview();
+    }
+
+    function updateImagePreview() {
+        const previewImage = document.getElementById('previewImage');
+        const previewCaption = document.getElementById('previewCaption');
+        const imageCounter = document.getElementById('imageCounter');
+        
+        previewImage.src = announcementImages[currentImageIndex].src;
+        previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        
+        if (imageCounter) {
+            imageCounter.textContent = currentImageIndex + 1;
+        }
+    }
+
+    // Close modal when clicking outside the image
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('imagePreviewModal');
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeImagePreview();
+            }
+        });
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('imagePreviewModal');
+        if (!modal.classList.contains('show')) return;
+        
+        if (e.key === 'Escape') {
+            closeImagePreview();
+        } else if (e.key === 'ArrowLeft') {
+            if (announcementImages.length > 1) previousImage();
+        } else if (e.key === 'ArrowRight') {
+            if (announcementImages.length > 1) nextImage();
+        }
+    });
+
+    function copyToClipboard() {
+        navigator.clipboard.writeText(window.location.href).then(function() {
+            const btn = event.target.closest('.share-btn');
+            const originalHTML = btn.innerHTML;
+            
+            // Success feedback
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+            btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            
+            // Reset after 2 seconds
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }, 2000);
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy link to clipboard');
+        });
+    }
+
+    function printAnnouncement() {
+        window.print();
+    }
+
+    // Initialize tooltips if using Bootstrap JS
+    $(document).ready(function(){
+        if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+    });
 </script>
 {% endblock %}

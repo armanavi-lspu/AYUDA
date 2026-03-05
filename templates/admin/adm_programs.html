@@ -95,6 +95,28 @@
         border-color: #4e73df;
         box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     }
+    
+    .category-button-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .category-button {
+        transition: all 0.3s ease;
+        border-radius: 6px;
+    }
+    
+    .category-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .category-button.active {
+        box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+    }
 </style>
 {% endblock %}
 
@@ -188,63 +210,33 @@
         </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Category Filter Buttons -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Filter Programs</h6>
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter mr-2"></i>Filter by Program Category</h6>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ url_for('admin.adm_programs') }}">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <input type="text" class="form-control" name="search" 
-                               placeholder="Search programs..." 
-                               value="{{ request.args.get('search', '') }}">
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <select class="form-control" name="type">
-                            <option value="">All Types</option>
-                            {% for type in program_types %}
-                            <option value="{{ type }}" {% if request.args.get('type')==type %}selected{% endif %}>
-                                {{ type }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <select class="form-control" name="category">
-                            <option value="">All Categories</option>
-                            <option value="AICS" {% if request.args.get('category')=='AICS' %}selected{% endif %}>AICS</option>
-                            <option value="ESA" {% if request.args.get('category')=='ESA' %}selected{% endif %}>ESA</option>
-                            <option value="CA" {% if request.args.get('category')=='CA' %}selected{% endif %}>CA</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <select class="form-control" name="period">
-                            <option value="">All Periods</option>
-                            {% for period in program_periods %}
-                            <option value="{{ period }}" {% if request.args.get('period')==period %}selected{% endif %}>
-                                {{ period }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <select class="form-control" name="date_range">
-                            <option value="">All Time</option>
-                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
-                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
-                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
-                            <option value="year" {% if request.args.get('date_range')=='year' %}selected{% endif %}>This Year</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <button type="submit" class="btn btn-primary btn-block">
-                            <i class="fas fa-search mr-1"></i>Filter
-                        </button>
-                    </div>
-                </div>
-            </form>
+            <div class="category-button-group">
+                <a href="{{ url_for('admin.adm_programs', search=request.args.get('search', ''), type=request.args.get('type', ''), period=request.args.get('period', ''), date_range=request.args.get('date_range', '')) }}" 
+                   class="btn btn-sm category-button {% if not request.args.get('category') %}btn-primary active{% else %}btn-outline-primary{% endif %}">
+                    <i class="fas fa-list mr-1"></i>All Categories
+                </a>
+                
+                {% for type in program_types %}
+                <a href="{{ url_for('admin.adm_programs', search=request.args.get('search', ''), type=request.args.get('type', ''), category=type, period=request.args.get('period', ''), date_range=request.args.get('date_range', '')) }}" 
+                   class="btn btn-sm category-button {% if request.args.get('category') == type %}btn-primary active{% else %}btn-outline-primary{% endif %}">
+                    <i class="fas fa-tag mr-1"></i>{{ type }}
+                </a>
+                {% endfor %}
+            </div>
+            <small class="text-muted d-block mt-3">
+                <i class="fas fa-info-circle mr-1"></i>
+                {% if request.args.get('category') %}
+                Showing <strong class="text-dark">{{ request.args.get('category') }}</strong> programs only
+                {% else %}
+                Showing <strong class="text-dark">all programs</strong> across all categories
+                {% endif %}
+            </small>
         </div>
     </div>
 
@@ -320,12 +312,16 @@
                             
                             <div class="col-lg-3 text-center">
                                 <div class="mb-2">
-                                    <i class="fas fa-users text-primary mr-1"></i>
-                                    <strong>{{ program.application_count }}</strong> Application(s)
-                                </div>
-                                <div>
-                                    <i class="fas fa-file-alt text-info mr-1"></i>
-                                    <strong>{{ program.requirement_count }}</strong> Requirement(s)
+                                    <div class="badge badge-primary p-3" style="font-size: 1.1rem; border-radius: 8px; display: block; margin-bottom: 10px;">
+                                        <i class="fas fa-users mr-2"></i>
+                                        <strong>{{ program.application_count }}</strong>
+                                        <span class="d-block small mt-1">Total Applicant{{ 's' if program.application_count != 1 else '' }}</span>
+                                    </div>
+                                    <div class="badge badge-success p-3" style="font-size: 1.1rem; border-radius: 8px; display: block;">
+                                        <i class="fas fa-check-circle mr-2"></i>
+                                        <strong>{{ program.active_application_count }}</strong>
+                                        <span class="d-block small mt-1">Active</span>
+                                    </div>
                                 </div>
                             </div>
                             

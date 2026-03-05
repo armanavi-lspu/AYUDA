@@ -56,6 +56,7 @@ class Programs(db.Model):
     file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True, index=True)  # NEW: Track active programs
     allow_online_upload = db.Column(db.Boolean, default=True)  # Enable/disable online document submission
+    enable_application_slip = db.Column(db.Boolean, default=True)  # Enable/disable application slip printing
     
     # Relationships
     applications = db.relationship('Applications', back_populates='program', lazy=True)
@@ -80,7 +81,6 @@ class ProgramWorkflowSteps(db.Model):
     step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
     is_pre_approval = db.Column(db.Boolean, default=False)  # True if step must be completed before application approval
     requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
-    min_items = db.Column(db.Integer, default=1)  # Minimum items required (e.g., 3 photos for ESA)
     allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
     step_config = db.Column(db.Text)  # JSON configuration for step-specific settings (required documents, etc.)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -88,6 +88,7 @@ class ProgramWorkflowSteps(db.Model):
     
     # Relationships
     program = db.relationship('Programs', back_populates='workflow_steps')
+    application_statuses = db.relationship('ApplicationWorkflowStatus', cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<WorkflowStep {self.step_order}: {self.step_name} for Program {self.program_id}>'
@@ -103,7 +104,6 @@ class ProgramWorkflowSteps(db.Model):
             'step_type': self.step_type,
             'is_pre_approval': self.is_pre_approval,
             'requires_verification': self.requires_verification,
-            'min_items': self.min_items,
             'allowed_file_types': self.allowed_file_types,
             'step_config': self.step_config
         }
@@ -209,7 +209,7 @@ class Applications(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False, index=True)
-    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    application_status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # 'pending' (not yet approved), 'approved' (approved but not yet opened by user), 'rejected', 'active' (approved and opened/recognized by user), 'completed' (scheduled/claimed)
     document_upload_status = db.Column(db.String(20), default='pending', index=True)  # 'pending', 'uploaded', 'verified', 'rejected'
     application_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     review_date = db.Column(db.DateTime, index=True)
@@ -231,6 +231,15 @@ class Applications(db.Model):
     code_used_at = db.Column(db.DateTime)  # When code was used
     documents_submitted_at = db.Column(db.DateTime)  # When documents were physically submitted
     
+    # Cancellation request fields
+    cancellation_requested = db.Column(db.Boolean, default=False, index=True)  # True if cancellation has been requested
+    cancellation_reason = db.Column(db.Text)  # User's reason for requesting cancellation
+    cancellation_requested_at = db.Column(db.DateTime)  # When cancellation was requested
+    cancellation_status = db.Column(db.String(20))  # 'pending', 'approved', 'rejected'
+    cancellation_reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'))  # Admin who reviewed cancellation
+    cancellation_reviewed_at = db.Column(db.DateTime)  # When cancellation was reviewed
+    cancellation_admin_notes = db.Column(db.Text)  # Admin notes about cancellation decision
+    
     remarks = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -247,6 +256,7 @@ class Applications(db.Model):
     program = db.relationship('Programs', back_populates='applications')
     shelter_photos = db.relationship('ShelterPhotos', backref='application', lazy=True, cascade='all, delete-orphan')
     cal_documents = db.relationship('CALDocuments', backref='application', lazy=True, cascade='all, delete-orphan')
+    workflow_status = db.relationship('ApplicationWorkflowStatus', foreign_keys='ApplicationWorkflowStatus.application_id', lazy=True, cascade='all, delete-orphan')
     
     # Note: applicant, reviewer, and claim_scheduler relationships are defined in User model
     
@@ -330,7 +340,7 @@ class ApplicationDocuments(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     requirement_id = db.Column(db.Integer, db.ForeignKey('requirements.id'), nullable=False)
-    submission_status = db.Column(db.String(20), default='pending')  # For documents: 'pending', 'on-hold', 'approved', 'rejected'
+    submission_status = db.Column(db.String(20), default='pending')  # For documents: 'not_submitted', 'submitted', 'pending', 'approved', 'rejected', 'returned'
     qualification_met = db.Column(db.Boolean, default=False)  # NEW: For qualifications: True/False
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
@@ -553,6 +563,124 @@ class CALDocuments(db.Model):
         return f'<CALDocument {self.document_type} for Application {self.application_id}>'
 
 
+class AdminActivityLog(db.Model):
+    """Track admin activities for audit trail"""
+    __tablename__ = 'admin_activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)  # e.g., 'approve_application', 'verify_document', 'create_announcement'
+    action_type = db.Column(db.String(20), nullable=False, default='update', index=True)  # 'create', 'update', 'delete', 'approve', 'reject', 'verify', 'generate', 'export'
+    entity_type = db.Column(db.String(50), nullable=False, index=True)  # 'application', 'document', 'announcement', 'user', 'admin', 'verification', 'beneficiaries_list', 'recommendation'
+    entity_id = db.Column(db.Integer)  # ID of the affected entity (nullable for bulk/general actions)
+    description = db.Column(db.Text, nullable=False)  # Human-readable description
+    details = db.Column(db.Text)  # JSON string for extra context (old/new values, etc.)
+    ip_address = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    admin = db.relationship('User', backref=db.backref('activity_logs', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_activity_admin_date', 'admin_id', 'created_at'),
+        db.Index('idx_activity_entity', 'entity_type', 'entity_id'),
+    )
+    
+    def __repr__(self):
+        return f'<AdminActivityLog {self.id}: {self.action} by Admin {self.admin_id}>'
+    
+    @property
+    def admin_name(self):
+        """Get the admin's full name"""
+        return f'{self.admin.first_name} {self.admin.last_name}' if self.admin else 'Unknown Admin'
+    
+    @property
+    def details_dict(self):
+        """Return details as dictionary"""
+        if self.details:
+            try:
+                import json
+                return json.loads(self.details)
+            except:
+                return {}
+        return {}
+
+
+class UserActivityLog(db.Model):
+    """Track community user activities for analytics and audit trail"""
+    __tablename__ = 'user_activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)
+    action_type = db.Column(db.String(20), nullable=False, default='view', index=True)  # 'view', 'create', 'update', 'delete', 'search', 'auth', 'upload', 'save', 'hide'
+    entity_type = db.Column(db.String(50), nullable=False, index=True)  # 'program', 'application', 'document', 'profile', 'session', 'search'
+    entity_id = db.Column(db.Integer)
+    description = db.Column(db.Text, nullable=False)
+    details = db.Column(db.Text)  # JSON string for extra context
+    ip_address = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('user_activity_logs', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_user_activity_user_date', 'user_id', 'created_at'),
+        db.Index('idx_user_activity_entity', 'entity_type', 'entity_id'),
+    )
+    
+    def __repr__(self):
+        return f'<UserActivityLog {self.id}: {self.action} by User {self.user_id}>'
+    
+    @property
+    def user_name(self):
+        return f'{self.user.first_name} {self.user.last_name}' if self.user else 'Unknown User'
+    
+    @property
+    def details_dict(self):
+        if self.details:
+            try:
+                import json
+                return json.loads(self.details)
+            except:
+                return {}
+        return {}
+
+
+class SavedProgram(db.Model):
+    """Programs saved/bookmarked by community users"""
+    __tablename__ = 'saved_programs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('saved_programs', lazy='dynamic'))
+    program = db.relationship('Programs', backref=db.backref('saved_by_users', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'program_id', name='uq_saved_program'),
+    )
+
+
+class HiddenProgram(db.Model):
+    """Programs hidden/not interested by community users"""
+    __tablename__ = 'hidden_programs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('hidden_programs', lazy='dynamic'))
+    program = db.relationship('Programs', backref=db.backref('hidden_by_users', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'program_id', name='uq_hidden_program'),
+    )
+
+
 class ApplicationWorkflowStatus(db.Model):
     """Track workflow step progress for each application"""
     __tablename__ = 'application_workflow_status'
@@ -571,9 +699,9 @@ class ApplicationWorkflowStatus(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    application = db.relationship('Applications', backref='workflow_status')
-    workflow_step = db.relationship('ProgramWorkflowSteps', backref='application_statuses')
+    application = db.relationship('Applications', foreign_keys='ApplicationWorkflowStatus.application_id')
     reviewer = db.relationship('User', backref='reviewed_workflow_steps')
+    workflow_step = db.relationship('ProgramWorkflowSteps', foreign_keys='ApplicationWorkflowStatus.workflow_step_id', lazy='select')
     
     # Composite unique constraint to prevent duplicate step status per application
     __table_args__ = (

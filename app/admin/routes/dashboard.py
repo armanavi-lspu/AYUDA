@@ -166,7 +166,6 @@ def get_employment_distribution():
     # PostgreSQL uses True/False for boolean values
     employment_stats = db.session.query(
         func.sum(case((CommunityUsers.is_currently_employed == True, 1), else_=0)).label('employed'),
-        func.sum(case((CommunityUsers.is_currently_employed == False, 1), else_=0)).label('unemployed'),
         func.sum(case((CommunityUsers.is_student == True, 1), else_=0)).label('student'),
         func.sum(case((CommunityUsers.is_solo_parent == True, 1), else_=0)).label('solo_parent')
     ).join(
@@ -176,10 +175,9 @@ def get_employment_distribution():
     ).first()
     
     return {
-        'labels': ['Employed', 'Unemployed', 'Student', 'Solo Parent'],
+        'labels': ['Employed', 'Student', 'Solo Parent'],
         'data': [
             int(employment_stats.employed) if employment_stats.employed else 0,
-            int(employment_stats.unemployed) if employment_stats.unemployed else 0,
             int(employment_stats.student) if employment_stats.student else 0,
             int(employment_stats.solo_parent) if employment_stats.solo_parent else 0
         ]
@@ -205,7 +203,7 @@ def dashboard():
     # Application Statistics
     total_applications = Applications.query.count()
     pending_applications = Applications.query.filter(
-        Applications.application_status.in_(['pending', 'submitted', 'under_review'])
+        Applications.application_status == 'pending'
     ).count()
     approved_applications = Applications.query.filter_by(application_status='approved').count()
     rejected_applications = Applications.query.filter_by(application_status='rejected').count()

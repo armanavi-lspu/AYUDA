@@ -1,0 +1,246 @@
+{% extends "community/community_base.html" %}
+{% block title %}My Activity Logs - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .activity-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 15px 15px;
+    }
+
+    .badge-action-view { background-color: #4e73df; color: white; }
+    .badge-action-create { background-color: #1cc88a; color: white; }
+    .badge-action-update { background-color: #f6c23e; color: #333; }
+    .badge-action-delete { background-color: #e74a3b; color: white; }
+    .badge-action-search { background-color: #6f42c1; color: white; }
+    .badge-action-auth { background-color: #5a5c69; color: white; }
+    .badge-action-upload { background-color: #36b9cc; color: white; }
+    .badge-action-save { background-color: #fd7e14; color: white; }
+    .badge-action-hide { background-color: #858796; color: white; }
+    
+    .badge-entity-program { background-color: #4e73df; color: white; }
+    .badge-entity-application { background-color: #1cc88a; color: white; }
+    .badge-entity-document { background-color: #36b9cc; color: white; }
+    .badge-entity-profile { background-color: #f6c23e; color: #333; }
+    .badge-entity-session { background-color: #5a5c69; color: white; }
+    .badge-entity-search { background-color: #6f42c1; color: white; }
+    
+    .activity-row {
+        transition: all 0.2s ease;
+    }
+    
+    .activity-row:hover {
+        background-color: #f8f9fc;
+        transform: translateX(3px);
+    }
+
+    .filter-section {
+        background: #f8f9fc;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e3e6f0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="activity-header">
+    <div class="container">
+        <h2 class="mb-2">
+            <i class="fas fa-history mr-2"></i>My Activity Logs
+        </h2>
+        <p class="mb-0 text-white-50">View your interaction and activity history on the platform</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Activities
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('community.activity_logs') }}">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="small font-weight-bold">Action Type</label>
+                        <select class="form-control" name="action_type">
+                            <option value="">All Actions</option>
+                            <option value="view" {% if request.args.get('action_type')=='view' %}selected{% endif %}>View</option>
+                            <option value="create" {% if request.args.get('action_type')=='create' %}selected{% endif %}>Create</option>
+                            <option value="update" {% if request.args.get('action_type')=='update' %}selected{% endif %}>Update</option>
+                            <option value="search" {% if request.args.get('action_type')=='search' %}selected{% endif %}>Search</option>
+                            <option value="upload" {% if request.args.get('action_type')=='upload' %}selected{% endif %}>Upload</option>
+                            <option value="save" {% if request.args.get('action_type')=='save' %}selected{% endif %}>Save</option>
+                            <option value="hide" {% if request.args.get('action_type')=='hide' %}selected{% endif %}>Hide</option>
+                            <option value="auth" {% if request.args.get('action_type')=='auth' %}selected{% endif %}>Auth</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="small font-weight-bold">Entity Type</label>
+                        <select class="form-control" name="entity_type">
+                            <option value="">All Entities</option>
+                            <option value="program" {% if request.args.get('entity_type')=='program' %}selected{% endif %}>Program</option>
+                            <option value="application" {% if request.args.get('entity_type')=='application' %}selected{% endif %}>Application</option>
+                            <option value="document" {% if request.args.get('entity_type')=='document' %}selected{% endif %}>Document</option>
+                            <option value="profile" {% if request.args.get('entity_type')=='profile' %}selected{% endif %}>Profile</option>
+                            <option value="session" {% if request.args.get('entity_type')=='session' %}selected{% endif %}>Session</option>
+                            <option value="search" {% if request.args.get('entity_type')=='search' %}selected{% endif %}>Search</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="small font-weight-bold">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search mr-2"></i>Filter
+                    </button>
+                    <a href="{{ url_for('community.activity_logs') }}" class="btn btn-secondary">
+                        <i class="fas fa-redo mr-2"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results Info -->
+    <div class="mb-3">
+        <span class="text-muted">Showing {{ pagination.total }} activities</span>
+    </div>
+
+    <!-- Activity Table -->
+    <div class="card shadow mb-4">
+        <div class="card-body p-0">
+            {% if activities %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 pl-4">Date & Time</th>
+                            <th class="py-3">Action</th>
+                            <th class="py-3">Entity</th>
+                            <th class="py-3">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in activities %}
+                        <tr class="activity-row">
+                            <td class="pl-4">
+                                <div class="small font-weight-bold">{{ activity.created_at.strftime('%b %d, %Y') }}</div>
+                                <div class="small text-muted">{{ activity.created_at.strftime('%I:%M:%S %p') }}</div>
+                            </td>
+                            <td>
+                                <span class="badge badge-action-{{ activity.action_type }} px-2 py-1">
+                                    {% if activity.action_type == 'view' %}
+                                        <i class="fas fa-eye mr-1"></i>
+                                    {% elif activity.action_type == 'create' %}
+                                        <i class="fas fa-plus mr-1"></i>
+                                    {% elif activity.action_type == 'update' %}
+                                        <i class="fas fa-edit mr-1"></i>
+                                    {% elif activity.action_type == 'search' %}
+                                        <i class="fas fa-search mr-1"></i>
+                                    {% elif activity.action_type == 'upload' %}
+                                        <i class="fas fa-upload mr-1"></i>
+                                    {% elif activity.action_type == 'save' %}
+                                        <i class="fas fa-bookmark mr-1"></i>
+                                    {% elif activity.action_type == 'hide' %}
+                                        <i class="fas fa-eye-slash mr-1"></i>
+                                    {% elif activity.action_type == 'auth' %}
+                                        <i class="fas fa-sign-in-alt mr-1"></i>
+                                    {% elif activity.action_type == 'delete' %}
+                                        <i class="fas fa-trash mr-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-cog mr-1"></i>
+                                    {% endif %}
+                                    {{ activity.action_type|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-entity-{{ activity.entity_type }} px-2 py-1">
+                                    {{ activity.entity_type|title }}
+                                </span>
+                                {% if activity.entity_id %}
+                                <small class="text-muted d-block">#{{ activity.entity_id }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small" style="max-width: 350px;" title="{{ activity.description }}">
+                                    {{ activity.description[:120] }}{% if activity.description|length > 120 %}...{% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4 pb-3">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('community.activity_logs', page=1) }}">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('community.activity_logs', page=pagination.prev_num) }}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('community.activity_logs', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('community.activity_logs', page=pagination.next_num) }}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('community.activity_logs', page=pagination.pages) }}">Last</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <p class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                No activity logs yet
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Back to Settings -->
+    <div class="text-center">
+        <a href="{{ url_for('community.settings') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Settings
+        </a>
+    </div>
+</div>
+{% endblock %}

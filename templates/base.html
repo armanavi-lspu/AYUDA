@@ -90,6 +90,43 @@
             background: linear-gradient(135deg, #0032A0 0%, #002270 100%) !important;
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
         }
+
+        /* Center navbar navigation items */
+        .navbar-collapse {
+            justify-content: center;
+        }
+
+        .navbar-nav {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .navbar-nav .nav-link {
+            margin: 0 15px;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-nav .nav-link.active {
+            color: #ffd700 !important;
+            font-weight: 600;
+        }
+
+        .navbar-nav .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ffd700, transparent);
+        }
+
+        /* Buttons container - push to the right */
+        .navbar-buttons {
+            margin-left: auto;
+        }
     </style>
     
     <!-- Custom Base CSS -->
@@ -106,7 +143,7 @@
 </head>
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark d-flex">
         <a class="navbar-brand navbar-brand-elegant" href="/about">AYUDA</a>
         <button 
             class="navbar-toggler"  
@@ -119,11 +156,13 @@
         >
             <span class="navbar-toggler-icon"></span>
         </button>
-        <div class="collapse navbar-collapse" id="navbar">
-            <div class="navbar-nav ml-auto">
-                <a class="nav-item nav-link text-white" id="About" href="/about">About</a>
-                <a class="nav-item nav-link text-white" id="Programs" href="/programs">Programs</a>
-                <a class="nav-item nav-link text-white" id="Privacy" href="/privacy">Privacy</a>
+        <div class="collapse navbar-collapse w-100" id="navbar">
+            <div class="navbar-nav">
+                <a class="nav-item nav-link text-white{% if request.path == '/about' %} active{% endif %}" id="About" href="/about">About</a>
+                <a class="nav-item nav-link text-white{% if request.path == '/programs' %} active{% endif %}" id="Programs" href="/programs">Programs</a>
+                <a class="nav-item nav-link text-white{% if request.path == '/privacy' %} active{% endif %}" id="Privacy" href="/privacy">Privacy</a>
+            </div>
+            <div class="navbar-buttons">
                 <a class="btn btn-outline-light mr-2" id="login" href="/login">Login</a>
                 <a class="btn btn-light text-dark" id="signUp" href="/sign-up">Sign Up</a>
             </div>   

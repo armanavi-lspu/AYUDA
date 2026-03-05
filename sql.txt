@@ -49,7 +49,10 @@ CREATE TABLE programs (
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who created the program
     file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
     is_active BOOLEAN DEFAULT TRUE, -- Track active programs
-    allow_online_upload BOOLEAN DEFAULT TRUE -- Enable/disable online document submission
+    allow_online_upload BOOLEAN DEFAULT TRUE, -- Enable/disable online document submission
+    enable_application_slip BOOLEAN DEFAULT TRUE, -- Enable/disable application slip generation
+    use_beneficiary_limit BOOLEAN, -- Whether to enforce beneficiary limit
+    use_income_range BOOLEAN -- Whether to enforce income range requirement
 );
 
 --Create index on programs 
@@ -66,7 +69,7 @@ CREATE TABLE applications (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-    application_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    application_status VARCHAR(20) NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected', 'active', 'completed'
     document_upload_status VARCHAR(20) DEFAULT 'pending',
     application_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_date TIMESTAMP,
@@ -87,6 +90,15 @@ CREATE TABLE applications (
     code_generated_at TIMESTAMP, -- When code was generated
     code_used_at TIMESTAMP, -- When code was used
     documents_submitted_at TIMESTAMP, -- When documents were physically submitted
+    
+    -- Cancellation request fields
+    cancellation_requested BOOLEAN DEFAULT FALSE, -- Whether applicant requested cancellation
+    cancellation_reason TEXT, -- Reason for cancellation
+    cancellation_requested_at TIMESTAMP, -- When cancellation was requested
+    cancellation_status VARCHAR(20), -- 'pending', 'approved', 'rejected'
+    cancellation_reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who reviewed
+    cancellation_reviewed_at TIMESTAMP, -- When cancellation was reviewed
+    cancellation_admin_notes TEXT, -- Admin notes on cancellation
     
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -186,7 +198,30 @@ CREATE TABLE community_users (
     is_pwd BOOLEAN DEFAULT FALSE,
     disability_type VARCHAR(100),
     family_annual_income DECIMAL(12,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Verification status fields for Senior Citizen, PWD, Solo Parent
+    -- Status values: 'none', 'pending', 'approved', 'rejected'
+    senior_citizen_verification VARCHAR(20) DEFAULT 'none',
+    senior_citizen_id_number VARCHAR(50),
+    senior_citizen_verified_at TIMESTAMP,
+    senior_citizen_verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    senior_citizen_document_path VARCHAR(255),
+    senior_citizen_rejection_reason TEXT,
+    
+    pwd_verification VARCHAR(20) DEFAULT 'none',
+    pwd_id_number VARCHAR(50),
+    pwd_verified_at TIMESTAMP,
+    pwd_verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    pwd_document_path VARCHAR(255),
+    pwd_rejection_reason TEXT,
+    
+    solo_parent_verification VARCHAR(20) DEFAULT 'none',
+    solo_parent_id_number VARCHAR(50),
+    solo_parent_verified_at TIMESTAMP,
+    solo_parent_verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    solo_parent_document_path VARCHAR(255),
+    solo_parent_rejection_reason TEXT
 );
 
 -- Create indexes for community_users (for analytics and filtering)
@@ -196,7 +231,12 @@ CREATE INDEX idx_community_users_barangay ON community_users(barangay);
 CREATE INDEX idx_community_users_employed ON community_users(is_currently_employed);
 CREATE INDEX idx_community_users_student ON community_users(is_student);
 CREATE INDEX idx_community_users_solo_parent ON community_users(is_solo_parent);
+CREATE INDEX idx_community_users_pwd ON community_users(is_pwd);
 CREATE INDEX idx_community_users_income ON community_users(family_annual_income);
+-- Verification status indexes
+CREATE INDEX idx_community_users_senior_verification ON community_users(senior_citizen_verification);
+CREATE INDEX idx_community_users_pwd_verification ON community_users(pwd_verification);
+CREATE INDEX idx_community_users_solo_parent_verification ON community_users(solo_parent_verification);
 -- Composite indexes for common analytics queries
 CREATE INDEX idx_community_barangay_income ON community_users(barangay, family_annual_income);
 CREATE INDEX idx_community_age_employed ON community_users(age, is_currently_employed);
@@ -234,7 +274,7 @@ CREATE TABLE application_documents (
     id SERIAL PRIMARY KEY,
     application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
-    submission_status VARCHAR(20), -- approved, rejected, incomplete, on-hold, under-review
+    submission_status VARCHAR(20) DEFAULT 'pending', -- 'not_submitted', 'submitted', 'pending', 'approved', 'rejected', 'returned'
     qualification_met BOOLEAN DEFAULT FALSE, -- For qualification-type requirements
     verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who verified
     verified_at TIMESTAMP,
@@ -270,7 +310,6 @@ CREATE TABLE program_workflow_steps (
     step_type VARCHAR(50) NOT NULL DEFAULT 'approval', -- 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
     is_pre_approval BOOLEAN DEFAULT FALSE, -- True if step must be completed before application approval
     requires_verification BOOLEAN DEFAULT TRUE, -- True if admin must verify this step
-    min_items INTEGER DEFAULT 1, -- Minimum items required
     allowed_file_types VARCHAR(255), -- Comma-separated file extensions
     step_config TEXT, -- JSON configuration for step-specific settings
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -343,14 +382,158 @@ CREATE INDEX idx_cal_documents_verified_by ON cal_documents(verified_by);
 CREATE INDEX idx_cal_documents_verification_status ON cal_documents(verification_status);
 CREATE INDEX idx_cal_documents_uploaded_at ON cal_documents(uploaded_at DESC);
 
--- Create table for community user activity log
+-- Create application workflow status table
+CREATE TABLE application_workflow_status (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    workflow_step_id INTEGER NOT NULL REFERENCES program_workflow_steps(id) ON DELETE CASCADE,
+    step_status VARCHAR(20) NOT NULL DEFAULT 'not_started', -- not_started, in_progress, pending_review, approved, rejected, completed
+    started_at TIMESTAMP, -- When user started working on this step
+    completed_at TIMESTAMP, -- When user completed their part
+    reviewed_at TIMESTAMP, -- When admin reviewed this step
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who reviewed
+    admin_feedback TEXT, -- Admin comments/feedback
+    step_data TEXT, -- JSON data specific to this step (uploaded files, form data, etc.)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(application_id, workflow_step_id) -- prevent duplicate step status per application
+);
 
--- Create table for Admin Activity Logs
+CREATE INDEX idx_workflow_status_application_id ON application_workflow_status(application_id);
+CREATE INDEX idx_workflow_status_workflow_step_id ON application_workflow_status(workflow_step_id);
+CREATE INDEX idx_workflow_status_step_status ON application_workflow_status(step_status);
+CREATE INDEX idx_workflow_status_reviewed_by ON application_workflow_status(reviewed_by);
+CREATE INDEX idx_workflow_status ON application_workflow_status(application_id, step_status);
 
-###################################
+-- Create application workflow history table (tracks revisions and changes)
+CREATE TABLE application_workflow_history (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    workflow_step_id INTEGER NOT NULL REFERENCES program_workflow_steps(id) ON DELETE CASCADE,
+    revision_number INTEGER, -- Revision number for this step
+    step_status VARCHAR(20) NOT NULL, -- 'not_started', 'in_progress', 'pending_review', 'approved', 'rejected', 'completed'
+    action_type VARCHAR(20) NOT NULL, -- 'submitted', 'reviewed', 'approved', 'rejected', 'returned'
+    action_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- User who took the action
+    admin_feedback TEXT, -- Admin comments/feedback
+    step_data TEXT, -- JSON data specific to this step
+    submitted_at TIMESTAMP, -- When user submitted this step
+    reviewed_at TIMESTAMP, -- When admin reviewed this step
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- INSERT VALUES 
+CREATE INDEX idx_application_workflow_history_application_id ON application_workflow_history(application_id);
+CREATE INDEX idx_application_workflow_history_workflow_step_id ON application_workflow_history(workflow_step_id);
+CREATE INDEX idx_application_workflow_history_action_type ON application_workflow_history(action_type);
 
-###################################
+-- INSERT ADMIN USER
+INSERT INTO users (email, password_hash, first_name, middle_name, last_name, role) VALUES 
+('MSWDMabitac@gmail.com', 'pbkdf2:sha256:1000000$IuS9gs8xouS7Dpkz$78e22fb46ebc399b101305b6055e847d5adb834b360b587429c1bab19afc2808', 'Admin', NULL, 'User', 'admin'),
+('user1@test.com', 'pbkdf2:sha256:1000000$IuS9gs8xouS7Dpkz$78e22fb46ebc399b101305b6055e847d5adb834b360b587429c1bab19afc2808', 'Juan', 'A', 'Dela Cruz', 'community');
 
--- INSERT (CREATE ACCOUNT FOR 1 ADMIN and 1 USER)
+-- INSERT ADMIN PROFILE
+INSERT INTO admin_users (user_id) VALUES (1);
+
+-- INSERT PROGRAMS
+INSERT INTO programs (program_name, program_type, program_period, priority_group, beneficiary_limit, income_range, start_date, end_date, description, user_id, is_active, allow_online_upload) VALUES
+('Financial Assistance Program', 'AICS', 'Ongoing', 'Low-income families', 100, '₱0 - ₱150,000', '2026-01-01', '2026-12-31', 'Provides financial support to families in need for emergencies and basic necessities', 1, TRUE, TRUE),
+('Burial Assistance Program', 'AICS', 'Emergency', 'Families in need', 50, '₱0 - ₱200,000', '2026-01-01', '2026-12-31', 'Provides financial support to families in need for burial and funeral services', 1, TRUE, TRUE),
+('Educational Assistance Program', 'AICS', 'Semi-Annual', 'Students from low-income families', 200, '₱0 - ₱150,000', '2026-06-01', '2026-12-31', 'Educational financial assistance program for elementary to college students', 1, TRUE, TRUE),
+('Medical Assistance Program', 'AICS', 'Ongoing', 'Low-income families needing medical help', 150, '₱0 - ₱200,000', '2026-01-01', '2026-12-31', 'Healthcare support including medicine subsidies, hospital bills, and medical procedures', 1, TRUE, TRUE),
+('Fire Disaster', 'ESA', 'Emergency', 'Fire victims', 30, 'All income levels', '2026-01-01', '2026-12-31', 'Temporary shelter and housing assistance for families affected by fire incidents', 1, TRUE, TRUE),
+('Typhoon Disaster', 'ESA', 'Emergency', 'Typhoon victims', 50, 'All income levels', '2026-01-01', '2026-12-31', 'Temporary shelter and housing assistance for families affected by typhoon incidents', 1, TRUE, TRUE),
+('Capital Assistance Program', 'CA', 'Monthly', 'Aspiring entrepreneurs', 75, '₱0 - ₱300,000', '2026-01-01', '2026-12-31', 'Support for microenterprise development and livelihood projects', 1, TRUE, TRUE);
+
+-- INSERT DOCUMENT REQUIREMENTS
+INSERT INTO requirements (requirement_name, requirement_type, description) VALUES
+('Valid ID', 'document', 'Any government-issued ID (PhilID, Driver''s License, Passport, etc.)'),
+('PSA Birth Certificate', 'document', 'Photocopy of birth certificate from PSA (Philippine Statistics Authority)'),
+('Certificate of Enrollment / Registration (COR)', 'document', 'Current certificate of enrollment/registration from school for current semester/quarter'),
+('Certificate of Grades (COG)', 'document', 'Latest grades from previous semester/quarter'),
+('Student ID', 'document', 'Valid student identification card issued by the current school (School ID)'),
+('Barangay Report', 'document', 'Barangay report for disaster-affected applicants'),
+('Barangay Indigency Certificate', 'document', 'Certificate of Indigency from Barangay'),
+('Barangay Clearance', 'document', 'Barangay clearance certificate'),
+('Medical Certificate', 'document', 'Medical certificate from licensed physician'),
+('Death Certificate', 'document', 'PSA Death Certificate of deceased'),
+('Proof of Income', 'document', 'Latest payslip, ITR, or certificate of income'),
+('Funeral Contract', 'document', 'Contract or agreement with funeral service provider'),
+('Hospital Bills/Medical Records', 'document', 'Medical bills, prescriptions, or hospital records'),
+('PWD ID', 'document', 'Valid Person with Disability identification card'),
+('Senior Citizen ID', 'document', 'Valid senior citizen identification card'),
+('Solo Parent ID', 'document', 'Valid solo parent identification card'),
+('Proof of Business', 'document', 'Business permit, DTI registration, or business-related documents');
+
+-- INSERT QUALIFICATION REQUIREMENTS
+INSERT INTO requirements (requirement_name, requirement_type, description) VALUES
+('Student', 'qualification', 'Currently enrolled in any educational institution'),
+('Solo Parent', 'qualification', 'Registered solo parent with valid ID'),
+('Low Income Family', 'qualification', 'Family annual income below poverty threshold'),
+('Indigent Family', 'qualification', 'Family identified as indigent by barangay'),
+('Person with Disability (PWD)', 'qualification', 'Registered PWD with valid ID'),
+('Senior Citizen', 'qualification', '60 years old and above with valid ID'),
+('Resident of Mabitac', 'qualification', 'Bonafide resident of Mabitac, Laguna'),
+('Fire Victim', 'qualification', 'Affected by fire incident (with barangay report)'),
+('Typhoon Victim', 'qualification', 'Affected by typhoon/calamity (with barangay report)');
+
+-- INSERT PROGRAM REQUIREMENTS ASSIGNMENTS
+
+-- Financial Assistance Program (ID: 1)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(1, 1, TRUE),   -- Valid ID
+(1, 7, TRUE),   -- Barangay Indigency Certificate  
+(1, 11, TRUE),  -- Proof of Income
+(1, 21, TRUE),  -- Low Income Family
+(1, 25, TRUE);  -- Resident of Mabitac
+
+-- Burial Assistance Program (ID: 2)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(2, 1, TRUE),   -- Valid ID
+(2, 10, TRUE),  -- Death Certificate
+(2, 12, TRUE),  -- Funeral Contract
+(2, 7, FALSE),  -- Barangay Indigency Certificate (optional)
+(2, 21, TRUE),  -- Low Income Family
+(2, 25, TRUE);  -- Resident of Mabitac
+
+-- Educational Assistance Program (ID: 3)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(3, 1, TRUE),   -- Valid ID
+(3, 5, TRUE),   -- Student ID
+(3, 3, TRUE),   -- Certificate of Enrollment / Registration (COR)
+(3, 4, TRUE),   -- Certificate of Grades (COG)
+(3, 7, TRUE),   -- Barangay Indigency Certificate
+(3, 18, TRUE),  -- Student (qualification)
+(3, 21, TRUE),  -- Low Income Family
+(3, 25, TRUE);  -- Resident of Mabitac
+
+-- Medical Assistance Program (ID: 4)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(4, 1, TRUE),   -- Valid ID
+(4, 9, TRUE),   -- Medical Certificate
+(4, 13, TRUE),  -- Hospital Bills/Medical Records
+(4, 7, TRUE),   -- Barangay Indigency Certificate
+(4, 11, FALSE), -- Proof of Income (optional)
+(4, 21, TRUE),  -- Low Income Family
+(4, 25, TRUE);  -- Resident of Mabitac
+
+-- Fire Disaster (ID: 5)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(5, 1, TRUE),   -- Valid ID
+(5, 6, TRUE),   -- Barangay Report
+(5, 24, TRUE),  -- Fire Victim
+(5, 25, TRUE);  -- Resident of Mabitac
+
+-- Typhoon Disaster (ID: 6)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(6, 1, TRUE),   -- Valid ID
+(6, 6, TRUE),   -- Barangay Report
+(6, 26, TRUE),  -- Typhoon Victim
+(6, 25, TRUE);  -- Resident of Mabitac
+
+-- Capital Assistance Program (ID: 7)
+INSERT INTO program_requirements (program_id, requirement_id, is_mandatory) VALUES
+(7, 1, TRUE),   -- Valid ID
+(7, 8, TRUE),   -- Barangay Clearance
+(7, 17, TRUE),  -- Proof of Business
+(7, 11, FALSE), -- Proof of Income (optional)
+(7, 21, TRUE),  -- Low Income Family
+(7, 25, TRUE);  -- Resident of Mabitac

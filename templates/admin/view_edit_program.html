@@ -122,6 +122,17 @@
     .workflow-step-card:active .drag-handle {
         cursor: grabbing;
     }
+    
+    /* Ensure buttons are clickable */
+    .btn {
+        pointer-events: auto !important;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .card-header .btn {
+        z-index: 10;
+    }
 </style>
 {% endblock %}
 
@@ -173,6 +184,20 @@
                                 <i class="fas fa-tag mr-2"></i>{{ program.program_type }} • 
                                 <i class="fas fa-clock mr-2"></i>{{ program.program_period }}
                             </p>
+                        </div>
+                        <div class="col-lg-4 text-right">
+                            <div class="d-flex flex-column text-right">
+                                {% if program.date %}
+                                <small class="opacity-75 mb-1">
+                                    Created: {{ program.date.strftime('%B %d, %Y at %I:%M %p') }}
+                                </small>
+                                {% endif %}
+                                {% if program.updated_at %}
+                                <small class="opacity-75">
+                                    <em>Last edited: {{ program.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</em>
+                                </small>
+                                {% endif %}
+                            </div>
                         </div>                        
                     </div>
                 </div>
@@ -197,7 +222,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-info text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Information</h6>
-                            <button class="btn btn-sm btn-light" onclick="openProgramInfoModal()">
+                            <button type="button" class="btn btn-sm btn-light" onclick="openProgramInfoModal(); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit
                             </button>
                         </div>
@@ -263,7 +288,7 @@
                                     <h6 class="text-warning font-weight-bold mb-2">
                                         <i class="fas fa-user-friends mr-2"></i>Beneficiary Limit
                                     </h6>
-                                    {% set approved_count = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length if program.applications else 0 %}
+                                    {% set approved_count = (program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length) if program.applications else 0 %}
                                     <p class="mb-0">Maximum {{ program.beneficiary_limit }} beneficiaries</p>
                                     <small class="text-muted">Current accepted: {{ approved_count }} / {{ program.beneficiary_limit }}</small>
                                 </div>
@@ -335,7 +360,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Requirements</h6>
-                            <button class="btn btn-sm btn-light" onclick="openRequirementsModal()">
+                            <button type="button" class="btn btn-sm btn-light" onclick="openRequirementsModal(); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit
                             </button>
                         </div>
@@ -395,63 +420,14 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-dark text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Workflow Steps</h6>
-                            <button class="btn btn-sm btn-light" onclick="openWorkflowModal()">
+                            <button type="button" class="btn btn-sm btn-light" onclick="openWorkflowModal(); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit Steps
                             </button>
                         </div>
                         <div class="card-body">
-                            {% if program.workflow_steps %}
-                            <div class="timeline">
-                                {% for step in program.workflow_steps|sort(attribute='step_order') %}
-                                <div class="d-flex mb-3">
-                                    <div class="mr-3 text-center" style="min-width: 50px;">
-                                        <span class="badge badge-{% if step.is_pre_approval %}warning{% else %}primary{% endif %} rounded-circle" style="width:35px;height:35px;line-height:27px;font-size:16px;">
-                                            {{ step.step_order }}
-                                        </span>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="font-weight-bold mb-1">
-                                            {% if step.step_type == 'photo_upload' %}
-                                            <i class="fas fa-camera text-info mr-2"></i>
-                                            {% elif step.step_type == 'document_upload' %}
-                                            <i class="fas fa-file-upload text-primary mr-2"></i>
-                                            {% elif step.step_type == 'approval' %}
-                                            <i class="fas fa-check-circle text-success mr-2"></i>
-                                            {% elif step.step_type == 'verification' %}
-                                            <i class="fas fa-clipboard-check text-warning mr-2"></i>
-                                            {% elif step.step_type == 'document_submission' %}
-                                            <i class="fas fa-building text-secondary mr-2"></i>
-                                            {% elif step.step_type == 'assessment' %}
-                                            <i class="fas fa-clipboard-list mr-2" style="color: #6f42c1;"></i>
-                                            {% elif step.step_type == 'scheduling' %}
-                                            <i class="fas fa-calendar-alt text-dark mr-2"></i>
-                                            {% endif %}
-                                            {{ step.step_name }}
-                                        </h6>
-                                        {% if step.step_description %}
-                                        <p class="text-muted small mb-1">{{ step.step_description }}</p>
-                                        {% endif %}
-                                        <div class="d-flex flex-wrap">
-                                            {% if step.is_pre_approval %}
-                                            <span class="badge badge-warning mr-1 mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Pre-Approval Required</span>
-                                            {% endif %}
-                                            {% if step.requires_verification %}
-                                            <span class="badge badge-info mr-1 mb-1"><i class="fas fa-user-check mr-1"></i>Admin Verification</span>
-                                            {% endif %}
-                                            {% if step.min_items > 1 %}
-                                            <span class="badge badge-secondary mr-1 mb-1"><i class="fas fa-list mr-1"></i>Min: {{ step.min_items }} items</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
+                            <div id="viewWorkflowStepsContainer">
+                                <!-- Rendered by renderViewWorkflowSteps() -->
                             </div>
-                            {% else %}
-                            <div class="text-center text-muted py-3">
-                                <i class="fas fa-stream fa-2x mb-2"></i>
-                                <p class="mb-0">No workflow steps defined. Click "Edit Steps" to add steps.</p>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -629,23 +605,58 @@
                             </div>
                         </div>
                         
+                        <!-- Beneficiary Limit Toggle -->
                         <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-users mr-2"></i>Beneficiary Limit Control
+                            </label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" name="use_beneficiary_limit" id="editUseBeneficiaryLimit" 
+                                       {% if program.use_beneficiary_limit %}checked{% endif %}>
+                                <label class="custom-control-label" for="editUseBeneficiaryLimit">
+                                    Enable beneficiary limit for this program
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> When enabled, the program will have a maximum number of accepted beneficiaries.
+                            </small>
+                        </div>
+                        
+                        <div class="form-group" id="editBeneficiaryLimitGroup" style="display: {% if program.use_beneficiary_limit %}block{% else %}none{% endif %};">
                             <label>Beneficiary Limit</label>
                             <input type="number" class="form-control" name="beneficiary_limit" min="1" 
                                    value="{{ program.beneficiary_limit if program.beneficiary_limit else '' }}"
-                                   placeholder="e.g., 100 (leave blank for unlimited)">
+                                   placeholder="e.g., 100">
                             <small class="form-text text-muted">
-                                <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program. Leave blank for no limit.
+                                <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program.
                                 {% if program.applications and program.beneficiary_limit %}
-                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length %}
+                                    {% set approved_count_edit = program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length %}
                                     <br><strong class="text-info">Current accepted: {{ approved_count_edit }} / {{ program.beneficiary_limit }}</strong>
                                 {% endif %}
                             </small>
                         </div>
+                        
+                        <!-- Target Income Range Toggle -->
                         <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-chart-line mr-2"></i>Income Range Filtering
+                            </label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" name="use_income_range" id="editUseIncomeRange" 
+                                       {% if program.use_income_range %}checked{% endif %}>
+                                <label class="custom-control-label" for="editUseIncomeRange">
+                                    Enable income range targeting for this program
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> When enabled, the program will target specific income ranges.
+                            </small>
+                        </div>
+                        
+                        <div class="form-group" id="editIncomeRangeGroup" style="display: {% if program.use_income_range %}block{% else %}none{% endif %};">
                             <label>Target Income Range</label>
                             <select class="form-control" name="income_range">
-                                <option value="">Select Income Range (Optional)</option>
+                                <option value="">Select Income Range</option>
                                 <option value="Below 10,000" {% if program.income_range == "Below 10,000" %}selected{% endif %}>Below ₱10,000</option>
                                 <option value="10,000 - 15,000" {% if program.income_range == "10,000 - 15,000" %}selected{% endif %}>₱10,000 - ₱15,000</option>
                                 <option value="15,001 - 20,000" {% if program.income_range == "15,001 - 20,000" %}selected{% endif %}>₱15,001 - ₱20,000</option>
@@ -657,6 +668,56 @@
                                 <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
                             </small>
                         </div>
+                        
+<script>
+// Inline edit toggle functionality
+(function() {
+    setTimeout(function() {
+        console.log('🎯 Setting up edit toggles...');
+        
+        // Edit Beneficiary Limit Toggle
+        const editBeneficiaryToggle = document.getElementById('editUseBeneficiaryLimit');
+        const editBeneficiaryGroup = document.getElementById('editBeneficiaryLimitGroup');
+        
+        if (editBeneficiaryToggle && editBeneficiaryGroup) {
+            console.log('✅ Found edit beneficiary elements');
+            editBeneficiaryToggle.addEventListener('change', function() {
+                console.log('Edit beneficiary toggle:', this.checked);
+                if (this.checked) {
+                    editBeneficiaryGroup.style.display = 'block';
+                    console.log('🟢 Showing edit beneficiary group');
+                } else {
+                    editBeneficiaryGroup.style.display = 'none';
+                    const input = document.querySelector('input[name="beneficiary_limit"]');
+                    if (input) input.value = '';
+                    console.log('🔴 Hiding edit beneficiary group');
+                }
+            });
+        }
+        
+        // Edit Income Range Toggle
+        const editIncomeToggle = document.getElementById('editUseIncomeRange');
+        const editIncomeGroup = document.getElementById('editIncomeRangeGroup');
+        
+        if (editIncomeToggle && editIncomeGroup) {
+            console.log('✅ Found edit income elements');
+            editIncomeToggle.addEventListener('change', function() {
+                console.log('Edit income toggle:', this.checked);
+                if (this.checked) {
+                    editIncomeGroup.style.display = 'block';
+                    console.log('🟢 Showing edit income group');
+                } else {
+                    editIncomeGroup.style.display = 'none';
+                    const select = document.querySelector('select[name="income_range"]');
+                    if (select) select.value = '';
+                    console.log('🔴 Hiding edit income group');
+                }
+            });
+        }
+    }, 100);
+})();
+</script>
+                        
                         <div class="form-group">
                             <label>Priority Groups (Target Beneficiaries)</label>
                             {% set selected_groups = program.priority_group.split(', ') if program.priority_group else [] %}
@@ -686,8 +747,8 @@
                                     <label class="custom-control-label" for="editPriority6">Indigent Families</label>
                                 </div>
                                 <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Unemployed Individuals" id="editPriority7" {% if "Unemployed Individuals" in selected_groups %}checked{% endif %}>
-                                    <label class="custom-control-label" for="editPriority7">Unemployed Individuals</label>
+                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Not Employed Individuals" id="editPriority7" {% if "Not Employed Individuals" in selected_groups %}checked{% endif %}>
+                                    <label class="custom-control-label" for="editPriority7">Not Employed Individuals</label>
                                 </div>
                                 <div class="custom-control custom-checkbox">
                                     <input type="checkbox" class="custom-control-input" name="priority_group" value="Informal Settlers" id="editPriority8" {% if "Informal Settlers" in selected_groups %}checked{% endif %}>
@@ -720,6 +781,23 @@
                             </small>
                         </div>
                         
+                        <!-- Application Slip Toggle -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-print mr-2"></i>Application Slip Printing
+                            </label>
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" name="enable_application_slip" id="editEnableApplicationSlip" 
+                                       {% if program.enable_application_slip %}checked{% endif %}>
+                                <label class="custom-control-label" for="editEnableApplicationSlip">
+                                    Enable application slip printing for this program
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> When enabled, applicants and admins can print an official application slip as proof of submission.
+                            </small>
+                        </div>
+                        
                         <div class="form-group">
                             <label>Update Attachment (Optional)</label>
                             <div class="custom-file">
@@ -749,15 +827,6 @@
                     <div class="card-body">
                         <!-- Requirements Section -->
                         <div class="form-group">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <label class="font-weight-bold mb-0">
-                                    <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
-                                </label>
-                                <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-sm btn-outline-secondary" title="Manage All Requirements">
-                                    <i class="fas fa-cog mr-1"></i>Manage Requirements
-                                </a>
-                            </div>
-                            
                             <!-- Document Requirements Section -->
                             <div class="card mb-3">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
@@ -787,7 +856,7 @@
                                                 <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditDocForm()">
                                                     <i class="fas fa-times"></i> Cancel
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document')">
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirementEdit('document', this)">
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
@@ -859,7 +928,7 @@
                                                 <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditQualForm()">
                                                     <i class="fas fa-times"></i> Cancel
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification')">
+                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirementEdit('qualification', this)">
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
@@ -933,25 +1002,22 @@
                                                     <i class="fas fa-file-import mr-1"></i>Load Template
                                                 </button>
                                                 <div class="dropdown-menu dropdown-menu-right">
-                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('default'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="console.log('Standard workflow template clicked'); applyWorkflowTemplate('default'); return false;">
                                                         <i class="fas fa-clipboard-list mr-2"></i>Standard Workflow
                                                     </a>
-                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('online_upload'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="console.log('Online upload template clicked'); applyWorkflowTemplate('online_upload'); return false;">
                                                         <i class="fas fa-cloud-upload-alt mr-2"></i>Online Upload Workflow
                                                     </a>
                                                     <div class="dropdown-divider"></div>
-                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('ESA'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="console.log('ESA template clicked'); applyWorkflowTemplate('ESA'); return false;">
                                                         <i class="fas fa-home mr-2"></i>ESA Workflow
-                                                    </a>
-                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('CA'); return false;">
-                                                        <i class="fas fa-store mr-2"></i>CA Workflow
                                                     </a>
                                                 </div>
                                             </div>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWorkflowStep()">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="console.log('Add workflow step clicked'); addWorkflowStep(); return false;">
                                                 <i class="fas fa-plus"></i> Add Step
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-success ml-1" onclick="applyWorkflowTemplate('default')">
+                                            <button type="button" class="btn btn-sm btn-outline-success ml-1" onclick="console.log('Test template clicked'); applyWorkflowTemplate('default'); return false;">
                                                 <i class="fas fa-file-import"></i> Test Template
                                             </button>
                                         </div>
@@ -1105,14 +1171,14 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-danger" onclick="deleteFromEditModal()">
+                <button type="button" class="btn btn-danger" onclick="deleteFromEditModal(this)">
                     <i class="fas fa-trash-alt mr-1"></i>Delete Requirement
                 </button>
                 <div class="ml-auto">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">
                         <i class="fas fa-times mr-1"></i>Cancel
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="saveRequirementEdit()">
+                    <button type="button" class="btn btn-primary" onclick="saveRequirementEdit(this)">
                         <i class="fas fa-save mr-1"></i>Save Changes
                     </button>
                 </div>
@@ -1211,27 +1277,104 @@
                             </div>
                         </div>
                         <div class="col-md-6">
+                            <!-- Modal Beneficiary Limit Toggle -->
                             <div class="form-group">
-                                <label class="font-weight-bold">Beneficiary Limit</label>
-                                <input type="number" class="form-control" id="modalBeneficiaryLimit" min="1" placeholder="Leave blank for unlimited">
+                                <label class="font-weight-bold">
+                                    <i class="fas fa-users mr-2"></i>Beneficiary Limit Control
+                                </label>
+                                <div class="custom-control custom-switch mb-3">
+                                    <input type="checkbox" class="custom-control-input" id="modalUseBeneficiaryLimit">
+                                    <label class="custom-control-label" for="modalUseBeneficiaryLimit">
+                                        Enable beneficiary limit
+                                    </label>
+                                </div>
+                                
+                                <div id="modalBeneficiaryLimitGroup" style="display: none;">
+                                    <label class="font-weight-bold">Beneficiary Limit</label>
+                                    <input type="number" class="form-control" id="modalBeneficiaryLimit" min="1" placeholder="Maximum beneficiaries">
+                                </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Modal Target Income Range Toggle -->
                     <div class="form-group">
-                        <label class="font-weight-bold">Target Income Range</label>
-                        <select class="form-control" id="modalIncomeRange">
-                            <option value="">Select Income Range (Optional)</option>
-                            <option value="Below 10,000">Below ₱10,000</option>
-                            <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
-                            <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
-                            <option value="20,001 - 30,000">₱20,001 - ₱30,000</option>
-                            <option value="30,001 - 50,000">₱30,001 - ₱50,000</option>
-                            <option value="Above 50,000">Above ₱50,000</option>
-                        </select>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
-                        </small>
+                        <label class="font-weight-bold">
+                            <i class="fas fa-chart-line mr-2"></i>Income Range Filtering
+                        </label>
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="modalUseIncomeRange">
+                            <label class="custom-control-label" for="modalUseIncomeRange">
+                                Enable income range targeting
+                            </label>
+                        </div>
+                        
+                        <div id="modalIncomeRangeGroup" style="display: none;">
+                            <label class="font-weight-bold">Target Income Range</label>
+                            <select class="form-control" id="modalIncomeRange">
+                                <option value="">Select Income Range</option>
+                                <option value="Below 10,000">Below ₱10,000</option>
+                                <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
+                                <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
+                                <option value="20,001 - 30,000">₱20,001 - ₱30,000</option>
+                                <option value="30,001 - 50,000">₱30,001 - ₱50,000</option>
+                                <option value="Above 50,000">Above ₱50,000</option>
+                            </select>
+                            <small class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program.
+                            </small>
+                        </div>
                     </div>
+                    
+<script>
+// Modal toggle functionality
+(function() {
+    // Wait for modal to be ready
+    $('#programInfoModal').on('shown.bs.modal', function() {
+        setTimeout(function() {
+            console.log('🎯 Setting up modal toggles...');
+            
+            // Modal Beneficiary Limit Toggle
+            const modalBeneficiaryToggle = document.getElementById('modalUseBeneficiaryLimit');
+            const modalBeneficiaryGroup = document.getElementById('modalBeneficiaryLimitGroup');
+            
+            if (modalBeneficiaryToggle && modalBeneficiaryGroup) {
+                console.log('✅ Found modal beneficiary elements');
+                modalBeneficiaryToggle.addEventListener('change', function() {
+                    console.log('Modal beneficiary toggle:', this.checked);
+                    if (this.checked) {
+                        modalBeneficiaryGroup.style.display = 'block';
+                        console.log('🟢 Showing modal beneficiary group');
+                    } else {
+                        modalBeneficiaryGroup.style.display = 'none';
+                        document.getElementById('modalBeneficiaryLimit').value = '';
+                        console.log('🔴 Hiding modal beneficiary group');
+                    }
+                });
+            }
+            
+            // Modal Income Range Toggle
+            const modalIncomeToggle = document.getElementById('modalUseIncomeRange');
+            const modalIncomeGroup = document.getElementById('modalIncomeRangeGroup');
+            
+            if (modalIncomeToggle && modalIncomeGroup) {
+                console.log('✅ Found modal income elements');
+                modalIncomeToggle.addEventListener('change', function() {
+                    console.log('Modal income toggle:', this.checked);
+                    if (this.checked) {
+                        modalIncomeGroup.style.display = 'block';
+                        console.log('🟢 Showing modal income group');
+                    } else {
+                        modalIncomeGroup.style.display = 'none';
+                        document.getElementById('modalIncomeRange').value = '';
+                        console.log('🔴 Hiding modal income group');
+                    }
+                });
+            }
+        }, 200);
+    });
+})();
+</script>
                     
                     <!-- Priority Groups -->
                     <div class="form-group">
@@ -1262,8 +1405,8 @@
                                 <label class="custom-control-label" for="modalPriority6">Indigent Families</label>
                             </div>
                             <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Unemployed Individuals" id="modalPriority7">
-                                <label class="custom-control-label" for="modalPriority7">Unemployed Individuals</label>
+                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Not Employed Individuals" id="modalPriority7">
+                                <label class="custom-control-label" for="modalPriority7">Not Employed Individuals</label>
                             </div>
                             <div class="custom-control custom-checkbox">
                                 <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Informal Settlers" id="modalPriority8">
@@ -1291,6 +1434,22 @@
                         </small>
                     </div>
                     
+                    <!-- Application Slip Printing -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-print mr-2"></i>Application Slip Printing
+                        </label>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" name="modal_enable_application_slip" id="modalEnableApplicationSlip">
+                            <label class="custom-control-label" for="modalEnableApplicationSlip">
+                                Enable application slip printing for this program
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> When enabled, applicants and admins can print an official application slip as proof of submission.
+                        </small>
+                    </div>
+                    
                     <!-- Update Attachment -->
                     <div class="form-group">
                         <label class="font-weight-bold">Update Attachment (Optional)</label>
@@ -1313,7 +1472,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-info" onclick="saveProgramInfo()">
+                <button type="button" class="btn btn-info" onclick="saveProgramInfo(this)">
                     <i class="fas fa-save mr-1"></i>Save Changes
                 </button>
             </div>
@@ -1362,7 +1521,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-primary" onclick="saveRequirements()">
+                <button type="button" class="btn btn-primary" onclick="saveRequirements(this)">
                     <i class="fas fa-save mr-1"></i>Save Changes
                 </button>
             </div>
@@ -1389,7 +1548,7 @@
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">Current Workflow Steps</h6>
-                    <button type="button" class="btn btn-sm btn-success" onclick="addWorkflowStep()">
+                    <button type="button" class="btn btn-sm btn-success" onclick="console.log('Modal add workflow step clicked'); addWorkflowStep(); return false;">
                         <i class="fas fa-plus mr-1"></i>Add Step
                     </button>
                 </div>
@@ -1401,8 +1560,43 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="fas fa-times mr-1"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-dark" onclick="saveWorkflowSteps()">
+                <button type="button" class="btn btn-dark" onclick="console.log('Save workflow steps clicked'); saveWorkflowSteps(this); return false;">
                     <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unsaved Changes Confirmation Modal -->
+<div class="modal fade" id="unsavedChangesModal" tabindex="-1" role="dialog" aria-labelledby="unsavedChangesModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title" id="unsavedChangesModalLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Unsaved Changes Detected
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning mr-2"></i>
+                    <strong>You have unsaved changes that will be lost!</strong>
+                </div>
+                <p id="unsavedChangesMessage">You have made changes to the workflow steps and/or program information that haven't been saved yet.</p>
+                <p>What would you like to do?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="discardChangesBtn">
+                    <i class="fas fa-trash mr-1"></i>Discard Changes
+                </button>
+                <button type="button" class="btn btn-warning" id="saveChangesBtn">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
+                <button type="button" class="btn btn-dark" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
                 </button>
             </div>
         </div>
@@ -1412,7 +1606,151 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Safely pass template data to JavaScript -->
+<script type="application/json" id="program-data">
+{
+    "program_id": {{ program.id }},
+    "program_name": {{ program.program_name | tojson }},
+    "program_type": {{ program.program_type | tojson }},
+    "program_period": {{ program.program_period | tojson }},
+    "beneficiary_limit": {{ program.beneficiary_limit | tojson }},
+    "income_range": {{ (program.income_range or "") | tojson }},
+    "description": {{ (program.description or "") | tojson }},
+    "priority_group": {{ (program.priority_group or "") | tojson }},
+    "allow_online_upload": {{ program.allow_online_upload | tojson }},
+    "enable_application_slip": {{ program.enable_application_slip | tojson }},
+    "file_attachment_filename": {{ (program.file_attachment.filename if program.file_attachment else "") | tojson }}
+}
+</script>
+
 <script>
+    // Debug: Check if jQuery and Bootstrap are available
+    console.log('jQuery available:', typeof $ !== 'undefined');
+    console.log('Bootstrap modal available:', typeof $.fn.modal !== 'undefined');
+    
+    // Get template data safely
+    const programData = JSON.parse(document.getElementById('program-data').textContent);
+    console.log('Program data loaded:', programData);
+    
+    // Make functions globally accessible
+    window.openProgramInfoModal = function() {
+        console.log('openProgramInfoModal called');
+        try {
+            openProgramInfoModalImpl();
+        } catch (error) {
+            console.error('Error in openProgramInfoModal:', error);
+            alert('Error opening modal: ' + error.message);
+        }
+    };
+    
+    window.openRequirementsModal = function() {
+        console.log('openRequirementsModal called');
+        try {
+            openRequirementsModalImpl();
+        } catch (error) {
+            console.error('Error in openRequirementsModal:', error);
+            alert('Error opening modal: ' + error.message);
+        }
+    };
+    
+    window.openWorkflowModal = function() {
+        console.log('openWorkflowModal called');
+        try {
+            openWorkflowModalImpl();
+        } catch (error) {
+            console.error('Error in openWorkflowModal:', error);
+            alert('Error opening modal: ' + error.message);
+        }
+    };
+
+    // Simple error handling for problematic onclick handlers
+    window.editRequirement = function(id, name, description, type) {
+        try {
+            return editRequirementImpl(id, name, description, type);
+        } catch (error) {
+            console.error('Error in editRequirement:', error);
+            alert('Error: Could not edit requirement. Please refresh the page and try again.');
+            return false;
+        }
+    };
+    
+    // Make workflow functions globally accessible
+    window.addWorkflowStep = function() {
+        try {
+            return addWorkflowStepImpl();
+        } catch (error) {
+            console.error('Error in addWorkflowStep:', error);
+            alert('Error: Could not add workflow step. Please refresh the page and try again.');
+            return false;
+        }
+    };
+    
+    window.applyWorkflowTemplate = function(templateType) {
+        try {
+            return applyWorkflowTemplateImpl(templateType);
+        } catch (error) {
+            console.error('Error in applyWorkflowTemplate:', error);
+            alert('Error: Could not apply workflow template. Please refresh the page and try again.');
+            return false;
+        }
+    };
+    
+    // Make saveWorkflowSteps globally accessible
+    window.saveWorkflowSteps = function(button) {
+        try {
+            return saveWorkflowStepsImpl(button);
+        } catch (error) {
+            console.error('Error in saveWorkflowSteps:', error);
+            alert('Error: Could not save workflow steps. Please refresh the page and try again.');
+            return false;
+        }
+    };
+
+    // Toggle form visibility for beneficiary limit and income range in edit form
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit Beneficiary Limit Toggle
+        const editBeneficiaryToggle = document.getElementById('editUseBeneficiaryLimit');
+        const editBeneficiaryGroup = document.getElementById('editBeneficiaryLimitGroup');
+        
+        if (editBeneficiaryToggle && editBeneficiaryGroup) {
+            console.log('Edit beneficiary toggle elements found');
+            editBeneficiaryToggle.addEventListener('change', function() {
+                console.log('Edit beneficiary toggle changed:', this.checked);
+                if (this.checked) {
+                    editBeneficiaryGroup.style.display = 'block';
+                } else {
+                    editBeneficiaryGroup.style.display = 'none';
+                    // Clear the input when disabled
+                    const beneficiaryInput = document.querySelector('#editForm input[name="beneficiary_limit"]');
+                    if (beneficiaryInput) beneficiaryInput.value = '';
+                }
+            });
+        } else {
+            console.error('Edit beneficiary toggle elements not found');
+        }
+        
+        // Edit Income Range Toggle
+        const editIncomeToggle = document.getElementById('editUseIncomeRange');
+        const editIncomeGroup = document.getElementById('editIncomeRangeGroup');
+        
+        if (editIncomeToggle && editIncomeGroup) {
+            console.log('Edit income toggle elements found');
+            editIncomeToggle.addEventListener('change', function() {
+                console.log('Edit income toggle changed:', this.checked);
+                if (this.checked) {
+                    editIncomeGroup.style.display = 'block';
+                } else {
+                    editIncomeGroup.style.display = 'none';
+                    // Reset the select when disabled
+                    const incomeSelect = document.querySelector('#editForm select[name="income_range"]');
+                    if (incomeSelect) incomeSelect.value = '';
+                }
+            });
+        } else {
+            console.error('Edit income toggle elements not found');
+        }
+    });
+
     function toggleEditDocForm() {
         const form = document.getElementById('editAddDocForm');
         form.style.display = form.style.display === 'none' ? 'block' : 'none';
@@ -1429,7 +1767,7 @@
         }
     }
     
-    function addNewRequirementEdit(type) {
+    function addNewRequirementEdit(type, button) {
         const nameField = type === 'document' ? 'editNewDocName' : 'editNewQualName';
         const descField = type === 'document' ? 'editNewDocDesc' : 'editNewQualDesc';
         const listId = type === 'document' ? 'editDocumentReqsList' : 'editQualificationReqsList';
@@ -1443,7 +1781,7 @@
             return;
         }
         
-        const btn = event.target;
+        const btn = button;
         const originalText = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
@@ -1545,6 +1883,43 @@
             const label = e.target.nextElementSibling;
             label.textContent = fileName;
         });
+        // Modal Toggle Event Listeners
+        const modalBeneficiaryToggle = document.getElementById('modalUseBeneficiaryLimit');
+        const modalBeneficiaryGroup = document.getElementById('modalBeneficiaryLimitGroup');
+        const modalIncomeToggle = document.getElementById('modalUseIncomeRange');
+        const modalIncomeGroup = document.getElementById('modalIncomeRangeGroup');
+        
+        if (modalBeneficiaryToggle && modalBeneficiaryGroup) {
+            console.log('Modal beneficiary toggle elements found');
+            modalBeneficiaryToggle.addEventListener('change', function() {
+                console.log('Modal beneficiary toggle changed:', this.checked);
+                if (this.checked) {
+                    modalBeneficiaryGroup.style.display = 'block';
+                } else {
+                    modalBeneficiaryGroup.style.display = 'none';
+                    const input = document.getElementById('modalBeneficiaryLimit');
+                    if (input) input.value = '';
+                }
+            });
+        } else {
+            console.error('Modal beneficiary toggle elements not found');
+        }
+        
+        if (modalIncomeToggle && modalIncomeGroup) {
+            console.log('Modal income toggle elements found');
+            modalIncomeToggle.addEventListener('change', function() {
+                console.log('Modal income toggle changed:', this.checked);
+                if (this.checked) {
+                    modalIncomeGroup.style.display = 'block';
+                } else {
+                    modalIncomeGroup.style.display = 'none';
+                    const select = document.getElementById('modalIncomeRange');
+                    if (select) select.value = '';
+                }
+            });
+        } else {
+            console.error('Modal income toggle elements not found');
+        }
     });
     
     // Date validation for edit form
@@ -1575,31 +1950,43 @@
     // MODAL EDITING FUNCTIONS
     // ===================================
     
-    function openProgramInfoModal() {
-        // Populate modal with current program data
-        document.getElementById('modalProgramName').value = '{{ program.program_name }}';
-        document.getElementById('modalProgramType').value = '{{ program.program_type }}';
-        document.getElementById('modalProgramPeriod').value = '{{ program.program_period }}';
-        document.getElementById('modalBeneficiaryLimit').value = '{{ program.beneficiary_limit or "" }}';
-        document.getElementById('modalIncomeRange').value = '{{ program.income_range or "" }}';
-        document.getElementById('modalDescription').value = '{{ program.description or "" }}';
+    function openProgramInfoModalImpl() {
+        // Populate modal with current program data using safely passed data
+        document.getElementById('modalProgramName').value = programData.program_name;
+        document.getElementById('modalProgramType').value = programData.program_type;
+        document.getElementById('modalProgramPeriod').value = programData.program_period;
+        document.getElementById('modalBeneficiaryLimit').value = programData.beneficiary_limit || '';
+        document.getElementById('modalIncomeRange').value = programData.income_range || '';
+        document.getElementById('modalDescription').value = programData.description || '';
+        
+        // Set toggle states and show/hide groups accordingly
+        const useBeneficiaryLimit = {{ 'true' if program.beneficiary_limit else 'false' }};
+        const useIncomeRange = {{ 'true' if program.income_range else 'false' }};
+        
+        document.getElementById('modalUseBeneficiaryLimit').checked = useBeneficiaryLimit;
+        document.getElementById('modalUseIncomeRange').checked = useIncomeRange;
+        
+        // Show/hide groups based on toggle states
+        document.getElementById('modalBeneficiaryLimitGroup').style.display = useBeneficiaryLimit ? 'block' : 'none';
+        document.getElementById('modalIncomeRangeGroup').style.display = useIncomeRange ? 'block' : 'none';
         
         // Populate Priority Groups
-        const priorityGroups = '{{ program.priority_group or "" }}'.split(', ');
+        const priorityGroups = (programData.priority_group || "").split(', ');
         document.querySelectorAll('input[name="modal_priority_group"]').forEach(checkbox => {
             checkbox.checked = priorityGroups.includes(checkbox.value);
         });
         
         // Populate Online Upload setting
-        document.getElementById('modalAllowOnlineUpload').checked = {{ 'true' if program.allow_online_upload else 'false' }};
+        document.getElementById('modalAllowOnlineUpload').checked = programData.allow_online_upload;
+        document.getElementById('modalEnableApplicationSlip').checked = programData.enable_application_slip;
         
         // Show current attachment info
         const currentAttachmentEl = document.getElementById('modalCurrentAttachment');
-        {% if program.file_attachment %}
-        currentAttachmentEl.innerHTML = '<i class="fas fa-paperclip mr-1"></i>Current: {{ program.file_attachment.filename }}';
-        {% else %}
-        currentAttachmentEl.innerHTML = '<i class="fas fa-info-circle mr-1"></i>No attachment currently uploaded.';
-        {% endif %}
+        if (programData.file_attachment_filename) {
+            currentAttachmentEl.innerHTML = '<i class="fas fa-paperclip mr-1"></i>Current: ' + programData.file_attachment_filename;
+        } else {
+            currentAttachmentEl.innerHTML = '<i class="fas fa-info-circle mr-1"></i>No attachment currently uploaded.';
+        }
         
         // Initialize file input change handler
         document.getElementById('modalAttachment').addEventListener('change', function(e) {
@@ -1611,7 +1998,7 @@
         $('#programInfoModal').modal('show');
     }
     
-    function saveProgramInfo() {
+    function saveProgramInfo(button) {
         const formData = new FormData();
         formData.append('program_name', document.getElementById('modalProgramName').value);
         formData.append('program_type', document.getElementById('modalProgramType').value);
@@ -1619,6 +2006,14 @@
         formData.append('beneficiary_limit', document.getElementById('modalBeneficiaryLimit').value);
         formData.append('income_range', document.getElementById('modalIncomeRange').value);
         formData.append('description', document.getElementById('modalDescription').value);
+        
+        // Add toggle values
+        if (document.getElementById('modalUseBeneficiaryLimit').checked) {
+            formData.append('use_beneficiary_limit', 'on');
+        }
+        if (document.getElementById('modalUseIncomeRange').checked) {
+            formData.append('use_income_range', 'on');
+        }
         
         // Handle Priority Groups
         const selectedPriorityGroups = [];
@@ -1629,6 +2024,7 @@
         
         // Handle Online Upload setting
         formData.append('allow_online_upload', document.getElementById('modalAllowOnlineUpload').checked ? '1' : '0');
+        formData.append('enable_application_slip', document.getElementById('modalEnableApplicationSlip').checked ? '1' : '0');
         
         // Handle Attachment
         const attachmentFile = document.getElementById('modalAttachment').files[0];
@@ -1636,7 +2032,7 @@
             formData.append('attachment', attachmentFile);
         }
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -1674,7 +2070,7 @@
         });
     }
     
-    function openRequirementsModal() {
+    function openRequirementsModalImpl() {
         // Populate requirements checkboxes
         const docContainer = document.getElementById('modalDocRequirements');
         const qualContainer = document.getElementById('modalQualRequirements');
@@ -1738,7 +2134,7 @@
         $('#requirementsModal').modal('show');
     }
     
-    function saveRequirements() {
+    function saveRequirements(button) {
         const selectedReqs = [];
         document.querySelectorAll('#requirementsModal input[type="checkbox"]:checked').forEach(checkbox => {
             selectedReqs.push(checkbox.value);
@@ -1747,7 +2143,7 @@
         const formData = new FormData();
         selectedReqs.forEach(reqId => formData.append('requirements', reqId));
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -1785,7 +2181,7 @@
         });
     }
     
-    function openWorkflowModal() {
+    function openWorkflowModalImpl() {
         // Create a temporary copy of workflow steps for editing
         tempWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
         // Render workflow steps properly in the modal with correct form states
@@ -1862,32 +2258,11 @@
                         </div>
                         <div class="col-md-2 text-right">
                             <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
-                                <i class="fas fa-tasks"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="toggleStepDetails(${step.id})" title="More options">
                                 <i class="fas fa-cog"></i>
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
                                 <i class="fas fa-trash"></i>
                             </button>
-                        </div>
-                    </div>
-                    <div class="row mt-2" id="modalStepDetails${step.id}" style="display:none;">
-                        <div class="col-md-4">
-                            <label class="small text-muted">Description</label>
-                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
-                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small text-muted">Min Items</label>
-                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
-                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="small text-muted">Allowed File Types</label>
-                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
-                                   value="${step.allowed_file_types || ''}"
-                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
                         </div>
                     </div>
                 </div>
@@ -1917,7 +2292,7 @@
         }
     }
     
-    function saveWorkflowSteps() {
+    function saveWorkflowStepsImpl(button) {
         // Apply temporary changes to main workflow steps array
         workflowSteps = JSON.parse(JSON.stringify(tempWorkflowSteps));
         updateWorkflowStepsJson();
@@ -1926,7 +2301,7 @@
         const formData = new FormData();
         formData.append('workflow_steps_json', document.getElementById('workflowStepsJson').value);
         
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -1948,8 +2323,11 @@
         .then(data => {
             if (data.success) {
                 showToast('Workflow steps updated successfully!', 'success');
+                // Clear change tracking since we successfully saved
+                clearChangeTracking('workflow');
                 // Refresh the main view and close modal
                 renderWorkflowSteps();
+                renderViewWorkflowSteps();
                 $('#workflowModal').modal('hide');
             } else {
                 throw new Error(data.message || 'Failed to save');
@@ -1980,7 +2358,6 @@
             step_type: {{ step.step_type | tojson }},
             is_pre_approval: {{ 'true' if step.is_pre_approval else 'false' }},
             requires_verification: {{ 'true' if step.requires_verification else 'false' }},
-            min_items: {{ step.min_items or 1 }},
             allowed_file_types: {{ (step.allowed_file_types or '') | tojson }},
             step_config: {{ (step.step_config or 'null') | safe }}
         }{% if not loop.last %},{% endif %}
@@ -1997,7 +2374,101 @@
         'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
     };
     
-    window.addWorkflowStep = function() {
+    // ===================================
+    // CHANGE TRACKING SYSTEM
+    // ===================================
+    let hasUnsavedChanges = false;
+    let unsavedWorkflowChanges = false;
+    let unsavedProgramChanges = false;
+    let originalWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+    let originalProgramData = {};
+    let tempWorkflowSteps = []; // Initialize temporary workflow steps array
+    
+    // Track unsaved changes
+    function markAsChanged(type) {
+        if (type === 'workflow') {
+            unsavedWorkflowChanges = true;
+        } else if (type === 'program') {
+            unsavedProgramChanges = true;
+        }
+        hasUnsavedChanges = true;
+        updateChangeIndicators();
+    }
+    
+    function clearChangeTracking(type) {
+        if (type === 'workflow') {
+            unsavedWorkflowChanges = false;
+            originalWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
+        } else if (type === 'program') {
+            unsavedProgramChanges = false;
+        }
+        
+        hasUnsavedChanges = unsavedWorkflowChanges || unsavedProgramChanges;
+        updateChangeIndicators();
+    }
+    
+    function updateChangeIndicators() {
+        // Add visual indicators for unsaved changes
+        const workflowTab = document.querySelector('.nav-link[href="#edit"]');
+        if (workflowTab) {
+            if (unsavedWorkflowChanges || unsavedProgramChanges) {
+                workflowTab.innerHTML = workflowTab.innerHTML.replace(' *', '') + ' <span class="text-warning">*</span>';
+            } else {
+                workflowTab.innerHTML = workflowTab.innerHTML.replace(' <span class="text-warning">*</span>', '');
+            }
+        }
+    }
+    
+    // Initialize form change detection
+    function initializeProgramFormChangeDetection() {
+        const form = document.querySelector('form[action*="edit_program"]');
+        if (!form) return;
+        
+        // Store original form data
+        const formData = new FormData(form);
+        originalProgramData = {};
+        for (let [key, value] of formData.entries()) {
+            originalProgramData[key] = value;
+        }
+        
+        // Add change listeners to all form inputs
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('change', function() {
+                markAsChanged('program');
+            });
+            
+            // Also listen for text input changes
+            if (input.type === 'text' || input.tagName === 'TEXTAREA') {
+                input.addEventListener('input', function() {
+                    markAsChanged('program');
+                });
+            }
+        });
+        
+        // Override form submission to check for unsaved changes
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (unsavedWorkflowChanges) {
+                showUnsavedChangesModal('submit', () => {
+                    form.submit();
+                });
+                return false;
+            }
+            
+            // If no workflow changes, proceed with normal submit
+            form.submit();
+        });
+    }
+    
+    // Initialize form change detection when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeProgramFormChangeDetection();
+        renderViewWorkflowSteps();
+    });
+    
+    window.addWorkflowStepImpl = function() {
         // Check if modal is open to determine which array to use
         if ($('#workflowModal').hasClass('show')) {
             // Working in modal - use temporary array
@@ -2017,7 +2488,7 @@
             tempWorkflowSteps.push(newStep);
             renderWorkflowStepsModal();
         } else {
-            // Working in main view - use main array
+            // Working in main view - use main array and mark as changed
             const stepOrder = workflowSteps.length + 1;
             const newStep = {
                 id: Date.now(),
@@ -2032,9 +2503,11 @@
                 step_config: null
             };
             workflowSteps.push(newStep);
+            markAsChanged('workflow');
+            updateWorkflowStepsJson();
             renderWorkflowSteps();
         }
-    }
+    };
     
     function removeWorkflowStep(stepId) {
         if ($('#workflowModal').hasClass('show')) {
@@ -2044,10 +2517,12 @@
             tempWorkflowSteps.forEach((s, index) => s.step_order = index + 1);
             renderWorkflowStepsModal();
         } else {
-            // Working in main view - use main array
+            // Working in main view - use main array and mark as changed
             workflowSteps = workflowSteps.filter(s => s.id !== stepId);
             // Reorder steps
             workflowSteps.forEach((s, index) => s.step_order = index + 1);
+            markAsChanged('workflow');
+            updateWorkflowStepsJson();
             renderWorkflowSteps();
         }
     }
@@ -2060,11 +2535,13 @@
                 step[field] = value;
             }
         } else {
-            // Working in main view - use main array
+            // Working in main view - use main array and mark as changed
             const step = workflowSteps.find(s => s.id === stepId);
             if (step) {
                 step[field] = value;
+                markAsChanged('workflow');
                 updateWorkflowStepsJson();
+                renderWorkflowSteps(); // Re-render to show changes
             }
         }
     }
@@ -2073,6 +2550,55 @@
         document.getElementById('workflowStepsJson').value = JSON.stringify(workflowSteps);
     }
     
+    function renderViewWorkflowSteps() {
+        const container = document.getElementById('viewWorkflowStepsContainer');
+        if (!container) return;
+
+        const stepIconMap = {
+            'photo_upload': '<i class="fas fa-camera text-info mr-2"></i>',
+            'document_upload': '<i class="fas fa-file-upload text-primary mr-2"></i>',
+            'approval': '<i class="fas fa-check-circle text-success mr-2"></i>',
+            'verification': '<i class="fas fa-clipboard-check text-warning mr-2"></i>',
+            'document_submission': '<i class="fas fa-building text-secondary mr-2"></i>',
+            'assessment': '<i class="fas fa-clipboard-list mr-2" style="color: #6f42c1;"></i>',
+            'scheduling': '<i class="fas fa-calendar-alt text-dark mr-2"></i>'
+        };
+
+        if (workflowSteps.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-stream fa-2x mb-2"></i>
+                    <p class="mb-0">No workflow steps defined. Click "Edit Steps" to add steps.</p>
+                </div>`;
+            return;
+        }
+
+        const sorted = [...workflowSteps].sort((a, b) => a.step_order - b.step_order);
+        container.innerHTML = `<div class="timeline">${sorted.map(step => `
+            <div class="d-flex mb-3">
+                <div class="mr-3 text-center" style="min-width: 50px;">
+                    <span class="badge badge-${step.is_pre_approval ? 'warning' : 'primary'} rounded-circle"
+                          style="width:35px;height:35px;line-height:27px;font-size:16px;">
+                        ${step.step_order}
+                    </span>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="font-weight-bold mb-1">
+                        ${stepIconMap[step.step_type] || ''}
+                        ${step.step_name}
+                    </h6>
+                    ${step.step_description ? `<p class="text-muted small mb-1">${step.step_description}</p>` : ''}
+                    <div class="d-flex flex-wrap">
+                        ${step.is_pre_approval ? '<span class="badge badge-warning mr-1 mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Pre-Approval Required</span>' : ''}
+                        ${step.requires_verification ? '<span class="badge badge-info mr-1 mb-1"><i class="fas fa-user-check mr-1"></i>Admin Verification</span>' : ''}
+                    </div>
+                    ${['document_upload','document_submission','photo_upload'].includes(step.step_type) && step.allowed_file_types
+                        ? `<div class="mt-2 small"><span class="badge badge-light text-secondary"><i class="fas fa-file mr-1"></i>${step.allowed_file_types}</span></div>`
+                        : ''}
+                </div>
+            </div>`).join('')}</div>`;
+    }
+
     function renderWorkflowSteps() {
         const container = document.getElementById('workflowStepsList');
         
@@ -2137,32 +2663,11 @@
                         </div>
                         <div class="col-md-2 text-right">
                             <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
-                                <i class="fas fa-tasks"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary mr-1" onclick="toggleStepDetails(${step.id})" title="More options">
                                 <i class="fas fa-cog"></i>
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
                                 <i class="fas fa-trash"></i>
                             </button>
-                        </div>
-                    </div>
-                    <div class="row mt-2" id="stepDetails${step.id}" style="display:none;">
-                        <div class="col-md-4">
-                            <label class="small text-muted">Description</label>
-                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
-                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="small text-muted">Min Items</label>
-                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
-                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="small text-muted">Allowed File Types</label>
-                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
-                                   value="${step.allowed_file_types || ''}"
-                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
                         </div>
                     </div>
                 </div>
@@ -2321,11 +2826,6 @@
                         <small class="form-text text-muted">Admin must manually verify this step</small>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <label class="font-weight-bold">Minimum Items Required</label>
-                    <input type="number" class="form-control" id="modalMinItems" min="1" value="${step.min_items || 1}">
-                    <small class="form-text text-muted">For upload steps</small>
-                </div>
             </div>
             
             <div id="stepTypeSpecificContent"></div>
@@ -2394,15 +2894,16 @@
                     <input type="text" class="form-control" id="modalAllowedFileTypes" 
                            placeholder="pdf,doc,docx,jpg,png" 
                            value="${workflowSteps.find(s => s.id === currentEditingStepId)?.allowed_file_types || ''}">
-                    <small class="form-text text-muted">Comma-separated file extensions</small>
+                    <small class="form-text text-muted"><i class="fas fa-info-circle mr-1"></i>Comma-separated file extensions (e.g., pdf, jpg, png, doc, docx)</small>
                 </div>
                 
                 <div class="form-group">
-                    <label class="font-weight-bold">Required Documents for this Step</label>
-                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                    <label class="font-weight-bold"><i class="fas fa-check-square mr-2"></i>Required Documents for this Step</label>
+                    <p class="small text-muted mb-2">Select which documents applicants must submit for this step:</p>
+                    <div class="border rounded p-3 bg-light" style="max-height: 350px; overflow-y: auto;">
                         ${getRequirementsCheckboxes()}
                     </div>
-                    <small class="form-text text-muted">All selected documents are required for this step</small>
+                    <small class="form-text text-muted mt-2 d-block"><i class="fas fa-lightbulb mr-1"></i><strong>Tip:</strong> Admins can modify documents anytime from the Requirements section</small>
                 </div>
             `;
         } else if (stepType === 'photo_upload') {
@@ -2464,6 +2965,13 @@
         }
     }
     
+    // Get program requirement IDs that are already assigned
+    const programRequirementIds = [
+        {% for pr in program.program_requirements %}
+        {{ pr.requirement_id }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
     function getRequirementsCheckboxes() {
         // Get requirements passed from server
         const requirements = [
@@ -2472,18 +2980,21 @@
             {% endfor %}
         ];
         
-        if (requirements.length === 0) {
+        // Filter to only document-type requirements that are assigned to this program
+        const programDocRequirements = requirements
+            .filter(req => req.type === 'document' && programRequirementIds.includes(req.id));
+        
+        if (programDocRequirements.length === 0) {
             return `
                 <div class="text-center text-muted py-3">
                     <i class="fas fa-file-alt fa-2x mb-2"></i>
-                    <p class="mb-0">No requirements available.</p>
-                    <small>Add requirements in the Requirements section first.</small>
+                    <p class="mb-0">No documents assigned to this program.</p>
+                    <small>Add documents in the Requirements section first.</small>
                 </div>
             `;
         }
         
-        return requirements
-            .filter(req => req.type === 'document')
+        return programDocRequirements
             .map(req => `
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="req${req.id}" value="${req.id}">
@@ -2506,7 +3017,6 @@
         step.step_description = document.getElementById('modalStepDescription').value;
         step.is_pre_approval = document.getElementById('modalPreApproval').checked;
         step.requires_verification = document.getElementById('modalRequiresVerification').checked;
-        step.min_items = parseInt(document.getElementById('modalMinItems').value) || 1;
         
         // Update step-specific settings
         const allowedFileTypesField = document.getElementById('modalAllowedFileTypes');
@@ -2552,7 +3062,7 @@
     // REQUIREMENT MANAGEMENT FUNCTIONS
     // ===================================
     
-    function editRequirement(requirementId, name, description, type) {
+    function editRequirementImpl(requirementId, name, description, type) {
         // Populate the modal with existing data
         document.getElementById('editReqId').value = requirementId;
         document.getElementById('editReqType').value = type;
@@ -2567,7 +3077,7 @@
         $('#editRequirementModal').modal('show');
     }
     
-    function saveRequirementEdit() {
+    function saveRequirementEdit(button) {
         const form = document.getElementById('editRequirementForm');
         const formData = new FormData(form);
         
@@ -2582,7 +3092,7 @@
         }
         
         // Disable submit button
-        const saveBtn = event.target;
+        const saveBtn = button;
         const originalText = saveBtn.innerHTML;
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
@@ -2620,7 +3130,7 @@
         });
     }
     
-    function deleteFromEditModal() {
+    function deleteFromEditModal(button) {
         const requirementId = document.getElementById('editReqId').value;
         const requirementName = document.getElementById('editReqName').value;
         
@@ -2706,7 +3216,6 @@
                     step_type: 'approval',
                     is_pre_approval: true,
                     requires_verification: true,
-                    min_items: 1,
                     allowed_file_types: '',
                     step_config: null
                 }
@@ -2722,7 +3231,6 @@
                 step_type: 'document_upload',
                 is_pre_approval: false,
                 requires_verification: true,
-                min_items: 1,
                 allowed_file_types: 'pdf,jpg,jpeg,png',
                 step_config: null
             });
@@ -2736,7 +3244,6 @@
                 step_type: 'document_submission',
                 is_pre_approval: false,
                 requires_verification: true,
-                min_items: 1,
                 allowed_file_types: '',
                 step_config: null
             });
@@ -2750,7 +3257,6 @@
                 step_type: 'scheduling',
                 is_pre_approval: false,
                 requires_verification: false,
-                min_items: 1,
                 allowed_file_types: '',
                 step_config: null
             });
@@ -2764,7 +3270,6 @@
                 step_type: 'document_submission',
                 is_pre_approval: false,
                 requires_verification: true,
-                min_items: 1,
                 allowed_file_types: '',
                 step_config: null
             });
@@ -2778,7 +3283,6 @@
                 step_type: 'scheduling',
                 is_pre_approval: false,
                 requires_verification: false,
-                min_items: 1,
                 allowed_file_types: '',
                 step_config: null
             });
@@ -2794,7 +3298,7 @@
     // ===================================
     
     // Make function globally accessible
-    window.applyWorkflowTemplate = function(templateType) {
+    window.applyWorkflowTemplateImpl = function(templateType) {
         console.log('Applying template:', templateType);
         alert('Template clicked: ' + templateType); // Debug alert
         
@@ -2806,29 +3310,33 @@
         
         const templates = {
             'ESA': [
-                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, min_items: 3, allowed_file_types: 'jpg,jpeg,png,gif'},
-                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,gif'},
+                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'CA': [
-                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf'},
-                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
-                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf'},
+                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
+                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'online_upload': [
-                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: 'pdf,jpg,jpeg,png'},
-                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, allowed_file_types: 'pdf,jpg,jpeg,png'},
+                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'default': [
-                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ]
         };
         
@@ -2853,5 +3361,93 @@
         renderWorkflowSteps();
         showToast(`Applied ${templateType.replace('_', ' ')} workflow template`, 'success');
     }
+    
+    // ===================================
+    // CONFIRMATION MODAL HANDLERS
+    // ===================================
+    
+    let pendingAction = null;
+    let pendingCallback = null;
+    
+    function showUnsavedChangesModal(action, callback) {
+        const changedItems = [];
+        if (unsavedWorkflowChanges) changedItems.push('workflow steps');
+        if (unsavedProgramChanges) changedItems.push('program information');
+        
+        const message = `You have unsaved changes to ${changedItems.join(' and ')} that will be lost!`;
+        document.getElementById('unsavedChangesMessage').textContent = message;
+        
+        pendingAction = action;
+        pendingCallback = callback;
+        
+        $('#unsavedChangesModal').modal('show');
+    }
+    
+    // Handle save changes button
+    document.getElementById('saveChangesBtn').addEventListener('click', function() {
+        $('#unsavedChangesModal').modal('hide');
+        
+        if (unsavedWorkflowChanges) {
+            saveWorkflowSteps();
+        }
+        if (unsavedProgramChanges) {
+            // Force submit the program form
+            const form = document.querySelector('form[action*="edit_program"]');
+            if (form) {
+                form.submit();
+            }
+        }
+        
+        // Execute pending action after a delay to allow saves to complete
+        setTimeout(() => {
+            if (pendingCallback) {
+                pendingCallback();
+            }
+        }, 1000);
+    });
+    
+    // Handle discard changes button  
+    document.getElementById('discardChangesBtn').addEventListener('click', function() {
+        $('#unsavedChangesModal').modal('hide');
+        
+        // Revert workflow changes
+        if (unsavedWorkflowChanges) {
+            workflowSteps = JSON.parse(JSON.stringify(originalWorkflowSteps));
+            renderWorkflowSteps();
+            updateWorkflowStepsJson();
+            clearChangeTracking('workflow');
+        }
+        
+        // Revert program form changes
+        if (unsavedProgramChanges) {
+            // Reload page or reset form fields
+            window.location.reload();
+            return;
+        }
+        
+        // Execute pending action
+        if (pendingCallback) {
+            pendingCallback();
+        }
+    });
+    
+    // Override navigation and form submissions to check for unsaved changes
+    function checkUnsavedChanges(callback) {
+        if (hasUnsavedChanges) {
+            showUnsavedChangesModal('navigate', callback);
+            return false;
+        }
+        return true;
+    }
+    
+    // Add beforeunload handler to warn about unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+    
 </script>
 {% endblock %}
