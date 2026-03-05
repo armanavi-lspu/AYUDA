@@ -13,6 +13,14 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
 import joblib
 import os
+import time
+
+# Age threshold for senior citizen classification (used in scoring and target profile)
+SENIOR_CITIZEN_AGE = 60
+
+# Model cache settings
+_CACHE_PATH = 'instance/recommender_cache.pkl'
+_CACHE_MAX_AGE_SECONDS = 3600  # 1 hour
 
 
 class BeneficiaryRecommender:
@@ -126,7 +134,7 @@ class BeneficiaryRecommender:
         Args:
             target_profile: Dictionary with target beneficiary characteristics
             n_recommendations: Number of recommendations to return
-            filters: Dictionary with filter criteria
+            filters: Dictionary with filter criteria to narrow results after KNN
             
         Returns:
             List of recommended beneficiaries with similarity scores
@@ -142,23 +150,80 @@ class BeneficiaryRecommender:
         # Transform target
         target_features = self.preprocessor.transform(target_df)
         
-        # Find nearest neighbors
-        distances, indices = self.model.kneighbors(target_features)
+        # Find nearest neighbors (request extra candidates to account for post-filter removals)
+        n_candidates = min(len(self.beneficiary_data), max(n_recommendations * 3, 50))
+        distances, indices = self.model.kneighbors(target_features, n_neighbors=n_candidates)
         
         # Convert distances to similarity scores (1 - cosine distance)
         similarities = 1 - distances[0]
         
-        # Get recommendations
+        # Get recommendations, applying optional filters to narrow results
         recommendations = []
-        for idx, (i, sim) in enumerate(zip(indices[0], similarities)):
-            if idx >= n_recommendations:
+        for i, sim in zip(indices[0], similarities):
+            if len(recommendations) >= n_recommendations:
                 break
             
             rec = self.beneficiary_data.iloc[i].to_dict()
+
+            # Apply filters dict if provided
+            if filters:
+                if 'barangay' in filters and rec.get('barangay') not in filters['barangay']:
+                    continue
+                if 'is_solo_parent' in filters and bool(rec.get('is_solo_parent')) != bool(filters['is_solo_parent']):
+                    continue
+                if 'is_student' in filters and bool(rec.get('is_student')) != bool(filters['is_student']):
+                    continue
+                if 'is_pwd' in filters and bool(rec.get('is_pwd')) != bool(filters['is_pwd']):
+                    continue
+                min_inc = filters.get('min_income')
+                max_inc = filters.get('max_income')
+                income = float(rec.get('family_annual_income', 0) or 0)
+                if min_inc is not None and income < min_inc:
+                    continue
+                if max_inc is not None and income > max_inc:
+                    continue
+
             rec['similarity_score'] = float(sim)
             recommendations.append(rec)
         
         return recommendations
+
+    def save_model(self, path='instance/recommender_cache.pkl'):
+        """
+        Persist the fitted model to disk using joblib.
+        
+        Args:
+            path: File path to save the model cache
+        """
+        os.makedirs(os.path.dirname(path) if os.path.dirname(path) else '.', exist_ok=True)
+        joblib.dump({
+            'model': self.model,
+            'preprocessor': self.preprocessor,
+            'beneficiary_data': self.beneficiary_data,
+            'feature_names': self.feature_names
+        }, path)
+
+    @staticmethod
+    def load_model(path='instance/recommender_cache.pkl'):
+        """
+        Load a previously saved model from disk.
+        
+        Args:
+            path: File path to load the model cache from
+            
+        Returns:
+            BeneficiaryRecommender instance if successful, None otherwise
+        """
+        try:
+            data = joblib.load(path)
+            recommender = BeneficiaryRecommender()
+            recommender.model = data['model']
+            recommender.preprocessor = data['preprocessor']
+            recommender.beneficiary_data = data['beneficiary_data']
+            recommender.feature_names = data.get('feature_names', recommender.feature_names)
+            return recommender
+        except Exception:
+            return None
     
     def score_beneficiaries(self, beneficiaries, priority_weights=None):
         """
@@ -179,7 +244,8 @@ class BeneficiaryRecommender:
                 'low_income': 0.3,
                 'solo_parent': 0.2,
                 'student': 0.15,
-                'pwd': 0.2
+                'pwd': 0.2,
+                'senior_citizen': 0.15
             }
         
         scored_beneficiaries = []
@@ -219,8 +285,21 @@ class BeneficiaryRecommender:
             if b.get('is_pwd'):
                 score += priority_weights.get('pwd', 0.2)
             
+            # Senior citizen bonus (age >= SENIOR_CITIZEN_AGE)
+            age = b.get('age', 0) or 0
+            if age >= SENIOR_CITIZEN_AGE:
+                score += priority_weights.get('senior_citizen', 0.15)
+            
             b_copy = dict(b)
             b_copy['score'] = round(score, 4)
+            # Score breakdown for transparency / API consumers
+            b_copy['score_breakdown'] = {
+                'income_score': round(income_score * priority_weights.get('low_income', 0.3), 4),
+                'solo_parent_bonus': priority_weights.get('solo_parent', 0.2) if b.get('is_solo_parent') else 0,
+                'student_bonus': priority_weights.get('student', 0.15) if b.get('is_student') else 0,
+                'pwd_bonus': priority_weights.get('pwd', 0.2) if b.get('is_pwd') else 0,
+                'senior_bonus': priority_weights.get('senior_citizen', 0.15) if (b.get('age') or 0) >= SENIOR_CITIZEN_AGE else 0,
+            }
             scored_beneficiaries.append(b_copy)
         
         # Sort by score descending
@@ -229,20 +308,32 @@ class BeneficiaryRecommender:
         return scored_beneficiaries
 
 
-def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
+def get_recommendations(beneficiaries_data, target_profile=None, filters=None, max_beneficiaries=50,
                        solo_parent_priority=False, student_priority=False,
-                       pwd_priority=False, priority_barangays=None,
+                       pwd_priority=False, senior_citizen_priority=False,
+                       priority_barangays=None,
                        min_income=0, max_income=10000000):
     """
     Main function to generate beneficiary recommendations.
+
+    When a target_profile is provided, the function uses the full ML pipeline
+    (TF-IDF + OneHotEncoder + StandardScaler + NearestNeighbors) for content-based
+    filtering (CBF).  The fitted model is cached on disk for one hour to avoid
+    rebuilding on every call.
+
+    When no target_profile is provided, the function falls back to rule-based
+    priority scoring via score_beneficiaries() — preserving existing behaviour.
     
     Args:
         beneficiaries_data: List of beneficiary dictionaries
-        filters: Additional filter criteria
+        target_profile: Optional dict with beneficiary-like fields used as the CBF
+                        query vector.  If None, rule-based scoring is used instead.
+        filters: Additional filter criteria passed into recommend() when using CBF
         max_beneficiaries: Maximum number of recommendations
         solo_parent_priority: Whether to prioritize solo parents
         student_priority: Whether to prioritize students
         pwd_priority: Whether to prioritize PWDs
+        senior_citizen_priority: Whether to prioritize senior citizens (age >= 60)
         priority_barangays: List of barangays to filter by
         min_income: Minimum income filter (default: 0, max: 10,000,000)
         max_income: Maximum income filter (default: 10,000,000)
@@ -288,13 +379,50 @@ def get_recommendations(beneficiaries_data, filters=None, max_beneficiaries=50,
     
     if not filtered:
         return []
-    
+
+    # --- Content-based filtering path (uses ML pipeline) ---
+    # When a target_profile is given we fit NearestNeighbors on the filtered pool
+    # and find the most-similar beneficiaries.  The fitted model is cached for 1 h
+    # so repeated calls are cheap.
+    if target_profile is not None:
+        recommender = None
+        # Attempt to load from cache if it is fresh enough
+        if os.path.exists(_CACHE_PATH):
+            cache_age = time.time() - os.path.getmtime(_CACHE_PATH)
+            if cache_age < _CACHE_MAX_AGE_SECONDS:
+                recommender = BeneficiaryRecommender.load_model(_CACHE_PATH)
+
+        # Build (or rebuild) the model when cache is missing / stale / invalid
+        if recommender is None:
+            recommender = BeneficiaryRecommender()
+            fit_ok = recommender.fit(filtered)
+            if fit_ok:
+                try:
+                    recommender.save_model(_CACHE_PATH)
+                except Exception:
+                    pass  # Cache write failure is non-fatal
+            else:
+                # fit() failed — fall back to rule-based scoring
+                recommender = None
+
+        if recommender is not None:
+            cbf_results = recommender.recommend(
+                target_profile,
+                n_recommendations=max_beneficiaries,
+                filters=filters
+            )
+            if cbf_results:
+                return cbf_results
+        # If CBF produced no results (e.g. empty filtered pool), fall through to scoring
+
+    # --- Rule-based scoring path (fallback or default) ---
     # Calculate priority weights based on user preferences
     priority_weights = {
         'low_income': 0.3,
         'solo_parent': 0.3 if solo_parent_priority else 0.1,
         'student': 0.2 if student_priority else 0.1,
-        'pwd': 0.3 if pwd_priority else 0.1
+        'pwd': 0.3 if pwd_priority else 0.1,
+        'senior_citizen': 0.2 if senior_citizen_priority else 0.05,
     }
     
     # Normalize weights
