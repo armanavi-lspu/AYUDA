@@ -64,11 +64,10 @@
                class="btn btn-success">
                 <i class="fas fa-file-export mr-2"></i>Export to CSV
             </a>
-            <a href="{{ url_for('admin.generate_beneficiaries_list') }}" 
-               class="btn btn-info ml-2"
+            <button type="button" class="btn btn-info ml-2" data-toggle="modal" data-target="#beneficiariesModal"
                title="Generate list of approved beneficiaries">
                 <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
-            </a>
+            </button>
         </div>
     </div>
 
@@ -249,7 +248,6 @@
                                         <span class="badge badge-danger status-badge">Rejected</span>
                                     {% elif app.application_status == 'active' %}
                                         <span class="badge badge-info status-badge">Active</span>
-                                        <br><small class="text-info"><i class="fas fa-spinner"></i> Processing</small>
                                     {% elif app.application_status == 'completed' %}
                                         <span class="badge status-badge" style="background-color: #6f42c1; color: white;">Completed</span>
                                         {% if app.claim_date %}
@@ -1123,6 +1121,216 @@ function performUndo() {
         window.undoPerformed = false;
     });
 }
+</script>
+
+<!-- Beneficiaries List Customization Modal -->
+<div class="modal fade" id="beneficiariesModal" tabindex="-1" role="dialog" aria-labelledby="beneficiariesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);">
+                <h5 class="modal-title text-white" id="beneficiariesModalLabel">
+                    <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Filters Row -->
+                <div class="card mb-4">
+                    <div class="card-header py-2">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-sliders-h mr-2"></i>Customize List</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5 mb-3">
+                                <label class="font-weight-bold">Program Category</label>
+                                <select id="benefProgramType" class="form-control">
+                                    <option value="">All Categories</option>
+                                    {% set types = [] %}
+                                    {% for p in programs %}
+                                        {% if p.program_type not in types %}
+                                            {% if types.append(p.program_type) %}{% endif %}
+                                            <option value="{{ p.program_type }}">{{ p.program_type }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-7 mb-3">
+                                <label class="font-weight-bold">Specific Programs <small class="text-muted">(leave blank for all)</small></label>
+                                <select id="benefProgramIds" class="form-control" multiple style="height: 120px;">
+                                    {% for p in programs %}
+                                    <option value="{{ p.id }}" data-type="{{ p.program_type }}">{{ p.program_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary" id="previewBenefBtn">
+                                <i class="fas fa-eye mr-2"></i>Preview List
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="clearBenefFilters">
+                                <i class="fas fa-redo mr-1"></i>Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Section -->
+                <div id="benefPreviewSection" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="font-weight-bold mb-0">
+                            <i class="fas fa-list mr-2 text-info"></i>Preview – <span id="benefCount">0</span> beneficiaries
+                        </h6>
+                        <a id="benefDownloadBtn" href="#" class="btn btn-success btn-sm">
+                            <i class="fas fa-download mr-1"></i>Download List (JPG)
+                        </a>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-bordered table-hover table-sm mb-0">
+                            <thead class="thead-dark" style="position: sticky; top: 0;">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Application ID</th>
+                                    <th>Name</th>
+                                    <th>Barangay</th>
+                                    <th>Program</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="benefPreviewBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="benefEmptyMsg" class="text-center text-muted py-4" style="display:none;">
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No approved beneficiaries found for the selected filters.
+                    </p>
+                </div>
+
+                <!-- Loading spinner -->
+                <div id="benefLoadingSpinner" class="text-center py-4" style="display:none;">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <p class="mt-2 text-muted">Loading preview...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <a id="benefDownloadBtnFooter" href="{{ url_for('admin.generate_beneficiaries_list') }}" class="btn btn-success">
+                    <i class="fas fa-download mr-2"></i>Download List (JPG)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Beneficiaries Modal Logic
+document.addEventListener('DOMContentLoaded', function() {
+    const programTypeSelect = document.getElementById('benefProgramType');
+    const programIdsSelect = document.getElementById('benefProgramIds');
+    const previewBtn = document.getElementById('previewBenefBtn');
+    const clearBtn = document.getElementById('clearBenefFilters');
+    const previewSection = document.getElementById('benefPreviewSection');
+    const loadingSpinner = document.getElementById('benefLoadingSpinner');
+    const previewBody = document.getElementById('benefPreviewBody');
+    const benefCount = document.getElementById('benefCount');
+    const benefEmptyMsg = document.getElementById('benefEmptyMsg');
+    const downloadBtnTop = document.getElementById('benefDownloadBtn');
+    const downloadBtnFooter = document.getElementById('benefDownloadBtnFooter');
+
+    // Filter program options by selected category
+    programTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        const options = programIdsSelect.querySelectorAll('option');
+        options.forEach(function(opt) {
+            if (!selectedType || opt.dataset.type === selectedType) {
+                opt.style.display = '';
+            } else {
+                opt.style.display = 'none';
+                opt.selected = false;
+            }
+        });
+    });
+
+    function buildDownloadUrl() {
+        const programType = programTypeSelect.value;
+        const selectedIds = Array.from(programIdsSelect.selectedOptions).map(o => o.value).join(',');
+        let url = '{{ url_for("admin.generate_beneficiaries_list") }}';
+        const params = [];
+        if (programType) params.push('program_type=' + encodeURIComponent(programType));
+        if (selectedIds) params.push('program_ids=' + encodeURIComponent(selectedIds));
+        if (params.length) url += '?' + params.join('&');
+        return url;
+    }
+
+    // Preview button
+    previewBtn.addEventListener('click', function() {
+        const programType = programTypeSelect.value;
+        const selectedIds = Array.from(programIdsSelect.selectedOptions).map(o => o.value).join(',');
+
+        const params = new URLSearchParams();
+        if (programType) params.append('program_type', programType);
+        if (selectedIds) params.append('program_ids', selectedIds);
+
+        previewSection.style.display = 'none';
+        loadingSpinner.style.display = 'block';
+
+        fetch('{{ url_for("admin.preview_beneficiaries_list") }}?' + params.toString())
+            .then(r => r.json())
+            .then(data => {
+                loadingSpinner.style.display = 'none';
+                previewSection.style.display = 'block';
+
+                benefCount.textContent = data.count;
+                previewBody.innerHTML = '';
+
+                const dlUrl = buildDownloadUrl();
+                downloadBtnTop.href = dlUrl;
+                downloadBtnFooter.href = dlUrl;
+
+                if (data.count === 0) {
+                    benefEmptyMsg.style.display = 'block';
+                    document.querySelector('.table-responsive').style.display = 'none';
+                } else {
+                    benefEmptyMsg.style.display = 'none';
+                    document.querySelector('.table-responsive').style.display = '';
+                    const statusColors = {approved: 'success', active: 'info', completed: 'primary'};
+                    data.beneficiaries.forEach(function(b, idx) {
+                        const color = statusColors[b.status] || 'secondary';
+                        previewBody.innerHTML += `<tr>
+                            <td>${idx + 1}</td>
+                            <td>#${b.id}</td>
+                            <td>${b.name}</td>
+                            <td>${b.barangay}</td>
+                            <td>${b.program}</td>
+                            <td>${b.program_type}</td>
+                            <td><span class="badge badge-${color}">${b.status}</span></td>
+                        </tr>`;
+                    });
+                }
+            })
+            .catch(function() {
+                loadingSpinner.style.display = 'none';
+                alert('Error loading preview. Please try again.');
+            });
+    });
+
+    // Clear filters
+    clearBtn.addEventListener('click', function() {
+        programTypeSelect.value = '';
+        Array.from(programIdsSelect.options).forEach(o => { o.selected = false; o.style.display = ''; });
+        previewSection.style.display = 'none';
+        downloadBtnFooter.href = '{{ url_for("admin.generate_beneficiaries_list") }}';
+    });
+
+    // Reset preview when modal is opened
+    document.getElementById('beneficiariesModal').addEventListener('show.bs.modal', function() {
+        previewSection.style.display = 'none';
+        loadingSpinner.style.display = 'none';
+    });
+});
 </script>
 
 {% endblock %}

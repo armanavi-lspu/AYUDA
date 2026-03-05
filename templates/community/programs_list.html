@@ -115,6 +115,16 @@
                         <i class="fas fa-info-circle mr-1"></i>View Details
                     </a>
                     {% endif %}
+                    <button class="btn btn-outline-warning btn-sm ml-1 save-btn" 
+                            data-program-id="{{ program.id }}" 
+                            onclick="toggleSave(this, {{ program.id }})" title="Save Program">
+                        <i class="fas fa-bookmark"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm ml-1 hide-btn" 
+                            data-program-id="{{ program.id }}" 
+                            onclick="toggleHide(this, {{ program.id }})" title="Not Interested">
+                        <i class="fas fa-eye-slash"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -139,4 +149,39 @@
 .card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
 .card:hover { transform: translateY(-5px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
 </style>
+
+<script>
+function toggleSave(btn, programId) {
+    fetch(`/community/program/${programId}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'saved') {
+            btn.classList.remove('btn-outline-warning');
+            btn.classList.add('btn-warning');
+        } else {
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-outline-warning');
+        }
+    });
+}
+
+function toggleHide(btn, programId) {
+    fetch(`/community/program/${programId}/hide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'hidden') {
+            btn.closest('.col-lg-6').style.display = 'none';
+        } else {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-outline-secondary');
+        }
+    });
+}
+</script>
 {% endblock %}

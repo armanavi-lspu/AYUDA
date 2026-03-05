@@ -332,12 +332,14 @@
     }
     
     #confirmApproveDocModal,
-    #confirmRejectDocModal {
+    #confirmRejectDocModal,
+    #confirmUnverifyDocModal {
         z-index: 1060 !important;
     }
     
     #confirmApproveDocModal .modal-backdrop,
-    #confirmRejectDocModal .modal-backdrop {
+    #confirmRejectDocModal .modal-backdrop,
+    #confirmUnverifyDocModal .modal-backdrop {
         z-index: 1059 !important;
     }
     
@@ -1526,6 +1528,21 @@
                                         <i class="fas fa-times mr-1"></i>Reject
                                     </button>
                                 </div>
+                                {% else %}
+                                <div class="d-flex gap-2 mt-3" style="height: 38px;">
+                                    <button type="button" class="btn btn-sm btn-info d-flex align-items-center justify-content-center" 
+                                            onclick="viewDocument({{ upload.id }}, '{{ upload.original_filename }}')"
+                                            title="View document">
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-warning flex-fill d-flex align-items-center justify-content-center" 
+                                            onclick="setDocumentAction('unverify', {{ upload.id }}, '{{ req.requirement_name }}')"
+                                            data-toggle="modal" 
+                                            data-target="#confirmUnverifyDocModal"
+                                            title="Remove verification from this document">
+                                        <i class="fas fa-undo mr-1"></i>Unverify
+                                    </button>
+                                </div>
                                 {% endif %}
                             {% else %}
                                 <div class="alert alert-warning alert-sm mb-0 py-2">
@@ -1664,6 +1681,39 @@
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" onclick="confirmRejectDocument()">
                         <i class="fas fa-times mr-1"></i>Yes, Reject Document
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Unverify Document Modal -->
+    <div class="modal fade" id="confirmUnverifyDocModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-undo-alt mr-2"></i>Remove Document Verification
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        You are about to remove the verification from the following document:
+                    </div>
+                    <p class="mb-3">
+                        <strong>Document:</strong><br>
+                        <span id="unverifyDocName" class="text-primary"></span>
+                    </p>
+                    <div class="alert alert-info">
+                        <small><i class="fas fa-lightbulb mr-1"></i>This will return the document to <strong>Pending Review</strong> status, allowing you to review and make a new decision.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="confirmUnverifyDocument()">
+                        <i class="fas fa-undo-alt mr-1"></i>Yes, Remove Verification
                     </button>
                 </div>
             </div>
@@ -2009,7 +2059,7 @@
                         </small>
                     </div>
                     <div class="col-md-6 text-right">
-                        <button type="button" class="btn btn-success btn-sm" onclick="bulkVerifyDocuments()" disabled id="bulkVerifyBtn">
+                        <button type="button" class="btn btn-success btn-sm" data-toggle="modal" data-target="#confirmVerifyAllModal" disabled id="bulkVerifyBtn" onclick="updateVerifyModalCount()">
                             <i class="fas fa-check-double mr-1"></i>Verify All Selected
                         </button>
                     </div>
@@ -2731,6 +2781,15 @@ document.addEventListener('DOMContentLoaded', function() {
     checkboxes.forEach(cb => {
         cb.addEventListener('change', updateSelectedCount);
     });
+    
+    // Update count in confirmation modal when it's shown
+    const confirmVerifyModal = document.getElementById('confirmVerifyAllModal');
+    if (confirmVerifyModal) {
+        confirmVerifyModal.addEventListener('show.bs.modal', function() {
+            const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+            document.getElementById('confirmVerifyCount').textContent = checkedBoxes.length;
+        });
+    }
 });
 
 function updateSelectedCount() {
@@ -2746,6 +2805,15 @@ function updateSelectedCount() {
             btn.disabled = count === 0;
         }
     });
+}
+
+// Update modal count when verify button is clicked
+function updateVerifyModalCount() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    const confirmElement = document.getElementById('confirmVerifyCount');
+    if (confirmElement) {
+        confirmElement.textContent = checkedBoxes.length;
+    }
 }
 
 // Ensure document UI is synced between modal and expanded view
@@ -3295,8 +3363,6 @@ function bulkVerifyDocuments() {
     const checkboxes = document.querySelectorAll('.document-checkbox:checked');
     if (checkboxes.length === 0) return;
     
-    if (!confirm(`Verify ${checkboxes.length} selected document(s)?`)) return;
-    
     const docRecords = [];
     checkboxes.forEach(checkbox => {
         const row = checkbox.closest('tr');
@@ -3696,11 +3762,18 @@ let currentDocumentRejectionData = {
     requirementName: ''
 };
 
+let currentDocumentUnverifyData = {
+    uploadId: null,
+    requirementName: ''
+};
+
 function setDocumentAction(action, uploadId, requirementName) {
     if (action === 'approve') {
         setDocumentApprovalData(uploadId, requirementName);
     } else if (action === 'reject') {
         setDocumentRejectionData(uploadId, requirementName);
+    } else if (action === 'unverify') {
+        setDocumentUnverifyData(uploadId, requirementName);
     }
 }
 
@@ -3779,6 +3852,29 @@ function confirmRejectDocument() {
     }
     
     verifyUploadWithFeedback(uploadId, 'rejected', feedback);
+}
+
+function setDocumentUnverifyData(uploadId, requirementName) {
+    currentDocumentUnverifyData.uploadId = uploadId;
+    currentDocumentUnverifyData.requirementName = requirementName;
+    document.getElementById('unverifyDocName').textContent = requirementName;
+}
+
+function confirmUnverifyDocument() {
+    const uploadId = currentDocumentUnverifyData.uploadId;
+    
+    if (!uploadId) {
+        alert('Error: Document ID not found');
+        return;
+    }
+    
+    // Close the modal
+    $('#confirmUnverifyDocModal').modal('hide');
+    if (window.currentViewerDocumentId) {
+        $('#documentViewerModal').modal('hide');
+    }
+    
+    verifyUploadWithFeedback(uploadId, 'pending', '');
 }
 
 function showVerifyDocumentModal(docRecordId, applicationId, documentName, rowElement) {
@@ -3941,9 +4037,16 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const message = status === 'approved' 
-                ? 'Document approved successfully.' 
-                : 'Document rejected with feedback.';
+            let message;
+            if (status === 'approved') {
+                message = 'Document approved successfully.';
+            } else if (status === 'rejected') {
+                message = 'Document rejected with feedback.';
+            } else if (status === 'pending') {
+                message = 'Document verification removed. Status reset to pending review.';
+            } else {
+                message = 'Document status updated successfully.';
+            }
             showSuccessToast(message);
             setTimeout(() => {
                 location.reload();
@@ -4881,6 +4984,43 @@ $(function () {
                     <i class="fas fa-check mr-1"></i>Approve
                 </button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Verify All Documents Modal -->
+<div class="modal fade" id="confirmVerifyAllModal" tabindex="-1" role="dialog" aria-labelledby="confirmVerifyAllLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-success">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="confirmVerifyAllLabel">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Confirm Document Verification
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success" role="alert">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    <strong>Verify all selected documents?</strong>
+                </div>
+                <p class="mb-3">
+                    You are about to verify <strong id="confirmVerifyCount">0</strong> selected document(s).
+                </p>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Once verified, these documents will be marked as approved and the applicant will be notified.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" onclick="bulkVerifyDocuments()" data-dismiss="modal">
+                    <i class="fas fa-check-double mr-1"></i>Verify All
+                </button>
             </div>
         </div>
     </div>

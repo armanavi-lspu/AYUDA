@@ -6,6 +6,7 @@ from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps
 from app.extensions import db
+from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
 import re
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -586,6 +587,10 @@ def update_application_status(application_id):
         )
         
         db.session.add(notification)
+        
+        # Log activity
+        log_application_status_update(application, old_status, new_status, remarks)
+        
         db.session.commit()
         
         flash(f'Application status updated to {new_status.replace("_", " ").title()}.', 'success')
@@ -1807,6 +1812,9 @@ def bulk_update_status():
         
         db.session.commit()
         
+        # Log activity
+        log_bulk_application_status_update(application_ids, new_status, updated_count)
+        
         message = f'Successfully updated {updated_count} application(s) to {new_status}.'
         if errors:
             message += f' {len(errors)} error(s) occurred.'
@@ -1903,6 +1911,9 @@ def verify_uploaded_document(application_id, upload_id):
         upload.admin_feedback = admin_feedback
         upload.verified_by = current_user.id
         upload.verified_at = datetime.utcnow()
+        
+        # Log document verification activity
+        log_document_verification(upload, verification_status, admin_feedback)
         
         # Check if all mandatory documents are verified
         application = upload.application
@@ -2027,6 +2038,9 @@ def verify_document_status(application_id, doc_id):
         doc.verified_by = current_user.id
         doc.verified_at = datetime.utcnow()
         
+        # Log activity
+        log_document_status_toggle(doc, submission_status)
+        
         db.session.commit()
         
         return jsonify(
@@ -2040,20 +2054,67 @@ def verify_document_status(application_id, doc_id):
         return jsonify(success=False, message=str(e)), 500
 
 
+@admin_bp.route('/beneficiaries-list/preview')
+@login_required
+@role_required('admin')
+def preview_beneficiaries_list():
+    """Return JSON preview of filtered beneficiaries list"""
+    program_ids = request.args.get('program_ids', '').strip()
+    program_type = request.args.get('program_type', '').strip()
+
+    query = Applications.query.filter(
+        Applications.application_status.in_(['approved', 'active', 'completed'])
+    ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
+
+    if program_ids:
+        id_list = [int(x) for x in program_ids.split(',') if x.strip().isdigit()]
+        if id_list:
+            query = query.filter(Applications.program_id.in_(id_list))
+
+    if program_type:
+        query = query.join(Programs, Applications.program_id == Programs.id).filter(Programs.program_type == program_type)
+
+    apps = query.order_by(Applications.id).all()
+
+    results = []
+    for app in apps:
+        full_name = f"{app.applicant.first_name} {app.applicant.middle_name or ''} {app.applicant.last_name}".strip()
+        barangay = app.applicant.community_profile.barangay if app.applicant.community_profile else 'N/A'
+        results.append({
+            'id': app.id,
+            'name': full_name,
+            'barangay': barangay,
+            'program': app.program.program_name,
+            'program_type': app.program.program_type,
+            'status': app.application_status
+        })
+
+    return jsonify({'count': len(results), 'beneficiaries': results})
+
+
 @admin_bp.route('/generate-beneficiaries-list')
 @login_required
 @role_required('admin')
 def generate_beneficiaries_list():
     """Generate a JPG image of approved beneficiaries list"""
     try:
-        # Get all approved/active/completed applications with user and community profile data
-        approved_applications = Applications.query.filter(
+        program_ids = request.args.get('program_ids', '').strip()
+        program_type = request.args.get('program_type', '').strip()
+
+        query = Applications.query.filter(
             Applications.application_status.in_(['approved', 'active', 'completed'])
-        ).join(
-            User, Applications.user_id == User.id
-        ).join(
-            CommunityUsers, User.id == CommunityUsers.user_id
-        ).order_by(Applications.id).all()
+        ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
+
+        if program_ids:
+            id_list = [int(x) for x in program_ids.split(',') if x.strip().isdigit()]
+            if id_list:
+                query = query.filter(Applications.program_id.in_(id_list))
+
+        if program_type:
+            query = query.join(Programs, Applications.program_id == Programs.id).filter(Programs.program_type == program_type)
+
+        # Get all approved/active/completed applications with user and community profile data
+        approved_applications = query.order_by(Applications.id).all()
         
         if not approved_applications:
             flash('No approved applications found.', 'warning')
@@ -2084,7 +2145,10 @@ def generate_beneficiaries_list():
             cell_font = ImageFont.load_default()
         
         # Title
-        title = "LIST OF APPROVED BENEFICIARIES"
+        if program_type:
+            title = f"LIST OF APPROVED BENEFICIARIES – {program_type.upper()}"
+        else:
+            title = "LIST OF APPROVED BENEFICIARIES"
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_bbox[2] - title_bbox[0]
         draw.text(((img_width - title_width) / 2, padding), title, fill='black', font=title_font)
@@ -2142,6 +2206,10 @@ def generate_beneficiaries_list():
         
         # Generate filename with timestamp
         filename = f"beneficiaries_list_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        
+        # Log activity
+        log_beneficiaries_list_generated(len(approved_applications))
+        db.session.commit()
         
         return send_file(
             img_io,

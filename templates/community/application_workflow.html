@@ -804,11 +804,74 @@
                         
                     {% elif current_step.step_type == 'scheduling' %}
                         <!-- Scheduling Step -->
+                        {% if application.claim_status == 'scheduled' and application.claim_date %}
+                        <div class="text-center mb-4">
+                            <i class="fas fa-calendar-check fa-4x text-success mb-3"></i>
+                            <h4 class="font-weight-bold text-success">Appointment Scheduled</h4>
+                            <p class="text-muted">Your appointment for benefit release has been set. Please be present on the scheduled date.</p>
+                        </div>
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="card border-success shadow-sm">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="fas fa-calendar-alt mr-2"></i>Schedule Details</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-sm-6 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-calendar fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Date</div>
+                                                        <div class="font-weight-bold">{{ application.claim_date.strftime('%A, %B %d, %Y') }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% if application.claim_time %}
+                                            <div class="col-sm-6 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-clock fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Time</div>
+                                                        <div class="font-weight-bold">{{ application.claim_time }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% if application.claim_location %}
+                                            <div class="col-sm-12 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-map-marker-alt fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Location</div>
+                                                        <div class="font-weight-bold">{{ application.claim_location }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% if application.claim_instructions %}
+                                            <div class="col-sm-12 mb-0">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-info-circle fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Instructions</div>
+                                                        <div>{{ application.claim_instructions }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
                         <div class="text-center">
                             <i class="fas fa-calendar-alt fa-4x text-primary mb-4"></i>
                             <h4>Scheduling Available</h4>
                             <p class="text-muted">Your application has been approved! The administrator will schedule your appointment soon.</p>
                         </div>
+                        {% endif %}
                         
                     {% else %}
                         <!-- Default Step -->

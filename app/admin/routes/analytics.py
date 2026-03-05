@@ -7,6 +7,7 @@ from app.models import Applications, Programs, CommunityUsers, User
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth
 from app.recommender import get_recommendations
+from app.activity_logger import log_recommendation_saved
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
 import json
@@ -287,6 +288,37 @@ def api_generate_recommendations():
         ],
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
+
+
+@admin_bp.route('/api/analytics/save-recommendations', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_save_recommendations():
+    """Save/log a recommendation list generation for audit trail"""
+    data = request.get_json()
+    
+    program_id = data.get('program_id')
+    recommendation_count = data.get('count', 0)
+    
+    program = Programs.query.get(program_id) if program_id else None
+    program_name = program.program_name if program else 'Unknown Program'
+    
+    try:
+        log_recommendation_saved(
+            program_name=program_name,
+            recommendation_count=recommendation_count,
+            details_extra={
+                'program_id': program_id,
+                'filters': data.get('filters', {}),
+            }
+        )
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Recommendation list saved to activity log'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @admin_bp.route('/api/analytics/arima-forecast')
 @login_required

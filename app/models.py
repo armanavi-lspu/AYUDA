@@ -561,6 +561,124 @@ class CALDocuments(db.Model):
         return f'<CALDocument {self.document_type} for Application {self.application_id}>'
 
 
+class AdminActivityLog(db.Model):
+    """Track admin activities for audit trail"""
+    __tablename__ = 'admin_activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)  # e.g., 'approve_application', 'verify_document', 'create_announcement'
+    action_type = db.Column(db.String(20), nullable=False, default='update', index=True)  # 'create', 'update', 'delete', 'approve', 'reject', 'verify', 'generate', 'export'
+    entity_type = db.Column(db.String(50), nullable=False, index=True)  # 'application', 'document', 'announcement', 'user', 'admin', 'verification', 'beneficiaries_list', 'recommendation'
+    entity_id = db.Column(db.Integer)  # ID of the affected entity (nullable for bulk/general actions)
+    description = db.Column(db.Text, nullable=False)  # Human-readable description
+    details = db.Column(db.Text)  # JSON string for extra context (old/new values, etc.)
+    ip_address = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    admin = db.relationship('User', backref=db.backref('activity_logs', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_activity_admin_date', 'admin_id', 'created_at'),
+        db.Index('idx_activity_entity', 'entity_type', 'entity_id'),
+    )
+    
+    def __repr__(self):
+        return f'<AdminActivityLog {self.id}: {self.action} by Admin {self.admin_id}>'
+    
+    @property
+    def admin_name(self):
+        """Get the admin's full name"""
+        return f'{self.admin.first_name} {self.admin.last_name}' if self.admin else 'Unknown Admin'
+    
+    @property
+    def details_dict(self):
+        """Return details as dictionary"""
+        if self.details:
+            try:
+                import json
+                return json.loads(self.details)
+            except:
+                return {}
+        return {}
+
+
+class UserActivityLog(db.Model):
+    """Track community user activities for analytics and audit trail"""
+    __tablename__ = 'user_activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    action = db.Column(db.String(50), nullable=False, index=True)
+    action_type = db.Column(db.String(20), nullable=False, default='view', index=True)  # 'view', 'create', 'update', 'delete', 'search', 'auth', 'upload', 'save', 'hide'
+    entity_type = db.Column(db.String(50), nullable=False, index=True)  # 'program', 'application', 'document', 'profile', 'session', 'search'
+    entity_id = db.Column(db.Integer)
+    description = db.Column(db.Text, nullable=False)
+    details = db.Column(db.Text)  # JSON string for extra context
+    ip_address = db.Column(db.String(45))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('user_activity_logs', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('idx_user_activity_user_date', 'user_id', 'created_at'),
+        db.Index('idx_user_activity_entity', 'entity_type', 'entity_id'),
+    )
+    
+    def __repr__(self):
+        return f'<UserActivityLog {self.id}: {self.action} by User {self.user_id}>'
+    
+    @property
+    def user_name(self):
+        return f'{self.user.first_name} {self.user.last_name}' if self.user else 'Unknown User'
+    
+    @property
+    def details_dict(self):
+        if self.details:
+            try:
+                import json
+                return json.loads(self.details)
+            except:
+                return {}
+        return {}
+
+
+class SavedProgram(db.Model):
+    """Programs saved/bookmarked by community users"""
+    __tablename__ = 'saved_programs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('saved_programs', lazy='dynamic'))
+    program = db.relationship('Programs', backref=db.backref('saved_by_users', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'program_id', name='uq_saved_program'),
+    )
+
+
+class HiddenProgram(db.Model):
+    """Programs hidden/not interested by community users"""
+    __tablename__ = 'hidden_programs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('hidden_programs', lazy='dynamic'))
+    program = db.relationship('Programs', backref=db.backref('hidden_by_users', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'program_id', name='uq_hidden_program'),
+    )
+
+
 class ApplicationWorkflowStatus(db.Model):
     """Track workflow step progress for each application"""
     __tablename__ = 'application_workflow_status'

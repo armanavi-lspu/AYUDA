@@ -2,9 +2,10 @@ from flask import render_template, jsonify, redirect, url_for, request, flash, s
 from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion
+from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
 from sqlalchemy import desc, func
 from werkzeug.utils import secure_filename
 import os
@@ -186,6 +187,14 @@ def program_detail(program_id):
     # Get profile completion status
     completion_data = calculate_profile_completion(current_user)
     
+    # Check if user has saved/hidden this program
+    is_saved = SavedProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
+    is_hidden = HiddenProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
+    
+    # Log detail view
+    log_program_detail_view(program)
+    db.session.commit()
+    
     return render_template('community/program_detail.html',
                          program=program,
                          document_requirements=document_requirements,
@@ -194,6 +203,8 @@ def program_detail(program_id):
                          is_full=is_full,
                          approved_count=approved_count,
                          completion=completion_data,
+                         is_saved=is_saved,
+                         is_hidden=is_hidden,
                          today=datetime.utcnow().date())
     
 @community_bp.route('/program/<int:program_id>/apply', methods=['POST'])
@@ -268,12 +279,106 @@ def submit_application(program_id):
         related_type='application'
     )
     db.session.add(notification)
+    
+    # Log application started
+    log_application_started(new_application, program)
+    
     db.session.commit()
     
     flash('Application submitted! Please proceed with the workflow steps for initial verification.', 'success')
     
     # Redirect to application workflow
     return redirect(url_for('community.application_workflow', application_id=new_application.id))
+
+
+@community_bp.route('/program/<int:program_id>/save', methods=['POST'])
+@login_required
+@role_required('community')
+def save_program(program_id):
+    """Save/bookmark a program."""
+    program = Programs.query.get_or_404(program_id)
+    existing = SavedProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first()
+    
+    if existing:
+        # Unsave
+        db.session.delete(existing)
+        log_unsave_program(program)
+        db.session.commit()
+        return jsonify({'status': 'unsaved', 'message': 'Program removed from saved list'})
+    else:
+        # Save
+        saved = SavedProgram(user_id=current_user.id, program_id=program_id)
+        db.session.add(saved)
+        log_save_program(program)
+        db.session.commit()
+        return jsonify({'status': 'saved', 'message': 'Program saved to your list'})
+
+
+@community_bp.route('/program/<int:program_id>/hide', methods=['POST'])
+@login_required
+@role_required('community')
+def hide_program(program_id):
+    """Hide/mark a program as not interested."""
+    program = Programs.query.get_or_404(program_id)
+    existing = HiddenProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first()
+    
+    if existing:
+        # Unhide
+        db.session.delete(existing)
+        log_unhide_program(program)
+        db.session.commit()
+        return jsonify({'status': 'unhidden', 'message': 'Program is now visible again'})
+    else:
+        # Hide
+        hidden = HiddenProgram(user_id=current_user.id, program_id=program_id)
+        db.session.add(hidden)
+        log_hide_program(program)
+        db.session.commit()
+        return jsonify({'status': 'hidden', 'message': 'Program hidden from your list'})
+
+
+@community_bp.route('/programs/search')
+@login_required
+@role_required('community')
+def search_programs():
+    """Search and filter programs with activity logging."""
+    query_text = request.args.get('q', '').strip()
+    category = request.args.get('category', '').strip()
+    
+    filters = {}
+    if category:
+        filters['category'] = category
+    
+    programs_query = Programs.query
+    
+    if query_text:
+        programs_query = programs_query.filter(
+            db.or_(
+                Programs.program_name.ilike(f'%{query_text}%'),
+                Programs.description.ilike(f'%{query_text}%')
+            )
+        )
+    
+    if category:
+        programs_query = programs_query.filter_by(program_type=category)
+    
+    results = programs_query.order_by(desc(Programs.date)).all()
+    
+    # Log the search
+    log_search_query(query_text, filters, len(results))
+    db.session.commit()
+    
+    return jsonify({
+        'results': [{
+            'id': p.id,
+            'name': p.program_name,
+            'description': p.description[:150] if p.description else '',
+            'type': p.program_type,
+            'date': p.date.strftime('%B %d, %Y') if p.date else None
+        } for p in results],
+        'count': len(results)
+    })
+
 
 @community_bp.route('/application/<int:application_id>/upload-shelter-photos', methods=['POST'])
 @login_required

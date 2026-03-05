@@ -5,6 +5,7 @@ from app.community import community_bp
 from app.utils import role_required
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers
 from app.extensions import db
+from app.user_activity_logger import log_document_upload
 from sqlalchemy import desc, or_
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -900,6 +901,10 @@ def submit_documents(application_id):
                 related_type='application'
             )
             db.session.add(user_notification)
+        
+        # Log document upload activity
+        if upload_count > 0:
+            log_document_upload(application, upload_count, application.program.program_name)
         
         db.session.commit()
         

@@ -1,0 +1,427 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Activity Logs - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .activity-row {
+        transition: all 0.2s ease;
+    }
+    .activity-row:hover {
+        background-color: #f8f9fc;
+        transform: translateX(3px);
+    }
+    
+    /* Action type badges */
+    .badge-action-approve { background-color: #1cc88a; color: white; }
+    .badge-action-reject { background-color: #e74a3b; color: white; }
+    .badge-action-create { background-color: #4e73df; color: white; }
+    .badge-action-update { background-color: #f6c23e; color: #333; }
+    .badge-action-delete { background-color: #e74a3b; color: white; }
+    .badge-action-verify { background-color: #36b9cc; color: white; }
+    .badge-action-generate { background-color: #6f42c1; color: white; }
+    .badge-action-export { background-color: #5a5c69; color: white; }
+    
+    /* Entity type badges */
+    .badge-entity-application { background-color: #4e73df; color: white; }
+    .badge-entity-document { background-color: #1cc88a; color: white; }
+    .badge-entity-announcement { background-color: #f6c23e; color: #333; }
+    .badge-entity-user { background-color: #36b9cc; color: white; }
+    .badge-entity-admin { background-color: #e74a3b; color: white; }
+    .badge-entity-verification { background-color: #fd7e14; color: white; }
+    .badge-entity-beneficiaries_list { background-color: #6f42c1; color: white; }
+    .badge-entity-recommendation { background-color: #20c997; color: white; }
+    
+    .activity-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e3e6f0;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #4e73df;
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #e3e6f0;
+    }
+    .timeline-item.approve::before { background: #1cc88a; }
+    .timeline-item.reject::before { background: #e74a3b; }
+    .timeline-item.create::before { background: #4e73df; }
+    .timeline-item.update::before { background: #f6c23e; }
+    .timeline-item.delete::before { background: #e74a3b; }
+    .timeline-item.verify::before { background: #36b9cc; }
+    .timeline-item.generate::before { background: #6f42c1; }
+    .timeline-item.export::before { background: #5a5c69; }
+    
+    .filter-card {
+        border: none;
+        border-radius: 12px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold mb-2">
+                <i class="fas fa-history mr-2 text-primary"></i>Activity Logs
+            </h1>
+            <p class="text-muted mb-0">Track and audit all admin activities across the system</p>
+        </div>
+        <div>
+            <a href="{{ url_for('admin.export_activity_logs') }}" class="btn btn-success">
+                <i class="fas fa-file-export mr-2"></i>Export Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-primary shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Activities</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_activities }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Today</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ today_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">This Week</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ week_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Admins</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_admins }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card shadow mb-4 filter-card">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Activities
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.activity_logs') }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search" 
+                               placeholder="Search description..." 
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Action Type</label>
+                        <select class="form-control" name="action_type">
+                            <option value="">All Actions</option>
+                            <option value="approve" {% if request.args.get('action_type')=='approve' %}selected{% endif %}>Approve</option>
+                            <option value="reject" {% if request.args.get('action_type')=='reject' %}selected{% endif %}>Reject</option>
+                            <option value="create" {% if request.args.get('action_type')=='create' %}selected{% endif %}>Create</option>
+                            <option value="update" {% if request.args.get('action_type')=='update' %}selected{% endif %}>Update</option>
+                            <option value="delete" {% if request.args.get('action_type')=='delete' %}selected{% endif %}>Delete</option>
+                            <option value="verify" {% if request.args.get('action_type')=='verify' %}selected{% endif %}>Verify</option>
+                            <option value="generate" {% if request.args.get('action_type')=='generate' %}selected{% endif %}>Generate</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Entity</label>
+                        <select class="form-control" name="entity_type">
+                            <option value="">All Entities</option>
+                            <option value="application" {% if request.args.get('entity_type')=='application' %}selected{% endif %}>Applications</option>
+                            <option value="document" {% if request.args.get('entity_type')=='document' %}selected{% endif %}>Documents</option>
+                            <option value="announcement" {% if request.args.get('entity_type')=='announcement' %}selected{% endif %}>Announcements</option>
+                            <option value="user" {% if request.args.get('entity_type')=='user' %}selected{% endif %}>Users</option>
+                            <option value="admin" {% if request.args.get('entity_type')=='admin' %}selected{% endif %}>Admin Mgmt</option>
+                            <option value="verification" {% if request.args.get('entity_type')=='verification' %}selected{% endif %}>Verification</option>
+                            <option value="beneficiaries_list" {% if request.args.get('entity_type')=='beneficiaries_list' %}selected{% endif %}>Beneficiaries List</option>
+                            <option value="recommendation" {% if request.args.get('entity_type')=='recommendation' %}selected{% endif %}>Recommendations</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Admin</label>
+                        <select class="form-control" name="admin_id">
+                            <option value="">All Admins</option>
+                            {% for admin in admins %}
+                            <option value="{{ admin.id }}" {% if request.args.get('admin_id')==admin.id|string %}selected{% endif %}>
+                                {{ admin.first_name }} {{ admin.last_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                            <option value="quarter" {% if request.args.get('date_range')=='quarter' %}selected{% endif %}>This Quarter</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 mb-3 d-flex align-items-end">
+                        <div class="d-flex gap-1 w-100">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{{ url_for('admin.activity_logs') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- View Toggle -->
+    <div class="mb-3 d-flex justify-content-between align-items-center">
+        <div>
+            <span class="text-muted">Showing {{ activities|length }} of {{ total_activities }} activities</span>
+        </div>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-sm btn-outline-primary active" id="tableViewBtn" onclick="showTableView()">
+                <i class="fas fa-table mr-1"></i>Table
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="timelineViewBtn" onclick="showTimelineView()">
+                <i class="fas fa-stream mr-1"></i>Timeline
+            </button>
+        </div>
+    </div>
+
+    <!-- Table View -->
+    <div class="card shadow mb-4" id="tableView">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-gradient-primary text-white">
+                        <tr>
+                            <th class="py-3 pl-4">Date & Time</th>
+                            <th class="py-3">Admin</th>
+                            <th class="py-3">Action</th>
+                            <th class="py-3">Entity</th>
+                            <th class="py-3">Description</th>
+                            <th class="py-3">IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if activities %}
+                        {% for activity in activities %}
+                        <tr class="activity-row">
+                            <td class="pl-4">
+                                <div class="small font-weight-bold">{{ activity.created_at.strftime('%b %d, %Y') }}</div>
+                                <div class="small text-muted">{{ activity.created_at.strftime('%I:%M:%S %p') }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mr-2" style="width:32px;height:32px;font-size:0.75rem;">
+                                        {{ activity.admin.first_name[0] }}{{ activity.admin.last_name[0] }}
+                                    </div>
+                                    <div>
+                                        <div class="small font-weight-bold">{{ activity.admin.first_name }} {{ activity.admin.last_name }}</div>
+                                        <div class="small text-muted">{{ activity.admin.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-action-{{ activity.action_type }} px-2 py-1">
+                                    {% if activity.action_type == 'approve' %}
+                                        <i class="fas fa-check mr-1"></i>
+                                    {% elif activity.action_type == 'reject' %}
+                                        <i class="fas fa-times mr-1"></i>
+                                    {% elif activity.action_type == 'create' %}
+                                        <i class="fas fa-plus mr-1"></i>
+                                    {% elif activity.action_type == 'update' %}
+                                        <i class="fas fa-edit mr-1"></i>
+                                    {% elif activity.action_type == 'delete' %}
+                                        <i class="fas fa-trash mr-1"></i>
+                                    {% elif activity.action_type == 'verify' %}
+                                        <i class="fas fa-check-double mr-1"></i>
+                                    {% elif activity.action_type == 'generate' %}
+                                        <i class="fas fa-file-alt mr-1"></i>
+                                    {% else %}
+                                        <i class="fas fa-cog mr-1"></i>
+                                    {% endif %}
+                                    {{ activity.action_type|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-entity-{{ activity.entity_type }} px-2 py-1">
+                                    {{ activity.entity_type|replace('_', ' ')|title }}
+                                </span>
+                                {% if activity.entity_id %}
+                                <small class="text-muted d-block">#{{ activity.entity_id }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="small" style="max-width: 350px;" title="{{ activity.description }}">
+                                    {{ activity.description[:100] }}{% if activity.description|length > 100 %}...{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ activity.ip_address or 'N/A' }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                                <h5 class="text-muted">No activity logs found</h5>
+                                <p class="text-muted mb-0">Activity logs will appear here as admin actions are performed.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        {% if pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="small text-muted">
+                Page {{ pagination.page }} of {{ pagination.pages }} ({{ pagination.total }} total entries)
+            </div>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.activity_logs', page=pagination.prev_num, **request.args) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if p %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('admin.activity_logs', page=p, **request.args) }}">{{ p }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.activity_logs', page=pagination.next_num, **request.args) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Timeline View (hidden by default) -->
+    <div id="timelineView" style="display: none;">
+        <div class="activity-timeline">
+            {% if activities %}
+            {% set current_date = None %}
+            {% for activity in activities %}
+                {% set activity_date = activity.created_at.strftime('%B %d, %Y') %}
+                {% if activity_date != current_date %}
+                    {% if not loop.first %}</div>{% endif %}
+                    <div class="mb-2 mt-3">
+                        <h6 class="font-weight-bold text-primary">
+                            <i class="fas fa-calendar-day mr-2"></i>{{ activity_date }}
+                        </h6>
+                    </div>
+                    <div>
+                    {% set current_date = activity_date %}
+                {% endif %}
+                
+                <div class="timeline-item {{ activity.action_type }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mr-2" style="width:28px;height:28px;font-size:0.65rem;">
+                                {{ activity.admin.first_name[0] }}{{ activity.admin.last_name[0] }}
+                            </div>
+                            <strong class="small">{{ activity.admin.first_name }} {{ activity.admin.last_name }}</strong>
+                        </div>
+                        <small class="text-muted">{{ activity.created_at.strftime('%I:%M %p') }}</small>
+                    </div>
+                    <div class="mt-2">
+                        <span class="badge badge-action-{{ activity.action_type }} mr-1">{{ activity.action_type|title }}</span>
+                        <span class="badge badge-entity-{{ activity.entity_type }}">{{ activity.entity_type|replace('_', ' ')|title }}</span>
+                    </div>
+                    <div class="small text-secondary mt-2">{{ activity.description }}</div>
+                </div>
+            {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                <h5>No activity logs found</h5>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTableView() {
+    document.getElementById('tableView').style.display = 'block';
+    document.getElementById('timelineView').style.display = 'none';
+    document.getElementById('tableViewBtn').classList.add('active');
+    document.getElementById('timelineViewBtn').classList.remove('active');
+}
+
+function showTimelineView() {
+    document.getElementById('tableView').style.display = 'none';
+    document.getElementById('timelineView').style.display = 'block';
+    document.getElementById('tableViewBtn').classList.remove('active');
+    document.getElementById('timelineViewBtn').classList.add('active');
+}
+</script>
+{% endblock %}

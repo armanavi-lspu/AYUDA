@@ -7,6 +7,7 @@ from app.admin import admin_bp
 from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications
 from app.extensions import db
 from app.utils import role_required
+from app.activity_logger import log_activity
 import os
 from werkzeug.utils import secure_filename
 
@@ -732,6 +733,22 @@ def edit_program(id):
         
         # Update the last modified timestamp
         program.updated_at = datetime.utcnow()
+        
+        # Log program edit
+        log_activity(
+            action='edit_program',
+            action_type='update',
+            entity_type='program',
+            description=f'Edited program: {program_name}',
+            entity_id=id,
+            details={
+                'program_type': program_type,
+                'program_period': program_period,
+                'beneficiary_limit': beneficiary_limit,
+                'start_date': start_date.isoformat() if start_date else None,
+                'end_date': end_date.isoformat() if end_date else None
+            }
+        )
         
         db.session.commit()
         success_msg = f'Program "{program_name}" updated successfully!'
