@@ -149,18 +149,51 @@
                     
                     <div class="row">
                         <div class="col-md-6">
+                            <!-- Beneficiary Limit Toggle -->
                             <div class="form-group">
-                                <label>Beneficiary Limit</label>
-                                <input type="number" class="form-control" name="beneficiary_limit" min="1" 
-                                    placeholder="e.g., 100 (leave blank for unlimited)">
+                                <label class="font-weight-bold">
+                                    <i class="fas fa-users mr-2"></i>Beneficiary Limit Control
+                                </label>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" name="use_beneficiary_limit" id="useBeneficiaryLimit">
+                                    <label class="custom-control-label" for="useBeneficiaryLimit">
+                                        Enable beneficiary limit for this program
+                                    </label>
+                                </div>
                                 <small class="form-text text-muted">
-                                    <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program. Leave blank for no limit.
+                                    <i class="fas fa-info-circle"></i> When enabled, the program will have a maximum number of accepted beneficiaries.
                                 </small>
                             </div>
+                            
+                            <div class="form-group" id="beneficiaryLimitGroup" style="display: none;">
+                                <label>Beneficiary Limit <i class="fas fa-arrow-left text-success ml-2" style="display: none;" id="beneficiaryArrow"></i></label>
+                                <input type="number" class="form-control" name="beneficiary_limit" min="1" 
+                                    placeholder="e.g., 100">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program.
+                                </small>
+                            </div>
+                            
+                            <!-- Target Income Range Toggle -->
                             <div class="form-group">
+                                <label class="font-weight-bold">
+                                    <i class="fas fa-chart-line mr-2"></i>Income Range Filtering
+                                </label>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" name="use_income_range" id="useIncomeRange">
+                                    <label class="custom-control-label" for="useIncomeRange">
+                                        Enable income range targeting for this program
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> When enabled, the program will target specific income ranges.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group" id="incomeRangeGroup" style="display: none;">
                                 <label>Target Income Range</label>
                                 <select class="form-control" name="income_range">
-                                    <option value="">Select Income Range (Optional)</option>
+                                    <option value="">Select Income Range</option>
                                     <option value="Below 10,000">Below ₱10,000</option>
                                     <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
                                     <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
@@ -169,7 +202,7 @@
                                     <option value="Above 50,000">Above ₱50,000</option>
                                 </select>
                                 <small class="form-text text-muted">
-                                    <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program. Leave blank if not applicable.
+                                    <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program.
                                 </small>
                             </div>
                         </div>
@@ -180,6 +213,53 @@
                                         <input type="checkbox" class="custom-control-input" name="priority_group" value="Low Income Families" id="priority1">
                                         <label class="custom-control-label" for="priority1">Low Income Families</label>
                                     </div>
+
+<script>
+// Inline toggle functionality - runs immediately after elements are created
+(function() {
+    setTimeout(function() {
+        console.log('🎯 Setting up toggles...');
+        
+        // Beneficiary Limit Toggle
+        const beneficiaryToggle = document.getElementById('useBeneficiaryLimit');
+        const beneficiaryGroup = document.getElementById('beneficiaryLimitGroup');
+        
+        if (beneficiaryToggle && beneficiaryGroup) {
+            console.log('✅ Found beneficiary elements');
+            beneficiaryToggle.addEventListener('change', function() {
+                console.log('Toggle changed:', this.checked);
+                if (this.checked) {
+                    beneficiaryGroup.style.display = 'block';
+                    console.log('🟢 Showing beneficiary group');
+                } else {
+                    beneficiaryGroup.style.display = 'none';
+                    document.querySelector('input[name="beneficiary_limit"]').value = '';
+                    console.log('🔴 Hiding beneficiary group');
+                }
+            });
+        }
+        
+        // Income Range Toggle
+        const incomeToggle = document.getElementById('useIncomeRange');
+        const incomeGroup = document.getElementById('incomeRangeGroup');
+        
+        if (incomeToggle && incomeGroup) {
+            console.log('✅ Found income elements');
+            incomeToggle.addEventListener('change', function() {
+                console.log('Income toggle changed:', this.checked);
+                if (this.checked) {
+                    incomeGroup.style.display = 'block';
+                    console.log('🟢 Showing income group');
+                } else {
+                    incomeGroup.style.display = 'none';
+                    document.querySelector('select[name="income_range"]').value = '';
+                    console.log('🔴 Hiding income group');
+                }
+            });
+        }
+    }, 100);
+})();
+</script>
                                     <div class="custom-control custom-checkbox mb-2">
                                         <input type="checkbox" class="custom-control-input" name="priority_group" value="Students" id="priority2">
                                         <label class="custom-control-label" for="priority2">Students</label>
@@ -222,6 +302,22 @@
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> When enabled, applicants can upload their documents online for pre-verification before visiting the MSWD office. When disabled, applicants will need to submit documents physically.
+                        </small>
+                    </div>
+                    
+                    <!-- Application Slip Toggle -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-print mr-2"></i>Application Slip Printing
+                        </label>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" name="enable_application_slip" id="enableApplicationSlip" checked>
+                            <label class="custom-control-label" for="enableApplicationSlip">
+                                Enable application slip printing for this program
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> When enabled, applicants and admins can print an official application slip as proof of submission. When disabled, this option will not be available.
                         </small>
                     </div>
                     
@@ -433,9 +529,6 @@
                                                     <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('ESA'); return false;">
                                                         <i class="fas fa-home mr-2"></i>ESA Workflow
                                                     </a>
-                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('CA'); return false;">
-                                                        <i class="fas fa-store mr-2"></i>CA Workflow
-                                                    </a>
                                                 </div>
                                             </div>
                                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWorkflowStep()">
@@ -478,6 +571,72 @@
 
 {% block extra_js %}
 <script>
+$(document).ready(function() {
+    console.log('🎯 Initializing toggle functionality...');
+    
+    // Beneficiary Limit Toggle
+    const beneficiaryToggle = $('#useBeneficiaryLimit');
+    const beneficiaryGroup = $('#beneficiaryLimitGroup');
+    
+    if (beneficiaryToggle.length && beneficiaryGroup.length) {
+        console.log('✅ Beneficiary toggle elements found');
+        
+        // Initial state check
+        if (beneficiaryToggle.is(':checked')) {
+            beneficiaryGroup.show();
+        }
+        
+        beneficiaryToggle.on('change', function() {
+            console.log('🔄 Beneficiary toggle changed:', this.checked);
+            if (this.checked) {
+                beneficiaryGroup.slideDown(200);
+                console.log('👁️ Showing beneficiary group');
+            } else {
+                beneficiaryGroup.slideUp(200);
+                // Clear the input when disabled
+                $('input[name="beneficiary_limit"]').val('');
+                console.log('🙈 Hiding beneficiary group');
+            }
+        });
+    } else {
+        console.error('❌ Beneficiary toggle elements not found');
+        console.log('Toggle element:', beneficiaryToggle.length);
+        console.log('Group element:', beneficiaryGroup.length);
+    }
+    
+    // Income Range Toggle
+    const incomeToggle = $('#useIncomeRange');
+    const incomeGroup = $('#incomeRangeGroup');
+    
+    if (incomeToggle.length && incomeGroup.length) {
+        console.log('✅ Income toggle elements found');
+        
+        // Initial state check
+        if (incomeToggle.is(':checked')) {
+            incomeGroup.show();
+        }
+        
+        incomeToggle.on('change', function() {
+            console.log('🔄 Income toggle changed:', this.checked);
+            if (this.checked) {
+                incomeGroup.slideDown(200);
+                console.log('👁️ Showing income group');
+            } else {
+                incomeGroup.slideUp(200);
+                // Reset the select when disabled
+                $('select[name="income_range"]').val('');
+                console.log('🙈 Hiding income group');
+            }
+        });
+    } else {
+        console.error('❌ Income toggle elements not found');
+        console.log('Toggle element:', incomeToggle.length);
+        console.log('Group element:', incomeGroup.length);
+    }
+    
+    console.log('🎉 Toggle functionality initialization complete!');
+});
+    
     // Toggle Add Document Form
     function toggleAddDocForm() {
         const form = document.getElementById('addDocForm');
@@ -689,6 +848,7 @@
         'approval': { label: 'Admin Approval', icon: 'fas fa-check-circle', color: 'success' },
         'verification': { label: 'Document Verification', icon: 'fas fa-clipboard-check', color: 'warning' },
         'document_submission': { label: 'Physical Submission', icon: 'fas fa-building', color: 'secondary' },
+        'assessment': { label: 'Assessment / SCSR', icon: 'fas fa-clipboard-list', color: 'purple' },
         'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
     };
     
@@ -792,11 +952,6 @@
                             <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
                                       onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
                         </div>
-                        <div class="col-md-2">
-                            <label class="small text-muted">Min Items</label>
-                            <input type="number" class="form-control form-control-sm" min="1" value="${step.min_items}"
-                                   onchange="updateWorkflowStep(${step.id}, 'min_items', parseInt(this.value) || 1)">
-                        </div>
                         <div class="col-md-3">
                             <label class="small text-muted">Allowed File Types</label>
                             <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
@@ -829,29 +984,33 @@
         
         const templates = {
             'ESA': [
-                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, min_items: 3, allowed_file_types: 'jpg,jpeg,png,gif'},
-                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,gif'},
+                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'CA': [
-                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf'},
-                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
-                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf'},
+                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
+                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'online_upload': [
-                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: 'pdf,jpg,jpeg,png'},
-                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, allowed_file_types: 'pdf,jpg,jpeg,png'},
+                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ],
             'default': [
-                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, min_items: 1, allowed_file_types: ''},
-                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, min_items: 1, allowed_file_types: ''}
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
             ]
         };
         

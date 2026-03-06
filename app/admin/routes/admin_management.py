@@ -1,14 +1,17 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from werkzeug.security import generate_password_hash
 import secrets
 import string
+import csv
+import io
 from app.admin import admin_bp
-from app.models import User, AdminUsers, Notifications, Applications, Programs, Announcements
+from app.models import User, AdminUsers, Notifications, Applications, Programs, Announcements, AdminActivityLog, UserActivityLog
 from app.extensions import db
 from app.utils import role_required
+from app.activity_logger import log_admin_management
 
 @admin_bp.route('/admin_management')
 @login_required
@@ -79,7 +82,7 @@ def admin_management():
         admin.announcements_created = Announcements.query.filter_by(author_id=admin.id).count()
         admin.applications_reviewed = Applications.query.filter_by(reviewed_by=admin.id).count()
     
-    # Get recent activity logs (outline - will be implemented with ActivityLog model)
+    # Get recent activity logs from database
     recent_activities = get_recent_admin_activities(limit=20)
     
     return render_template(
@@ -121,7 +124,7 @@ def add_admin():
         # Create new admin user
         new_admin = User(
             email=email,
-            password_hash=generate_password_hash(temp_password),
+            password_hash=generate_password_hash(temp_password, method='pbkdf2:sha256'),
             first_name=first_name,
             middle_name=middle_name,
             last_name=last_name,
@@ -151,12 +154,9 @@ def add_admin():
         
         flash(f'Admin account created successfully for {first_name} {last_name}. Temporary password: {temp_password}', 'success')
         
-        # Log activity (outline)
-        log_admin_activity(
-            admin_id=current_user.id,
-            action='create_admin',
-            description=f'Created new admin account for {email}'
-        )
+        # Log activity
+        log_admin_management(new_admin, 'create')
+        db.session.commit()
         
     except Exception as e:
         db.session.rollback()
@@ -204,12 +204,9 @@ def edit_admin(admin_id):
         
         flash(f'Admin account updated successfully for {first_name} {last_name}.', 'success')
         
-        # Log activity (outline)
-        log_admin_activity(
-            admin_id=current_user.id,
-            action='update_admin',
-            description=f'Updated admin account {old_email} to {email}'
-        )
+        # Log activity
+        log_admin_management(admin_user, 'update', {'old_email': old_email})
+        db.session.commit()
         
     except Exception as e:
         db.session.rollback()
@@ -228,7 +225,7 @@ def reset_admin_password(admin_id):
     new_password = ''.join(secrets.choice(string.digits) for _ in range(8))
     
     try:
-        admin_user.password_hash = generate_password_hash(new_password)
+        admin_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
         
         # Create notification
         notification = Notifications(
@@ -243,12 +240,9 @@ def reset_admin_password(admin_id):
         
         flash(f'Password reset successfully for {admin_user.first_name} {admin_user.last_name}. New password: {new_password}', 'success')
         
-        # Log activity (outline)
-        log_admin_activity(
-            admin_id=current_user.id,
-            action='reset_admin_password',
-            description=f'Reset password for admin {admin_user.email}'
-        )
+        # Log activity
+        log_admin_management(admin_user, 'reset_password')
+        db.session.commit()
         
     except Exception as e:
         db.session.rollback()
@@ -287,16 +281,20 @@ def delete_admin(admin_id):
         
         # Delete admin user
         db.session.delete(admin_user)
+        
+        # Log activity before commit
+        from app.activity_logger import log_activity
+        log_activity(
+            action='delete_admin',
+            action_type='delete',
+            entity_type='admin',
+            description=f'Deleted admin account: {admin_name} ({admin_email})',
+            details={'admin_name': admin_name, 'admin_email': admin_email}
+        )
+        
         db.session.commit()
         
         flash(f'Admin account for {admin_name} deleted successfully.', 'success')
-        
-        # Log activity (outline)
-        log_admin_activity(
-            admin_id=current_user.id,
-            action='delete_admin',
-            description=f'Deleted admin account {admin_email}'
-        )
         
     except Exception as e:
         db.session.rollback()
@@ -304,76 +302,276 @@ def delete_admin(admin_id):
     
     return redirect(url_for('admin.admin_management'))
 
-# Activity Log Helper Functions (Outline - to be implemented with ActivityLog model)
-def log_admin_activity(admin_id, action, description, related_id=None):
-    """
-    Log admin activity for audit trail
-    
-    TODO: Implement with ActivityLog model
-    Model structure:
-    - id (PK)
-    - admin_id (FK to users)
-    - action (string: create, update, delete, approve, reject, etc.)
-    - entity_type (string: user, program, application, announcement, etc.)
-    - entity_id (integer: ID of affected entity)
-    - description (text: human-readable description)
-    - ip_address (string)
-    - user_agent (string)
-    - created_at (datetime)
-    """
-    # Placeholder for future implementation
-    print(f"[ACTIVITY LOG] Admin {admin_id} - {action}: {description}")
-    pass
-
 def get_recent_admin_activities(limit=20):
     """
-    Get recent admin activities
-    
-    TODO: Implement with ActivityLog model
-    Should return list of activity records with admin info and timestamps
+    Get recent admin activities from the database.
+    Returns list of AdminActivityLog entries.
     """
-    # Placeholder - return mock data for now
-    mock_activities = [
-        {
-            'id': 1,
-            'admin_name': 'System Admin',
-            'action': 'Approved Application',
-            'description': 'Approved application #1234 for Financial Aid',
-            'timestamp': datetime.utcnow() - timedelta(minutes=15),
-            'action_type': 'approve'
-        },
-        {
-            'id': 2,
-            'admin_name': current_user.first_name + ' ' + current_user.last_name,
-            'action': 'Created Program',
-            'description': 'Created new program "Healthcare Assistance"',
-            'timestamp': datetime.utcnow() - timedelta(hours=2),
-            'action_type': 'create'
-        },
-        {
-            'id': 3,
-            'admin_name': 'System Admin',
-            'action': 'Updated Announcement',
-            'description': 'Updated announcement "New Program Launch"',
-            'timestamp': datetime.utcnow() - timedelta(hours=5),
-            'action_type': 'update'
-        },
-        {
-            'id': 4,
-            'admin_name': current_user.first_name + ' ' + current_user.last_name,
-            'action': 'Rejected Application',
-            'description': 'Rejected application #1233 - Incomplete documents',
-            'timestamp': datetime.utcnow() - timedelta(days=1),
-            'action_type': 'reject'
-        },
-        {
-            'id': 5,
-            'admin_name': 'System Admin',
-            'action': 'Added Requirement',
-            'description': 'Added new requirement "Barangay Clearance"',
-            'timestamp': datetime.utcnow() - timedelta(days=2),
-            'action_type': 'create'
-        }
-    ]
+    try:
+        activities = AdminActivityLog.query\
+            .order_by(AdminActivityLog.created_at.desc())\
+            .limit(limit)\
+            .all()
+        
+        result = []
+        for activity in activities:
+            result.append({
+                'id': activity.id,
+                'admin_name': activity.admin_name,
+                'action': activity.action.replace('_', ' ').title(),
+                'description': activity.description,
+                'timestamp': activity.created_at,
+                'action_type': activity.action_type
+            })
+        
+        return result
+    except Exception as e:
+        print(f"[ACTIVITY LOG] Error fetching activities: {e}")
+        return []
+
+
+@admin_bp.route('/activity-logs')
+@login_required
+@role_required('admin')
+def activity_logs():
+    """Full activity logs page with filtering and pagination."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 25
     
-    return mock_activities[:limit]
+    # Build query
+    query = AdminActivityLog.query
+    
+    # Apply filters
+    search = request.args.get('search', '').strip()
+    if search:
+        query = query.filter(AdminActivityLog.description.ilike(f'%{search}%'))
+    
+    action_type = request.args.get('action_type', '').strip()
+    if action_type:
+        query = query.filter(AdminActivityLog.action_type == action_type)
+    
+    entity_type = request.args.get('entity_type', '').strip()
+    if entity_type:
+        query = query.filter(AdminActivityLog.entity_type == entity_type)
+    
+    admin_id = request.args.get('admin_id', '', type=str).strip()
+    if admin_id:
+        query = query.filter(AdminActivityLog.admin_id == int(admin_id))
+    
+    date_range = request.args.get('date_range', '').strip()
+    now = datetime.utcnow()
+    if date_range == 'today':
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(AdminActivityLog.created_at >= start)
+    elif date_range == 'week':
+        start = now - timedelta(days=now.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(AdminActivityLog.created_at >= start)
+    elif date_range == 'month':
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(AdminActivityLog.created_at >= start)
+    elif date_range == 'quarter':
+        quarter_start_month = ((now.month - 1) // 3) * 3 + 1
+        start = now.replace(month=quarter_start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(AdminActivityLog.created_at >= start)
+    
+    # Get total count (with filters applied)
+    total_activities = query.count()
+    
+    # Stats
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = AdminActivityLog.query.filter(AdminActivityLog.created_at >= today_start).count()
+    
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_count = AdminActivityLog.query.filter(AdminActivityLog.created_at >= week_start).count()
+    
+    active_admins = db.session.query(func.count(func.distinct(AdminActivityLog.admin_id)))\
+        .filter(AdminActivityLog.created_at >= week_start).scalar() or 0
+    
+    # Paginate
+    pagination = query.order_by(AdminActivityLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get admin users for filter dropdown
+    admins = User.query.filter(User.role == 'admin').order_by(User.first_name).all()
+    
+    return render_template('admin/activity_logs.html',
+        activities=pagination.items,
+        pagination=pagination,
+        total_activities=total_activities,
+        today_count=today_count,
+        week_count=week_count,
+        active_admins=active_admins,
+        admins=admins
+    )
+
+
+@admin_bp.route('/activity-logs/export')
+@login_required
+@role_required('admin')
+def export_activity_logs():
+    """Export activity logs as CSV."""
+    # Build query with same filters as the main page
+    query = AdminActivityLog.query
+    
+    search = request.args.get('search', '').strip()
+    if search:
+        query = query.filter(AdminActivityLog.description.ilike(f'%{search}%'))
+    
+    action_type = request.args.get('action_type', '').strip()
+    if action_type:
+        query = query.filter(AdminActivityLog.action_type == action_type)
+    
+    entity_type = request.args.get('entity_type', '').strip()
+    if entity_type:
+        query = query.filter(AdminActivityLog.entity_type == entity_type)
+    
+    admin_id = request.args.get('admin_id', '', type=str).strip()
+    if admin_id:
+        query = query.filter(AdminActivityLog.admin_id == int(admin_id))
+    
+    activities = query.order_by(AdminActivityLog.created_at.desc()).all()
+    
+    # Generate CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Date & Time', 'Admin', 'Action', 'Action Type', 'Entity Type', 'Entity ID', 'Description', 'IP Address'])
+    
+    for a in activities:
+        writer.writerow([
+            a.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            a.admin_name,
+            a.action,
+            a.action_type,
+            a.entity_type,
+            a.entity_id or '',
+            a.description,
+            a.ip_address or ''
+        ])
+    
+    output.seek(0)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=activity_logs_{timestamp}.csv'}
+    )
+
+
+@admin_bp.route('/user-activity-logs')
+@login_required
+@role_required('admin')
+def user_activity_logs():
+    """View community user activity logs."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 30
+    
+    query = UserActivityLog.query
+    
+    # Filters
+    search = request.args.get('search', '').strip()
+    if search:
+        query = query.filter(UserActivityLog.description.ilike(f'%{search}%'))
+    
+    action_type = request.args.get('action_type', '').strip()
+    if action_type:
+        query = query.filter(UserActivityLog.action_type == action_type)
+    
+    entity_type = request.args.get('entity_type', '').strip()
+    if entity_type:
+        query = query.filter(UserActivityLog.entity_type == entity_type)
+    
+    user_id = request.args.get('user_id', '').strip()
+    if user_id:
+        query = query.filter(UserActivityLog.user_id == int(user_id))
+    
+    date_range = request.args.get('date_range', '').strip()
+    now = datetime.utcnow()
+    if date_range == 'today':
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    elif date_range == 'week':
+        start = now - timedelta(days=now.weekday())
+        start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    elif date_range == 'month':
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(UserActivityLog.created_at >= start)
+    
+    total_activities = query.count()
+    
+    # Stats
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_count = UserActivityLog.query.filter(UserActivityLog.created_at >= today_start).count()
+    
+    week_start = now - timedelta(days=now.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_count = UserActivityLog.query.filter(UserActivityLog.created_at >= week_start).count()
+    
+    active_users = db.session.query(func.count(func.distinct(UserActivityLog.user_id)))\
+        .filter(UserActivityLog.created_at >= week_start).scalar() or 0
+    
+    pagination = query.order_by(UserActivityLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get community users for filter
+    community_users = User.query.filter(User.role == 'community').order_by(User.first_name).all()
+    
+    return render_template('admin/user_activity_logs.html',
+        activities=pagination.items,
+        pagination=pagination,
+        total_activities=total_activities,
+        today_count=today_count,
+        week_count=week_count,
+        active_users=active_users,
+        community_users=community_users
+    )
+
+
+@admin_bp.route('/user-activity-logs/export')
+@login_required
+@role_required('admin')
+def export_user_activity_logs():
+    """Export user activity logs as CSV."""
+    query = UserActivityLog.query
+    
+    search = request.args.get('search', '').strip()
+    if search:
+        query = query.filter(UserActivityLog.description.ilike(f'%{search}%'))
+    
+    action_type = request.args.get('action_type', '').strip()
+    if action_type:
+        query = query.filter(UserActivityLog.action_type == action_type)
+    
+    entity_type = request.args.get('entity_type', '').strip()
+    if entity_type:
+        query = query.filter(UserActivityLog.entity_type == entity_type)
+    
+    activities = query.order_by(UserActivityLog.created_at.desc()).all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Date & Time', 'User', 'Action', 'Action Type', 'Entity Type', 'Entity ID', 'Description', 'IP Address'])
+    
+    for a in activities:
+        writer.writerow([
+            a.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            a.user_name,
+            a.action,
+            a.action_type,
+            a.entity_type,
+            a.entity_id or '',
+            a.description,
+            a.ip_address or ''
+        ])
+    
+    output.seek(0)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename=user_activity_logs_{timestamp}.csv'}
+    )

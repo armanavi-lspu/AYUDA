@@ -29,11 +29,7 @@ FUNCTION CheckQualification(requirement, user_profile)
     
     // Employment status
     IF combined_text CONTAINS ["employed", "employment"] THEN
-        IF "unemployed" OR "not employed" IN combined_text THEN
-            RETURN NOT user_profile.is_currently_employed
-        ELSE
-            RETURN user_profile.is_currently_employed
-        END IF
+        RETURN user_profile.is_currently_employed
     END IF
     
     // Student status
@@ -116,7 +112,7 @@ FUNCTION VerifyDocument(application_id, document_id, verification_data)
         
         // Auto-approve application if all mandatory docs verified
         IF allComplete AND application.status = "pending" THEN
-            application.application_status = "approved"
+            application.application_status = "active"
             application.reviewed_by = currentAdmin.id
             application.review_date = NOW()
             SAVE application

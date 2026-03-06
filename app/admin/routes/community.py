@@ -1,16 +1,17 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import desc, or_, func
+from sqlalchemy import desc, or_, func, case
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 import secrets
 import string
 import os
 from app.admin import admin_bp
-from app.models import User, Applications, Notifications, CommunityUsers
+from app.models import User, Applications, Notifications, CommunityUsers, UserActivityLog
 from app.extensions import db
 from app.utils import role_required
+from app.activity_logger import log_verification_request, log_user_modification
 
 @admin_bp.route('/community')
 @login_required
@@ -113,6 +114,9 @@ def community():
             user_id=user.id, 
             application_status='approved'
         ).count()
+        user.active_apps = Applications.query.filter_by(user_id=user.id).filter(
+            Applications.application_status.notin_(['approved', 'rejected', 'completed'])
+        ).count()
     
     return render_template(
         'admin/community.html',
@@ -152,6 +156,10 @@ def view_community_user(user_id):
     applications = Applications.query.filter_by(user_id=user_id)\
         .order_by(desc(Applications.application_date)).all()
     
+    # Get user activity logs (last 10)
+    user_activities = UserActivityLog.query.filter_by(user_id=user_id)\
+        .order_by(desc(UserActivityLog.created_at)).limit(10).all()
+    
     return render_template(
         'admin/view_community_user.html',
         community_user=community_user,
@@ -160,6 +168,7 @@ def view_community_user(user_id):
         approved_apps=approved_apps,
         rejected_apps=rejected_apps,
         applications=applications,
+        user_activities=user_activities,
         user=current_user
     )
 
@@ -174,7 +183,7 @@ def reset_user_password(user_id):
     new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
     
     # Update password
-    community_user.password = generate_password_hash(new_password)
+    community_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
     
     try:
         # Create notification for user
@@ -189,6 +198,11 @@ def reset_user_password(user_id):
         db.session.commit()
         
         flash(f'Password reset successfully for {community_user.first_name} {community_user.last_name}. New password: {new_password}', 'success')
+        
+        # Log activity
+        log_user_modification(community_user, 'reset_password')
+        db.session.commit()
+        
     except Exception as e:
         db.session.rollback()
         flash(f'Error resetting password: {str(e)}', 'danger')
@@ -215,10 +229,13 @@ def toggle_user_status(user_id):
                 notification_type='system',
                 created_at=datetime.utcnow()
             )
-            db.session.add(notification)
             db.session.commit()
             
             flash(f'Account disabled for {community_user.first_name} {community_user.last_name}.', 'warning')
+            
+            # Log activity
+            log_user_modification(community_user, 'suspend')
+            db.session.commit()
         else:
             notification = Notifications(
                 user_id=user_id,
@@ -227,10 +244,13 @@ def toggle_user_status(user_id):
                 notification_type='system',
                 created_at=datetime.utcnow()
             )
-            db.session.add(notification)
             db.session.commit()
             
             flash(f'Account enabled for {community_user.first_name} {community_user.last_name}.', 'success')
+            
+            # Log activity
+            log_user_modification(community_user, 'unsuspend')
+            db.session.commit()
     except Exception as e:
         db.session.rollback()
         flash(f'Error updating account status: {str(e)}', 'danger')
@@ -260,6 +280,17 @@ def delete_community_user(user_id):
         
         # Delete notifications
         Notifications.query.filter_by(user_id=user_id).delete()
+        
+        # Log activity before deleting user
+        from app.activity_logger import log_activity
+        log_activity(
+            action='delete_user',
+            action_type='delete',
+            entity_type='user',
+            description=f'Deleted community user: {user_name} ({community_user.email})',
+            entity_id=user_id,
+            details={'user_name': user_name, 'user_email': community_user.email}
+        )
         
         # Delete user
         db.session.delete(community_user)
@@ -345,7 +376,7 @@ def community_verify():
     # Get filter parameters
     search = request.args.get('search', '').strip()
     verification_type = request.args.get('type', '').strip()
-    status_filter = request.args.get('status', 'pending').strip()
+    status_filter = request.args.get('status', '').strip()
     barangay_filter = request.args.get('barangay', '').strip()
     
     # Base query - users with verification requests
@@ -416,8 +447,18 @@ def community_verify():
     if barangay_filter:
         query = query.filter(CommunityUsers.barangay == barangay_filter)
     
-    # Order by creation date
-    query = query.order_by(desc(CommunityUsers.created_at))
+    # Order: Pending requests first, then by creation date (newest first)
+    query = query.order_by(
+        case(
+            (or_(
+                CommunityUsers.senior_citizen_verification == 'pending',
+                CommunityUsers.pwd_verification == 'pending',
+                CommunityUsers.solo_parent_verification == 'pending'
+            ), 0),
+            else_=1
+        ),
+        desc(CommunityUsers.created_at)
+    )
     
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -583,6 +624,9 @@ def process_verification(user_id, verification_type):
         else:
             flash('Invalid verification type.', 'error')
             return redirect(url_for('admin.community_verify'))
+        
+        # Log verification request activity
+        log_verification_request(user, verification_type, action, rejection_reason if action == 'reject' else None)
         
         db.session.commit()
         

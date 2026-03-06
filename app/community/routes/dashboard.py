@@ -20,10 +20,10 @@ def dashboard():
     total_applications = Applications.query.filter_by(user_id=current_user.id).count()
     pending_applications = Applications.query.filter_by(
         user_id=current_user.id
-    ).filter(Applications.application_status.in_(['pending', 'submitted', 'under_review'])).count()
+    ).filter(Applications.application_status == 'pending').count()
     returned_applications = Applications.query.filter_by(
         user_id=current_user.id
-    ).filter(Applications.application_status.in_(['returned', 'missing', 'incomplete'])).count()
+    ).filter(Applications.application_status == 'rejected').count()
     
     # Get available programs count
     available_programs = Programs.query.count()
@@ -53,7 +53,7 @@ def dashboard():
      
     for app in user_applications:
         # Add submission deadline event (placeholder - currently using application_date + 30 days)
-        if app.application_status in ['pending', 'on_hold'] and app.application_date:
+        if app.application_status in ['pending'] and app.application_date:
             deadline_date = app.application_date + timedelta(days=30)
             if deadline_date >= datetime.now():
                 schedule_events.append({

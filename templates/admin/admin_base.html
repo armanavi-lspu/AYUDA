@@ -119,7 +119,7 @@
             z-index: 100;
             padding-top: 6.25rem;
             background-color: #ffffff;
-            width: 15.625rem;
+            width: 23.4375rem;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.25);
         }
         
@@ -177,7 +177,7 @@
         }
         
         .content-wrapper {
-            margin-left: 15.625rem;
+            margin-left: 23.4375rem;
             padding-top: 60px;
         }
         
@@ -192,7 +192,7 @@
         
         @media (max-width: 768px) {
             .sidebar {
-                margin-left: -15.625rem;
+                margin-left: -23.4375rem;
             }
             
             .content-wrapper {
@@ -521,7 +521,7 @@
         }
         
         .content-wrapper {
-            margin-left: 250px;
+            margin-left: 375px;
             padding-top: 60px;
         }
         
@@ -536,7 +536,7 @@
         
         @media (max-width: 768px) {
             .sidebar {
-                margin-left: -250px;
+                margin-left: -375px;
             }
             
             .content-wrapper {
@@ -964,10 +964,31 @@
         <div class="ml-auto d-flex align-items-center">
             <!-- Notification Icon -->
             <div class="dropdown mr-3">
-                <button class="btn btn-link text-white p-0" type="button" id="notificationDropdown" data-toggle="dropdown">
+                <button class="btn btn-link text-white p-0 position-relative" type="button" id="notificationDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-bell fa-lg"></i>
-                    <span class="badge badge-danger badge-pill position-absolute" style="top: -5px; right: -5px;"></span>
-                </button>                
+                    {% if admin_unread_count > 0 %}
+                    <span class="badge badge-danger badge-pill notification-count" style="position:absolute;top:-5px;right:-8px;font-size:0.65rem;">{{ admin_unread_count if admin_unread_count < 100 else '99+' }}</span>
+                    {% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-right notification-dropdown p-0" aria-labelledby="notificationDropdown">
+                    <div class="notification-header d-flex justify-content-between align-items-center px-3 py-2">
+                        <div class="notification-header-content">
+                            <i class="fas fa-bell mr-1"></i>
+                            <h6 class="d-inline mb-0 font-weight-bold">Notifications</h6>
+                        </div>
+                        <button class="btn btn-sm btn-link text-white mark-all-btn p-0" onclick="markAllAsRead()" title="Mark all as read">
+                            <i class="fas fa-check-double"></i>
+                        </button>
+                    </div>
+                    <div class="notification-list" id="notificationList">
+                        <div class="text-center py-4 text-muted" id="notificationLoading">
+                            <i class="fas fa-spinner fa-spin"></i> Loading...
+                        </div>
+                    </div>
+                    <div class="notification-footer text-center py-2 border-top" style="display:none;" id="notificationFooter">
+                        <small class="text-muted">Showing recent notifications</small>
+                    </div>
+                </div>
             </div>
             
             <!-- User Info -->
@@ -993,38 +1014,40 @@
     <!-- Side Navigation Bar -->
     <nav class="col-md-2 d-none d-md-block sidebar collapse" id="sidebarMenu">
         <div class="sidebar-sticky">
+            {% set prog_active = request.path.startswith('/admin/programs') or request.path.startswith('/admin/subsidy') %}
+            {% set comm_active = request.path.startswith('/admin/community') %}
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="{{ url_for('admin.dashboard') }}">
+                    <a class="nav-link{% if request.path == '/admin/dashboard' %} active{% endif %}" href="{{ url_for('admin.dashboard') }}">
                         <i class="fas fa-tachometer-alt mr-2"></i>
                         Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.adm_announcements') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/announcement') %} active{% endif %}" href="{{ url_for('admin.adm_announcements') }}">
                         <i class="fas fa-bullhorn mr-2"></i>
                         Announcements
                     </a>
                 </li>
                 <!-- Programs Dropdown -->
                 <li class="nav-item">
-                    <a class="nav-link d-flex justify-content-between align-items-center" href="#programsSubmenu" data-toggle="collapse" aria-expanded="false">
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if prog_active %} active{% endif %}" href="#programsSubmenu" data-toggle="collapse" aria-expanded="{{ 'true' if prog_active else 'false' }}">
                         <span>
                             <i class="fas fa-calendar-alt mr-2"></i>
                             Programs
                         </span>
                         <i class="fas fa-chevron-down small"></i>
                     </a>
-                    <div class="collapse" id="programsSubmenu">
+                    <div class="collapse{% if prog_active %} show{% endif %}" id="programsSubmenu">
                         <ul class="nav flex-column pl-4">
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.adm_programs') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/programs') %} active{% endif %}" href="{{ url_for('admin.adm_programs') }}">
                                     <i class="fas fa-hand-holding-usd mr-2"></i>
                                     Financial Assistance
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link py-2" href="{{ url_for('admin.adm_subsidy') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/subsidy') %} active{% endif %}" href="{{ url_for('admin.adm_subsidy') }}">
                                     <i class="fas fa-money-check-alt mr-2"></i>
                                     Subsidy
                                 </a>
@@ -1033,40 +1056,48 @@
                     </div>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.applications') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/applications') %} active{% endif %}" href="{{ url_for('admin.applications') }}">
                         <i class="fas fa-file mr-2"></i>
                         Applications
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.analytics') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/assessments') %} active{% endif %}" href="{{ url_for('admin.assessments') }}">
+                        <i class="fas fa-clipboard-check mr-2"></i>
+                        Assessments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/analytics') %} active{% endif %}" href="{{ url_for('admin.analytics') }}">
                         <i class="fas fa-chart-line mr-2"></i>
                         Analytics
                     </a>
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.admin_management') }}">
+                    <a class="nav-link{% if request.path.startswith('/admin/admin_management') %} active{% endif %}" href="{{ url_for('admin.admin_management') }}">
                         <i class="fas fa-user-shield mr-2"></i>
                         Admin Management
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="false">
-                        <i class="fas fa-user-circle mr-2"></i>
-                        Community
-                        <i class="fas fa-chevron-down ml-auto"></i>
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if comm_active %} active{% endif %}" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="{{ 'true' if comm_active else 'false' }}">
+                        <span>
+                            <i class="fas fa-user-circle mr-2"></i>
+                            Community
+                        </span>
+                        <i class="fas fa-chevron-down small"></i>
                     </a>
-                    <div class="collapse" id="communitySubmenu">
-                        <ul class="nav flex-column">
+                    <div class="collapse{% if comm_active %} show{% endif %}" id="communitySubmenu">
+                        <ul class="nav flex-column pl-4">
                             <li class="nav-item">
-                                <a class="nav-link pl-4" href="{{ url_for('admin.community') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community') and not request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community') }}">
                                     <i class="fas fa-users mr-2"></i>
                                     Users
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link pl-4" href="{{ url_for('admin.community_verify') }}">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community_verify') }}">
                                     <i class="fas fa-user-check mr-2"></i>
                                     Verify
                                     {% if pending_verifications_count is defined and pending_verifications_count > 0 %}
@@ -1189,113 +1220,157 @@
         });
         
         // Enhanced notification functions
-        function markAsRead(notificationId) {
+        let notificationsLoaded = false;
+
+        // Load notifications when dropdown is opened
+        $('#notificationDropdown').on('click', function() {
+            if (!notificationsLoaded) {
+                loadNotifications();
+            }
+        });
+
+        function loadNotifications() {
+            fetch('/admin/notifications/data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        notificationsLoaded = true;
+                        renderNotifications(data.notifications, data.unread_count);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading notifications:', error);
+                    document.getElementById('notificationList').innerHTML =
+                        '<div class="text-center py-4 text-muted"><i class="fas fa-exclamation-circle"></i> Failed to load</div>';
+                });
+        }
+
+        function renderNotifications(notifications, unreadCount) {
+            const list = document.getElementById('notificationList');
+            const footer = document.getElementById('notificationFooter');
+
+            if (!notifications || notifications.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-bell-slash fa-2x mb-2 d-block"></i>
+                        <small>No notifications yet</small>
+                    </div>`;
+                footer.style.display = 'none';
+                return;
+            }
+
+            let html = '';
+            notifications.forEach(n => {
+                const unreadClass = n.is_read ? '' : ' unread';
+                const unreadDot = n.is_read ? '' : '<span class="notification-unread-indicator"></span>';
+                const clickAction = n.url
+                    ? `onclick="openNotification(${n.id}, '${n.url}')"`
+                    : `onclick="markAsRead(${n.id})"`;
+                html += `
+                    <div class="notification-item${unreadClass}" data-notification-id="${n.id}" ${clickAction} style="cursor:pointer;">
+                        ${unreadDot}
+                        <div class="d-flex align-items-start">
+                            <div class="notification-icon ${n.icon_type} mr-2">
+                                <i class="fas ${n.icon}"></i>
+                            </div>
+                            <div class="flex-grow-1" style="min-width:0;">
+                                <div class="font-weight-bold text-dark small text-truncate">${escapeHtml(n.title)}</div>
+                                <div class="text-muted small" style="white-space:normal;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escapeHtml(n.message)}</div>
+                                <div class="text-muted" style="font-size:0.7rem;"><i class="far fa-clock mr-1"></i>${n.created_at}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            list.innerHTML = html;
+            footer.style.display = 'block';
+            updateBadge(unreadCount);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        function openNotification(notificationId, url) {
+            markAsRead(notificationId, function() {
+                window.location.href = url;
+            });
+        }
+
+        function markAsRead(notificationId, callback) {
             fetch(`/admin/notifications/${notificationId}/read`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Add smooth transition for marking as read
                     const item = document.querySelector(`[data-notification-id="${notificationId}"]`);
                     if (item) {
-                        item.style.transition = 'all 0.3s ease';
                         item.classList.remove('unread');
-                        
-                        // Remove unread indicator
                         const indicator = item.querySelector('.notification-unread-indicator');
-                        if (indicator) {
-                            indicator.style.animation = 'fadeOut 0.3s ease';
-                            setTimeout(() => indicator.remove(), 300);
-                        }
+                        if (indicator) indicator.remove();
                     }
-                    
-                    // Update notification count with animation
-                    updateNotificationCount();
+                    refreshUnreadCount();
                 }
+                if (callback) callback();
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                if (callback) callback();
+            });
         }
-        
+
         function markAllAsRead() {
             fetch('/admin/notifications/mark-all-read', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Animate all unread items
-                    document.querySelectorAll('.notification-item.unread').forEach((item, index) => {
-                        setTimeout(() => {
-                            item.style.transition = 'all 0.3s ease';
-                            item.classList.remove('unread');
-                            
-                            const indicator = item.querySelector('.notification-unread-indicator');
-                            if (indicator) {
-                                indicator.style.animation = 'fadeOut 0.3s ease';
-                                setTimeout(() => indicator.remove(), 300);
-                            }
-                        }, index * 100); // Stagger the animations
+                    document.querySelectorAll('.notification-item.unread').forEach(item => {
+                        item.classList.remove('unread');
+                        const indicator = item.querySelector('.notification-unread-indicator');
+                        if (indicator) indicator.remove();
                     });
-                    
-                    // Hide mark all read button with animation
-                    const markAllBtn = document.querySelector('.mark-all-btn');
-                    if (markAllBtn) {
-                        markAllBtn.style.transition = 'all 0.3s ease';
-                        markAllBtn.style.opacity = '0';
-                        markAllBtn.style.transform = 'scale(0.8)';
-                        setTimeout(() => markAllBtn.style.display = 'none', 300);
-                    }
-                    
-                    // Update notification count
-                    setTimeout(() => updateNotificationCount(), 500);
+                    updateBadge(0);
                 }
             })
             .catch(error => console.error('Error:', error));
         }
-        
-        function updateNotificationCount() {
-            const unreadCount = document.querySelectorAll('.notification-item.unread').length;
-            const countBadge = document.querySelector('.notification-count');
-            const sidebarBadge = document.querySelector('.sidebar .badge-danger');
-            
-            if (unreadCount === 0) {
-                if (countBadge) {
-                    countBadge.style.animation = 'fadeOut 0.3s ease';
-                    setTimeout(() => countBadge.style.display = 'none', 300);
+
+        function refreshUnreadCount() {
+            fetch('/admin/notifications/count')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) updateBadge(data.unread_count);
+                })
+                .catch(() => {});
+        }
+
+        function updateBadge(count) {
+            let badge = document.querySelector('.notification-count');
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge badge-danger badge-pill notification-count';
+                    badge.style.cssText = 'position:absolute;top:-5px;right:-8px;font-size:0.65rem;';
+                    document.getElementById('notificationDropdown').appendChild(badge);
                 }
-                if (sidebarBadge) {
-                    sidebarBadge.style.animation = 'fadeOut 0.3s ease';
-                    setTimeout(() => sidebarBadge.style.display = 'none', 300);
-                }
-            } else {
-                if (countBadge) {
-                    countBadge.textContent = unreadCount < 99 ? unreadCount : '99+';
-                    countBadge.style.display = 'flex';
-                    countBadge.style.animation = 'bounce 0.5s ease';
-                }
-                if (sidebarBadge) {
-                    sidebarBadge.textContent = unreadCount;
-                    sidebarBadge.style.display = 'inline';
-                }
+                badge.textContent = count < 100 ? count : '99+';
+                badge.style.display = '';
+            } else if (badge) {
+                badge.style.display = 'none';
             }
         }
-        
-        // Add CSS for fadeOut animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeOut {
-                from { opacity: 1; transform: scale(1); }
-                to { opacity: 0; transform: scale(0.8); }
-            }
-        `;
-        document.head.appendChild(style);
+
+        // Poll for new notifications every 30 seconds
+        setInterval(function() {
+            refreshUnreadCount();
+            notificationsLoaded = false; // Force reload on next dropdown open
+        }, 30000);
     </script>
     
     <!-- Extra JS block for child templates -->

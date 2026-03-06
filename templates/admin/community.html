@@ -63,7 +63,10 @@
             <h1 class="font-weight-bold mb-1">Community Users</h1>
             <p class="text-muted mb-0">Manage registered community members</p>
         </div>  
-        <div>
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('admin.user_activity_logs') }}" class="btn btn-info">
+                <i class="fas fa-history mr-2"></i>View Activity Logs
+            </a>
             <a href="{{ url_for('admin.export_community_users') }}" class="btn btn-success">
                 <i class="fas fa-file-export mr-2"></i>Export to CSV
             </a>
@@ -167,7 +170,6 @@
                         <select class="form-control" name="employment">
                             <option value="">All Status</option>
                             <option value="employed" {% if request.args.get('employment')=='employed' %}selected{% endif %}>Employed</option>
-                            <option value="unemployed" {% if request.args.get('employment')=='unemployed' %}selected{% endif %}>Unemployed</option>
                             <option value="student" {% if request.args.get('employment')=='student' %}selected{% endif %}>Student</option>
                             <option value="solo_parent" {% if request.args.get('employment')=='solo_parent' %}selected{% endif %}>Solo Parent</option>
                         </select>
@@ -271,15 +273,6 @@
                                 </td>
                                 <td>
                                     {% if user.community_profile %}
-                                        {% if user.community_profile.is_currently_employed %}
-                                            <span class="badge badge-success badge-status">
-                                                <i class="fas fa-briefcase mr-1"></i>Employed
-                                            </span>
-                                        {% else %}
-                                            <span class="badge badge-secondary badge-status">
-                                                <i class="fas fa-briefcase mr-1"></i>Unemployed
-                                            </span>
-                                        {% endif %}
                                         {% if user.community_profile.is_student %}
                                             <br><span class="badge badge-info badge-status mt-1">
                                                 <i class="fas fa-graduation-cap mr-1"></i>Student
@@ -298,9 +291,9 @@
                                     <div>
                                         <span class="badge badge-primary">{{ user.app_count }} Total</span>
                                     </div>
-                                    {% if user.approved_apps > 0 %}
+                                    {% if user.active_apps > 0 %}
                                     <div class="mt-1">
-                                        <span class="badge badge-success">{{ user.approved_apps }} Approved</span>
+                                        <span class="badge badge-success">{{ user.active_apps }} Active</span>
                                     </div>
                                     {% endif %}
                                 </td>

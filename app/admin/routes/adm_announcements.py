@@ -8,6 +8,7 @@ from app.admin import admin_bp
 from app.models import Announcements, User, AnnouncementImages, Programs
 from app.extensions import db
 from app.utils import role_required
+from app.activity_logger import log_announcement
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads/announcements'
@@ -167,6 +168,11 @@ def add_announcement():
                     db.session.add(announcement_image)
             
             db.session.commit()
+            
+            # Log activity
+            log_announcement(new_announcement, 'create' if status == 'draft' else 'publish')
+            db.session.commit()
+            
             flash(f'Announcement "{title}" created successfully!', 'success')
             return redirect(url_for('admin.adm_announcements'))
             
@@ -254,6 +260,11 @@ def edit_announcement(id):
                 db.session.delete(image)
         
         db.session.commit()
+        
+        # Log activity
+        log_announcement(announcement, 'update')
+        db.session.commit()
+        
         flash(f'Announcement "{title}" updated successfully!', 'success')
         
     except Exception as e:
@@ -285,6 +296,10 @@ def delete_announcement(id):
                 pass  # Directory not empty or doesn't exist
         
         db.session.delete(announcement)
+        
+        # Log activity before commit
+        log_announcement(type('Announcement', (), {'announcement_title': title, 'status': 'deleted', 'category': '', 'id': id})(), 'delete')
+        
         db.session.commit()
         flash(f'Announcement "{title}" deleted successfully!', 'success')
         
