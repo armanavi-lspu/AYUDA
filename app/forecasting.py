@@ -95,6 +95,10 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
     # ARIMA(1,1,1) requires at minimum p+d+q+1 = 4 observations.
     # The previous 12-point threshold was a quality preference, not a mathematical
     # requirement, and caused unconditional fallbacks for the first year of deployment.
+    # ARIMA(1,1,1) mathematically requires p+d+q+1 = 4 observations. The previous
+    # 12-point threshold was a quality preference that caused fallbacks during early
+    # deployment. Four points enable forecasting during initial data collection; 12+
+    # points remain recommended for stable forecasts.
     MIN_ARIMA_POINTS = 4
     if not historical_data or len(historical_data) < MIN_ARIMA_POINTS:
         return simple_linear_forecast(historical_data, historical_labels, periods)

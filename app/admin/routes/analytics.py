@@ -6,12 +6,16 @@ from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User, Requirements, ProgramRequirements
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
-from app.recommender import get_recommendations
+from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
 from app.activity_logger import log_recommendation_saved
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import json
+
+# Default age for target profile when program priority group is not senior citizens;
+# 30 represents a typical working-age beneficiary demographic
+DEFAULT_TARGET_AGE = 30
 
 @admin_bp.route('/adm_analytics')
 @login_required
@@ -291,6 +295,12 @@ def api_generate_recommendations():
                 for r in requirements
             ])
             priority_group = (program.priority_group or '').lower()
+            priority_tokens = [token.strip() for token in priority_group.split(',') if token.strip()]
+            senior_targeted = any(
+                token in {'senior', 'senior citizen', 'senior citizens', 'seniors', 'elderly'} or
+                'senior' in token
+                for token in priority_tokens
+            )
 
             # Parse income range if available (e.g., "0-250000" or "Below 250,000")
             # sensible default for low-income programs
@@ -304,9 +314,8 @@ def api_generate_recommendations():
                     pass
 
             target_profile = {
-                # Use a representative age: 60 for senior-targeted programs (matches
-                # SENIOR_CITIZEN_AGE in recommender.py), 30 as a general adult default
-                'age': 60 if 'senior' in priority_group else 30,
+                # Use a representative age aligned with recommender configuration
+                'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
                 'family_annual_income': max_inc / 2,  # midpoint of target income range
                 'barangay': 'Unknown',
                 'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,

@@ -22,6 +22,13 @@ SENIOR_CITIZEN_AGE = 60
 _CACHE_PATH = 'instance/recommender_cache.pkl'
 _CACHE_MAX_AGE_SECONDS = 3600  # 1 hour
 
+# Candidate selection tuning
+MAX_NEIGHBORS = 50
+CANDIDATE_MULTIPLIER = 3
+# Minimum candidate pool size to maintain diversity after post-filtering; 30
+# provides sufficient variety for typical recommendation requests of 10-20 items
+MIN_CANDIDATE_POOL = 30
+
 
 class BeneficiaryRecommender:
     """
@@ -121,7 +128,7 @@ class BeneficiaryRecommender:
         
         # Fit NearestNeighbors model with appropriate n_neighbors
         # Ensure n_neighbors is at least 1 and at most the number of samples
-        n_neighbors = max(1, min(len(df), 50))
+        n_neighbors = max(1, min(len(df), MAX_NEIGHBORS))
         self.model = NearestNeighbors(n_neighbors=n_neighbors, metric='cosine')
         self.model.fit(features)
         
@@ -150,8 +157,15 @@ class BeneficiaryRecommender:
         # Transform target
         target_features = self.preprocessor.transform(target_df)
         
-        # Find nearest neighbors (request extra candidates to account for post-filter removals)
-        n_candidates = min(len(self.beneficiary_data), max(n_recommendations * 3, 50))
+        # Find nearest neighbors (request extra candidates to account for post-filtering removals),
+        # capped to the neighbor count used when fitting the model. The minimum pool size preserves
+        # diversity when subsequent filters discard matches.
+        max_neighbors = getattr(self.model, 'n_neighbors', MAX_NEIGHBORS)
+        n_candidates = min(
+            len(self.beneficiary_data),
+            max(n_recommendations * CANDIDATE_MULTIPLIER, MIN_CANDIDATE_POOL),
+            max_neighbors
+        )
         distances, indices = self.model.kneighbors(target_features, n_neighbors=n_candidates)
         
         # Convert distances to similarity scores (1 - cosine distance)

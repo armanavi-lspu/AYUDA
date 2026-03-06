@@ -1,6 +1,7 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory
 from flask_login import login_required, current_user
 from datetime import datetime
+import uuid
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.models import (
@@ -234,13 +235,15 @@ def upload_assessment_document(assessment_id):
     os.makedirs(upload_dir, exist_ok=True)
 
     filename = secure_filename(file.filename)
-    # Prevent collisions by prepending a timestamp
-    unique_filename = f"{int(datetime.utcnow().timestamp())}_{filename}"
-    file_path = os.path.join(upload_dir, unique_filename)
+    # Prevent collisions by prefixing a UUID to the original filename; the human-readable
+    # name is preserved in AssessmentDocument.original_filename for display
+    stored_filename = f"{uuid.uuid4().hex}_{filename}"
+    file_path = os.path.join(upload_dir, stored_filename)
     file.save(file_path)
 
     doc_description = request.form.get('description', '').strip()
 
+    # Preserve the human-readable name alongside the stored UUID-prefixed filename
     assessment_doc = AssessmentDocument(
         assessment_id=assessment_id,
         file_path=file_path,

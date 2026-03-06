@@ -3,14 +3,15 @@ Migration: Add Assessment Tables
 For SCSR assessments (interviews, home visits) aligned with MSWD standard practices.
 """
 
+import os
 import psycopg2
 
 # Database connection settings
 DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'Ayuda',
-    'user': 'postgres',
-    'password': '011523'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'database': os.environ.get('DB_NAME', 'Ayuda'),
+    'user': os.environ.get('DB_USER', 'postgres'),
+    'password': os.environ.get('DB_PASSWORD', ''),
 }
 
 
