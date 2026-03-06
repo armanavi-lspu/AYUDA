@@ -458,6 +458,22 @@ class Notifications(db.Model):
             return f'/admin/assessments/{self.related_id}'
         else:
             return None
+
+    def get_admin_url(self):
+        """Generate the appropriate URL for admin-side notifications"""
+        if not self.related_type or not self.related_id:
+            return None
+
+        if self.related_type == 'application':
+            return f'/admin/applications/{self.related_id}'
+        elif self.related_type == 'announcement':
+            return f'/admin/announcements'
+        elif self.related_type == 'program':
+            return f'/admin/programs'
+        elif self.related_type == 'assessment':
+            return f'/admin/assessments/{self.related_id}'
+        else:
+            return None
     
     def __repr__(self):
         return f'<Notification {self.notif_title}>'
