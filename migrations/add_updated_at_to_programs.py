@@ -3,6 +3,7 @@ Migration: Add updated_at field to programs table
 Created: February 8, 2026
 Purpose: Track when programs were last modified for admin viewing
 """
+import os
 import psycopg2
 from datetime import datetime
 
@@ -10,12 +11,12 @@ def migrate_add_updated_at_to_programs():
     """Add updated_at column to programs table"""
     
     try:
-        # Connect to PostgreSQL database
+        # Connect to PostgreSQL database using environment variables
         conn = psycopg2.connect(
-            host="localhost",
-            database="Ayuda",
-            user="postgres",
-            password="011523"
+            host=os.environ.get('DB_HOST', 'localhost'),
+            database=os.environ.get('DB_NAME', 'Ayuda'),
+            user=os.environ.get('DB_USER', 'postgres'),
+            password=os.environ.get('DB_PASSWORD', '')
         )
         cursor = conn.cursor()
         

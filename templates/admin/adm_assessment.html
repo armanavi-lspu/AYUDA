@@ -1,0 +1,327 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Assessments Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        font-weight: 600;
+    }
+    
+    .assessment-row {
+        transition: all 0.2s ease;
+    }
+    
+    .assessment-row:hover {
+        background-color: #f8f9fc;
+        transform: translateX(3px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h1 class="font-weight-bold mb-2">Assessments Management</h1>
+            <p class="text-muted mb-0">Schedule interviews, home visits, and manage SCSR outputs</p>
+        </div>
+        <button class="btn btn-primary" data-toggle="modal" data-target="#createAssessmentModal">
+            <i class="fas fa-plus mr-2"></i>Schedule Assessment
+        </button>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-5">
+        <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-primary shadow stats-card h-100">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-2">Total</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_assessments }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-warning shadow stats-card h-100">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-2">Scheduled</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ scheduled_assessments }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-success shadow stats-card h-100">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-2">Completed</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ completed_assessments }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-danger shadow stats-card h-100">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-2">Cancelled</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ cancelled_assessments }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-5">
+        <div class="card-header py-4">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Assessments
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.assessments') }}">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search"
+                               placeholder="Title or applicant name..."
+                               value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Type</label>
+                        <select class="form-control" name="type">
+                            <option value="">All Types</option>
+                            <option value="interview" {% if assessment_type == 'interview' %}selected{% endif %}>Interview</option>
+                            <option value="home_visit" {% if assessment_type == 'home_visit' %}selected{% endif %}>Home Visit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Status</label>
+                        <select class="form-control" name="status">
+                            <option value="">All Status</option>
+                            <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-search mr-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('admin.assessments') }}" class="btn btn-secondary">
+                                <i class="fas fa-redo"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assessments Table -->
+    <div class="card shadow">
+        <div class="card-header py-4 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Assessments List</h6>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Applicant</th>
+                            <th>Program</th>
+                            <th>Scheduled Date</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if assessments.items %}
+                            {% for a in assessments.items %}
+                            <tr class="assessment-row">
+                                <td class="font-weight-bold">{{ a.title }}</td>
+                                <td>
+                                    {% if a.assessment_type == 'interview' %}
+                                        <span class="badge badge-primary status-badge">Interview</span>
+                                    {% elif a.assessment_type == 'home_visit' %}
+                                        <span class="badge badge-info status-badge">Home Visit</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold">
+                                        {{ a.application.applicant.first_name }} {{ a.application.applicant.last_name }}
+                                    </div>
+                                    <small class="text-muted">{{ a.application.applicant.email }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light">{{ a.application.program.program_name }}</span>
+                                </td>
+                                <td>
+                                    {% if a.scheduled_date %}
+                                        <small>{{ a.scheduled_date.strftime('%b %d, %Y') }}</small>
+                                        {% if a.scheduled_time %}
+                                        <br><small class="text-muted">{{ a.scheduled_time }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if a.status == 'scheduled' %}
+                                        <span class="badge badge-warning status-badge">Scheduled</span>
+                                    {% elif a.status == 'completed' %}
+                                        <span class="badge badge-success status-badge">Completed</span>
+                                    {% elif a.status == 'cancelled' %}
+                                        <span class="badge badge-danger status-badge">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" 
+                                       class="btn btn-sm btn-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-5">
+                                    <i class="fas fa-clipboard-check fa-3x mb-3"></i>
+                                    <p>No assessments found</p>
+                                    <button class="btn btn-primary" data-toggle="modal" data-target="#createAssessmentModal">
+                                        <i class="fas fa-plus mr-1"></i>Schedule Assessment
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if assessments.pages > 1 %}
+            <nav aria-label="Assessments pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if assessments.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.prev_num, search=search_query, type=assessment_type, status=status_filter) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in assessments.iter_pages() %}
+                        {% if p %}
+                            {% if p != assessments.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.assessments', page=p, search=search_query, type=assessment_type, status=status_filter) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ p }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if assessments.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.next_num, search=search_query, type=assessment_type, status=status_filter) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Assessment Modal -->
+<div class="modal fade" id="createAssessmentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.create_assessment') }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus mr-2"></i>Schedule Assessment
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="application_id">Application <span class="text-danger">*</span></label>
+                        <select name="application_id" id="application_id" class="form-control" required>
+                            <option value="">Select an approved application...</option>
+                            {% for app in approved_applications %}
+                            <option value="{{ app.id }}">
+                                #{{ app.id }} - {{ app.applicant.first_name }} {{ app.applicant.last_name }} ({{ app.program.program_name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="assessment_type">Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" id="assessment_type" class="form-control" required>
+                                <option value="">Select type...</option>
+                                <option value="interview">Interview</option>
+                                <option value="home_visit">Home Visit</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="title">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="title" class="form-control" placeholder="e.g. Initial SCSR Interview" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea name="description" id="description" class="form-control" rows="3" placeholder="Purpose and notes for this assessment..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="scheduled_date">Scheduled Date</label>
+                            <input type="date" name="scheduled_date" id="scheduled_date" class="form-control">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="scheduled_time">Scheduled Time</label>
+                            <input type="text" name="scheduled_time" id="scheduled_time" class="form-control" placeholder="e.g. 09:00 AM">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="location">Location</label>
+                            <input type="text" name="location" id="location" class="form-control" placeholder="e.g. MSWD Office">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-calendar-check mr-1"></i>Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
