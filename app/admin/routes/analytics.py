@@ -5,11 +5,12 @@ from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User
 from app.extensions import db
-from app.forecasting import arima_forecast, forecast_program_growth
+from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
 from app.recommender import get_recommendations
 from app.activity_logger import log_recommendation_saved
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import json
 
 @admin_bp.route('/adm_analytics')
@@ -138,7 +139,9 @@ def api_applicants_timeseries():
     """API endpoint for applicants time series data"""
     months = request.args.get('months', 12, type=int)
     end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=months*30)
+    # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
+    # undershoots by ~5 days/year and can exclude the earliest data point.
+    start_date = end_date - relativedelta(months=months)
     
     data = db.session.query(
         func.date_trunc('month', Applications.application_date).label('month'),
@@ -334,7 +337,9 @@ def api_arima_forecast():
     forecast_periods = min(forecast_periods, 12)
     
     end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=months * 30)
+    # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
+    # undershoots by ~5 days/year and can exclude the earliest data point.
+    start_date = end_date - relativedelta(months=months)
     
     # Query historical data
     historical_data = db.session.query(
@@ -438,8 +443,44 @@ def api_test_arima():
         'date_range': f"{labels[0]} to {labels[-1]}" if labels else "No data",
         'tests': results,
         'recommendations': {
-            'min_points_for_arima': 12,
+            'min_points_for_arima': 4,
             'min_points_for_seasonality': 36,
-            'current_status': 'ARIMA ready' if len(values) >= 12 else 'Need more data'
+            'current_status': 'ARIMA ready' if len(values) >= 4 else 'Need more data'
         }
     })
+
+@admin_bp.route('/api/analytics/program-timeseries-forecast')
+@login_required
+@role_required('admin')
+def api_program_timeseries_forecast():
+    """API endpoint for per-program-type ARIMA time series forecast"""
+    periods = request.args.get('forecast_periods', 6, type=int)
+    months = request.args.get('months', 24, type=int)
+
+    end_date = datetime.utcnow()
+    # Use relativedelta for accurate calendar-month arithmetic
+    start_date = end_date - relativedelta(months=months)
+
+    # Query per-program-type monthly counts
+    raw = db.session.query(
+        Programs.program_type,
+        func.date_trunc('month', Applications.application_date).label('month'),
+        func.count(Applications.id).label('count')
+    ).join(
+        Applications, Programs.id == Applications.program_id
+    ).filter(
+        Applications.application_date >= start_date
+    ).group_by(Programs.program_type, 'month').order_by(Programs.program_type, 'month').all()
+
+    # Group into per-program-type histories
+    histories = {}
+    for row in raw:
+        pt = row.program_type
+        if pt not in histories:
+            histories[pt] = {'labels': [], 'values': []}
+        if row.month:
+            histories[pt]['labels'].append(row.month.strftime('%B %Y'))
+            histories[pt]['values'].append(row.count)
+
+    forecasts = forecast_program_timeseries(histories, periods=periods)
+    return jsonify({'success': True, 'forecasts': forecasts})

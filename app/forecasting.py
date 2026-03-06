@@ -10,8 +10,8 @@ import warnings
 import os
 
 # Suppress warnings from statsmodels during model fitting
+# FutureWarning suppression removed so pandas/statsmodels deprecations surface early
 warnings.filterwarnings('ignore', category=UserWarning)
-warnings.filterwarnings('ignore', category=FutureWarning)
 
 # Constants for simple linear forecast confidence intervals
 CONFIDENCE_LOWER_MULTIPLIER = 0.8
@@ -61,8 +61,9 @@ def prepare_time_series_data(labels, values):
     # Fill gaps with interpolation
     if series.isnull().any():
         series = series.interpolate(method='linear', limit_direction='both')
-        # If still has NaN (e.g., at edges), forward/backward fill
-        series = series.fillna(method='ffill').fillna(method='bfill')
+        # Modern pandas 2.0+ API: use ffill() and bfill() directly
+        # (fillna(method=...) was removed in pandas 2.2+)
+        series = series.ffill().bfill()
     
     return series
 
@@ -91,13 +92,12 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
         # Fallback to simple linear forecast if statsmodels is not available
         return simple_linear_forecast(historical_data, historical_labels, periods)
     
-    # Minimum data points: need at least 12 for monthly seasonality (1 year)
-    min_points = 6 if force_mode else 12
-    if not historical_data or len(historical_data) < min_points:
-        if force_mode:
-            print(f"⚠️ FORCE_ARIMA mode: only {len(historical_data)} points, proceeding anyway")
-        else:
-            return simple_linear_forecast(historical_data, historical_labels, periods)
+    # ARIMA(1,1,1) requires at minimum p+d+q+1 = 4 observations.
+    # The previous 12-point threshold was a quality preference, not a mathematical
+    # requirement, and caused unconditional fallbacks for the first year of deployment.
+    MIN_ARIMA_POINTS = 4
+    if not historical_data or len(historical_data) < MIN_ARIMA_POINTS:
+        return simple_linear_forecast(historical_data, historical_labels, periods)
     
     # Prepare time series with gap filling
     series = prepare_time_series_data(historical_labels, historical_data)
@@ -247,11 +247,20 @@ def simple_linear_forecast(historical_data, historical_labels, periods=6):
         value = max(0, round(last_value + (avg_growth * i)))
         forecast_values.append(value)
     
-    # Generate forecast labels using proper month arithmetic
+    # Generate forecast labels anchored to the last known historical date.
+    # Using datetime.now() would create a gap if historical data ends before today.
     forecast_labels = []
-    now = datetime.now()
+    anchor = datetime.now()
+    if historical_labels:
+        for fmt in ('%B %Y', '%b %Y'):
+            try:
+                anchor = datetime.strptime(historical_labels[-1], fmt)
+                break
+            except ValueError:
+                continue
+
     for i in range(1, periods + 1):
-        next_date = now + pd.DateOffset(months=i)
+        next_date = anchor + pd.DateOffset(months=i)
         forecast_labels.append(next_date.strftime('%b %Y'))
     
     # Simple confidence intervals using defined constants
@@ -304,3 +313,25 @@ def forecast_program_growth(program_data, growth_rate=None):
         'growth_rate': growth_rate,
         'success': True
     }
+
+
+def forecast_program_timeseries(program_type_histories, periods=6):
+    """
+    Forecast per-program-type application volume using ARIMA.
+
+    Unlike forecast_program_growth() which applies a static multiplier,
+    this function performs a genuine time-series forecast per program type.
+
+    Args:
+        program_type_histories: dict of {program_type: {'labels': [...], 'values': [...]}}
+        periods: Number of months to forecast forward
+
+    Returns:
+        dict of {program_type: forecast_result_dict}
+    """
+    results = {}
+    for program_type, history in program_type_histories.items():
+        labels = history.get('labels', [])
+        values = history.get('values', [])
+        results[program_type] = arima_forecast(values, labels, periods=periods)
+    return results
