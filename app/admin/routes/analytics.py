@@ -3,7 +3,7 @@ from flask import render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
 from app.admin import admin_bp
 from app.utils import role_required
-from app.models import Applications, Programs, CommunityUsers, User
+from app.models import Applications, Programs, CommunityUsers, User, Requirements, ProgramRequirements
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
 from app.recommender import get_recommendations
@@ -220,6 +220,7 @@ def api_generate_recommendations():
     solo_parent_priority = data.get('solo_parent_priority', False)
     student_priority = data.get('student_priority', False)
     pwd_priority = data.get('pwd_priority', False)
+    senior_citizen_priority = data.get('senior_citizen_priority', False)
     
     # Query all community users with their profiles
     query = db.session.query(
@@ -259,14 +260,72 @@ def api_generate_recommendations():
         }
         for u in all_users
     ]
+
+    # Exclude beneficiaries already enrolled (approved/completed) in the selected program
+    if program_id:
+        enrolled_user_ids = set(
+            row[0] for row in db.session.query(Applications.user_id).filter(
+                Applications.program_id == program_id,
+                Applications.application_status.in_(['approved', 'completed'])
+            ).all()
+        )
+        beneficiaries_data = [b for b in beneficiaries_data if b['user_id'] not in enrolled_user_ids]
+
+    # Build a target_profile from the program's priority group and requirements so
+    # that the CBF (content-based filtering) KNN pipeline can be used instead of
+    # plain rule-based scoring.
+    target_profile = None
+    if program_id:
+        program = Programs.query.get(program_id)
+        if program:
+            # Gather qualification requirements to build a rich text feature
+            requirements = db.session.query(Requirements).join(
+                ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+            ).filter(
+                ProgramRequirements.program_id == program_id,
+                Requirements.requirement_type == 'qualification'
+            ).all()
+
+            req_text = ' '.join([
+                r.requirement_name + ' ' + (r.description or '')
+                for r in requirements
+            ])
+            priority_group = (program.priority_group or '').lower()
+
+            # Parse income range if available (e.g., "0-250000" or "Below 250,000")
+            # sensible default for low-income programs
+            max_inc = 250000
+            if program.income_range:
+                try:
+                    parts = str(program.income_range).replace(',', '').replace(' ', '').split('-')
+                    if len(parts) == 2:
+                        max_inc = float(parts[1])
+                except (ValueError, IndexError):
+                    pass
+
+            target_profile = {
+                # Use a representative age: 60 for senior-targeted programs (matches
+                # SENIOR_CITIZEN_AGE in recommender.py), 30 as a general adult default
+                'age': 60 if 'senior' in priority_group else 30,
+                'family_annual_income': max_inc / 2,  # midpoint of target income range
+                'barangay': 'Unknown',
+                'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
+                'is_student': 'student' in priority_group,
+                'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
+                'is_currently_employed': False,
+                'occupation': req_text or program.description or ''
+            }
     
-    # Use content-based filtering to get recommendations
+    # Use content-based filtering (CBF) when a target_profile is available;
+    # otherwise fall back to rule-based priority scoring.
     recommendations = get_recommendations(
         beneficiaries_data=beneficiaries_data,
+        target_profile=target_profile,
         max_beneficiaries=max_beneficiaries,
         solo_parent_priority=solo_parent_priority,
         student_priority=student_priority,
         pwd_priority=pwd_priority,
+        senior_citizen_priority=senior_citizen_priority,
         priority_barangays=priority_barangays if priority_barangays else None,
         min_income=min_income,
         max_income=max_income
@@ -282,13 +341,19 @@ def api_generate_recommendations():
                 'email': r.get('email', ''),
                 'barangay': r.get('barangay', 'N/A'),
                 'income': r.get('family_annual_income', 0),
+                'age': r.get('age', None),
                 'is_solo_parent': r.get('is_solo_parent', False),
                 'is_student': r.get('is_student', False),
                 'is_pwd': r.get('is_pwd', False),
-                'score': r.get('score', 0.0)
+                'is_senior': (r.get('age') or 0) >= 60,
+                'score': r.get('score', 0.0),
+                'score_breakdown': r.get('score_breakdown', {}),
+                'similarity_score': r.get('similarity_score', None),
             }
             for r in recommendations
         ],
+        'algorithm': 'content-based-knn' if target_profile else 'rule-based-scoring',
+        'program_matched': program_id is not None,
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
 
