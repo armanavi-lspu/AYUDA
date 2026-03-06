@@ -45,4 +45,15 @@ def create_app():
     def load_user(id):
         return User.query.get(int(id))
 
+    @app.context_processor
+    def inject_notification_count():
+        from flask_login import current_user
+        if current_user.is_authenticated and current_user.role == 'admin':
+            from app.models import Notifications
+            count = Notifications.query.filter_by(
+                user_id=current_user.id, is_read=False
+            ).count()
+            return {'admin_unread_count': count}
+        return {'admin_unread_count': 0}
+
     return app

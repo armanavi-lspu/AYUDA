@@ -389,6 +389,7 @@ def add_program():
                     default_steps = [
                         {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'allowed_file_types': 'jpg,jpeg,png,gif'},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 else:
@@ -396,6 +397,7 @@ def add_program():
                     default_steps = [
                         {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 
@@ -537,6 +539,7 @@ def edit_program(id):
                     default_steps = [
                         {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'allowed_file_types': 'jpg,jpeg,png,gif'},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 else:
@@ -544,6 +547,7 @@ def edit_program(id):
                     default_steps = [
                         {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
+                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
                     ]
                 
@@ -1350,6 +1354,7 @@ def get_workflow_templates():
                 {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 3, 'allowed_file_types': 'jpg,jpeg,png,gif'},
                 {'step_name': 'Application Review', 'step_description': 'Admin reviews shelter photos and application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
+                {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
             ]
         },
@@ -1359,6 +1364,7 @@ def get_workflow_templates():
             'steps': [
                 {'step_name': 'Application Review', 'step_description': 'Admin reviews and approves your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
+                {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
             ]
         },
@@ -1368,6 +1374,7 @@ def get_workflow_templates():
             'steps': [
                 {'step_name': 'Application Review', 'step_description': 'Admin reviews and approves your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office or online if enabled', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
+                {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
             ]
         },
@@ -1379,6 +1386,7 @@ def get_workflow_templates():
                 {'step_name': 'Submit Documents Online', 'step_description': 'Upload required documents through the online system', 'step_type': 'document_upload', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'pdf,jpg,jpeg,png'},
                 {'step_name': 'Document Verification', 'step_description': 'Admin verifies uploaded documents', 'step_type': 'verification', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Physical Documents', 'step_description': 'Submit original documents at MSWD Office for final verification', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
+                {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
             ]
         }
