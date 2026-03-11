@@ -7,6 +7,7 @@ from app.models import Applications, Programs, CommunityUsers, User, Requirement
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
+from app.config.recommender_configs import ConfigFactory, ConfigManager
 from app.activity_logger import log_recommendation_saved
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
@@ -141,7 +142,7 @@ def api_get_program_parameters(program_id):
 @role_required('admin')
 def api_applicants_timeseries():
     """API endpoint for applicants time series data"""
-    months = request.args.get('months', 12, type=int)
+    months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
     end_date = datetime.utcnow()
     # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
     # undershoots by ~5 days/year and can exclude the earliest data point.
@@ -221,10 +222,28 @@ def api_generate_recommendations():
     except (ValueError, TypeError) as e:
         return jsonify({'success': False, 'message': f'Invalid income range format: {str(e)}'}), 400
     
-    solo_parent_priority = data.get('solo_parent_priority', False)
-    student_priority = data.get('student_priority', False)
-    pwd_priority = data.get('pwd_priority', False)
-    senior_citizen_priority = data.get('senior_citizen_priority', False)
+    # If a config_type is supplied, load defaults from the config framework
+    # and let explicit request parameters override them.
+    config_type = data.get('config_type')
+    if config_type:
+        try:
+            preset = ConfigFactory.get_config(config_type)
+        except KeyError:
+            return jsonify({'success': False, 'message': f'Unknown config_type: {config_type}'}), 400
+        # Apply preset defaults for values not explicitly provided
+        if 'max_beneficiaries' not in data:
+            max_beneficiaries = preset.max_beneficiaries
+        if 'min_income' not in data:
+            min_income = preset.min_income
+        if 'max_income' not in data:
+            max_income = preset.max_income
+        if 'priority_barangays' not in data and preset.priority_barangays:
+            priority_barangays = preset.priority_barangays
+
+    solo_parent_priority = data.get('solo_parent_priority', preset.solo_parent_priority if config_type else False)
+    student_priority = data.get('student_priority', preset.student_priority if config_type else False)
+    pwd_priority = data.get('pwd_priority', preset.pwd_priority if config_type else False)
+    senior_citizen_priority = data.get('senior_citizen_priority', preset.senior_citizen_priority if config_type else False)
     
     # Query all community users with their profiles
     query = db.session.query(
@@ -355,7 +374,9 @@ def api_generate_recommendations():
                 'is_student': r.get('is_student', False),
                 'is_pwd': r.get('is_pwd', False),
                 'is_senior': (r.get('age') or 0) >= 60,
-                'score': r.get('score', 0.0),
+                # CBF path produces similarity_score; rule-based path produces score.
+                # Use whichever is non-zero so the UI always shows a meaningful value.
+                'score': r.get('score') or r.get('similarity_score', 0.0) or 0.0,
                 'score_breakdown': r.get('score_breakdown', {}),
                 'similarity_score': r.get('similarity_score', None),
             }
@@ -365,6 +386,29 @@ def api_generate_recommendations():
         'program_matched': program_id is not None,
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
+
+
+@admin_bp.route('/api/analytics/recommender-configs')
+@login_required
+@role_required('admin')
+def api_recommender_configs():
+    """List available pre-defined recommender configurations."""
+    return jsonify({
+        'success': True,
+        'configs': ConfigFactory.list_available_detailed(),
+    })
+
+
+@admin_bp.route('/api/analytics/recommender-config/<config_type>')
+@login_required
+@role_required('admin')
+def api_recommender_config_detail(config_type):
+    """Return the full parameter set for a specific config type."""
+    try:
+        config = ConfigFactory.get_config(config_type)
+    except KeyError:
+        return jsonify({'success': False, 'message': f'Unknown config type: {config_type}'}), 404
+    return jsonify({'success': True, 'config': config.to_dict()})
 
 
 @admin_bp.route('/api/analytics/save-recommendations', methods=['POST'])
@@ -403,7 +447,7 @@ def api_save_recommendations():
 def api_arima_forecast():
     """API endpoint for ARIMA-based applicants forecast"""
     # Get parameters
-    months = request.args.get('months', 12, type=int)
+    months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
     forecast_periods = request.args.get('forecast_periods', 6, type=int)
     force_arima = request.args.get('force_arima', 'false').lower() == 'true'
     

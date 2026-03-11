@@ -56,6 +56,77 @@
         font-size: 0.75rem;
         font-weight: 600;
     }
+    .recommendation-item {
+        cursor: pointer;
+    }
+    .recommendation-item:hover {
+        border-left-color: #1cc88a;
+        background-color: #f8f9fc;
+    }
+    /* Detail modal styles */
+    .detail-section {
+        background: #f8f9fc;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .detail-section h6 {
+        color: #4e73df;
+        margin-bottom: 0.75rem;
+    }
+    .score-bar-container {
+        margin-bottom: 0.6rem;
+    }
+    .score-bar-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.2rem;
+        font-size: 0.85rem;
+    }
+    .score-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e3e6f0;
+        overflow: hidden;
+    }
+    .score-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.6s ease;
+    }
+    .detail-badge {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.4rem;
+        margin-bottom: 0.4rem;
+    }
+    .detail-badge-yes {
+        background: #d4edda;
+        color: #155724;
+    }
+    .detail-badge-no {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .total-score-display {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%);
+        border-radius: 10px;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    .total-score-display .score-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+    .total-score-display .score-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
 </style>
 {% endblock %}
 
@@ -267,10 +338,36 @@
         </div>
     </div>
 </div>
+
+<!-- Beneficiary Detail Modal -->
+<div class="modal fade" id="beneficiaryDetailModal" tabindex="-1" role="dialog" aria-labelledby="beneficiaryDetailLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="beneficiaryDetailLabel">
+                    <i class="fas fa-user mr-2"></i>Beneficiary Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="beneficiaryDetailBody">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+// Store current recommendations for detail view
+let currentRecommendations = [];
+let currentAlgorithm = '';
+
 // Auto-fill parameters when program is selected
 document.getElementById('program_id').addEventListener('change', function() {
     const programId = this.value;
@@ -434,6 +531,8 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            currentRecommendations = data.recommendations;
+            currentAlgorithm = data.algorithm || '';
             displayResults(data);
         } else {
             alert('Error generating recommendations: ' + data.message);
@@ -463,6 +562,10 @@ function displayResults(data) {
         data.recommendations.forEach((rec, index) => {
             const item = document.createElement('div');
             item.className = 'recommendation-item p-3 mb-2 border rounded';
+            item.setAttribute('data-index', index);
+            item.addEventListener('click', function() {
+                showBeneficiaryDetail(index);
+            });
             item.innerHTML = `
                 <div class="row align-items-center">
                     <div class="col-md-1 text-center">
@@ -478,6 +581,7 @@ function displayResults(data) {
                             ${rec.is_solo_parent ? '<span class="badge badge-info mr-1">Solo Parent</span>' : ''}
                             ${rec.is_student ? '<span class="badge badge-primary mr-1">Student</span>' : ''}
                             ${rec.is_pwd ? '<span class="badge badge-warning mr-1">PWD</span>' : ''}
+                            ${rec.is_senior ? '<span class="badge badge-secondary mr-1">Senior Citizen</span>' : ''}
                         </div>
                     </div>
                     <div class="col-md-4 text-md-right">
@@ -486,8 +590,9 @@ function displayResults(data) {
                             <div class="font-weight-bold">₱${rec.income.toLocaleString()}</div>
                         </div>
                         <div class="score-badge">
-                            Score: ${rec.score.toFixed(2)}
+                            ${rec.similarity_score != null ? 'Similarity' : 'Score'}: ${rec.score.toFixed(2)}
                         </div>
+                        <small class="text-muted d-block mt-1"><i class="fas fa-eye mr-1"></i>Click to view details</small>
                     </div>
                 </div>
             `;
@@ -505,5 +610,229 @@ document.getElementById('exportBtn').addEventListener('click', function() {
     // TODO: Implement CSV export
     alert('Export functionality will be implemented');
 });
+
+function showBeneficiaryDetail(index) {
+    const rec = currentRecommendations[index];
+    if (!rec) return;
+
+    const isCBF = rec.similarity_score != null;
+    const scoreLabel = isCBF ? 'Similarity Score' : 'Priority Score';
+    const bd = rec.score_breakdown || {};
+
+    // Build score bar items
+    const breakdownItems = [];
+
+    if (isCBF) {
+        // CBF breakdown
+        const cosineSim = bd.similarity_score || rec.score;
+        let cosineDescription = 'How closely this beneficiary\'s profile matches the target program profile. ';
+        if (cosineSim > 0.5) {
+            cosineDescription += '<strong class="text-success">✓ Highly similar:</strong> Strong match across features.';
+        } else if (cosineSim > 0) {
+            cosineDescription += '<strong class="text-info">~ Moderately similar:</strong> Some features match the program profile.';
+        } else if (cosineSim > -0.5) {
+            cosineDescription += '<strong class="text-warning">! Low similarity:</strong> Few features match; opposite direction on some dimensions.';
+        } else {
+            cosineDescription += '<strong class="text-danger">✗ Dissimilar:</strong> Profile is opposite to target program (negative cosine value).';
+        }
+
+        breakdownItems.push({
+            label: 'Cosine Similarity',
+            value: cosineSim,
+            max: 1,
+            color: '#4e73df',
+            description: cosineDescription
+        });
+        breakdownItems.push({
+            label: 'Income Proximity',
+            value: bd.income_score || 0,
+            max: 0.3,
+            color: '#1cc88a',
+            description: 'Income closeness to the program\'s target income range'
+        });
+        breakdownItems.push({
+            label: 'Solo Parent Match',
+            value: bd.solo_parent_bonus || 0,
+            max: 0.2,
+            color: '#36b9cc',
+            description: rec.is_solo_parent ? 'Matches program\'s solo parent priority' : 'Not a solo parent'
+        });
+        breakdownItems.push({
+            label: 'Student Match',
+            value: bd.student_bonus || 0,
+            max: 0.15,
+            color: '#4e73df',
+            description: rec.is_student ? 'Matches program\'s student priority' : 'Not a student'
+        });
+        breakdownItems.push({
+            label: 'PWD Match',
+            value: bd.pwd_bonus || 0,
+            max: 0.2,
+            color: '#f6c23e',
+            description: rec.is_pwd ? 'Matches program\'s PWD priority' : 'Not a PWD'
+        });
+        breakdownItems.push({
+            label: 'Senior Citizen Match',
+            value: bd.senior_bonus || 0,
+            max: 0.15,
+            color: '#858796',
+            description: rec.is_senior ? 'Matches program\'s senior citizen priority' : 'Not a senior citizen'
+        });
+    } else {
+        // Rule-based breakdown
+        breakdownItems.push({
+            label: 'Income Score',
+            value: bd.income_score || 0,
+            max: 0.3,
+            color: '#1cc88a',
+            description: 'Lower income results in a higher score — prioritizes those most in need'
+        });
+        breakdownItems.push({
+            label: 'Solo Parent Bonus',
+            value: bd.solo_parent_bonus || 0,
+            max: 0.3,
+            color: '#36b9cc',
+            description: rec.is_solo_parent ? 'Solo parent priority applied' : 'Not a solo parent — no bonus'
+        });
+        breakdownItems.push({
+            label: 'Student Bonus',
+            value: bd.student_bonus || 0,
+            max: 0.2,
+            color: '#4e73df',
+            description: rec.is_student ? 'Student priority applied' : 'Not a student — no bonus'
+        });
+        breakdownItems.push({
+            label: 'PWD Bonus',
+            value: bd.pwd_bonus || 0,
+            max: 0.3,
+            color: '#f6c23e',
+            description: rec.is_pwd ? 'PWD priority applied' : 'Not a PWD — no bonus'
+        });
+        breakdownItems.push({
+            label: 'Senior Citizen Bonus',
+            value: bd.senior_bonus || 0,
+            max: 0.2,
+            color: '#858796',
+            description: rec.is_senior ? 'Senior citizen priority applied' : 'Not a senior citizen — no bonus'
+        });
+    }
+
+    // Build bars HTML
+    let barsHtml = '';
+    breakdownItems.forEach(item => {
+        const pct = item.max > 0 ? Math.min((item.value / item.max) * 100, 100) : 0;
+        barsHtml += `
+            <div class="score-bar-container">
+                <div class="score-bar-label">
+                    <span>${item.label}</span>
+                    <span class="font-weight-bold">${item.value.toFixed(4)}</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" style="width: ${pct}%; background: ${item.color};"></div>
+                </div>
+                <small class="text-muted">${item.description}</small>
+            </div>
+        `;
+    });
+
+    const html = `
+        <!-- Total Score -->
+        <div class="total-score-display">
+            <div class="score-label">${scoreLabel}</div>
+            <div class="score-value">${rec.score.toFixed(4)}</div>
+            <div class="score-label">Rank #${index + 1} of ${currentRecommendations.length}</div>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="detail-section">
+            <h6><i class="fas fa-id-card mr-2"></i>Profile Information</h6>
+            <div class="row">
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Full Name</small>
+                    <span class="font-weight-bold">${rec.name}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Email</small>
+                    <span>${rec.email}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Barangay</small>
+                    <span>${rec.barangay || 'N/A'}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Age</small>
+                    <span>${rec.age != null ? rec.age : 'N/A'}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Annual Income</small>
+                    <span class="font-weight-bold">₱${rec.income.toLocaleString()}</span>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="detail-badge ${rec.is_solo_parent ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_solo_parent ? 'check' : 'times'} mr-1"></i>Solo Parent
+                </span>
+                <span class="detail-badge ${rec.is_student ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_student ? 'check' : 'times'} mr-1"></i>Student
+                </span>
+                <span class="detail-badge ${rec.is_pwd ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_pwd ? 'check' : 'times'} mr-1"></i>PWD
+                </span>
+                <span class="detail-badge ${rec.is_senior ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_senior ? 'check' : 'times'} mr-1"></i>Senior Citizen
+                </span>
+            </div>
+        </div>
+
+        <!-- Score Explanation -->
+        <div class="detail-section">
+            <h6><i class="fas fa-chart-bar mr-2"></i>Score Explanation</h6>
+            <p class="text-muted small mb-3">
+                ${isCBF
+                    ? 'This score is computed using <strong>Content-Based Filtering (CBF)</strong>. The system compares this beneficiary\'s profile against the target program profile using cosine similarity on TF-IDF, demographic, and socio-economic features.'
+                    : 'This score is computed using <strong>Rule-Based Priority Scoring</strong>. Each criterion is weighted and combined into a composite priority score.'
+                }
+            </p>
+            ${barsHtml}
+        </div>
+
+        ${isCBF ? `
+        <!-- Cosine Similarity Scale Explanation -->
+        <div class="detail-section" style="background: #e7f3ff; border-left: 4px solid #4e73df;">
+            <h6 style="color: #0066cc;"><i class="fas fa-question-circle mr-2"></i>What Does This Score Mean?</h6>
+            <div style="font-size: 0.9rem;">
+                <div class="mb-2">
+                    <span style="color: #27ae60; font-weight: 600;">✓ 0.5+</span> = Good fit for the program
+                </div>
+                <div class="mb-2">
+                    <span style="color: #2980b9; font-weight: 600;">⚬ 0 to 0.5</span> = Some features match the program
+                </div>
+                <div>
+                    <span style="color: #e74c3c; font-weight: 600;">✗ Below 0</span> = Does not fit the program profile
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- Algorithm Info -->
+        <div class="detail-section">
+            <h6><i class="fas fa-cogs mr-2"></i>Algorithm Used</h6>
+            <span class="ml-badge">
+                ${isCBF ? 'Content-Based KNN' : 'Rule-Based Scoring'}
+            </span>
+            <p class="text-muted small mt-2 mb-0">
+                ${isCBF
+                    ? 'TF-IDF Vectorization + StandardScaler + OneHotEncoder with K-Nearest Neighbors (cosine distance)'
+                    : 'Weighted priority scoring with income normalization and demographic bonuses'
+                }
+            </p>
+        </div>
+    `;
+
+    document.getElementById('beneficiaryDetailLabel').innerHTML =
+        `<i class="fas fa-user mr-2"></i>${rec.name}`;
+    document.getElementById('beneficiaryDetailBody').innerHTML = html;
+    $('#beneficiaryDetailModal').modal('show');
+}
 </script>
 {% endblock %}

@@ -1445,7 +1445,13 @@
                         {% elif application.completion_percentage >= 50 %}badge-info
                         {% else %}badge-warning{% endif %}">
                         <i class="fas fa-{% if application.completion_percentage == 100 %}check-circle{% else %}tasks{% endif %} mr-1"></i>
-                        {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Verified
+                        {% set verified_count = 0 %}
+                        {% for req in document_requirements %}
+                            {% if req.requirement_id in uploads_by_requirement and uploads_by_requirement[req.requirement_id].verification_status == 'approved' %}
+                                {% set verified_count = verified_count + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ verified_count }} / {{ document_requirements|length }} Verified
                         ({{ application.completion_percentage }}%)
                     </span>
                 </div>

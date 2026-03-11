@@ -13,14 +13,12 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
 import joblib
 import os
-import time
 
 # Age threshold for senior citizen classification (used in scoring and target profile)
 SENIOR_CITIZEN_AGE = 60
 
-# Model cache settings
+# Model cache path (written after each fit for external monitoring; never read back)
 _CACHE_PATH = 'instance/recommender_cache.pkl'
-_CACHE_MAX_AGE_SECONDS = 3600  # 1 hour
 
 # Candidate selection tuning
 MAX_NEIGHBORS = 50
@@ -198,6 +196,20 @@ class BeneficiaryRecommender:
                     continue
 
             rec['similarity_score'] = float(sim)
+
+            # Build a score_breakdown that explains why this beneficiary
+            # was matched, mirroring the rule-based breakdown structure.
+            income = float(rec.get('family_annual_income', 0) or 0)
+            target_income = float(target_profile.get('family_annual_income', 0) or 0)
+            rec['score_breakdown'] = {
+                'similarity_score': round(float(sim), 4),
+                'income_score': round(max(0, 1 - abs(income - target_income) / max(target_income, 1)) * 0.3, 4) if target_income > 0 else 0,
+                'solo_parent_bonus': 0.2 if rec.get('is_solo_parent') and target_profile.get('is_solo_parent') else 0,
+                'student_bonus': 0.15 if rec.get('is_student') and target_profile.get('is_student') else 0,
+                'pwd_bonus': 0.2 if rec.get('is_pwd') and target_profile.get('is_pwd') else 0,
+                'senior_bonus': 0.15 if (rec.get('age') or 0) >= SENIOR_CITIZEN_AGE and (target_profile.get('age') or 0) >= SENIOR_CITIZEN_AGE else 0,
+            }
+
             recommendations.append(rec)
         
         return recommendations
@@ -395,29 +407,23 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         return []
 
     # --- Content-based filtering path (uses ML pipeline) ---
-    # When a target_profile is given we fit NearestNeighbors on the filtered pool
-    # and find the most-similar beneficiaries.  The fitted model is cached for 1 h
-    # so repeated calls are cheap.
+    # When a target_profile is given we fit NearestNeighbors on the current
+    # filtered pool for each request.  The model is NOT loaded from cache here
+    # because the filtered pool changes whenever a different program, income
+    # range, or barangay selection is used — a stale cache would return the
+    # same beneficiaries regardless of those changes.
     if target_profile is not None:
-        recommender = None
-        # Attempt to load from cache if it is fresh enough
-        if os.path.exists(_CACHE_PATH):
-            cache_age = time.time() - os.path.getmtime(_CACHE_PATH)
-            if cache_age < _CACHE_MAX_AGE_SECONDS:
-                recommender = BeneficiaryRecommender.load_model(_CACHE_PATH)
-
-        # Build (or rebuild) the model when cache is missing / stale / invalid
-        if recommender is None:
-            recommender = BeneficiaryRecommender()
-            fit_ok = recommender.fit(filtered)
-            if fit_ok:
-                try:
-                    recommender.save_model(_CACHE_PATH)
-                except Exception:
-                    pass  # Cache write failure is non-fatal
-            else:
-                # fit() failed — fall back to rule-based scoring
-                recommender = None
+        recommender = BeneficiaryRecommender()
+        fit_ok = recommender.fit(filtered)
+        if not fit_ok:
+            recommender = None
+        else:
+            # Save to cache as a warm-up snapshot (used by external tools /
+            # monitoring only — never reloaded within this request path).
+            try:
+                recommender.save_model(_CACHE_PATH)
+            except Exception:
+                pass  # Cache write failure is non-fatal
 
         if recommender is not None:
             cbf_results = recommender.recommend(

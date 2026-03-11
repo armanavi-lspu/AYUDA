@@ -266,21 +266,22 @@ def clear_dummy_data():
 @click.command()
 @with_appcontext
 def populate_dummy_data():
-    """Populate database with dummy data for testing."""
-    click.echo('Populating dummy data...')
-    
-    try:
-        # Import and run the populate_dummy_data function
-        from populate_dummy_data import populate_dummy_data as populate_func
-        success = populate_func()
-        
-        if success:
-            click.echo('🎉 Dummy data population completed successfully!')
-        else:
-            click.echo('❌ Dummy data population failed!')
-            
-    except Exception as e:
-        click.echo(f'❌ Error populating dummy data: {e}')
+    """Populate database with dummy data (DEPRECATED - use 'flask db upgrade' instead)."""
+    click.echo('⚠️  This command is deprecated!')
+    click.echo('')
+    click.echo('Dummy data is now handled by Alembic migrations.')
+    click.echo('To populate test data, use:')
+    click.echo('')
+    click.echo('  flask db upgrade')
+    click.echo('')
+    click.echo('This will automatically run all pending migrations including the data migration.')
+    click.echo('The data migration file is: migrations/versions/add_dummy_data_v1.py')
+    click.echo('')
+    click.echo('✅ Migration-based approach benefits:')
+    click.echo('   • Data seeding is version-controlled')
+    click.echo('   • Can be automated in CI/CD pipelines')
+    click.echo('   • Matches production deployment patterns')
+    click.echo('   • Easily reversible with downgrade')
 
 
 @click.command()

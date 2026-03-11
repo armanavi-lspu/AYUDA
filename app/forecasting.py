@@ -71,6 +71,7 @@ def prepare_time_series_data(labels, values):
 def arima_forecast(historical_data, historical_labels, periods=6, force_arima=None):
     """
     Generate forecasts using ARIMA model with improved robustness.
+    Smart fallback strategy for low-volume data.
     
     Args:
         historical_data: List of historical values
@@ -102,6 +103,22 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
     MIN_ARIMA_POINTS = 4
     if not historical_data or len(historical_data) < MIN_ARIMA_POINTS:
         return simple_linear_forecast(historical_data, historical_labels, periods)
+    
+    # Smart detection: Use exponential smoothing for low-volume, volatile data
+    # where ARIMA would just produce flat lines
+    if not force_mode and len(historical_data) >= 6:
+        # Check data volatility and volume
+        avg_value = np.mean(historical_data)
+        std_value = np.std(historical_data)
+        cv = std_value / avg_value if avg_value > 0 else 0  # Coefficient of variation
+        
+        # If average is very low (< 20) and high variability (CV > 0.35),
+        # exponential smoothing is more reliable than ARIMA
+        # This catches noisy low-volume datasets where ARIMA produces flat lines
+        if avg_value < 20 and cv > 0.35:
+            print(f"ℹ️ Low-volume, high-variability data detected (avg={avg_value:.1f}, CV={cv:.2f})")
+            print(f"   → Using exponential smoothing instead of ARIMA for more responsive forecasts")
+            return exponential_smoothing_forecast(historical_data, historical_labels, periods)
     
     # Prepare time series with gap filling
     series = prepare_time_series_data(historical_labels, historical_data)
@@ -213,6 +230,147 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
         fallback = simple_linear_forecast(historical_data, historical_labels, periods)
         fallback['arima_error'] = str(e)
         return fallback
+
+
+def moving_average_forecast(historical_data, historical_labels, periods=6, window=3):
+    """
+    Moving average trend forecast - smooths noise and projects trend.
+    Better for understanding direction than point predictions.
+    
+    Args:
+        historical_data: List of historical values
+        historical_labels: List of date labels for historical data
+        periods: Number of future periods to forecast
+        window: Moving average window size (default 3 months)
+        
+    Returns:
+        dict with forecast_labels, forecast_values, and trend info
+    """
+    if len(historical_data) < window:
+        return simple_linear_forecast(historical_data, historical_labels, periods)
+    
+    # Calculate moving average
+    series = pd.Series(historical_data)
+    ma = series.rolling(window=window).mean()
+    
+    # Get last moving average value and overall trend
+    last_ma = ma.iloc[-1]
+    
+    # Calculate trend from first to last MA (smoother than raw data)
+    if len(ma) >= 2:
+        ma_values = ma.dropna()
+        if len(ma_values) >= 2:
+            trend = (ma_values.iloc[-1] - ma_values.iloc[0]) / (len(ma_values) - 1)
+        else:
+            trend = 0
+    else:
+        trend = 0
+    
+    # Generate forecast based on smoothed trend
+    forecast_values = []
+    for i in range(1, periods + 1):
+        value = max(0, round(last_ma + (trend * i)))
+        forecast_values.append(value)
+    
+    # Generate labels
+    forecast_labels = []
+    anchor = datetime.now()
+    if historical_labels:
+        for fmt in ('%B %Y', '%b %Y'):
+            try:
+                anchor = datetime.strptime(historical_labels[-1], fmt)
+                break
+            except ValueError:
+                continue
+    
+    for i in range(1, periods + 1):
+        next_date = anchor + pd.DateOffset(months=i)
+        forecast_labels.append(next_date.strftime('%b %Y'))
+    
+    # Wider confidence intervals for uncertain data
+    confidence_lower = [max(0, round(v * 0.7)) for v in forecast_values]
+    confidence_upper = [round(v * 1.3) for v in forecast_values]
+    
+    return {
+        'forecast_labels': forecast_labels,
+        'forecast_values': forecast_values,
+        'confidence_lower': confidence_lower,
+        'confidence_upper': confidence_upper,
+        'model': f'moving-average(window={window})',
+        'success': True,
+        'trend': trend,
+        'last_moving_average': last_ma,
+        'trend_direction': 'increasing' if trend > 0.1 else 'decreasing' if trend < -0.1 else 'stable'
+    }
+
+
+def exponential_smoothing_forecast(historical_data, historical_labels, periods=6, alpha=0.3):
+    """
+    Exponential smoothing forecast - better for small, volatile datasets.
+    Gives more weight to recent observations, responsive to sudden changes.
+    
+    Args:
+        historical_data: List of historical values
+        historical_labels: List of date labels for historical data
+        periods: Number of future periods to forecast
+        alpha: Smoothing factor (0.3 for volatile data, 0.1 for stable data)
+        
+    Returns:
+        dict with forecast_labels, forecast_values, and confidence intervals
+    """
+    if not historical_data:
+        return {
+            'forecast_labels': [],
+            'forecast_values': [],
+            'confidence_lower': [],
+            'confidence_upper': [],
+            'model': 'none',
+            'success': False
+        }
+    
+    try:
+        from statsmodels.tsa.holtwinters import SimpleExpSmoothing
+        
+        series = pd.Series(historical_data)
+        model = SimpleExpSmoothing(series).fit(smoothing_level=alpha)
+        
+        # Forecast
+        forecast_values = model.forecast(steps=periods).tolist()
+        
+        # Calculate residual std for confidence intervals
+        residuals = series - model.fittedvalues
+        residual_std = residuals.std()
+        
+        confidence_lower = [max(0, round(v - 1.96 * residual_std)) for v in forecast_values]
+        confidence_upper = [round(v + 1.96 * residual_std) for v in forecast_values]
+        forecast_values = [max(0, round(v)) for v in forecast_values]
+        
+        # Generate labels
+        forecast_labels = []
+        anchor = datetime.now()
+        if historical_labels:
+            for fmt in ('%B %Y', '%b %Y'):
+                try:
+                    anchor = datetime.strptime(historical_labels[-1], fmt)
+                    break
+                except ValueError:
+                    continue
+        
+        for i in range(1, periods + 1):
+            next_date = anchor + pd.DateOffset(months=i)
+            forecast_labels.append(next_date.strftime('%b %Y'))
+        
+        return {
+            'forecast_labels': forecast_labels,
+            'forecast_values': forecast_values,
+            'confidence_lower': confidence_lower,
+            'confidence_upper': confidence_upper,
+            'model': 'exponential-smoothing',
+            'success': True
+        }
+    except Exception as e:
+        print(f"⚠️ Exponential smoothing failed: {str(e)}")
+        return simple_linear_forecast(historical_data, historical_labels, periods)
 
 
 def simple_linear_forecast(historical_data, historical_labels, periods=6):

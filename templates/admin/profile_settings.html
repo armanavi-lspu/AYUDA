@@ -1,0 +1,493 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Profile & Settings - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .profile-avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #fff;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .avatar-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: #4e73df;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #fff;
+        transition: background 0.2s;
+    }
+    .avatar-overlay:hover { background: #2e59d9; }
+    .avatar-overlay i { color: #fff; font-size: 0.8rem; }
+
+    .settings-card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58,59,69,0.1);
+        transition: box-shadow 0.2s;
+    }
+    .settings-card:hover {
+        box-shadow: 0 0.25rem 2rem rgba(58,59,69,0.18);
+    }
+    .settings-card .card-header {
+        background: #fff;
+        border-bottom: 1px solid #e3e6f0;
+        border-radius: 0.75rem 0.75rem 0 0 !important;
+        padding: 1.1rem 1.5rem;
+    }
+    .settings-card .card-header h6 {
+        font-weight: 700;
+        color: #4e73df;
+        margin: 0;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-badge {
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        text-align: center;
+    }
+    .stat-badge .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #4e73df;
+        line-height: 1;
+    }
+    .stat-badge .stat-label {
+        font-size: 0.75rem;
+        color: #858796;
+        margin-top: 0.25rem;
+    }
+
+    .activity-timeline {
+        position: relative;
+        padding-left: 1.5rem;
+    }
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.45rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e3e6f0;
+    }
+    .activity-item {
+        position: relative;
+        padding-bottom: 1rem;
+    }
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -1.15rem;
+        top: 0.35rem;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #4e73df;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #4e73df;
+    }
+    .activity-item .activity-time {
+        font-size: 0.75rem;
+        color: #858796;
+    }
+
+    .tab-nav .nav-link {
+        color: #858796;
+        font-weight: 600;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0;
+    }
+    .tab-nav .nav-link.active {
+        color: #4e73df;
+        border-bottom-color: #4e73df;
+        background: transparent;
+    }
+    .tab-nav .nav-link:hover {
+        color: #4e73df;
+    }
+    .password-strength { height: 4px; border-radius: 2px; transition: all 0.3s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <h1 class="font-weight-bold mb-1">Profile &amp; Settings</h1>
+            <p class="text-muted mb-0">Manage your account information and preferences</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Profile Card -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <!-- Profile Summary Card -->
+            <div class="settings-card card mb-4">
+                <div class="card-body text-center py-4">
+                    <!-- Avatar -->
+                    <form id="photoForm" action="{{ url_for('admin.upload_admin_photo') }}" method="POST" enctype="multipart/form-data">
+                        <div class="profile-avatar-wrapper mb-3 d-inline-block">
+                            {% if user.profile_pic %}
+                                <img src="{{ user.profile_pic }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
+                            {% else %}
+                                <div class="profile-avatar-placeholder" id="avatarPlaceholder">
+                                    {{ user.first_name[0] | upper }}{{ user.last_name[0] | upper }}
+                                </div>
+                                <img src="" alt="Profile Photo" class="profile-avatar d-none" id="avatarPreview">
+                            {% endif %}
+                            <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                            <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="d-none" onchange="previewAndSubmit(this)">
+                        </div>
+                    </form>
+
+                    <h5 class="font-weight-bold mb-0">
+                        {{ user.first_name }}
+                        {% if user.middle_name %}{{ user.middle_name }} {% endif %}
+                        {{ user.last_name }}
+                    </h5>
+                    <p class="text-muted small mb-1">{{ user.email }}</p>
+                    <span class="badge badge-primary px-3 py-1">Administrator</span>
+
+                    {% if user.profile_pic %}
+                    <div class="mt-3">
+                        <form action="{{ url_for('admin.remove_admin_photo') }}" method="POST" onsubmit="return confirm('Remove profile photo?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash-alt mr-1"></i>Remove Photo
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-3">
+
+                    <!-- Stats Row -->
+                    <div class="row no-gutters">
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ programs_created }}</div>
+                                <div class="stat-label">Programs</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ announcements_created }}</div>
+                                <div class="stat-label">Posts</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ applications_reviewed }}</div>
+                                <div class="stat-label">Reviewed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Info -->
+                <div class="card-footer bg-white border-top-0 px-4 pb-4">
+                    <ul class="list-unstyled small mb-0">
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted"><i class="fas fa-envelope mr-2"></i>Email</span>
+                            <span class="font-weight-600 text-truncate ml-2" style="max-width:160px">{{ user.email }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted"><i class="fas fa-user-shield mr-2"></i>Role</span>
+                            <span class="font-weight-600">Administrator</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-2 border-bottom">
+                            <span class="text-muted"><i class="fas fa-calendar mr-2"></i>Member Since</span>
+                            <span class="font-weight-600">{{ user.created_at.strftime('%b %d, %Y') if user.created_at else 'N/A' }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between py-2">
+                            <span class="text-muted"><i class="fas fa-clock mr-2"></i>Last Active</span>
+                            <span class="font-weight-600">{{ user.last_activity.strftime('%b %d, %Y') if user.last_activity else 'N/A' }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="settings-card card">
+                <div class="card-header">
+                    <h6><i class="fas fa-history mr-2"></i>Recent Activity</h6>
+                </div>
+                <div class="card-body py-3" style="max-height: 320px; overflow-y: auto;">
+                    {% if recent_logs %}
+                    <div class="activity-timeline">
+                        {% for log in recent_logs %}
+                        <div class="activity-item">
+                            <div class="small font-weight-600">{{ log.action | replace('_', ' ') | title }}</div>
+                            {% if log.description %}
+                            <div class="small text-muted text-truncate">{{ log.description }}</div>
+                            {% endif %}
+                            <div class="activity-time">
+                                <i class="fas fa-clock mr-1"></i>
+                                {{ log.created_at.strftime('%b %d, %Y %I:%M %p') if log.created_at else '' }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center small mb-0 py-3">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Settings Tabs -->
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="settings-card card">
+                <div class="card-header pb-0">
+                    <ul class="nav tab-nav" id="settingsTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="tab-profile" data-toggle="tab" href="#pane-profile">
+                                <i class="fas fa-user mr-1"></i>Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-security" data-toggle="tab" href="#pane-security">
+                                <i class="fas fa-lock mr-1"></i>Security
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="tab-content card-body px-4 py-4">
+                    <!-- Profile Tab -->
+                    <div class="tab-pane fade show active" id="pane-profile">
+                        <h6 class="font-weight-bold mb-1">Personal Information</h6>
+                        <p class="text-muted small mb-4">Update your name as displayed across the system.</p>
+
+                        <form action="{{ url_for('admin.update_admin_profile') }}" method="POST">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">First Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">Middle Name</label>
+                                    <input type="text" name="middle_name" class="form-control" value="{{ user.middle_name or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">Email Address</label>
+                                <input type="email" class="form-control bg-light" value="{{ user.email }}" disabled>
+                                <small class="text-muted">Email address cannot be changed. Contact a super-admin if needed.</small>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="submit" class="btn btn-primary px-4">
+                                    <i class="fas fa-save mr-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div class="tab-pane fade" id="pane-security">
+                        <h6 class="font-weight-bold mb-1">Change Password</h6>
+                        <p class="text-muted small mb-4">Use a strong password to keep your account secure.</p>
+
+                        <form action="{{ url_for('admin.change_admin_password') }}" method="POST" id="passwordForm">
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">Current Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="current_password" id="currentPassword" class="form-control" required placeholder="Enter current password">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('currentPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">New Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="new_password" id="newPassword" class="form-control" required placeholder="Min. 8 characters" oninput="checkStrength(this.value)">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Strength bar -->
+                                <div class="mt-2">
+                                    <div class="progress" style="height:4px;">
+                                        <div id="strengthBar" class="progress-bar password-strength" role="progressbar" style="width:0%"></div>
+                                    </div>
+                                    <small id="strengthText" class="text-muted"></small>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="font-weight-600 small">Confirm New Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required placeholder="Re-enter new password" oninput="checkMatch()">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="matchText" class="text-muted"></small>
+                            </div>
+
+                            <div class="alert alert-info small py-2 mb-4">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Password must be at least 8 characters. Use a mix of letters, numbers, and symbols for better security.
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary px-4" id="changePasswordBtn">
+                                    <i class="fas fa-key mr-2"></i>Change Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Preview & auto-submit photo
+    function previewAndSubmit(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('avatarPreview');
+                const placeholder = document.getElementById('avatarPlaceholder');
+                preview.src = e.target.result;
+                preview.classList.remove('d-none');
+                if (placeholder) placeholder.classList.add('d-none');
+            };
+            reader.readAsDataURL(file);
+            // Submit form
+            document.getElementById('photoForm').submit();
+        }
+    }
+
+    // Toggle password visibility
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    // Password strength checker
+    function checkStrength(password) {
+        const bar = document.getElementById('strengthBar');
+        const text = document.getElementById('strengthText');
+        let score = 0;
+        if (password.length >= 8) score++;
+        if (password.length >= 12) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/[0-9]/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+
+        const levels = [
+            { pct: 0,   cls: 'bg-secondary', label: '' },
+            { pct: 20,  cls: 'bg-danger',    label: 'Very Weak' },
+            { pct: 40,  cls: 'bg-warning',   label: 'Weak' },
+            { pct: 60,  cls: 'bg-info',      label: 'Fair' },
+            { pct: 80,  cls: 'bg-primary',   label: 'Strong' },
+            { pct: 100, cls: 'bg-success',   label: 'Very Strong' },
+        ];
+        const level = levels[score];
+        bar.style.width = level.pct + '%';
+        bar.className = 'progress-bar password-strength ' + level.cls;
+        text.textContent = level.label;
+        checkMatch();
+    }
+
+    // Match checker
+    function checkMatch() {
+        const pw = document.getElementById('newPassword').value;
+        const cpw = document.getElementById('confirmPassword').value;
+        const text = document.getElementById('matchText');
+        if (!cpw) { text.textContent = ''; return; }
+        if (pw === cpw) {
+            text.textContent = '✓ Passwords match';
+            text.className = 'text-success small';
+        } else {
+            text.textContent = '✗ Passwords do not match';
+            text.className = 'text-danger small';
+        }
+    }
+
+    // Keep active tab across page reload (flash messages)
+    document.addEventListener('DOMContentLoaded', function() {
+        const hash = window.location.hash;
+        if (hash) {
+            const tabLink = document.querySelector('.tab-nav a[href="' + hash + '"]');
+            if (tabLink) { $(tabLink).tab('show'); }
+        }
+        // On tab click, update URL hash
+        document.querySelectorAll('.tab-nav a').forEach(function(link) {
+            link.addEventListener('shown.bs.tab', function(e) {
+                history.replaceState(null, null, e.target.getAttribute('href'));
+            });
+        });
+    });
+</script>
+{% endblock %}

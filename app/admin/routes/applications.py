@@ -1918,10 +1918,10 @@ def verify_uploaded_document(application_id, upload_id):
     ).first_or_404()
     
     try:
-        verification_status = request.form.get('verification_status')  # 'approved' or 'rejected'
+        verification_status = request.form.get('verification_status')  # 'approved', 'rejected', or 'pending'
         admin_feedback = request.form.get('admin_feedback', '').strip()
         
-        if verification_status not in ['approved', 'rejected']:
+        if verification_status not in ['approved', 'rejected', 'pending']:
             return jsonify(success=False, message='Invalid verification status'), 400
         
         # Update upload record
@@ -1965,6 +1965,11 @@ def verify_uploaded_document(application_id, upload_id):
             for upload in mandatory_uploads
         )
         
+        any_pending = any(
+            upload.verification_status == 'pending' 
+            for upload in mandatory_uploads
+        )
+        
         # Update application document_upload_status
         if all_approved:
             application.document_upload_status = 'verified'
@@ -1992,6 +1997,9 @@ def verify_uploaded_document(application_id, upload_id):
                 related_type='application'
             )
             db.session.add(notification)
+        elif any_pending:
+            # Some documents are back to pending for review
+            application.document_upload_status = 'uploaded'
         
         # Auto-complete application if 100% completion (all documents approved)
         completion_pct = application.completion_percentage
