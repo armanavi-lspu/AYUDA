@@ -21,7 +21,7 @@ with app.app_context():
         ).count()
         
         if test_count > 0:
-            print(f"ℹ️  Found {test_count} existing test users. Deleting to regenerate...")
+            print(f"[INFO] Found {test_count} existing test users. Deleting to regenerate...")
             
             # Delete test data
             db.session.query(Applications).filter(
@@ -48,21 +48,21 @@ with app.app_context():
             ).delete()
             
             db.session.commit()
-            print("✅ Deleted existing test data\n")
+            print("[OK] Deleted existing test data\n")
         
         # Get admin user
         admin = db.session.query(User).filter(User.role == 'admin').first()
         if not admin:
-            print("❌ No admin user found.")
+            print("[ERROR] No admin user found.")
             exit(1)
         
         # Get programs
         programs = db.session.query(Programs).limit(20).all()
         if not programs:
-            print("❌ No programs found.")
+            print("[ERROR] No programs found.")
             exit(1)
         
-        print(f"✅ Found {len(programs)} programs\n")
+        print(f"[OK] Found {len(programs)} programs\n")
         
         # Demographics data
         barangays = ['Amuyong', 'Bayanihan', 'Lambac', 'Libis ng Nayon', 'Lucong', 
@@ -82,7 +82,7 @@ with app.app_context():
         status_choices = ['pending', 'approved', 'rejected', 'active', 'completed']
         
         # Create 20 test users
-        print("👥 Creating 20 community test users...")
+        print("[INFO] Creating 20 community test users...")
         created_users = []
         
         for i in range(20):
@@ -151,10 +151,10 @@ with app.app_context():
             db.session.add(community)
         
         db.session.commit()
-        print(f"✅ Created {len(created_users)} community users\n")
+        print(f"[OK] Created {len(created_users)} community users\n")
         
         # Generate 24 months of applications (Jan 2024 - Dec 2025)
-        print("📝 Creating applications for 24 months (Jan 2024 - Dec 2025)...")
+        print("[INFO] Creating applications for 24 months (Jan 2024 - Dec 2025)...")
         
         months_data = []
         for year in [2024, 2025]:
@@ -227,11 +227,11 @@ with app.app_context():
                 applications_created += 1
         
         db.session.commit()
-        print(f"✅ Created {applications_created} applications across 24 months\n")
-        print("🎉 Dummy data generation completed successfully!")
+        print(f"[OK] Created {applications_created} applications across 24 months\n")
+        print("[SUCCESS] Dummy data generation completed successfully!")
         
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] Error: {e}")
         import traceback
         traceback.print_exc()
         db.session.rollback()

@@ -495,6 +495,7 @@ class CommunityUsers(db.Model):
     municipality = db.Column(db.String(100), default='Mabitac')
     is_currently_employed = db.Column(db.Boolean, default=False, index=True) 
     occupation = db.Column(db.String(100))
+    occupation_sector = db.Column(db.String(100))  # Logical grouping: agriculture, services, education, etc.
     is_student = db.Column(db.Boolean, default=False, index=True)  
     is_solo_parent = db.Column(db.Boolean, default=False, index=True) 
     is_pwd = db.Column(db.Boolean, default=False, index=True)  

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import RobustScaler, OneHotEncoder
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
 import joblib
@@ -37,9 +37,10 @@ class BeneficiaryRecommender:
         self.model = None
         self.preprocessor = None
         self.beneficiary_data = None
-        self.feature_names = ['age', 'family_annual_income', 'barangay', 
+        self.feature_names = ['age', 'family_annual_income', 'barangay',
+                              'gender', 'disability_type',
                               'is_solo_parent', 'is_student', 'is_pwd',
-                              'is_currently_employed', 'occupation']
+                              'is_currently_employed', 'occupation', 'past_applications']
     
     def _prepare_dataframe(self, beneficiaries):
         """
@@ -64,8 +65,23 @@ class BeneficiaryRecommender:
         df['is_student'] = df['is_student'].fillna(False).astype(int)
         df['is_pwd'] = df['is_pwd'].fillna(False).astype(int)
         df['is_currently_employed'] = df['is_currently_employed'].fillna(False).astype(int)
-        df['occupation'] = df['occupation'].fillna('None')
-        
+        df['occupation'] = df['occupation'].fillna('unspecified')
+        # Prefix occupation to prevent TF-IDF empty vocabulary when values are stop words
+        df['occupation'] = df['occupation'].apply(
+            lambda x: f'occupation_{x}' if x in ('None', 'none', '') else x
+        )
+        df['gender'] = df['gender'].fillna('Unknown') if 'gender' in df.columns else 'Unknown'
+        df['disability_type'] = df['disability_type'].fillna('None') if 'disability_type' in df.columns else 'None'
+        df['past_applications'] = df['past_applications'].fillna('') if 'past_applications' in df.columns else ''
+
+        # Compound vulnerability score (combines multiple risk factors)
+        df['vulnerability_compound'] = (
+            df['is_solo_parent'] * 0.30 +
+            df['is_student'] * 0.20 +
+            df['is_pwd'] * 0.30 +
+            (1 - df['is_currently_employed']) * 0.20
+        )
+
         return df
     
     def _create_preprocessor(self, df):
@@ -78,24 +94,25 @@ class BeneficiaryRecommender:
         Returns:
             ColumnTransformer for feature preprocessing
         """
-        # Numerical features - standardize
-        numerical_features = ['age', 'family_annual_income']
-        
-        # Categorical features - one-hot encode
-        categorical_features = ['barangay']
-        
+        # Numerical features - RobustScaler handles income outliers better than StandardScaler
+        numerical_features = ['age', 'family_annual_income', 'vulnerability_compound']
+
+        # Categorical features - expanded with gender and disability type
+        categorical_features = ['barangay', 'gender', 'disability_type']
+
         # Binary features - keep as is
         binary_features = ['is_solo_parent', 'is_student', 'is_pwd', 'is_currently_employed']
-        
-        # Text features - TF-IDF on occupation
+
+        # Text features - TF-IDF on occupation with bigrams for better semantic matching
         text_features = ['occupation']
-        
+
         preprocessor = ColumnTransformer(
             transformers=[
-                ('num', StandardScaler(), numerical_features),
+                ('num', RobustScaler(), numerical_features),
                 ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features),
                 ('bin', 'passthrough', binary_features),
-                ('text', TfidfVectorizer(max_features=50, stop_words='english'), 'occupation')
+                ('text', TfidfVectorizer(max_features=100, stop_words='english', ngram_range=(1, 2)), 'occupation'),
+                ('past_apps', TfidfVectorizer(max_features=50, stop_words='english'), 'past_applications'),
             ],
             remainder='drop'
         )
@@ -194,6 +211,11 @@ class BeneficiaryRecommender:
                     continue
                 if max_inc is not None and income > max_inc:
                     continue
+
+            # Skip beneficiaries with zero or negative cosine similarity —
+            # they have no meaningful alignment with the target program profile.
+            if sim <= 0:
+                continue
 
             rec['similarity_score'] = float(sim)
 
@@ -297,6 +319,7 @@ class BeneficiaryRecommender:
                 income = 0
             
             income_score = 1 - ((income - min_income) / income_range) if income_range > 0 else 0.5
+            income_score = max(0.0, min(1.0, income_score))
             score += priority_weights.get('low_income', 0.3) * income_score
             
             # Solo parent bonus
@@ -332,6 +355,77 @@ class BeneficiaryRecommender:
         scored_beneficiaries.sort(key=lambda x: x['score'], reverse=True)
         
         return scored_beneficiaries
+
+    def recommend_hybrid(self, target_profile, n_recommendations=10,
+                         similarity_weight=0.4, score_weight=0.6,
+                         priority_weights=None):
+        """Hybrid recommendation combining content similarity + need-based scoring.
+
+        Args:
+            target_profile: Dictionary with target beneficiary characteristics
+            n_recommendations: Number of recommendations to return
+            similarity_weight: Weight for similarity component (0-1)
+            score_weight: Weight for need score component (0-1)
+            priority_weights: Optional dict of priority weights for scoring
+
+        Returns:
+            List of ranked recommendations with hybrid scores
+        """
+        if self.model is None or self.beneficiary_data is None:
+            return []
+
+        # 1. Find similar profiles via KNN
+        similar = self._find_similar_profiles(target_profile, n_recommendations * 3)
+        if not similar:
+            return []
+
+        # 2. Score them based on need
+        scored = self.score_beneficiaries(similar, priority_weights)
+        if not scored:
+            return similar[:n_recommendations]
+
+        # 3. Normalize and combine scores
+        max_score = max((s['score'] for s in scored), default=1) or 1
+        hybrid_ranked = []
+        for item in scored:
+            similarity = 1 - item.get('similarity_distance', 1.0)
+            need_normalized = item['score'] / max_score
+
+            hybrid_score = (
+                similarity_weight * max(0, similarity)
+                + score_weight * need_normalized
+            )
+
+            item['hybrid_score'] = round(hybrid_score, 4)
+            item['similarity_component'] = round(max(0, similarity), 4)
+            item['need_component'] = round(need_normalized, 4)
+            hybrid_ranked.append(item)
+
+        hybrid_ranked.sort(key=lambda x: x['hybrid_score'], reverse=True)
+        return hybrid_ranked[:n_recommendations]
+
+    def _find_similar_profiles(self, target_profile, n_similar):
+        """Find similar beneficiaries using the fitted NearestNeighbors model."""
+        if self.model is None:
+            return []
+
+        target_df = self._prepare_dataframe([target_profile])
+        if target_df is None:
+            return []
+
+        target_features = self.preprocessor.transform(target_df)
+
+        max_neighbors = getattr(self.model, 'n_neighbors', MAX_NEIGHBORS)
+        k = min(n_similar, len(self.beneficiary_data), max_neighbors)
+        distances, indices = self.model.kneighbors(target_features, n_neighbors=k)
+
+        similar = []
+        for idx, distance in zip(indices[0], distances[0]):
+            beneficiary = self.beneficiary_data.iloc[idx].to_dict()
+            beneficiary['similarity_distance'] = float(distance)
+            similar.append(beneficiary)
+
+        return similar
 
 
 def get_recommendations(beneficiaries_data, target_profile=None, filters=None, max_beneficiaries=50,

@@ -650,34 +650,6 @@ function showBeneficiaryDetail(index) {
             color: '#1cc88a',
             description: 'Income closeness to the program\'s target income range'
         });
-        breakdownItems.push({
-            label: 'Solo Parent Match',
-            value: bd.solo_parent_bonus || 0,
-            max: 0.2,
-            color: '#36b9cc',
-            description: rec.is_solo_parent ? 'Matches program\'s solo parent priority' : 'Not a solo parent'
-        });
-        breakdownItems.push({
-            label: 'Student Match',
-            value: bd.student_bonus || 0,
-            max: 0.15,
-            color: '#4e73df',
-            description: rec.is_student ? 'Matches program\'s student priority' : 'Not a student'
-        });
-        breakdownItems.push({
-            label: 'PWD Match',
-            value: bd.pwd_bonus || 0,
-            max: 0.2,
-            color: '#f6c23e',
-            description: rec.is_pwd ? 'Matches program\'s PWD priority' : 'Not a PWD'
-        });
-        breakdownItems.push({
-            label: 'Senior Citizen Match',
-            value: bd.senior_bonus || 0,
-            max: 0.15,
-            color: '#858796',
-            description: rec.is_senior ? 'Matches program\'s senior citizen priority' : 'Not a senior citizen'
-        });
     } else {
         // Rule-based breakdown
         breakdownItems.push({
@@ -784,9 +756,9 @@ function showBeneficiaryDetail(index) {
             </div>
         </div>
 
-        <!-- Score Explanation -->
+        <!-- Score Breakdown -->
         <div class="detail-section">
-            <h6><i class="fas fa-chart-bar mr-2"></i>Score Explanation</h6>
+            <h6><i class="fas fa-chart-bar mr-2"></i>Score Breakdown</h6>
             <p class="text-muted small mb-3">
                 ${isCBF
                     ? 'This score is computed using <strong>Content-Based Filtering (CBF)</strong>. The system compares this beneficiary\'s profile against the target program profile using cosine similarity on TF-IDF, demographic, and socio-economic features.'
@@ -820,12 +792,66 @@ function showBeneficiaryDetail(index) {
             <span class="ml-badge">
                 ${isCBF ? 'Content-Based KNN' : 'Rule-Based Scoring'}
             </span>
-            <p class="text-muted small mt-2 mb-0">
-                ${isCBF
-                    ? 'TF-IDF Vectorization + StandardScaler + OneHotEncoder with K-Nearest Neighbors (cosine distance)'
-                    : 'Weighted priority scoring with income normalization and demographic bonuses'
-                }
+            ${isCBF ? `
+            <p class="text-muted small mt-3 mb-2">
+                The system converts both the <strong>beneficiary's profile</strong> and the <strong>program's target</strong> into numeric vectors, then measures how close they are using cosine similarity.
             </p>
+            <table style="width:100%; font-size: 0.82rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="background:#4e73df; color:white;">
+                        <th style="padding: 6px 10px; border-radius: 4px 0 0 0;">Feature</th>
+                        <th style="padding: 6px 10px;">Beneficiary</th>
+                        <th style="padding: 6px 10px; border-radius: 0 4px 0 0;">Program Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Age</td>
+                        <td style="padding: 6px 10px;">${rec.age != null ? rec.age + ' years old' : 'N/A'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Representative age (30 general / 60 for seniors)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Annual Income</td>
+                        <td style="padding: 6px 10px;">₱${rec.income.toLocaleString()}</td>
+                        <td style="padding: 6px 10px; color:#666;">Midpoint of program's income range</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Barangay</td>
+                        <td style="padding: 6px 10px;">${rec.barangay || 'N/A'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Not matched (all barangays considered)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Solo Parent</td>
+                        <td style="padding: 6px 10px;">${rec.is_solo_parent ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Student</td>
+                        <td style="padding: 6px 10px;">${rec.is_student ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">PWD</td>
+                        <td style="padding: 6px 10px;">${rec.is_pwd ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Occupation / Skills</td>
+                        <td style="padding: 6px 10px; color:#666;">TF-IDF text vector</td>
+                        <td style="padding: 6px 10px; color:#666;">Program requirements &amp; description keywords</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Past Applications</td>
+                        <td style="padding: 6px 10px; color:#666;">${rec.past_applications ? rec.past_applications : '<em>None on record</em>'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Program name, type &amp; priority group keywords</td>
+                    </tr>
+                </tbody>
+            </table>
+            ` : `
+            <p class="text-muted small mt-2 mb-0">
+                Weighted priority scoring: income level, solo parent, student, PWD, and senior citizen status are each assigned a weight and summed into a final score.
+            </p>
+            `}
         </div>
     `;
 

@@ -6,8 +6,12 @@ from app.utils import role_required
 from app.models import Applications, Programs, CommunityUsers, User, Requirements, ProgramRequirements
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
-from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
+from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE, BeneficiaryRecommender
 from app.config.recommender_configs import ConfigFactory, ConfigManager
+from app.ml.explainer import BeneficiaryExplainer
+from app.ml.fairness_auditor import FairnessAuditor
+from app.ml.program_compatibility import ProgramCompatibilityScorer
+from app.ml.weight_optimizer import WeightOptimizer
 from app.activity_logger import log_recommendation_saved
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta
@@ -106,8 +110,12 @@ def analytics_analysis():
 @role_required('admin')
 def analytics_recommend():
     """Recommendation page for beneficiary selection"""
-    # Get all programs for selection
-    programs = Programs.query.all()
+    # Exclude ESA and Emergency-period programs — they are crisis-response programs
+    # that do not benefit from predictive beneficiary selection.
+    programs = Programs.query.filter(
+        Programs.program_type != 'ESA',
+        Programs.program_period != 'Emergency'
+    ).all()
     
     # Get available barangays
     barangays = db.session.query(
@@ -185,6 +193,15 @@ def api_generate_recommendations():
     
     # Extract parameters with validation
     program_id = data.get('program_id')
+
+    # Reject requests for ESA or Emergency-period programs
+    if program_id:
+        _prog = Programs.query.get(program_id)
+        if _prog and (_prog.program_type == 'ESA' or _prog.program_period == 'Emergency'):
+            return jsonify({
+                'success': False,
+                'message': 'Recommendations are not available for ESA or Emergency-type programs.'
+            }), 400
     
     try:
         max_beneficiaries = int(data.get('max_beneficiaries', 50))
@@ -264,7 +281,22 @@ def api_generate_recommendations():
     )
     
     all_users = query.all()
-    
+
+    # Build per-user application history map: user_id -> space-separated program names/types
+    app_history_rows = (
+        db.session.query(Applications.user_id, Programs.program_name, Programs.program_type)
+        .join(Programs, Applications.program_id == Programs.id)
+        .filter(Applications.application_status.in_(['approved', 'active', 'completed']))
+        .all()
+    )
+    app_history_map: dict = {}
+    for user_id, prog_name, prog_type in app_history_rows:
+        tokens = ' '.join(filter(None, [prog_name, prog_type]))
+        if user_id in app_history_map:
+            app_history_map[user_id] += ' ' + tokens
+        else:
+            app_history_map[user_id] = tokens
+
     # Convert to list of dictionaries for the recommender with income validation
     beneficiaries_data = [
         {
@@ -279,7 +311,8 @@ def api_generate_recommendations():
             'is_student': u.is_student,
             'is_pwd': u.is_pwd,
             'is_currently_employed': u.is_currently_employed,
-            'occupation': u.occupation
+            'occupation': u.occupation,
+            'past_applications': app_history_map.get(u.id, ''),
         }
         for u in all_users
     ]
@@ -341,7 +374,14 @@ def api_generate_recommendations():
                 'is_student': 'student' in priority_group,
                 'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
                 'is_currently_employed': False,
-                'occupation': req_text or program.description or ''
+                'occupation': req_text or program.description or '',
+                # Represent the program itself as a past-application signal so that
+                # beneficiaries who have applied to similar programs score higher.
+                'past_applications': ' '.join(filter(None, [
+                    program.program_name,
+                    program.program_type,
+                    program.priority_group or '',
+                ])),
             }
     
     # Use content-based filtering (CBF) when a target_profile is available;
@@ -379,6 +419,7 @@ def api_generate_recommendations():
                 'score': r.get('score') or r.get('similarity_score', 0.0) or 0.0,
                 'score_breakdown': r.get('score_breakdown', {}),
                 'similarity_score': r.get('similarity_score', None),
+                'past_applications': r.get('past_applications', ''),
             }
             for r in recommendations
         ],
@@ -602,3 +643,336 @@ def api_program_timeseries_forecast():
 
     forecasts = forecast_program_timeseries(histories, periods=periods)
     return jsonify({'success': True, 'forecasts': forecasts})
+
+
+# ---------------------------------------------------------------------------
+# Explainability endpoints
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/recommender/explain/<int:user_id>')
+@login_required
+@role_required('admin')
+def api_explain_recommendation(user_id):
+    """Explain recommendation score for a specific beneficiary."""
+    cu = CommunityUsers.query.filter_by(user_id=user_id).first()
+    if not cu:
+        return jsonify({'success': False, 'message': 'Beneficiary not found'}), 404
+
+    user = User.query.get(user_id)
+    beneficiary = {
+        'user_id': cu.user_id,
+        'first_name': user.first_name if user else '',
+        'last_name': user.last_name if user else '',
+        'age': cu.age,
+        'barangay': cu.barangay,
+        'family_annual_income': float(cu.family_annual_income) if cu.family_annual_income else 0,
+        'is_solo_parent': cu.is_solo_parent,
+        'is_student': cu.is_student,
+        'is_pwd': cu.is_pwd,
+        'is_currently_employed': cu.is_currently_employed,
+        'occupation': cu.occupation,
+    }
+
+    # Load population for comparison
+    all_cu = CommunityUsers.query.all()
+    population = [
+        {
+            'family_annual_income': float(c.family_annual_income) if c.family_annual_income else 0,
+            'is_solo_parent': c.is_solo_parent,
+            'is_student': c.is_student,
+            'is_pwd': c.is_pwd,
+        }
+        for c in all_cu
+    ]
+
+    explainer = BeneficiaryExplainer(population=population)
+    # Use a quick rule-based score for the explanation
+    recommender = BeneficiaryRecommender()
+    scored = recommender.score_beneficiaries([beneficiary])
+    score = scored[0]['score'] if scored else 0
+
+    explanation = explainer.explain_score(beneficiary, score)
+    return jsonify({'success': True, 'explanation': explanation, 'beneficiary': beneficiary})
+
+
+@admin_bp.route('/api/recommender/recommendations/with-explanations', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_recommendations_with_explanations():
+    """Generate recommendations with explanations attached."""
+    data = request.get_json()
+
+    program_id = data.get('program_id')
+    max_beneficiaries = int(data.get('max_beneficiaries', 50))
+
+    # Reuse the main recommendation logic
+    all_users = db.session.query(
+        User.id, User.first_name, User.last_name, User.email,
+        CommunityUsers.age, CommunityUsers.barangay,
+        CommunityUsers.family_annual_income,
+        CommunityUsers.is_solo_parent, CommunityUsers.is_student,
+        CommunityUsers.is_pwd, CommunityUsers.is_currently_employed,
+        CommunityUsers.occupation,
+    ).join(CommunityUsers, User.id == CommunityUsers.user_id).all()
+
+    beneficiaries_data = [
+        {
+            'user_id': u.id,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'email': u.email,
+            'age': u.age,
+            'barangay': u.barangay,
+            'family_annual_income': float(u.family_annual_income) if u.family_annual_income and 0 <= u.family_annual_income <= 10_000_000 else 0,
+            'is_solo_parent': u.is_solo_parent,
+            'is_student': u.is_student,
+            'is_pwd': u.is_pwd,
+            'is_currently_employed': u.is_currently_employed,
+            'occupation': u.occupation,
+        }
+        for u in all_users
+    ]
+
+    recommendations = get_recommendations(
+        beneficiaries_data=beneficiaries_data,
+        max_beneficiaries=max_beneficiaries,
+        solo_parent_priority=data.get('solo_parent_priority', False),
+        student_priority=data.get('student_priority', False),
+        pwd_priority=data.get('pwd_priority', False),
+        senior_citizen_priority=data.get('senior_citizen_priority', False),
+    )
+
+    explainer = BeneficiaryExplainer(population=beneficiaries_data)
+    explained = explainer.explain_batch(recommendations)
+
+    return jsonify({
+        'success': True,
+        'count': len(explained),
+        'recommendations': [
+            {
+                'user_id': r.get('user_id'),
+                'name': f"{r.get('first_name', '')} {r.get('last_name', '')}",
+                'score': r.get('score', 0),
+                'explanation': r.get('explanation', {}),
+            }
+            for r in explained
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# Fairness audit endpoint
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/recommender/fairness-audit', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_fairness_audit():
+    """Run a fairness audit on generated recommendations.
+
+    Expects a JSON body with ``recommendations`` (list of scored dicts)
+    or ``program_id`` to generate recommendations first.
+    """
+    data = request.get_json()
+
+    # Either use provided recommendations or generate them
+    recommendations = data.get('recommendations')
+    if not recommendations:
+        program_id = data.get('program_id')
+        max_beneficiaries = int(data.get('max_beneficiaries', 75))
+
+        all_users = db.session.query(
+            User.id, CommunityUsers.age, CommunityUsers.barangay,
+            CommunityUsers.family_annual_income,
+            CommunityUsers.is_solo_parent, CommunityUsers.is_student,
+            CommunityUsers.is_pwd, CommunityUsers.is_currently_employed,
+            CommunityUsers.occupation,
+        ).join(CommunityUsers, User.id == CommunityUsers.user_id).all()
+
+        beneficiaries_data = [
+            {
+                'user_id': u.id,
+                'age': u.age,
+                'barangay': u.barangay,
+                'family_annual_income': float(u.family_annual_income) if u.family_annual_income else 0,
+                'is_solo_parent': u.is_solo_parent,
+                'is_student': u.is_student,
+                'is_pwd': u.is_pwd,
+                'is_currently_employed': u.is_currently_employed,
+                'occupation': u.occupation,
+            }
+            for u in all_users
+        ]
+
+        recommendations = get_recommendations(
+            beneficiaries_data=beneficiaries_data,
+            max_beneficiaries=max_beneficiaries,
+            solo_parent_priority=data.get('solo_parent_priority', True),
+            student_priority=data.get('student_priority', True),
+            pwd_priority=data.get('pwd_priority', True),
+            senior_citizen_priority=data.get('senior_citizen_priority', True),
+        )
+
+        auditor = FairnessAuditor(beneficiaries_data, recommendations)
+    else:
+        # Use all community users as the population baseline
+        all_cu = CommunityUsers.query.all()
+        population = [
+            {
+                'barangay': c.barangay,
+                'is_solo_parent': c.is_solo_parent,
+                'is_student': c.is_student,
+                'is_pwd': c.is_pwd,
+            }
+            for c in all_cu
+        ]
+        auditor = FairnessAuditor(population, recommendations)
+
+    audit_result = auditor.audit()
+    return jsonify({'success': True, 'audit': audit_result})
+
+
+# ---------------------------------------------------------------------------
+# Program compatibility endpoint
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/recommender/program/<int:program_id>/compatibility')
+@login_required
+@role_required('admin')
+def api_program_compatibility(program_id):
+    """Score beneficiary compatibility for a specific program."""
+    program = Programs.query.get_or_404(program_id)
+    user_id = request.args.get('user_id', type=int)
+
+    program_dict = {
+        'id': program.id,
+        'priority_group': program.priority_group,
+        'income_range': program.income_range,
+        'beneficiary_limit': program.beneficiary_limit,
+        'requirements': [],
+    }
+
+    # Load program requirements
+    prog_reqs = ProgramRequirements.query.filter_by(program_id=program_id).all()
+    for pr in prog_reqs:
+        req = Requirements.query.get(pr.requirement_id)
+        if req:
+            program_dict['requirements'].append({
+                'field': req.requirement_name.lower().replace(' ', '_'),
+                'name': req.requirement_name,
+                'mandatory': pr.is_mandatory,
+            })
+
+    # Load historical data for approval rate calculation
+    historical_raw = db.session.query(
+        Applications.user_id, Applications.program_id,
+        Applications.application_status, CommunityUsers.age,
+    ).join(
+        CommunityUsers, Applications.user_id == CommunityUsers.user_id
+    ).filter(
+        Applications.program_id == program_id
+    ).all()
+
+    historical_data = [
+        {
+            'user_id': h.user_id,
+            'program_id': h.program_id,
+            'application_status': h.application_status,
+            'age': h.age,
+        }
+        for h in historical_raw
+    ]
+
+    scorer = ProgramCompatibilityScorer(historical_data=historical_data)
+
+    if user_id:
+        cu = CommunityUsers.query.filter_by(user_id=user_id).first()
+        if not cu:
+            return jsonify({'success': False, 'message': 'Beneficiary not found'}), 404
+
+        beneficiary = {
+            'user_id': cu.user_id,
+            'age': cu.age,
+            'family_annual_income': float(cu.family_annual_income) if cu.family_annual_income else 0,
+            'is_solo_parent': cu.is_solo_parent,
+            'is_student': cu.is_student,
+            'is_pwd': cu.is_pwd,
+            'is_currently_employed': cu.is_currently_employed,
+            'occupation': cu.occupation,
+        }
+        result = scorer.calculate_fit(beneficiary, program_dict)
+        return jsonify({'success': True, 'compatibility': result})
+
+    # Score all community users
+    all_cu = CommunityUsers.query.limit(200).all()
+    beneficiaries = [
+        {
+            'user_id': c.user_id,
+            'age': c.age,
+            'barangay': c.barangay,
+            'family_annual_income': float(c.family_annual_income) if c.family_annual_income else 0,
+            'is_solo_parent': c.is_solo_parent,
+            'is_student': c.is_student,
+            'is_pwd': c.is_pwd,
+            'is_currently_employed': c.is_currently_employed,
+            'occupation': c.occupation,
+        }
+        for c in all_cu
+    ]
+
+    results = scorer.score_batch(beneficiaries, program_dict)
+    return jsonify({
+        'success': True,
+        'count': len(results),
+        'top_matches': [
+            {
+                'user_id': r['user_id'],
+                'compatibility': r['compatibility'],
+            }
+            for r in results[:50]
+        ],
+    })
+
+
+# ---------------------------------------------------------------------------
+# Weight optimization endpoint
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/recommender/optimize-weights', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_optimize_weights():
+    """Run weight optimization to find the best configuration."""
+    data = request.get_json() or {}
+    objectives = data.get('objectives', ['coverage', 'equity', 'efficiency'])
+
+    # Load all beneficiaries
+    all_cu = CommunityUsers.query.all()
+    beneficiaries = [
+        {
+            'user_id': c.user_id,
+            'age': c.age,
+            'barangay': c.barangay,
+            'family_annual_income': float(c.family_annual_income) if c.family_annual_income else 0,
+            'is_solo_parent': c.is_solo_parent,
+            'is_student': c.is_student,
+            'is_pwd': c.is_pwd,
+            'is_currently_employed': c.is_currently_employed,
+        }
+        for c in all_cu
+    ]
+
+    # Gather ground truth from approved applications
+    ground_truth = None
+    program_id = data.get('program_id')
+    if program_id:
+        approved = db.session.query(Applications.user_id).filter(
+            Applications.program_id == program_id,
+            Applications.application_status.in_(['approved', 'completed']),
+        ).all()
+        ground_truth = [a.user_id for a in approved] if approved else None
+
+    optimizer = WeightOptimizer(beneficiaries, ground_truth_approvals=ground_truth)
+    result = optimizer.optimize_weights(objectives=objectives)
+
+    return jsonify({'success': True, 'optimization': result})
