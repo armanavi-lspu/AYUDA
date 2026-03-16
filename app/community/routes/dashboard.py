@@ -1,7 +1,7 @@
-from flask import render_template, jsonify
+from flask import render_template, jsonify, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.community import community_bp
-from app.models import Applications, Announcements, Programs
+from app.models import Applications, Announcements, Programs, User
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
@@ -105,9 +105,21 @@ def dashboard():
 def dismiss_profile_alert():
     """Dismiss the profile completion alert permanently"""
     try:
-        current_user.profile_complete_alert_dismissed = True
+        User.query.filter_by(id=current_user.id).update(
+            {'profile_complete_alert_dismissed': True}
+        )
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Alert dismissed successfully'})
+
+        # Support both async calls and regular form submits.
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Alert dismissed successfully'})
+
+        flash("Profile complete alert dismissed.", "success")
+        return redirect(url_for('community.dashboard'))
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+        flash('Unable to dismiss profile alert. Please try again.', 'danger')
+        return redirect(url_for('community.dashboard'))

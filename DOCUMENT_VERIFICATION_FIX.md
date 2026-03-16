@@ -14,10 +14,19 @@
   1. Updated validation to accept `['approved', 'rejected', 'pending']` (was: `['approved', 'rejected']`)
   2. Added handling for pending status to set `document_upload_status = 'uploaded'` (Line 2004)
 
+**Issue 3: "Complete Step & Proceed" Button Not Clickable Despite All Documents Verified**
+- **Root Cause**: The button disable condition had flawed logic - it was disabled when `mandatory_docs == 0`, even when all documents were verified
+- **File Fixed**: `templates/admin/view_application.html` (Line 1608)
+- **Change**: 
+  - **Before**: `{% if approved_docs != mandatory_docs or mandatory_docs == 0 %}disabled{% endif %}`
+  - **After**: `{% if mandatory_docs > 0 and approved_docs != mandatory_docs %}disabled{% endif %}`
+  - **Why**: The button should only be disabled if there ARE mandatory documents AND not all are approved. When `mandatory_docs == 0` (no mandatory docs required), the button should be enabled.
+
 ### Files Modified
 
 1. **templates/admin/view_application.html**
    - Line ~1445: Updated verified document counter logic
+   - Line 1608: Fixed button disable condition logic
 
 2. **app/admin/routes/applications.py**  
    - Line 1923: Added 'pending' to valid verification statuses
@@ -27,7 +36,7 @@
 
 **IMPORTANT: Restart the Flask Development Server**
 
-If you're running the Flask app in development mode, you need to restart it for the Python code changes to take effect:
+If you're running the Flask app in development mode, you need to restart it for the template changes to take effect:
 
 ```bash
 # Kill any running Flask processes
@@ -55,6 +64,10 @@ After restarting Flask:
    - Click "Unverify" on an approved document
    - Should see message: "Document verification removed. Status reset to pending review"
    - Counter should decrease accordingly
+
+3. **Test Button Clickability**:
+   - When all mandatory documents are verified, the "Complete Step & Proceed" button should be clickable
+   - When some documents are still pending, the button should remain disabled with a grayed-out appearance
 
 ### Verification Steps
 
@@ -93,6 +106,7 @@ Expected Output:
 3. Backend updates ApplicationDocumentUploads record
 4. Page reloads
 5. Template re-renders with updated counter showing confirmed approved documents
+6. If all mandatory documents are approved, "Complete Step & Proceed" button becomes clickable
 
 **Unverify Document Flow**:
 1. Admin clicks "Unverify" button  

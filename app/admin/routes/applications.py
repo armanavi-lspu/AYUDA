@@ -10,6 +10,9 @@ from app.activity_logger import log_application_status_update, log_bulk_applicat
 import re
 from PIL import Image, ImageDraw, ImageFont
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def check_qualification(requirement, user_profile):
@@ -393,12 +396,61 @@ def view_application(application_id):
                 'step': step_dict,
                 'documents': [],
                 'uploads': [],
-                'requirements': []
+                'requirements': [],
+                'assessments': []
             }
             
             # Get step configuration to find associated requirements
             step_config = step.config_data if hasattr(step, 'config_data') else {}
             required_docs = step_config.get('required_documents', []) if step_config else []
+            
+            # Always fetch assessments for assessment-type steps
+            if step.step_type == 'assessment':
+                from sqlalchemy.orm import joinedload
+                app_assessments = Assessment.query.options(
+                    joinedload(Assessment.documents),
+                    joinedload(Assessment.conductor)
+                ).filter_by(
+                    application_id=application_id
+                ).order_by(Assessment.created_at.desc()).all()
+                
+                logger.info(f'[ASSESSMENT DEBUG] Application {application_id}, Step Type: {step.step_type}, Found {len(app_assessments)} assessments')
+                
+                assessments_list = []
+                for a in app_assessments:
+                    try:
+                        assessment_dict = {
+                            'id': a.id,
+                            'assessment_type': a.assessment_type,
+                            'title': a.title,
+                            'status': a.status,
+                            'description': a.description,
+                            'location': a.location,
+                            'findings': a.findings,
+                            'recommendations': a.recommendations,
+                            'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
+                            'scheduled_time': a.scheduled_time,
+                            'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
+                            'conducted_by': a.conductor.first_name + ' ' + a.conductor.last_name if a.conductor else 'N/A',
+                            'conductor_email': a.conductor.email if a.conductor else 'N/A',
+                            'document_count': len(a.documents),
+                            'documents': [{
+                                'id': d.id,
+                                'file_name': d.original_filename,
+                                'file_path': d.file_path,
+                                'file_type': d.file_type,
+                                'file_size': d.file_size,
+                                'description': d.description,
+                                'uploaded_at': d.uploaded_at.strftime('%b %d, %Y %I:%M %p') if d.uploaded_at else None
+                            } for d in a.documents]
+                        }
+                        assessments_list.append(assessment_dict)
+                    except Exception as e:
+                        logger.error(f'[ASSESSMENT ERROR] Failed to serialize assessment {a.id}: {str(e)}', exc_info=True)
+                        continue
+                
+                step_data['assessments'] = assessments_list
+                logger.info(f'[ASSESSMENT DEBUG] step_data["assessments"] has {len(step_data["assessments"])} items')
             
             # If step has specific document requirements, filter by those
             if required_docs:
@@ -440,24 +492,6 @@ def view_application(application_id):
                 elif step.step_type == 'approval':
                     # Show qualification requirements for approval steps (already serialized)
                     step_data['requirements'] = qualification_requirements.copy()
-                elif step.step_type == 'assessment':
-                    # Fetch assessments linked to this application
-                    from sqlalchemy.orm import joinedload
-                    app_assessments = Assessment.query.options(
-                        joinedload(Assessment.documents)
-                    ).filter_by(
-                        application_id=application_id
-                    ).order_by(Assessment.created_at.desc()).all()
-                    step_data['assessments'] = [{
-                        'id': a.id,
-                        'assessment_type': a.assessment_type,
-                        'title': a.title,
-                        'status': a.status,
-                        'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
-                        'scheduled_time': a.scheduled_time,
-                        'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
-                        'document_count': len(a.documents),
-                    } for a in app_assessments]
             
             workflow_steps_data.append(step_data)
         
@@ -473,6 +507,11 @@ def view_application(application_id):
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
         application_id=application_id
     ).all()
+    
+    # Log workflow_steps_data for debugging
+    logger.info(f'[WORKFLOW DEBUG] Total workflow steps: {len(workflow_steps_data)}')
+    for i, step in enumerate(workflow_steps_data):
+        logger.info(f'  Step {i}: {step["step"]["step_type"]}, assessments: {len(step["assessments"])}')
     
     return render_template(
         'admin/view_application.html',
@@ -1929,7 +1968,25 @@ def verify_uploaded_document(application_id, upload_id):
         upload.admin_feedback = admin_feedback
         upload.verified_by = current_user.id
         upload.verified_at = datetime.utcnow()
-        
+
+        # Sync ApplicationDocuments.submission_status so completion_percentage stays accurate
+        app_doc = ApplicationDocuments.query.filter_by(
+            application_id=application_id,
+            requirement_id=upload.requirement_id
+        ).first()
+        if app_doc:
+            if verification_status == 'approved':
+                app_doc.submission_status = 'approved'
+                app_doc.verified_by = current_user.id
+                app_doc.verified_at = datetime.utcnow()
+                app_doc.admin_feedback = admin_feedback
+            elif verification_status == 'rejected':
+                app_doc.submission_status = 'rejected'
+                app_doc.admin_feedback = admin_feedback
+            else:  # pending / unverify
+                app_doc.submission_status = 'pending'
+                app_doc.admin_feedback = admin_feedback
+
         # Log document verification activity
         log_document_verification(upload, verification_status, admin_feedback)
         

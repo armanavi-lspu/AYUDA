@@ -21,6 +21,11 @@ CONFIDENCE_UPPER_MULTIPLIER = 1.2
 FORCE_ARIMA_MODE = os.environ.get('FORECAST_FORCE_ARIMA', 'false').lower() == 'true'
 
 
+def _clamp_non_negative(values, digits=2):
+    """Clamp numeric forecast outputs to non-negative values while preserving precision."""
+    return [round(max(0.0, float(v)), digits) for v in values]
+
+
 def prepare_time_series_data(labels, values):
     """
     Prepare time series data for ARIMA model.
@@ -116,8 +121,8 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
         # exponential smoothing is more reliable than ARIMA
         # This catches noisy low-volume datasets where ARIMA produces flat lines
         if avg_value < 20 and cv > 0.35:
-            print(f"ℹ️ Low-volume, high-variability data detected (avg={avg_value:.1f}, CV={cv:.2f})")
-            print(f"   → Using exponential smoothing instead of ARIMA for more responsive forecasts")
+            print(f"INFO: Low-volume, high-variability data detected (avg={avg_value:.1f}, CV={cv:.2f})")
+            print("  -> Using exponential smoothing instead of ARIMA for more responsive forecasts")
             return exponential_smoothing_forecast(historical_data, historical_labels, periods)
     
     # Prepare time series with gap filling
@@ -161,10 +166,10 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
             next_date = last_date + pd.DateOffset(months=i)
             forecast_labels.append(next_date.strftime('%b %Y'))
         
-        # Ensure non-negative values (applicants can't be negative)
-        forecast_values = [max(0, round(v)) for v in forecast_values]
-        confidence_lower = [max(0, round(v)) for v in confidence_lower]
-        confidence_upper = [max(0, round(v)) for v in confidence_upper]
+        # Keep precision so subtle trend changes remain visible in charts.
+        forecast_values = _clamp_non_negative(forecast_values, digits=2)
+        confidence_lower = _clamp_non_negative(confidence_lower, digits=2)
+        confidence_upper = _clamp_non_negative(confidence_upper, digits=2)
         
         model_name = f"ARIMA(1,1,1)"
         if seasonal_order != (0, 0, 0, 0):
@@ -182,14 +187,14 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
         
     except Exception as e:
         # Try fallback configurations
-        print(f"⚠️ Initial ARIMA(1,1,1) failed: {str(e)}")
+        print(f"WARN: Initial ARIMA(1,1,1) failed: {str(e)}")
         
-        # Fallback 1: Try simpler order (0, 1, 0) - random walk with drift
+        # Fallback 1: Try alternative order (1, 0, 1) to preserve trend dynamics.
         try:
-            print("  → Trying simpler ARIMA(0,1,0)...")
+            print("  -> Trying alternative ARIMA(1,0,1)...")
             model = ARIMA(
                 series, 
-                order=(0, 1, 0),
+                order=(1, 0, 1),
                 seasonal_order=(0, 0, 0, 0),
                 enforce_stationarity=False,
                 enforce_invertibility=False
@@ -208,25 +213,25 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
                 next_date = last_date + pd.DateOffset(months=i)
                 forecast_labels.append(next_date.strftime('%b %Y'))
             
-            forecast_values = [max(0, round(v)) for v in forecast_values]
-            confidence_lower = [max(0, round(v)) for v in confidence_lower]
-            confidence_upper = [max(0, round(v)) for v in confidence_upper]
+            forecast_values = _clamp_non_negative(forecast_values, digits=2)
+            confidence_lower = _clamp_non_negative(confidence_lower, digits=2)
+            confidence_upper = _clamp_non_negative(confidence_upper, digits=2)
             
-            print("  ✓ Fallback ARIMA(0,1,0) succeeded")
+            print("  OK: Fallback ARIMA(1,0,1) succeeded")
             return {
                 'forecast_labels': forecast_labels,
                 'forecast_values': forecast_values,
                 'confidence_lower': confidence_lower,
                 'confidence_upper': confidence_upper,
-                'model': 'ARIMA(0,1,0) - Fallback',
+                'model': 'ARIMA(1,0,1) - Fallback',
                 'success': True,
                 'data_points': len(series)
             }
         except Exception as e2:
-            print(f"  ✗ Fallback failed: {str(e2)}")
+            print(f"  FAIL: Fallback failed: {str(e2)}")
         
         # Fallback 2: Linear regression if all ARIMA fails
-        print("  → Falling back to linear forecast")
+        print("  -> Falling back to linear forecast")
         fallback = simple_linear_forecast(historical_data, historical_labels, periods)
         fallback['arima_error'] = str(e)
         return fallback
@@ -306,8 +311,8 @@ def moving_average_forecast(historical_data, historical_labels, periods=6, windo
 
 def exponential_smoothing_forecast(historical_data, historical_labels, periods=6, alpha=0.3):
     """
-    Exponential smoothing forecast - better for small, volatile datasets.
-    Gives more weight to recent observations, responsive to sudden changes.
+    Exponential smoothing forecast for small, volatile datasets.
+    Uses a damped trend model when enough variation exists to avoid flat-line forecasts.
     
     Args:
         historical_data: List of historical values
@@ -329,11 +334,25 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
         }
     
     try:
-        from statsmodels.tsa.holtwinters import SimpleExpSmoothing
-        
-        series = pd.Series(historical_data)
-        model = SimpleExpSmoothing(series).fit(smoothing_level=alpha)
-        
+        from statsmodels.tsa.holtwinters import ExponentialSmoothing, SimpleExpSmoothing
+
+        series = pd.Series(historical_data, dtype='float64')
+
+        # Prefer Holt's damped trend when data has enough signal.
+        # SimpleExpSmoothing forecasts a constant level, which produced flat lines.
+        use_damped_trend = len(series) >= 3 and series.nunique() > 1
+        if use_damped_trend:
+            model = ExponentialSmoothing(
+                series,
+                trend='add',
+                damped_trend=True,
+                initialization_method='estimated'
+            ).fit(optimized=True)
+            model_name = 'exponential-smoothing-holt-damped'
+        else:
+            model = SimpleExpSmoothing(series).fit(smoothing_level=alpha)
+            model_name = 'exponential-smoothing-simple'
+
         # Forecast
         forecast_values = model.forecast(steps=periods).tolist()
         
@@ -341,9 +360,15 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
         residuals = series - model.fittedvalues
         residual_std = residuals.std()
         
-        confidence_lower = [max(0, round(v - 1.96 * residual_std)) for v in forecast_values]
-        confidence_upper = [round(v + 1.96 * residual_std) for v in forecast_values]
-        forecast_values = [max(0, round(v)) for v in forecast_values]
+        confidence_lower = _clamp_non_negative(
+            [v - 1.96 * residual_std for v in forecast_values],
+            digits=2
+        )
+        confidence_upper = _clamp_non_negative(
+            [v + 1.96 * residual_std for v in forecast_values],
+            digits=2
+        )
+        forecast_values = _clamp_non_negative(forecast_values, digits=2)
         
         # Generate labels
         forecast_labels = []
@@ -365,11 +390,11 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
             'forecast_values': forecast_values,
             'confidence_lower': confidence_lower,
             'confidence_upper': confidence_upper,
-            'model': 'exponential-smoothing',
+            'model': model_name,
             'success': True
         }
     except Exception as e:
-        print(f"⚠️ Exponential smoothing failed: {str(e)}")
+        print(f"WARN: Exponential smoothing failed: {str(e)}")
         return simple_linear_forecast(historical_data, historical_labels, periods)
 
 

@@ -1,0 +1,197 @@
+{# Sidebar Navigation Macros for role-based navigation #}
+{# This file provides reusable Jinja2 macros to build consistent sidebar navigation #}
+
+{% macro sidebar_nav_link(label, endpoint, icon, badge=None, mobile_close_on_click=True) %}
+    {# Simple navigation link #}
+    <a class="nav-item nav-link d-flex align-items-center {% if request.endpoint.startswith(endpoint.split('.')[0]) %}active{% endif %}"
+       href="{{ url_for(endpoint) }}"
+       {% if mobile_close_on_click %}data-mobile-close-on-click{% endif %}>
+        {% if icon %}
+            <i class="fas {{ icon }} me-2"></i>
+        {% endif %}
+        <span>{{ label }}</span>
+        {% if badge %}
+            <span class="badge badge-primary ms-auto">{{ badge }}</span>
+        {% endif %}
+    </a>
+{% endmacro %}
+
+{% macro sidebar_dropdown(label, icon, active_endpoints=[], children=[]) %}
+    {# Dropdown menu for nested navigation #}
+    {% set is_active = false %}
+    {% for ep in active_endpoints %}
+        {% if request.endpoint.startswith(ep.split('.')[0]) %}
+            {% set is_active = true %}
+        {% endif %}
+    {% endfor %}
+    <div class="nav-dropdown">
+        <button class="nav-dropdown-toggle d-flex align-items-center justify-content-between w-100 {% if is_active %}active{% endif %}"
+                data-bs-toggle="collapse"
+                data-bs-target="#dropdown-{{ label|lower|replace(' ', '-') }}"
+                aria-expanded="{% if is_active %}true{% else %}false{% endif %}"
+                aria-controls="dropdown-{{ label|lower|replace(' ', '-') }}">
+            <span class="d-flex align-items-center">
+                {% if icon %}
+                    <i class="fas {{ icon }} me-2"></i>
+                {% endif %}
+                <span>{{ label }}</span>
+            </span>
+            <i class="fas fa-chevron-down dropdown-icon ms-auto"></i>
+        </button>
+        <div class="collapse {% if is_active %}show{% endif %}" id="dropdown-{{ label|lower|replace(' ', '-') }}">
+            <div class="nav-dropdown-menu">
+                {% for child in children %}
+                    <a class="nav-dropdown-item d-flex align-items-center {% if request.endpoint == child.endpoint %}active{% endif %}"
+                       href="{{ url_for(child.endpoint) }}"
+                       data-mobile-close-on-click>
+                        {% if child.icon %}
+                            <i class="fas {{ child.icon }} me-2"></i>
+                        {% endif %}
+                        <span>{{ child.label }}</span>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endmacro %}
+
+{% macro sidebar_section(title) %}
+    {# Section header for sidebar navigation #}
+    <div class="nav-section-title">
+        {{ title }}
+    </div>
+{% endmacro %}
+
+{% macro sidebar_divider() %}
+    {# Visual divider between sections #}
+    <div class="nav-divider"></div>
+{% endmacro %}
+
+{% macro admin_sidebar(user) %}
+    {# Complete admin sidebar navigation #}
+    <nav id="sidebar" class="sidebar bg-light">
+        <div class="sidebar-header py-3 px-3 border-bottom">
+            <h5 class="mb-0">
+                <i class="fas fa-cog me-2"></i>
+                Admin Panel
+            </h5>
+            <small class="text-muted d-block mt-1">{{ user.first_name }} {{ user.last_name }}</small>
+        </div>
+        
+        <div class="sidebar-body">
+            {% call sidebar_section('MAIN') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Dashboard', 'admin.dashboard', 'fa-chart-line') }}
+            
+            {% call sidebar_section('MANAGEMENT') %}{% endcall %}
+            
+            {{ sidebar_dropdown('Programs', 'fa-book', 
+                active_endpoints=['admin.programs'],
+                children=[
+                    {'label': 'All Programs', 'endpoint': 'admin.adm_programs', 'icon': 'fa-list'},
+                    {'label': 'Create Program', 'endpoint': 'admin.adm_programs', 'icon': 'fa-plus'},
+                    {'label': 'Categories', 'endpoint': 'admin.adm_programs', 'icon': 'fa-tag'}
+                ]
+            ) }}
+            
+            {{ sidebar_dropdown('Applications', 'fa-file-alt',
+                active_endpoints=['admin.applications'],
+                children=[
+                    {'label': 'Pending Review', 'endpoint': 'admin.applications', 'icon': 'fa-hourglass-half', 'badge': '5'},
+                    {'label': 'Approved', 'endpoint': 'admin.applications', 'icon': 'fa-check-circle'},
+                    {'label': 'Rejected', 'endpoint': 'admin.applications', 'icon': 'fa-times-circle'},
+                    {'label': 'Schedule Claims', 'endpoint': 'admin.applications', 'icon': 'fa-calendar'}
+                ]
+            ) }}
+            
+            {{ sidebar_dropdown('Users', 'fa-users',
+                active_endpoints=['admin.admin_management', 'admin.community'],
+                children=[
+                    {'label': 'Admin Users', 'endpoint': 'admin.admin_management', 'icon': 'fa-user-tie'},
+                    {'label': 'Community Users', 'endpoint': 'admin.community', 'icon': 'fa-user-friends'},
+                    {'label': 'Roles & Permissions', 'endpoint': 'admin.admin_management', 'icon': 'fa-lock'}
+                ]
+            ) }}
+            
+            {{ sidebar_dropdown('Content', 'fa-newspaper',
+                active_endpoints=['admin.announcements'],
+                children=[
+                    {'label': 'Announcements', 'endpoint': 'admin.adm_announcements', 'icon': 'fa-megaphone'},
+                    {'label': 'Other Services', 'endpoint': 'admin.adm_other_services', 'icon': 'fa-briefcase'}
+                ]
+            ) }}
+            
+            {% call sidebar_section('ANALYTICS') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Reports', 'admin.analytics', 'fa-chart-bar') }}
+            {{ sidebar_nav_link('Activity Logs', 'admin.analytics', 'fa-history') }}
+            
+            {% call sidebar_section('ACCOUNT') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Profile', 'admin.profile', 'fa-user-circle') }}
+            {{ sidebar_nav_link('Settings', 'admin.profile', 'fa-cog') }}
+            {{ sidebar_nav_link('Logout', 'auth.logout', 'fa-sign-out-alt') }}
+        </div>
+    </nav>
+{% endmacro %}
+
+{% macro community_sidebar(user) %}
+    {# Complete community user sidebar navigation #}
+    <nav id="sidebar" class="sidebar bg-light">
+        <div class="sidebar-header py-3 px-3 border-bottom">
+            <h5 class="mb-0">
+                <i class="fas fa-home me-2"></i>
+                Menu
+            </h5>
+            <small class="text-muted d-block mt-1">{{ user.first_name }} {{ user.last_name }}</small>
+        </div>
+        
+        <div class="sidebar-body">
+            {% call sidebar_section('MAIN') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Dashboard', 'community.dashboard', 'fa-chart-line') }}
+            
+            {% call sidebar_section('PROGRAMS') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Browse Programs', 'community.programs', 'fa-book') }}
+            {{ sidebar_nav_link('My Applications', 'community.applications', 'fa-file-alt', user.application_count|default(0)) }}
+            {{ sidebar_nav_link('Approved Programs', 'community.applications', 'fa-check-circle') }}
+            {{ sidebar_nav_link('Claim Schedule', 'community.schedule', 'fa-calendar') }}
+            
+            {% call sidebar_section('ANNOUNCEMENTS') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Latest Updates', 'community.announcements', 'fa-megaphone') }}
+            {{ sidebar_nav_link('Other Services', 'community.other_services', 'fa-briefcase') }}
+            
+            {% call sidebar_section('ACCOUNT') %}{% endcall %}
+            
+            {{ sidebar_nav_link('Profile', 'community.profile', 'fa-user-circle') }}
+            {{ sidebar_nav_link('Notifications', 'community.notifications', 'fa-bell') }}
+            {{ sidebar_nav_link('Logout', 'auth.logout', 'fa-sign-out-alt') }}
+        </div>
+    </nav>
+{% endmacro %}
+
+{% macro mobile_sidebar_toggle() %}
+    {# Mobile menu button (shown only on mobile) #}
+    <button id="mobileMenuBtn" class="btn btn-outline-light d-none">
+        <i class="fas fa-bars"></i>
+    </button>
+{% endmacro %}
+
+{% macro mobile_sidebar_overlay() %}
+    {# Overlay for mobile sidebar #}
+    <div id="sidebarOverlay" class="sidebar-overlay d-none"></div>
+{% endmacro %}
+
+{% macro mobile_sidebar_container(user, sidebar_type='admin') %}
+    {# Mobile sidebar container with close button #}
+    <div id="mobileSidebar" class="mobile-sidebar d-none">
+        <button id="sidebarCloseBtn" class="btn btn-close"></button>
+        {% if sidebar_type == 'admin' %}
+            {{ admin_sidebar(user) }}
+        {% else %}
+            {{ community_sidebar(user) }}
+        {% endif %}
+    </div>
+{% endmacro %}

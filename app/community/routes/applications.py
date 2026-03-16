@@ -334,6 +334,29 @@ def _get_step_content(application, step, step_status):
         # Preserve old 'requirements' key for backward compatibility
         content['requirements'] = [req for req, _ in qual_data]
     
+    elif step.step_type == 'assessment':
+        # Get assessments for this application
+        from app.models import Assessment
+        assessments = Assessment.query.filter_by(
+            application_id=application.id
+        ).order_by(Assessment.created_at.desc()).all()
+        
+        assessments_data = [{
+            'id': a.id,
+            'assessment_type': a.assessment_type,
+            'title': a.title,
+            'status': a.status,
+            'description': a.description,
+            'location': a.location,
+            'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
+            'scheduled_time': a.scheduled_time,
+            'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
+            'document_count': len(a.documents),
+        } for a in assessments]
+        
+        content['assessments'] = assessments_data
+        content['assessment_count'] = len(assessments_data)
+    
     return content
 
 

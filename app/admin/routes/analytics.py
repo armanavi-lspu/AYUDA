@@ -180,11 +180,14 @@ def api_generate_recommendations():
         max_beneficiaries: Maximum number of recommendations to return (default: 50)
         priority_barangays: List of barangay names to filter by. If empty list or not 
                            provided, all barangays are included in recommendations.
+        priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD, Senior Citizen")
+                        Takes precedence over individual priority flags if provided.
         min_income: Minimum annual income filter (default: 0)
         max_income: Maximum annual income filter (default: 999999999)
         solo_parent_priority: Boolean to prioritize solo parents in scoring (default: False)
         student_priority: Boolean to prioritize students in scoring (default: False)
         pwd_priority: Boolean to prioritize PWDs in scoring (default: False)
+        senior_citizen_priority: Boolean to prioritize senior citizens in scoring (default: False)
     
     Returns:
         JSON with success status, count, recommendations list, and message
@@ -395,6 +398,7 @@ def api_generate_recommendations():
         pwd_priority=pwd_priority,
         senior_citizen_priority=senior_citizen_priority,
         priority_barangays=priority_barangays if priority_barangays else None,
+        priority_groups=data.get('priority_groups'),
         min_income=min_income,
         max_income=max_income
     )

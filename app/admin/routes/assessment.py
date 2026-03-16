@@ -1,4 +1,4 @@
-from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory
+from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory, send_file
 from flask_login import login_required, current_user
 from datetime import datetime
 import uuid
@@ -12,6 +12,7 @@ from app.extensions import db
 from app.utils import role_required
 import os
 from werkzeug.utils import secure_filename
+from mimetypes import guess_type
 
 # Configuration
 ASSESSMENT_UPLOAD_FOLDER = 'static/uploads/assessments'
@@ -96,18 +97,30 @@ def create_assessment():
     scheduled_date_str = request.form.get('scheduled_date', '').strip()
     scheduled_time = request.form.get('scheduled_time', '').strip()
     location = request.form.get('location', '').strip()
+    
+    # Check if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if not application_id or not a_type or not title:
-        flash('Application, type, and title are required.', 'danger')
+        msg = 'Application, type, and title are required.'
+        if is_ajax:
+            return jsonify(success=False, message=msg), 400
+        flash(msg, 'danger')
         return redirect(url_for('admin.assessments'))
 
     if a_type not in ('interview', 'home_visit'):
-        flash('Invalid assessment type.', 'danger')
+        msg = 'Invalid assessment type.'
+        if is_ajax:
+            return jsonify(success=False, message=msg), 400
+        flash(msg, 'danger')
         return redirect(url_for('admin.assessments'))
 
     application = Applications.query.get(application_id)
     if not application:
-        flash('Application not found.', 'danger')
+        msg = 'Application not found.'
+        if is_ajax:
+            return jsonify(success=False, message=msg), 404
+        flash(msg, 'danger')
         return redirect(url_for('admin.assessments'))
 
     scheduled_date = None
@@ -115,7 +128,10 @@ def create_assessment():
         try:
             scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d')
         except ValueError:
-            flash('Invalid date format.', 'danger')
+            msg = 'Invalid date format.'
+            if is_ajax:
+                return jsonify(success=False, message=msg), 400
+            flash(msg, 'danger')
             return redirect(url_for('admin.assessments'))
 
     assessment = Assessment(
@@ -141,6 +157,11 @@ def create_assessment():
     db.session.add(notif)
 
     db.session.commit()
+    
+    # Return JSON for AJAX requests
+    if is_ajax:
+        return jsonify(success=True, message='Assessment scheduled successfully.', assessment_id=assessment.id), 201
+    
     flash('Assessment scheduled successfully.', 'success')
     return redirect(url_for('admin.view_assessment', assessment_id=assessment.id))
 
@@ -260,20 +281,154 @@ def upload_assessment_document(assessment_id):
     return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
 
-@admin_bp.route('/assessments/<int:assessment_id>/delete', methods=['POST'], endpoint='delete_assessment')
+@admin_bp.route('/assessments/<int:assessment_id>/document/<int:document_id>/view', endpoint='view_assessment_document')
 @login_required
 @role_required('admin')
-def delete_assessment(assessment_id):
-    """Delete an assessment and its documents"""
+def view_assessment_document(assessment_id, document_id):
+    """View/preview an assessment document"""
     assessment = Assessment.query.get_or_404(assessment_id)
+    doc = AssessmentDocument.query.get_or_404(document_id)
+    
+    # Verify the document belongs to this assessment
+    if doc.assessment_id != assessment_id:
+        return "Unauthorized", 403
+    
+    # Check if file exists
+    if not os.path.exists(doc.file_path):
+        return "File not found", 404
+    
+    # Get the absolute path
+    abs_path = os.path.abspath(doc.file_path)
+    
+    # Determine MIME type based on file extension
+    file_ext = os.path.splitext(doc.original_filename)[1].lower()
+    mime_types = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }
+    mime_type = mime_types.get(file_ext, 'application/octet-stream')
+    
+    return send_file(abs_path, mimetype=mime_type)
 
-    # Remove uploaded files from disk
-    for doc in assessment.documents:
-        if os.path.exists(doc.file_path):
+
+@admin_bp.route('/assessments/<int:assessment_id>/document/<int:document_id>/download', endpoint='download_assessment_document')
+@login_required
+@role_required('admin')
+def download_assessment_document(assessment_id, document_id):
+    """Download an assessment document"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    doc = AssessmentDocument.query.get_or_404(document_id)
+    
+    # Verify the document belongs to this assessment
+    if doc.assessment_id != assessment_id:
+        return "Unauthorized", 403
+    
+    # Check if file exists
+    if not os.path.exists(doc.file_path):
+        return "File not found", 404
+    
+    # Get the absolute path
+    abs_path = os.path.abspath(doc.file_path)
+    
+    return send_file(abs_path, as_attachment=True, download_name=doc.original_filename)
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/document/<int:document_id>/delete', methods=['POST'], endpoint='delete_assessment_document')
+@login_required
+@role_required('admin')
+def delete_assessment_document(assessment_id, document_id):
+    """Delete an assessment document"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    doc = AssessmentDocument.query.get_or_404(document_id)
+    
+    # Verify the document belongs to this assessment
+    if doc.assessment_id != assessment_id:
+        return "Unauthorized", 403
+    
+    # Remove file from disk
+    if os.path.exists(doc.file_path):
+        try:
             os.remove(doc.file_path)
+        except OSError as e:
+            flash(f'Error deleting file: {str(e)}', 'danger')
+            return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+    
+    # Delete record from database
+    db.session.delete(doc)
+    db.session.commit()
+    
+    flash('Document deleted successfully.', 'success')
+    return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    db.session.delete(assessment)
+
+@admin_bp.route('/assessments/<int:assessment_id>/document/<int:document_id>/reupload', methods=['POST'], endpoint='reupload_assessment_document')
+@login_required
+@role_required('admin')
+def reupload_assessment_document(assessment_id, document_id):
+    """Reupload/replace an assessment document"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    doc = AssessmentDocument.query.get_or_404(document_id)
+    
+    # Verify the document belongs to this assessment
+    if doc.assessment_id != assessment_id:
+        return "Unauthorized", 403
+    
+    if 'document' not in request.files:
+        flash('No file selected.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    file = request.files['document']
+    if file.filename == '':
+        flash('No file selected.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if not allowed_file(file.filename):
+        flash('File type not allowed. Allowed types: PDF, DOC, DOCX, JPG, JPEG, PNG.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > MAX_FILE_SIZE:
+        flash('File size exceeds 10 MB limit.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    # Remove old file from disk
+    if os.path.exists(doc.file_path):
+        try:
+            os.remove(doc.file_path)
+        except OSError as e:
+            flash(f'Error removing old file: {str(e)}', 'danger')
+            return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    # Save new file
+    upload_dir = os.path.join(ASSESSMENT_UPLOAD_FOLDER, str(assessment_id))
+    os.makedirs(upload_dir, exist_ok=True)
+
+    filename = secure_filename(file.filename)
+    stored_filename = f"{uuid.uuid4().hex}_{filename}"
+    file_path = os.path.join(upload_dir, stored_filename)
+    file.save(file_path)
+
+    # Update document record
+    doc.file_path = file_path
+    doc.original_filename = filename
+    doc.file_size = file_size
+    doc.file_type = file.content_type
+    doc.uploaded_by = current_user.id
+    doc.uploaded_at = datetime.utcnow()
+    
+    # Update description if provided
+    doc_description = request.form.get('description', '').strip()
+    if doc_description:
+        doc.description = doc_description
+
     db.session.commit()
 
-    flash('Assessment deleted successfully.', 'success')
-    return redirect(url_for('admin.assessments'))
+    flash('Document reloaded successfully.', 'success')
+    return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))

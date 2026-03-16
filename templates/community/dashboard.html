@@ -126,17 +126,23 @@
     
     #dismissProfileAlert {
         position: relative;
-        z-index: 10;
+        z-index: 100;
         white-space: nowrap;
         flex-shrink: 0;
         cursor: pointer;
+        padding: 0.5rem 1rem !important;
+        border-radius: 0.25rem;
+        transition: all 0.3s ease;
     }
-    
+
     #dismissProfileAlert:hover {
         background-color: #218838 !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        transform: scale(1.05);
     }
-    
+
+    #dismissProfileAlert:active {
+        transform: scale(0.98);
     @media (max-width: 768px) {
         .stats-card { margin-bottom: 1rem; }
         .application-item { margin-bottom: 1rem; }
@@ -150,27 +156,14 @@
     <div class="page-header-gradient py-4 px-4 mb-4">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                
-                <!-- Title -->
-                <h1 class="h3 font-weight-bold mb-2 text-white">
-                    <i class="fas fa-home mr-2"></i>Welcome back, {{ current_user.first_name }}!
-                </h1>
-
-                <!-- Subtitle -->
-                <p class="mb-0 text-white opacity-75">Here's what's happening in your community</p>
-
-            </div>
-            <div class="col-lg-4 text-lg-right">
-                <div class="text-white">
-                    <div style="font-size: 0.9rem; opacity: 0.8;">Today</div>
-                    <div style="font-size: 1.2rem; font-weight: bold;">
-                        {{ today.strftime('%B %d, %Y') }}
-                    </div>
-                </div>
+                <h2 class="mb-2 text-white font-weight-bold">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                </h2>
+                <p class="mb-0 text-white opacity-75">Welcome back, {{ current_user.first_name }}! Here's what's happening in your community</p>
             </div>
         </div>
-    </div>  
-              
+    </div>
+                    
     <!-- Profile Completion Alert -->
     {% if completion and not completion.is_complete %}
     <div class="row mb-4">
@@ -214,8 +207,8 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #1cc88a;" id="profileCompleteAlert">
-                <div class="d-flex align-items-start justify-content-between">
-                    <div class="d-flex align-items-start flex-grow-1">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center flex-grow-1">
                         <div class="mr-3 flex-shrink-0">
                             <i class="fas fa-check-circle fa-2x text-success"></i>
                         </div>
@@ -229,9 +222,11 @@
                             </p>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-success btn-sm ml-3" id="dismissProfileAlert">
-                        <i class="fas fa-check mr-1"></i>Okay, don't show again
-                    </button>
+                    <form method="POST" action="{{ url_for('community.dismiss_profile_alert') }}" class="ml-3 flex-shrink-0">
+                        <button type="submit" class="btn btn-success btn-sm" id="dismissProfileAlert" style="min-width: 150px;">
+                            <i class="fas fa-check mr-1"></i>Okay, don't show again
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -705,33 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 300000); // 5 minutes
     {% endif %}
     
-    // Handle profile complete alert dismissal
-    const dismissBtn = document.getElementById('dismissProfileAlert');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', function() {
-            fetch('{{ url_for("community.dismiss_profile_alert") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Fade out the alert
-                    const alert = document.getElementById('profileCompleteAlert');
-                    alert.style.transition = 'opacity 0.5s ease';
-                    alert.style.opacity = '0';
-                    setTimeout(() => {
-                        alert.remove();
-                    }, 500);
-                }
-            })
-            .catch(error => {
-                console.error('Error dismissing alert:', error);
-            });
-        });
-    }
+    // Dismissal is handled by a regular form POST for guaranteed persistence.
 });
 
 // Add CSS for ripple animation

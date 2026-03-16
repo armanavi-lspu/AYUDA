@@ -98,6 +98,29 @@
         color: #28a745;
     }
     
+    /* Assessment Summary Styles */
+    .assessment-summary .card {
+        transition: all 0.3s ease;
+        border: 1px solid #dee2e6;
+    }
+    
+    .assessment-summary .card:hover {
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .assessment-summary .border-left-primary {
+        border-left: 4px solid #4e73df !important;
+    }
+    
+    .assessment-summary .card-header {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .assessment-summary .card-footer {
+        border-top: 1px solid #dee2e6;
+        padding: 0.75rem 1.25rem;
+    }
+    
     .bg-gradient-success {
         background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
     }
@@ -1445,13 +1468,7 @@
                         {% elif application.completion_percentage >= 50 %}badge-info
                         {% else %}badge-warning{% endif %}">
                         <i class="fas fa-{% if application.completion_percentage == 100 %}check-circle{% else %}tasks{% endif %} mr-1"></i>
-                        {% set verified_count = 0 %}
-                        {% for req in document_requirements %}
-                            {% if req.requirement_id in uploads_by_requirement and uploads_by_requirement[req.requirement_id].verification_status == 'approved' %}
-                                {% set verified_count = verified_count + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ verified_count }} / {{ document_requirements|length }} Verified
+                        {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Verified
                         ({{ application.completion_percentage }}%)
                     </span>
                 </div>
@@ -1611,7 +1628,7 @@
                         data-toggle="modal" 
                         data-target="#completeDocUploadStepModal"
                         id="completeDocStepBtn"
-                        {% if approved_docs != mandatory_docs or mandatory_docs == 0 %}disabled{% endif %}>
+                        {% if mandatory_docs > 0 and approved_docs != mandatory_docs %}disabled{% endif %}>
                     <i class="fas fa-check-circle mr-2"></i>Complete Step & Proceed
                 </button>
             </div>
@@ -2337,48 +2354,32 @@
             Schedule interviews or home visits and upload Social Case Study Report (SCSR) documents for this application.
         </p>
         
+        {# Find assessment step and get assessments #}
         {% set app_assessments = [] %}
-        {% for step_data in workflow_steps_data %}
-            {% if step_data.step.step_type == 'assessment' and step_data.assessments is defined %}
-                {% set app_assessments = step_data.assessments %}
-            {% endif %}
-        {% endfor %}
+        {% set assessment_step = workflow_steps_data | selectattr('step.step_type', 'equalto', 'assessment') | first %}
+        {% if assessment_step and assessment_step.assessments %}
+            {% set app_assessments = assessment_step.assessments %}
+        {% endif %}
         
         {% if app_assessments %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Title</th>
-                        <th>Type</th>
-                        <th>Scheduled</th>
-                        <th>Status</th>
-                        <th>SCSR Docs</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for a in app_assessments %}
-                    <tr>
-                        <td class="font-weight-bold">{{ a.title }}</td>
-                        <td>
+        <div class="assessment-summary mt-3">
+            {% for a in app_assessments %}
+            <div class="card mb-3 border-left-primary">
+                <div class="card-header bg-light py-2">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="mb-0 font-weight-bold">
+                                <i class="fas fa-{% if a.assessment_type == 'interview' %}comments{% else %}home{% endif %} text-primary mr-2"></i>
+                                {{ a.title }}
+                            </h6>
+                        </div>
+                        <div class="col-auto">
                             {% if a.assessment_type == 'interview' %}
                                 <span class="badge badge-primary">Interview</span>
                             {% elif a.assessment_type == 'home_visit' %}
                                 <span class="badge badge-info">Home Visit</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            {% if a.scheduled_date %}
-                                <small>{{ a.scheduled_date }}</small>
-                                {% if a.scheduled_time %}
-                                <br><small class="text-muted">{{ a.scheduled_time }}</small>
-                                {% endif %}
-                            {% else %}
-                                <span class="text-muted">—</span>
-                            {% endif %}
-                        </td>
-                        <td>
+                            
                             {% if a.status == 'scheduled' %}
                                 <span class="badge badge-warning">Scheduled</span>
                             {% elif a.status == 'completed' %}
@@ -2386,27 +2387,140 @@
                             {% elif a.status == 'cancelled' %}
                                 <span class="badge badge-danger">Cancelled</span>
                             {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge badge-secondary">{{ a.document_count }} file(s)</span>
-                        </td>
-                        <td class="text-center">
-                            <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" class="btn btn-sm btn-primary" title="View Details">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Assessment Details Row -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Scheduled Date & Time</p>
+                            <p class="font-weight-bold">
+                                {% if a.scheduled_date %}
+                                    {{ a.scheduled_date }}
+                                    {% if a.scheduled_time %}<br><small class="text-muted">{{ a.scheduled_time }}</small>{% endif %}
+                                {% else %}
+                                    <span class="text-muted">Not yet scheduled</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Completed Date</p>
+                            <p class="font-weight-bold">
+                                {% if a.completed_at %}
+                                    {{ a.completed_at }}
+                                {% else %}
+                                    <span class="text-muted">Pending</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Location & Conductor Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Location</p>
+                            <p class="font-weight-bold">
+                                {% if a.location %}
+                                    {{ a.location }}
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted small mb-1">Conducted By</p>
+                            <p class="font-weight-bold">
+                                {{ a.conducted_by }}
+                                <br><small class="text-muted">{{ a.conductor_email }}</small>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    {% if a.description %}
+                    <div class="mb-3">
+                        <p class="text-muted small mb-1">Description</p>
+                        <p class="text-dark">{{ a.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Findings (if completed) -->
+                    {% if a.findings and a.status == 'completed' %}
+                    <div class="mb-3">
+                        <p class="text-muted small mb-1">Findings</p>
+                        <div class="bg-light p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+                            {{ a.findings }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Recommendations (if completed) -->
+                    {% if a.recommendations and a.status == 'completed' %}
+                    <div class="mb-3">
+                        <p class="text-muted small mb-1">Recommendations</p>
+                        <div class="bg-light p-3 rounded" style="max-height: 200px; overflow-y: auto;">
+                            {{ a.recommendations }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Assessment Documents -->
+                    {% if a.documents %}
+                    <div class="mt-3 pt-3 border-top">
+                        <p class="text-muted small mb-2">SCSR Documents ({{ a.document_count }})</p>
+                        <div class="row">
+                            {% for doc in a.documents %}
+                            <div class="col-md-6 mb-2">
+                                <div class="p-2 bg-light border rounded small">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-file-pdf text-danger mr-2 mt-1"></i>
+                                        <div style="flex: 1;">
+                                            <p class="mb-0 font-weight-bold text-truncate" title="{{ doc.file_name }}">
+                                                {{ doc.file_name }}
+                                            </p>
+                                            <small class="text-muted d-block">
+                                                {% if doc.file_size %}
+                                                    {{ (doc.file_size / 1024 / 1024) | round(2) }} MB
+                                                {% endif %}
+                                                {% if doc.uploaded_at %}
+                                                    • {{ doc.uploaded_at }}
+                                                {% endif %}
+                                            </small>
+                                            {% if doc.description %}
+                                            <small class="text-dark d-block mt-1">{{ doc.description }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light">
+                    <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-eye mr-1"></i>View Full Details
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         <div class="text-center py-4 text-muted">
             <i class="fas fa-clipboard-list fa-3x mb-3"></i>
             <p>No assessments scheduled yet for this application.</p>
-            <a href="{{ url_for('admin.assessments') }}" class="btn btn-primary btn-sm">
+            <p class="small text-muted">
+                {% if app_assessments %}
+                    Assessments found: {{ app_assessments | length }}
+                {% else %}
+                    No assessments have been created.
+                {% endif %}
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openScheduleAssessmentModal()">
                 <i class="fas fa-plus mr-1"></i>Schedule Assessment
-            </a>
+            </button>
         </div>
         {% endif %}
     </div>
@@ -3372,6 +3486,25 @@ function showSuccessToast(message) {
     }, 3000);
 }
 
+function showErrorToast(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alertDiv.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <strong><i class="fas fa-exclamation-circle mr-2"></i>Error!</strong>
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        $(alertDiv).alert('close');
+    }, 5000);
+}
+
 // Feedback Templates
 const templates = {
     'approved': 'Document has been verified and approved. All requirements are met.',
@@ -3732,6 +3865,89 @@ function populateRemoveScheduleModal() {
     document.getElementById('scheduleRemovalTime').textContent = timeText;
     document.getElementById('scheduleRemovalLocation').textContent = locationText;
 }
+
+// Open Schedule Assessment Modal with current application pre-selected
+function openScheduleAssessmentModal() {
+    // Reset form fields
+    document.getElementById('modal_assessment_type').value = '';
+    document.getElementById('modal_title').value = '';
+    document.getElementById('modal_description').value = '';
+    document.getElementById('modal_scheduled_date').value = '';
+    document.getElementById('modal_scheduled_time').value = '';
+    document.getElementById('modal_location').value = '';
+    
+    // Ensure application_id is set
+    document.getElementById('modal_application_id').value = '{{ application.id }}';
+    
+    // Remove any existing error states
+    document.getElementById('scheduleAssessmentForm').classList.remove('was-validated');
+    
+    // Open modal
+    $('#scheduleAssessmentModal').modal('show');
+}
+
+// Handle Schedule Assessment Form Submission
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('scheduleAssessmentForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate form
+            if (!form.checkValidity() === false) {
+                e.stopPropagation();
+            }
+            form.classList.add('was-validated');
+            
+            if (!form.checkValidity()) {
+                return;
+            }
+            
+            // Create FormData object
+            const formData = new FormData(form);
+            
+            // Disable button and show loading state
+            const submitBtn = document.getElementById('scheduleAssessmentBtn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Scheduling...';
+            
+            // Submit via AJAX
+            fetch('{{ url_for("admin.create_assessment") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    $('#scheduleAssessmentModal').modal('hide');
+                    
+                    // Show success message
+                    showSuccessToast('Assessment scheduled successfully!');
+                    
+                    // Reload the page to show the new assessment
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showErrorToast(data.message || 'Failed to schedule assessment');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorToast('Error scheduling assessment. Please try again.');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+});
 
 // Send approval notification to applicant
 function sendApprovalNotification() {
@@ -5148,6 +5364,64 @@ $(function () {
                     <i class="fas fa-times mr-1"></i>Close
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Assessment Modal -->
+<div class="modal fade" id="scheduleAssessmentModal" tabindex="-1" role="dialog" aria-labelledby="scheduleAssessmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="scheduleAssessmentForm">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="scheduleAssessmentModalLabel">
+                        <i class="fas fa-plus mr-2"></i>Schedule Assessment
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="application_id" id="modal_application_id" value="{{ application.id }}">
+                    
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="modal_assessment_type">Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" id="modal_assessment_type" class="form-control" required>
+                                <option value="">Select type...</option>
+                                <option value="interview">Interview</option>
+                                <option value="home_visit">Home Visit</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="modal_title">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="modal_title" class="form-control" placeholder="e.g. Initial SCSR Interview" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal_description">Description</label>
+                        <textarea name="description" id="modal_description" class="form-control" rows="3" placeholder="Purpose and notes for this assessment..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="modal_scheduled_date">Scheduled Date</label>
+                            <input type="date" name="scheduled_date" id="modal_scheduled_date" class="form-control">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="modal_scheduled_time">Scheduled Time</label>
+                            <input type="text" name="scheduled_time" id="modal_scheduled_time" class="form-control" placeholder="e.g. 09:00 AM">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="modal_location">Location</label>
+                            <input type="text" name="location" id="modal_location" class="form-control" placeholder="e.g. MSWD Office">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="scheduleAssessmentBtn"><i class="fas fa-calendar-check mr-1"></i>Schedule</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

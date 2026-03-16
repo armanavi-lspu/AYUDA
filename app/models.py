@@ -716,9 +716,9 @@ class ApplicationWorkflowStatus(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    application = db.relationship('Applications', foreign_keys='ApplicationWorkflowStatus.application_id')
+    application = db.relationship('Applications', foreign_keys='ApplicationWorkflowStatus.application_id', overlaps='workflow_status')
     reviewer = db.relationship('User', backref='reviewed_workflow_steps')
-    workflow_step = db.relationship('ProgramWorkflowSteps', foreign_keys='ApplicationWorkflowStatus.workflow_step_id', lazy='select')
+    workflow_step = db.relationship('ProgramWorkflowSteps', foreign_keys='ApplicationWorkflowStatus.workflow_step_id', lazy='select', overlaps='application_statuses')
     
     # Composite unique constraint to prevent duplicate step status per application
     __table_args__ = (

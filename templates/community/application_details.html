@@ -151,6 +151,9 @@
                         {% elif application.application_status == 'completed' %}
                             {% set is_completed = true %}
                         {% endif %}
+                    {% elif step.step_type == 'assessment' %}
+                        {# Assessment is typically managed by admin, show as info step #}
+                        {% set is_info_step = true %}
                     {% elif step.step_type == 'photo_upload' %}
                         {% if application.program.program_type == 'ESA' %}
                             {% set esa_photos = application.shelter_photos | length if application.shelter_photos else 0 %}
@@ -182,11 +185,22 @@
                             <i class="fas fa-calendar"></i>
                         {% elif step.step_type == 'verification' %}
                             <i class="fas fa-clipboard-check"></i>
+                        {% elif step.step_type == 'assessment' %}
+                            <i class="fas fa-clipboard-list"></i>
                         {% else %}
                             <i class="fas fa-tasks"></i>
                         {% endif %}
                     </div>
                     <div class="small mt-1 font-weight-bold text-primary">{{ step.step_name }}</div>
+                    {% elif is_info_step %}
+                    <div class="rounded-circle bg-info text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+                        {% if step.step_type == 'assessment' %}
+                            <i class="fas fa-clipboard-list"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </div>
+                    <div class="small mt-1 font-weight-bold text-info">{{ step.step_name }}</div>
                     {% else %}
                     <div class="rounded-circle bg-secondary text-white d-inline-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
                         <span>{{ step.step_order }}</span>
@@ -200,7 +214,7 @@
                 </div>
                 
                 {% if not loop.last %}
-                <div class="flex-fill"><hr class="{% if is_completed %}border-success{% elif is_current_step %}border-primary{% else %}border-secondary{% endif %}"></div>
+                <div class="flex-fill"><hr class="{% if is_completed %}border-success{% elif is_current_step %}border-primary{% elif is_info_step %}border-info{% else %}border-secondary{% endif %}"></div>
                 {% endif %}
             {% endfor %}
         </div>
