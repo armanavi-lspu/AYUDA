@@ -29,7 +29,7 @@ class User(db.Model, UserMixin):
     created_programs = db.relationship('Programs', backref='creator', lazy=True)
     announcements = db.relationship('Announcements', backref='author', lazy=True)
     notifications = db.relationship('Notifications', backref='user', lazy=True, cascade='all, delete-orphan')
-    user_activity_logs = db.relationship('UserActivityLog', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    user_activity_logs = db.relationship('UserActivityLog', lazy='dynamic', cascade='all, delete-orphan', foreign_keys='UserActivityLog.user_id')
     applications = db.relationship('Applications', foreign_keys='Applications.user_id', backref='applicant', lazy=True)
     reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
     scheduled_claims = db.relationship('Applications', foreign_keys='Applications.claim_scheduled_by', backref='claim_scheduler', lazy=True)
