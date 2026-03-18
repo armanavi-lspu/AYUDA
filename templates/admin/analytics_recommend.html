@@ -367,6 +367,7 @@
 // Store current recommendations for detail view
 let currentRecommendations = [];
 let currentAlgorithm = '';
+let currentPriorityGroups = '';  // Store program's priority groups for explanation generation
 
 // Auto-fill parameters when program is selected
 document.getElementById('program_id').addEventListener('change', function() {
@@ -533,6 +534,7 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
         if (data.success) {
             currentRecommendations = data.recommendations;
             currentAlgorithm = data.algorithm || '';
+            currentPriorityGroups = data.priority_groups || '';
             displayResults(data);
         } else {
             alert('Error generating recommendations: ' + data.message);
@@ -610,6 +612,125 @@ document.getElementById('exportBtn').addEventListener('click', function() {
     // TODO: Implement CSV export
     alert('Export functionality will be implemented');
 });
+
+// Helper function to parse priority groups string into tokens
+function parsePriorityGroupTokens(priorityGroupStr) {
+    if (!priorityGroupStr) return [];
+    return priorityGroupStr
+        .split(',')
+        .map(token => token.trim().toLowerCase())
+        .filter(token => token.length > 0);
+}
+
+// Helper function to check if a beneficiary matches specific priority group tokens
+function beneficiaryMatchesPriorityTokens(rec, tokens) {
+    const matchingTokens = [];
+    
+    for (let token of tokens) {
+        if (token.includes('student')) {
+            if (rec.is_student) matchingTokens.push('student');
+        } else if (token.includes('solo') || token.includes('single')) {
+            if (rec.is_solo_parent) matchingTokens.push('solo parent');
+        } else if (token.includes('pwd') || token.includes('disability')) {
+            if (rec.is_pwd) matchingTokens.push('PWD (person with disability)');
+        } else if (token.includes('senior') || token.includes('elderly')) {
+            if (rec.is_senior) matchingTokens.push('senior citizen');
+        } else if (token.includes('low income') || token.includes('indigent')) {
+            // Income-based groups don't have a direct flag but are always relevant for income-based programs
+            matchingTokens.push('low income');
+        } else if (token.includes('unemployed') || token.includes('not employed')) {
+            if (!rec.is_currently_employed) matchingTokens.push('not employed');
+        }
+    }
+    
+    return matchingTokens;
+}
+
+function generatePlainLanguageExplanation(rec, isCBF, bd) {
+    let reasons = [];
+    
+    // Parse priority groups from the global variable set by the API response
+    const priorityTokens = parsePriorityGroupTokens(currentPriorityGroups);
+    
+    if (isCBF) {
+        // Content-Based Filtering Path
+        const similarity = bd.similarity_score || rec.score;
+        
+        if (similarity > 0.6) {
+            reasons.push(`<strong>${rec.name}</strong> has a strong match with this program. Their profile characteristics align very well with what the program is looking for.`);
+        } else if (similarity > 0.35) {
+            reasons.push(`<strong>${rec.name}</strong> has a good match with this program. Several aspects of their profile fit what the program is looking for.`);
+        } else if (similarity > 0) {
+            reasons.push(`<strong>${rec.name}</strong> has some qualities that match this program, though they may not be a perfect fit.`);
+        }
+        
+        // Income proximity explanation
+        if (bd.income_score > 0.1) {
+            const target_income = rec.income || 0;
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Match:</strong> Their annual income of ₱${target_income.toLocaleString()} is close to the program's target income range.`);
+        }
+        
+        // FIXED: Only list profile characteristics that actually match the program's priority groups
+        let profileMatches = beneficiaryMatchesPriorityTokens(rec, priorityTokens);
+        
+        if (profileMatches.length > 0) {
+            const profileText = profileMatches.join(', ');
+            reasons.push(`<i class="fas fa-user mr-2" style="color: #4e73df;"></i><strong>Program Requirement Match:</strong> They are a ${profileText}, which is a target group for this program.`);
+        }
+    } else {
+        // Rule-Based Scoring Path
+        const score = rec.score || 0;
+        
+        if (score > 0.7) {
+            reasons.push(`<strong>${rec.name}</strong> is ranked high on the priority list because they meet key criteria that this program prioritizes.`);
+        } else if (score > 0.5) {
+            reasons.push(`<strong>${rec.name}</strong> meets important criteria for this program and deserves consideration.`);
+        } else {
+            reasons.push(`<strong>${rec.name}</strong> qualifies for this program based on the selection criteria.`);
+        }
+        
+        // Income explanation
+        if (bd.income_score > 0.05) {
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With an annual income of ₱${rec.income.toLocaleString()}, they are among those most in need of financial assistance.`);
+        }
+        
+        // FIXED: Only mention characteristics that match the program's actual priority groups
+        const matchingTokens = beneficiaryMatchesPriorityTokens(rec, priorityTokens);
+        
+        if (rec.is_solo_parent && bd.solo_parent_bonus > 0 && matchingTokens.some(t => t.includes('solo parent'))) {
+            reasons.push(`<i class="fas fa-home mr-2" style="color: #36b9cc;"></i><strong>Solo Parent Status:</strong> As a solo parent, they receive priority consideration as they face additional responsibilities raising children alone.`);
+        }
+        
+        if (rec.is_student && bd.student_bonus > 0 && matchingTokens.some(t => t.includes('student'))) {
+            reasons.push(`<i class="fas fa-book mr-2" style="color: #4e73df;"></i><strong>Student Status:</strong> Being a student, they qualify for educational support programs and are prioritized for programs focused on youth development.`);
+        }
+        
+        if (rec.is_pwd && bd.pwd_bonus > 0 && matchingTokens.some(t => t.includes('PWD'))) {
+            reasons.push(`<i class="fas fa-wheelchair mr-2" style="color: #f6c23e;"></i><strong>PWD Status:</strong> As a person with disability, they are eligible for programs designed to support people with special needs.`);
+        }
+        
+        if (rec.is_senior && bd.senior_bonus > 0 && matchingTokens.includes('senior citizen')) {
+            reasons.push(`<i class="fas fa-birthday-cake mr-2" style="color: #858796;"></i><strong>Senior Citizen Status:</strong> At age ${rec.age}, they qualify for senior citizen programs and receive priority for age-related assistance.`);
+        }
+    }
+    
+    // Add past applications section if available
+    if (rec.past_applications && rec.past_applications.trim().length > 0) {
+        const pastAppsHtml = `<i class="fas fa-history mr-2" style="color: #ff6b6b;"></i><strong>Program History:</strong> They have previously applied to or been approved for assistance programs: <em>${rec.past_applications}</em>. This shows they are an active beneficiary participant.`;
+        reasons.push(pastAppsHtml);
+    }
+    
+    if (reasons.length === 0) {
+        return '<p class="text-muted mb-0">This person was recommended based on their profile matching the program criteria.</p>';
+    }
+    
+    let html = '<div style="font-size: 0.95rem; line-height: 1.6;">';
+    reasons.forEach((reason, idx) => {
+        html += `<p class="${idx === 0 ? 'mb-3 font-weight-500' : 'mb-2'}" style="margin-bottom: ${idx === 0 ? '12px' : '10px'};">${reason}</p>`;
+    });
+    html += '</div>';
+    return html;
+}
 
 function showBeneficiaryDetail(index) {
     const rec = currentRecommendations[index];
@@ -754,6 +875,12 @@ function showBeneficiaryDetail(index) {
                     <i class="fas fa-${rec.is_senior ? 'check' : 'times'} mr-1"></i>Senior Citizen
                 </span>
             </div>
+        </div>
+
+        <!-- Plain Language Explanation - Why This Person? -->
+        <div class="detail-section" style="background: #f0f9ff; border-left: 4px solid #1cc88a; padding: 15px;">
+            <h6 style="color: #0d5d2a;"><i class="fas fa-lightbulb mr-2"></i>Why Was This Person Recommended?</h6>
+            ${generatePlainLanguageExplanation(rec, isCBF, bd)}
         </div>
 
         <!-- Score Breakdown -->

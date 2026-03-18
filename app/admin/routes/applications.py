@@ -129,15 +129,30 @@ def applications():
     if program_filter:
         query = query.filter_by(program_id=int(program_filter))
     
-    # Apply search filter (search by applicant name or email)
+    # Apply search filter (search by applicant name, email, or ID)
     if search:
-        query = query.join(User).filter(
-            or_(
-                User.first_name.contains(search),
-                User.last_name.contains(search),
-                User.email.contains(search)
+        query = query.join(User, Applications.user_id == User.id)
+        # Check if search term is numeric (for ID search)
+        try:
+            search_id = int(search)
+            query = query.filter(
+                or_(
+                    User.first_name.contains(search),
+                    User.last_name.contains(search),
+                    User.email.contains(search),
+                    User.id == search_id,
+                    Applications.id == search_id
+                )
             )
-        )
+        except ValueError:
+            # Not a number, search by text only
+            query = query.filter(
+                or_(
+                    User.first_name.contains(search),
+                    User.last_name.contains(search),
+                    User.email.contains(search)
+                )
+            )
     
     # Apply date range filter
     if date_range:

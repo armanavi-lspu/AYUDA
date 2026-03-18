@@ -261,6 +261,84 @@
                 </a>
             </div>
             
+            <!-- Areas of Concern -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-compass"></i>
+                    Areas of Concern
+                </h5>
+                <p class="settings-description">
+                    Update your areas of interest for personalized recommendations
+                </p>
+                
+                <form method="POST" action="{{ url_for('community.settings') }}" id="areasForm">
+                    <input type="hidden" name="form_type" value="areas_of_concern">
+                    
+                    <div class="mb-3">
+                        <p class="text-muted mb-3">
+                            <i class="fas fa-lightbulb mr-2"></i>
+                            Select exactly 2 areas of concern:
+                        </p>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsBusinessConcern" name="areasOfConcern" value="Business"
+                                           {% if profile and 'Business' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsBusinessConcern">
+                                        <i class="fas fa-briefcase mr-2"></i><strong>Business</strong>
+                                        <br><small class="text-muted">Business development, startups</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsEducationConcern" name="areasOfConcern" value="Education"
+                                           {% if profile and 'Education' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsEducationConcern">
+                                        <i class="fas fa-book mr-2"></i><strong>Education</strong>
+                                        <br><small class="text-muted">Scholarships, training programs</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsMedicalConcern" name="areasOfConcern" value="Medical"
+                                           {% if profile and 'Medical' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsMedicalConcern">
+                                        <i class="fas fa-heartbeat mr-2"></i><strong>Medical</strong>
+                                        <br><small class="text-muted">Healthcare assistance</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsEmergencyConcern" name="areasOfConcern" value="Emergency"
+                                           {% if profile and 'Emergency' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsEmergencyConcern">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i><strong>Emergency</strong>
+                                        <br><small class="text-muted">Emergency relief, disaster aid</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>Update Areas of Concern
+                    </button>
+                </form>
+            </div>
+            
             <!-- Activity Logs -->
             <div class="settings-card">
                 <h5 class="settings-title">
@@ -413,6 +491,51 @@ $(document).ready(function() {
             indicator.remove();
         }
     });
+    
+    // Areas of Concern validation
+    const areasCheckboxes = document.querySelectorAll('input[name="areasOfConcern"]');
+    const areasForm = document.getElementById('areasForm');
+    const areasSubmitBtn = areasForm ? areasForm.querySelector('button[type="submit"]') : null;
+    const MAX_SELECTIONS = 2;
+    
+    function updateAreasCheckboxStates() {
+        if (!areasSubmitBtn) return;
+        
+        const checkedCount = Array.from(areasCheckboxes).filter(cb => cb.checked).length;
+        
+        // Enable submit button only if exactly 2 selected
+        if (checkedCount === MAX_SELECTIONS) {
+            areasSubmitBtn.disabled = false;
+        } else {
+            areasSubmitBtn.disabled = true;
+        }
+        
+        // Disable unchecked checkboxes if max selections reached
+        areasCheckboxes.forEach(checkbox => {
+            if (checkedCount >= MAX_SELECTIONS && !checkbox.checked) {
+                checkbox.disabled = true;
+            } else if (checkedCount < MAX_SELECTIONS) {
+                checkbox.disabled = false;
+            }
+        });
+    }
+    
+    // Add change event listeners
+    areasCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const checkedCount = Array.from(areasCheckboxes).filter(cb => cb.checked).length;
+            
+            // Prevent selecting more than MAX_SELECTIONS
+            if (checkedCount > MAX_SELECTIONS) {
+                this.checked = false;
+            }
+            
+            updateAreasCheckboxStates();
+        });
+    });
+    
+    // Initial state
+    updateAreasCheckboxStates();
 });
 </script>
 {% endblock %}

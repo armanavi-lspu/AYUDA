@@ -101,7 +101,7 @@ with app.app_context():
             sitio = f'Sitio {chr(65 + random.randint(0, 5))}'
             address = f'{sitio}, {barangay}, Mabitac, Laguna'
             
-            family_income = random.choice([10000, 15000, 20000, 25000, 30000, 40000])
+            family_income = random.randint(20000, 40000)
             
             create_community = text("""
                 INSERT INTO community_users (

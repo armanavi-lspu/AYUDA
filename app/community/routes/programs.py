@@ -2,13 +2,61 @@ from flask import render_template, jsonify, redirect, url_for, request, flash, s
 from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram
 from app.extensions import db
-from app.utils import role_required, calculate_profile_completion
+from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from werkzeug.utils import secure_filename
 import os
+
+
+def get_application_restriction(user_id):
+    """Return application restrictions for a user based on active and recent completed applications."""
+    active_application = Applications.query.filter(
+        Applications.user_id == user_id,
+        Applications.application_status.in_(['pending', 'approved', 'active'])
+    ).order_by(Applications.application_date.desc()).first()
+
+    if active_application:
+        return {
+            'is_blocked': True,
+            'type': 'active_application',
+            'application': active_application,
+            'program_name': active_application.program.program_name if active_application.program else 'another program',
+            'message': 'You already have an ongoing application. Please complete or resolve it before applying to another program.'
+        }
+
+    cooldown_reference = datetime.utcnow() - relativedelta(months=3)
+    recent_applications = Applications.query.filter(
+        Applications.user_id == user_id,
+        or_(
+            Applications.application_status == 'completed',
+            Applications.claim_date.isnot(None)
+        )
+    ).order_by(Applications.updated_at.desc()).all()
+
+    for app in recent_applications:
+        reference_date = app.claim_date or app.updated_at or app.review_date or app.application_date
+        if reference_date and reference_date >= cooldown_reference:
+            lock_until = (reference_date + relativedelta(months=3)).date()
+            return {
+                'is_blocked': True,
+                'type': 'cooldown',
+                'application': app,
+                'program_name': app.program.program_name if app.program else 'your previous program',
+                'reference_date': reference_date,
+                'lock_until': lock_until,
+                'message': f'You can apply again after {lock_until.strftime("%B %d, %Y")} due to the 3-month cooldown after completion or scheduled release.'
+            }
+
+    return {
+        'is_blocked': False,
+        'type': None,
+        'application': None,
+        'message': None
+    }
 
 @community_bp.route('/programs')
 @login_required
@@ -85,6 +133,7 @@ def program_detail(program_id):
     
     # Get user's community profile
     user_profile = current_user.community_profile
+    profile_eligibility = evaluate_program_profile_eligibility(program.priority_group, user_profile)
     
     # Get program requirements with is_mandatory info from junction table
     program_requirements = db.session.query(
@@ -190,6 +239,7 @@ def program_detail(program_id):
     # Check if user has saved/hidden this program
     is_saved = SavedProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
     is_hidden = HiddenProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
+    application_restriction = get_application_restriction(current_user.id)
     
     # Log detail view
     log_program_detail_view(program)
@@ -201,8 +251,10 @@ def program_detail(program_id):
                          qualification_requirements=qualification_requirements,
                          user_profile=user_profile,
                          is_full=is_full,
+                         profile_eligibility=profile_eligibility,
                          approved_count=approved_count,
                          completion=completion_data,
+                         application_restriction=application_restriction,
                          is_saved=is_saved,
                          is_hidden=is_hidden,
                          today=datetime.utcnow().date())
@@ -224,15 +276,28 @@ def submit_application(program_id):
     if not completion_data['is_complete']:
         flash(f'Please complete your profile before applying for programs. You have {completion_data["missing_count"]} required fields missing.', 'warning')
         return redirect(url_for('community.edit_profile'))
+
+    # Enforce profile-based eligibility based on selected program priority groups.
+    profile_eligibility = evaluate_program_profile_eligibility(program.priority_group, current_user.community_profile)
+    if not profile_eligibility['is_eligible']:
+        required_groups = ', '.join(g.title() for g in profile_eligibility['required_groups'])
+        flash(
+            f'You are not eligible to apply for this program. Allowed profile groups: {required_groups}.',
+            'danger'
+        )
+        return redirect(url_for('community.program_detail', program_id=program_id))
     
-    # Check if user already has a pending application
-    existing_application = Applications.query.filter_by(
-        user_id=current_user.id,
-        program_id=program_id
-    ).filter(Applications.application_status == 'pending').first()
-    
-    if existing_application:
-        flash('You already have a pending application for this program.', 'warning')
+    # Restrict concurrent applications and enforce cooldown after completion/scheduled release
+    application_restriction = get_application_restriction(current_user.id)
+    if application_restriction['is_blocked']:
+        if application_restriction['type'] == 'active_application':
+            flash(
+                f'You already have an ongoing application for {application_restriction["program_name"]}. '
+                'Please complete or resolve it before applying to another program.',
+                'warning'
+            )
+        else:
+            flash(application_restriction['message'], 'warning')
         return redirect(url_for('community.program_detail', program_id=program_id))
     
     # Check if program has reached beneficiary limit

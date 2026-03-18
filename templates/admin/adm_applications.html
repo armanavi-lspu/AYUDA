@@ -48,6 +48,35 @@
     .progress-indicator.high { background-color: #17a2b8; }
     .progress-indicator.medium { background-color: #ffc107; }
     .progress-indicator.low { background-color: #dc3545; }
+
+    /* Sort dropdown styling */
+    .dropdown-menu {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        border-radius: 0.35rem;
+    }
+
+    .dropdown-item {
+        padding: 0.65rem 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f0f4ff;
+        color: #004085;
+    }
+
+    .dropdown-header {
+        padding: 0.65rem 1.5rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #sortDropdown:hover {
+        background-color: #e7f1ff;
+        color: #004085;
+    }
 </style>
 {% endblock %}
 
@@ -177,28 +206,59 @@
     <div class="card shadow">
         <div class="card-header py-4 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Applications List</h6>
-            <div id="bulkActionsBar" style="display: none;">
-                <span id="selectedCount" class="text-white mr-3 font-weight-bold">0 selected</span>
-                <div class="btn-group mr-2" role="group">
-                    <button type="button" class="btn btn-sm btn-success" onclick="bulkUpdateStatus('approved')">
-                        <i class="fas fa-check mr-1"></i>Approve
+            <div class="d-flex align-items-center gap-3">
+                <!-- Sort Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Sort applications">
+                        <i class="fas fa-sort-amount-down mr-2"></i>Sort
                     </button>
-                    <button type="button" class="btn btn-sm btn-warning" onclick="bulkUpdateStatus('pending')">
-                        <i class="fas fa-clock mr-1"></i>Pending
+                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
+                        <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
+                            {% if sort_by == 'date' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-up mr-2"></i>Oldest to Newest
+                            {% if sort_by == 'date' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <h6 class="dropdown-header font-weight-bold">Sort by Applicant Name</h6>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-up mr-2"></i>A-Z
+                            {% if sort_by == 'name' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-down mr-2"></i>Z-A
+                            {% if sort_by == 'name' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Bulk Actions -->
+                <div id="bulkActionsBar" style="display: none;">
+                    <span id="selectedCount" class="text-dark mr-3 font-weight-bold">0 selected</span>
+                    <div class="btn-group mr-2" role="group">
+                        <button type="button" class="btn btn-sm btn-success" onclick="bulkUpdateStatus('approved')">
+                            <i class="fas fa-check mr-1"></i>Approve
+                        </button>
+                        <button type="button" class="btn btn-sm btn-warning" onclick="bulkUpdateStatus('pending')">
+                            <i class="fas fa-clock mr-1"></i>Pending
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info" onclick="bulkUpdateStatus('active')">
+                            <i class="fas fa-spinner mr-1"></i>Set Active
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="bulkUpdateStatus('rejected')">
+                            <i class="fas fa-times mr-1"></i>Reject
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="scheduleNotification()">
+                        <i class="fas fa-bell mr-1"></i>Schedule Notification
                     </button>
-                    <button type="button" class="btn btn-sm btn-info" onclick="bulkUpdateStatus('active')">
-                        <i class="fas fa-spinner mr-1"></i>Set Active
-                    </button>
-                    <button type="button" class="btn btn-sm btn-danger" onclick="bulkUpdateStatus('rejected')">
-                        <i class="fas fa-times mr-1"></i>Reject
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                        <i class="fas fa-times mr-1"></i>Clear
                     </button>
                 </div>
-                <button type="button" class="btn btn-sm btn-primary" onclick="scheduleNotification()">
-                    <i class="fas fa-bell mr-1"></i>Schedule Notification
-                </button>
-                <button type="button" class="btn btn-sm btn-secondary" onclick="clearSelection()">
-                    <i class="fas fa-times mr-1"></i>Clear
-                </button>
             </div>
         </div>
         <div class="card-body p-4">

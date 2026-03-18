@@ -2146,22 +2146,7 @@
                     </p>
                 </div>
                 
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <h6 class="font-weight-bold mb-3"><i class="fas fa-tasks mr-2"></i>Next Steps:</h6>
-                        <ol class="mb-0 pl-3">
-                            <li class="mb-2">
-                                <strong>Notify Applicant</strong> - Inform them their application is approved and they can get their stub
-                                <button type="button" class="btn btn-sm btn-outline-info ml-2" onclick="sendApprovalNotification()">
-                                    <i class="fas fa-bell mr-1"></i>Send Notification
-                                </button>
-                            </li>
-                            <li class="mb-2">
-                                <strong>Schedule Release</strong> - Set the date when the applicant can claim their financial assistance
-                            </li>
-                        </ol>
-                    </div>
-                </div>
+
             </div>
             <div class="col-md-4">
                 <div class="card border-primary">
@@ -2203,7 +2188,7 @@
                 <i class="fas fa-check-circle mr-2"></i>Application Completed - Ready for Release Scheduling
             </h6>
             <span class="badge badge-light text-success">
-                <i class="fas fa-trophy mr-1"></i>100% Complete
+                <i class="fas fa-calendar mr-1"></i>100% Complete
             </span>
         </div>
     </div>
@@ -2212,7 +2197,7 @@
             <div class="col-md-8">
                 <div class="alert alert-success mb-3">
                     <h5 class="alert-heading mb-2">
-                        <i class="fas fa-trophy mr-2"></i>All Requirements Verified!
+                        <i class="fas fa-calendar mr-2"></i>All Requirements Verified!
                     </h5>
                     <p class="mb-0">
                         This application has been automatically marked as <strong>COMPLETED</strong> because all requirements have been verified and approved.
@@ -2220,23 +2205,7 @@
                     </p>
                 </div>
                 
-                <div class="card bg-light mb-3">
-                    <div class="card-body">
-                        <h6 class="font-weight-bold mb-3"><i class="fas fa-tasks mr-2"></i>Next Steps:</h6>
-                        <ol class="mb-0 pl-3">
-                            <li class="mb-2">
-                                <strong>Print Application Slip</strong> - Give to the applicant as proof of completion
-                                <a href="{{ url_for('admin.application_slip', application_id=application.id) }}" 
-                                   class="btn btn-sm btn-outline-primary ml-2" target="_blank">
-                                    <i class="fas fa-print mr-1"></i>Print Slip
-                                </a>
-                            </li>
-                            <li class="mb-2">
-                                <strong>Schedule Release</strong> - Set the date when the applicant can claim their financial assistance
-                            </li>
-                        </ol>
-                    </div>
-                </div>
+
             </div>
             <div class="col-md-4">
                 <div class="card border-primary">
@@ -2499,10 +2468,22 @@
                     </div>
                     {% endif %}
                 </div>
-                <div class="card-footer bg-light">
+                <div class="card-footer bg-light d-flex justify-content-between align-items-center">
                     <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" class="btn btn-sm btn-primary">
                         <i class="fas fa-eye mr-1"></i>View Full Details
                     </a>
+                    {% if a.status != 'completed' %}
+                    <form method="POST" action="{{ url_for('admin.complete_assessment', assessment_id=a.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-success" 
+                                onclick="return confirm('Mark this assessment as complete and proceed to the next step?')">
+                            <i class="fas fa-check mr-1"></i>Mark as Complete
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="badge badge-success" title="This assessment step is complete">
+                        <i class="fas fa-check mr-1"></i>Step Completed
+                    </span>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

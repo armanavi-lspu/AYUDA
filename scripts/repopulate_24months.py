@@ -120,13 +120,7 @@ with app.app_context():
             
             # Create community profile 
             is_pwd = True if random.random() < 0.1 else False
-            income_bracket = random.random()
-            if income_bracket < 0.70:
-                family_income = random.randint(30000, 150000)
-            elif income_bracket < 0.95:
-                family_income = random.randint(150001, 400000)
-            else:
-                family_income = random.randint(400001, 800000)
+            family_income = random.randint(20000, 40000)
             
             community = CommunityUsers(
                 user_id=user.id,

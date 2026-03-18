@@ -16,6 +16,41 @@ import os
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc
 
+# Income ranges for dropdown selection
+INCOME_RANGES = [
+    {'min': 0, 'max': 9999, 'display': 'Below ₱10,000'},
+    {'min': 10000, 'max': 20000, 'display': '₱10,000 - ₱20,000'},
+    {'min': 20001, 'max': 30000, 'display': '₱20,001 - ₱30,000'},
+    {'min': 30001, 'max': 40000, 'display': '₱30,001 - ₱40,000'},
+    {'min': 40001, 'max': 50000, 'display': '₱40,001 - ₱50,000'},
+    {'min': 50001, 'max': 75000, 'display': '₱50,001 - ₱75,000'},
+    {'min': 75001, 'max': 100000, 'display': '₱75,001 - ₱100,000'},
+    {'min': 100001, 'max': 150000, 'display': '₱100,001 - ₱150,000'},
+    {'min': 150001, 'max': 200000, 'display': '₱150,001 - ₱200,000'},
+    {'min': 200001, 'max': 300000, 'display': '₱200,001 - ₱300,000'},
+    {'min': 300001, 'max': 400000, 'display': '₱300,001 - ₱400,000'},
+    {'min': 400001, 'max': 500000, 'display': '₱400,001 - ₱500,000'},
+    {'min': 500001, 'max': None, 'display': '₱500,001 and above'},
+]
+
+
+def get_income_range_display(income_value):
+    """Get the income range display text for a given income value."""
+    if income_value is None:
+        return 'Not specified'
+    
+    for income_range in INCOME_RANGES:
+        if income_range['max'] is None:
+            # Last range (500,001+)
+            if income_value >= income_range['min']:
+                return income_range['display']
+        else:
+            # All other ranges
+            if income_value >= income_range['min'] and income_value <= income_range['max']:
+                return income_range['display']
+    
+    return 'Not specified'
+
 
 @community_bp.route('/profile')
 @login_required
@@ -28,10 +63,14 @@ def profile():
     community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
     completion_data = calculate_profile_completion(current_user)
     
+    # Get income range display
+    income_display = get_income_range_display(community_profile.family_annual_income if community_profile else None)
+    
     return render_template('community/profile.html', 
                          user=current_user,
                          profile=community_profile,
-                         completion=completion_data)
+                         completion=completion_data,
+                         income_display=income_display)
 
 
 @community_bp.route('/profile/edit', methods=['GET', 'POST'])
@@ -69,24 +108,15 @@ def edit_profile():
                 community_profile.is_pwd = request.form.get('is_pwd') == 'on'
                 community_profile.disability_type = request.form.get('disability_type', '').strip() if community_profile.is_pwd else None
                 
-                # Parse family annual income with validation
-                income_str = request.form.get('family_annual_income', '').strip()
-                if income_str:
+                # Handle family annual income from dropdown
+                income_min_str = request.form.get('family_annual_income', '').strip()
+                if income_min_str and income_min_str != '':
                     try:
-                        # Remove commas and convert to float
-                        income_value = float(income_str.replace(',', ''))
-                        
-                        # Validate income range
-                        if income_value < 0:
-                            flash('Family annual income cannot be negative.', 'error')
-                            return redirect(url_for('community.edit_profile'))
-                        elif income_value > 10000000:  # 10 million max
-                            flash('Family annual income exceeds maximum allowed value (₱10,000,000).', 'error')
-                            return redirect(url_for('community.edit_profile'))
-                        
+                        income_value = int(income_min_str)
                         community_profile.family_annual_income = income_value
-                    except ValueError:
-                        flash('Invalid income format. Please enter a valid number.', 'error')
+                    except (ValueError, TypeError) as e:
+                        print(f"Error converting income: {e}, value: {income_min_str}")
+                        flash('Invalid income selection.', 'error')
                         return redirect(url_for('community.edit_profile'))
                 
                 # Calculate age from birth date
@@ -105,12 +135,17 @@ def edit_profile():
             db.session.rollback()
             flash(f'Error updating profile: {str(e)}', 'error')
     
+    # Get completion data to show missing fields
+    completion_data = calculate_profile_completion(current_user)
+    
     return render_template('community/edit_profile.html', 
                          user=current_user,
-                         profile=community_profile)
+                         profile=community_profile,
+                         income_ranges=INCOME_RANGES,
+                         missing_fields=completion_data.get('missing_fields', []))
 
 
-@community_bp.route('/settings')
+@community_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
     """Display user settings page."""
@@ -118,7 +153,37 @@ def settings():
         flash('Access denied. This page is for community users only.', 'error')
         return redirect(url_for('home.index'))
     
-    return render_template('community/settings.html', user=current_user)
+    community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    
+    if request.method == 'POST':
+        form_type = request.form.get('form_type')
+        
+        if form_type == 'areas_of_concern':
+            try:
+                areas_of_concern = request.form.getlist('areasOfConcern')
+                
+                # Validate exactly 2 areas are selected
+                if len(areas_of_concern) != 2:
+                    flash('Please select exactly 2 areas of concern.', 'error')
+                    return redirect(url_for('community.settings'))
+                
+                if community_profile:
+                    community_profile.set_areas_of_concern(areas_of_concern)
+                    db.session.commit()
+                    flash('Your areas of concern have been updated successfully!', 'success')
+                else:
+                    flash('Please complete your profile first.', 'error')
+                    return redirect(url_for('community.edit_profile'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error updating areas of concern: {str(e)}', 'error')
+        
+        return redirect(url_for('community.settings'))
+    
+    return render_template('community/settings.html',
+                         user=current_user,
+                         profile=community_profile)
 
 
 @community_bp.route('/settings/change-password', methods=['POST'])
@@ -425,3 +490,48 @@ def activity_logs():
                          activities=pagination.items,
                          pagination=pagination,
                          user=current_user)
+
+
+@community_bp.route('/areas-of-concern', methods=['GET', 'POST'])
+@login_required
+def areas_of_concern():
+    """Manage user's areas of concern for program recommendations."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+    
+    community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    
+    if not community_profile:
+        flash('Please complete your profile first.', 'error')
+        return redirect(url_for('community.edit_profile'))
+    
+    if request.method == 'POST':
+        try:
+            areas_of_concern = request.form.getlist('areasOfConcern')
+            
+            # Validate exactly 2 areas are selected
+            if len(areas_of_concern) != 2:
+                flash('Please select exactly 2 areas of concern to proceed.', 'error')
+                return render_template('community/areas_of_concern.html',
+                                     user=current_user,
+                                     profile=community_profile)
+            
+            community_profile.set_areas_of_concern(areas_of_concern)
+            db.session.commit()
+            
+            flash('Your areas of concern have been set successfully!', 'success')
+            
+            # If user came from signup (via redirect), go to dashboard
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            return redirect(url_for('community.dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating areas of concern: {str(e)}', 'error')
+    
+    return render_template('community/areas_of_concern.html',
+                         user=current_user,
+                         profile=community_profile)

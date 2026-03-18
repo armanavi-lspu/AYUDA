@@ -29,6 +29,7 @@ class User(db.Model, UserMixin):
     created_programs = db.relationship('Programs', backref='creator', lazy=True)
     announcements = db.relationship('Announcements', backref='author', lazy=True)
     notifications = db.relationship('Notifications', backref='user', lazy=True, cascade='all, delete-orphan')
+    user_activity_logs = db.relationship('UserActivityLog', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     applications = db.relationship('Applications', foreign_keys='Applications.user_id', backref='applicant', lazy=True)
     reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
     scheduled_claims = db.relationship('Applications', foreign_keys='Applications.claim_scheduled_by', backref='claim_scheduler', lazy=True)
@@ -526,8 +527,29 @@ class CommunityUsers(db.Model):
     solo_parent_document_path = db.Column(db.String(255))
     solo_parent_rejection_reason = db.Column(db.Text)
     
+    # Areas of concern for program recommendations
+    areas_of_concern = db.Column(db.Text)  # JSON: ['Business', 'Education', 'Medical', 'Emergency']
+    
     def __repr__(self):
         return f'<CommunityUser {self.user_id}>'
+    
+    def get_areas_of_concern(self):
+        """Get areas of concern as a list"""
+        if self.areas_of_concern:
+            try:
+                import json
+                return json.loads(self.areas_of_concern)
+            except:
+                return []
+        return []
+    
+    def set_areas_of_concern(self, areas_list):
+        """Set areas of concern from a list"""
+        if areas_list:
+            import json
+            self.areas_of_concern = json.dumps(areas_list)
+        else:
+            self.areas_of_concern = None
 
 class AdminUsers(db.Model):
     __tablename__ = 'admin_users'
@@ -639,7 +661,7 @@ class UserActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
     # Relationships
-    user = db.relationship('User', backref=db.backref('user_activity_logs', lazy='dynamic'))
+    user = db.relationship('User', foreign_keys=[user_id])
     
     __table_args__ = (
         db.Index('idx_user_activity_user_date', 'user_id', 'created_at'),

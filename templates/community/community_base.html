@@ -30,29 +30,11 @@
     <!-- Extra CSS block for child templates -->
     {% block extra_css %}{% endblock %}
     
-    <!-- Sidebar and Notification Styling -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}" />
-    
     <link
       rel="stylesheet"
       href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
       crossorigin="anonymous"
     />
-    
-    <!-- Page Loading State - Prevents flashing of hidden elements -->
-    <style>
-        html.loading {
-            visibility: hidden;
-        }
-        html.loading body {
-            display: none;
-        }
-    </style>
-    
-    <script>
-        /* Add loading class immediately to hide content until page fully loads */
-        document.documentElement.classList.add('loading');
-    </script>
     
     <!-- Global Font Style and Community Design System -->
     <style>
@@ -1241,8 +1223,8 @@
         <div class="sidebar-sticky">
             <!-- User Info Container -->
             {% if current_user.is_authenticated %}
-            <a href="{{ url_for('community.profile') }}" class="user-info-container mb-4 pb-4 border-bottom text-decoration-none d-flex align-items-center justify-content-center" style="border-color: #e3e6f0 !important; transition: all 0.3s ease; cursor: pointer; padding: 1rem;">
-                <div class="d-flex align-items-center justify-content-center" style="transition: all 0.3s ease; width: 100%;">
+            <a href="{{ url_for('community.profile') }}" class="user-info-container mb-4 pb-4 border-bottom text-decoration-none d-block" style="border-color: #e3e6f0 !important; transition: all 0.3s ease; cursor: pointer; padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center justify-content-center" style="transition: all 0.3s ease; max-width: 240px; margin: 0 auto;">
                     <!-- Profile Picture -->
                     <div class="user-avatar-wrapper mr-3" style="flex-shrink: 0; transition: all 0.3s ease;">
                         {% if current_user.profile_pic %}
@@ -1256,7 +1238,7 @@
                     </div>
                     
                     <!-- User Details -->
-                    <div class="user-details-wrapper" style="flex-grow: 1; min-width: 0; text-align: center;">
+                    <div class="user-details-wrapper" style="min-width: 0;">
                         <h6 class="mb-1 font-weight-bold" style="color: #0032A0; word-break: break-word; font-size: 0.95rem; transition: all 0.3s ease;">
                             {{ current_user.first_name }} {{ current_user.last_name }}
                         </h6>
@@ -1292,7 +1274,7 @@
                 document.addEventListener('DOMContentLoaded', function() {
                     const options = { year: 'numeric', month: 'long', day: 'numeric' };
                     const today = new Date().toLocaleDateString('en-US', options);
-                    document.getElementById('todayDate').innerHTML = '<p class="mb-0">' + today + '</p>';
+                    document.getElementById('todayDate').innerHTML = '<p class="mb-0" style="color: #0032A0; font-size: 1rem; font-weight: 600;">' + today + '</p>';
                 });
             </script>
             
@@ -1357,7 +1339,7 @@
     <!-- Main Content Area -->
     <div class="content-wrapper">
         <div class="container-fluid p-4">
-            {% block community_content %}
+            {% block content %}
             <h1>Welcome to Community Portal</h1>
             <p>Select a module from the sidebar to get started.</p>
             {% endblock %}
@@ -1367,22 +1349,24 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="flash-messages" style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
         {% for category, message in messages %}
-        <div class="alert {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="animation: slideDown 0.3s ease-out; border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %}; border-radius: 8px;">
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
             <div class="d-flex align-items-center">
                 {% if category == 'success' %}
-                <i class="fas fa-check-circle me-2"></i>
+                <i class="fas fa-check-circle mr-2"></i>
                 {% elif category == 'error' %}
-                <i class="fas fa-exclamation-circle me-2"></i>
+                <i class="fas fa-exclamation-circle mr-2"></i>
                 {% elif category == 'warning' %}
-                <i class="fas fa-exclamation-triangle me-2"></i>
+                <i class="fas fa-exclamation-triangle mr-2"></i>
                 {% else %}
-                <i class="fas fa-info-circle me-2"></i>
+                <i class="fas fa-info-circle mr-2"></i>
                 {% endif %}
-                <span><strong>{{ message }}</strong></span>
+                <span>{{ message }}</span>
             </div>
-            <button type="button" class="btn-close" data-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
         </div>
         {% endfor %}
     </div>
@@ -1583,22 +1567,7 @@
             }
         `;
         document.head.appendChild(style);
-        
-        // Remove loading state when page is fully loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            document.documentElement.classList.remove('loading');
-        });
-        
-        // Fallback: remove loading state after 2 seconds
-        setTimeout(function() {
-            document.documentElement.classList.remove('loading');
-        }, 2000);
     </script>
-
-    <!-- Socket.IO Real-time Features -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

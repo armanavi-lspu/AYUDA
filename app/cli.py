@@ -59,15 +59,6 @@ def init_db():
         # Create programs if not exist
         programs_data = [
             {
-                'name': 'Financial Assistance Program',
-                'type': 'AICS',
-                'period': 'Ongoing',
-                'priority_group': 'Low-income families',
-                'beneficiary_limit': 100,
-                'income_range': '₱0 - ₱150,000',
-                'description': 'Provides financial support to families in need for emergencies and basic necessities'
-            },
-            {
                 'name': 'Burial Assistance Program',
                 'type': 'AICS',
                 'period': 'Emergency',
@@ -213,6 +204,90 @@ def init_db():
         else:
             click.echo('✅ Requirements already exist')
 
+        # Link requirements to programs
+        # Define which requirements are needed for each program type
+        program_requirements_mapping = {
+            'AICS': {
+                'documents': [
+                    'Valid ID',
+                    'PSA Birth Certificate',
+                    'Barangay Indigency Certificate',
+                    'Proof of Income'
+                ],
+                'qualifications': [
+                    'Low Income Family',
+                    'Resident of Mabitac'
+                ]
+            },
+            'ESA': {
+                'documents': [
+                    'Valid ID',
+                    'Barangay Report',
+                    'Barangay Indigency Certificate'
+                ],
+                'qualifications': [
+                    'Fire Victim',
+                    'Typhoon Victim',
+                    'Resident of Mabitac'
+                ]
+            },
+            'CA': {
+                'documents': [
+                    'Valid ID',
+                    'Proof of Income',
+                    'Proof of Business',
+                    'Barangay Indigency Certificate'
+                ],
+                'qualifications': [
+                    'Low Income Family',
+                    'Resident of Mabitac'
+                ]
+            }
+        }
+
+        program_requirements_created = 0
+        
+        # Get all programs
+        all_programs = Programs.query.all()
+        
+        for program in all_programs:
+            # Get requirements mapping for this program type
+            requirements_config = program_requirements_mapping.get(program.program_type, {})
+            
+            for req_type in ['documents', 'qualifications']:
+                req_names = requirements_config.get(req_type, [])
+                
+                for req_name in req_names:
+                    # Find the requirement
+                    requirement = Requirements.query.filter_by(
+                        requirement_name=req_name,
+                        requirement_type='document' if req_type == 'documents' else 'qualification'
+                    ).first()
+                    
+                    if requirement:
+                        # Check if this program-requirement link already exists
+                        existing_link = ProgramRequirements.query.filter_by(
+                            program_id=program.id,
+                            requirement_id=requirement.id
+                        ).first()
+                        
+                        if not existing_link:
+                            # Create the link
+                            program_req = ProgramRequirements(
+                                program_id=program.id,
+                                requirement_id=requirement.id,
+                                is_mandatory=True,
+                                is_completed=False,
+                                document_status='pending'
+                            )
+                            db.session.add(program_req)
+                            program_requirements_created += 1
+
+        if program_requirements_created > 0:
+            click.echo(f'✅ Created {program_requirements_created} program-requirement links')
+        else:
+            click.echo('✅ Program requirements already linked')
+
         # Commit all changes
         db.session.commit()
         click.echo('🎉 Database initialization completed successfully!')
@@ -235,7 +310,8 @@ def clear_dummy_data():
     try:
         from app.models import (
             CALDocuments, ApplicationDocumentUploads, ApplicationDocuments, 
-            ShelterPhotos, Notifications, Applications, CommunityUsers, User
+            ShelterPhotos, Notifications, Applications, CommunityUsers, User, Assessment, AssessmentDocument,
+            ApplicationWorkflowStatus, UserActivityLog
         )
         
         # Clear in proper order to respect foreign key constraints
@@ -247,6 +323,24 @@ def clear_dummy_data():
         # Delete notifications for community users only
         community_user_ids = db.session.query(User.id).filter_by(role='community').subquery()
         Notifications.query.filter(Notifications.user_id.in_(community_user_ids)).delete(synchronize_session='fetch')
+        
+        # Delete assessment documents first (foreign key dependency on assessments)
+        AssessmentDocument.query.filter(AssessmentDocument.assessment_id.in_(
+            db.session.query(Assessment.id).join(Applications).filter(Applications.user_id.in_(community_user_ids))
+        )).delete(synchronize_session='fetch')
+        
+        # Delete assessments by community users (foreign key dependency on applications)
+        Assessment.query.filter(Assessment.application_id.in_(
+            db.session.query(Applications.id).filter(Applications.user_id.in_(community_user_ids))
+        )).delete(synchronize_session='fetch')
+        
+        # Delete workflow status records for community users' applications
+        ApplicationWorkflowStatus.query.filter(ApplicationWorkflowStatus.application_id.in_(
+            db.session.query(Applications.id).filter(Applications.user_id.in_(community_user_ids))
+        )).delete(synchronize_session='fetch')
+        
+        # Delete activity logs for community users
+        UserActivityLog.query.filter(UserActivityLog.user_id.in_(community_user_ids)).delete(synchronize_session='fetch')
         
         # Delete applications by community users
         Applications.query.filter(Applications.user_id.in_(community_user_ids)).delete(synchronize_session='fetch')

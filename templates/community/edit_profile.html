@@ -70,6 +70,23 @@
         content: " *";
         color: #e74a3b;
     }
+    
+    .missing-field {
+        background-color: rgba(231, 74, 59, 0.08) !important;
+        border-color: #e74a3b !important;
+        border-width: 2px !important;
+    }
+    
+    .missing-field:focus {
+        background-color: rgba(231, 74, 59, 0.08) !important;
+        border-color: #e74a3b !important;
+        box-shadow: 0 0 0 0.2rem rgba(231, 74, 59, 0.25) !important;
+    }
+    
+    .missing-field-label {
+        color: #e74a3b !important;
+        font-weight: 700;
+    }
 </style>
 {% endblock %}
 
@@ -95,8 +112,8 @@
             
             <div class="row">
                 <div class="col-md-4 mb-3">
-                    <label for="first_name" class="form-label required-field">First Name</label>
-                    <input type="text" class="form-control" id="first_name" name="first_name" 
+                    <label for="first_name" class="form-label required-field {% if 'First Name' in missing_fields %}missing-field-label{% endif %}">First Name</label>
+                    <input type="text" class="form-control {% if 'First Name' in missing_fields %}missing-field{% endif %}" id="first_name" name="first_name" 
                            value="{{ user.first_name }}" required>
                 </div>
                 
@@ -107,22 +124,22 @@
                 </div>
                 
                 <div class="col-md-4 mb-3">
-                    <label for="last_name" class="form-label required-field">Last Name</label>
-                    <input type="text" class="form-control" id="last_name" name="last_name" 
+                    <label for="last_name" class="form-label required-field {% if 'Last Name' in missing_fields %}missing-field-label{% endif %}">Last Name</label>
+                    <input type="text" class="form-control {% if 'Last Name' in missing_fields %}missing-field{% endif %}" id="last_name" name="last_name" 
                            value="{{ user.last_name }}" required>
                 </div>
             </div>
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label for="mobile_no" class="form-label">Mobile Number</label>
-                    <input type="tel" class="form-control" id="mobile_no" name="mobile_no" 
+                    <label for="mobile_no" class="form-label {% if 'Mobile Number' in missing_fields %}missing-field-label{% endif %}">Mobile Number</label>
+                    <input type="tel" class="form-control {% if 'Mobile Number' in missing_fields %}missing-field{% endif %}" id="mobile_no" name="mobile_no" 
                            value="{{ profile.mobile_no or '' }}" placeholder="09XXXXXXXXX">
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label for="gender" class="form-label">Gender</label>
-                    <select class="form-control" id="gender" name="gender">
+                    <label for="gender" class="form-label {% if 'Gender' in missing_fields %}missing-field-label{% endif %}">Gender</label>
+                    <select class="form-control {% if 'Gender' in missing_fields %}missing-field{% endif %}" id="gender" name="gender">
                         <option value="">Select Gender</option>
                         <option value="Male" {% if profile and profile.gender == 'Male' %}selected{% endif %}>Male</option>
                         <option value="Female" {% if profile and profile.gender == 'Female' %}selected{% endif %}>Female</option>
@@ -156,8 +173,8 @@
                 </div>
                 
                 <div class="col-md-4 mb-3">
-                    <label for="birth_year" class="form-label">Birth Year</label>
-                    <select class="form-control" id="birth_year" name="birth_year">
+                    <label for="birth_year" class="form-label {% if 'Birth Year' in missing_fields %}missing-field-label{% endif %}">Birth Year</label>
+                    <select class="form-control {% if 'Birth Year' in missing_fields %}missing-field{% endif %}" id="birth_year" name="birth_year">
                         <option value="">Select Year</option>
                         {% for year in range(2024, 1899, -1) %}
                         <option value="{{ year }}" {% if profile and profile.birth_year == year %}selected{% endif %}>{{ year }}</option>
@@ -176,8 +193,8 @@
             
             <div class="row">
                 <div class="col-md-4 mb-3">
-                    <label for="barangay" class="form-label">Barangay</label>
-                    <input type="text" class="form-control" id="barangay" name="barangay" 
+                    <label for="barangay" class="form-label {% if 'Barangay' in missing_fields %}missing-field-label{% endif %}">Barangay</label>
+                    <input type="text" class="form-control {% if 'Barangay' in missing_fields %}missing-field{% endif %}" id="barangay" name="barangay" 
                            value="{{ profile.barangay or '' }}">
                 </div>
                 
@@ -188,15 +205,15 @@
                 </div>
                 
                 <div class="col-md-4 mb-3">
-                    <label for="municipality" class="form-label">Municipality</label>
-                    <input type="text" class="form-control" id="municipality" name="municipality" 
+                    <label for="municipality" class="form-label {% if 'Municipality' in missing_fields %}missing-field-label{% endif %}">Municipality</label>
+                    <input type="text" class="form-control {% if 'Municipality' in missing_fields %}missing-field{% endif %}" id="municipality" name="municipality" 
                            value="{{ profile.municipality or 'Mabitac' }}">
                 </div>
             </div>
             
             <div class="mb-3">
-                <label for="address" class="form-label">Complete Address</label>
-                <textarea class="form-control" id="address" name="address" rows="3">{{ profile.address or '' }}</textarea>
+                <label for="address" class="form-label {% if 'Complete Address' in missing_fields %}missing-field-label{% endif %}">Complete Address</label>
+                <textarea class="form-control {% if 'Complete Address' in missing_fields %}missing-field{% endif %}" id="address" name="address" rows="3">{{ profile.address or '' }}</textarea>
             </div>
         </div>
         
@@ -227,19 +244,27 @@
             
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label for="occupation" class="form-label">Occupation</label>
-                    <input type="text" class="form-control" id="occupation" name="occupation" 
+                    <label for="occupation" class="form-label {% if 'Occupation' in missing_fields %}missing-field-label{% endif %}">Occupation</label>
+                    <input type="text" class="form-control {% if 'Occupation' in missing_fields %}missing-field{% endif %}" id="occupation" name="occupation" 
                            value="{{ profile.occupation or '' }}" placeholder="e.g., Teacher, Farmer, Driver">
                 </div>
                 
                 <div class="col-md-6 mb-3">
-                    <label for="family_annual_income" class="form-label">Family Annual Income</label>
-                    <input type="text" class="form-control" id="family_annual_income" name="family_annual_income" 
-                           value="{{ '{:,.2f}'.format(profile.family_annual_income) if profile and profile.family_annual_income else '' }}"
-                           placeholder="e.g., 50000.00"
-                           pattern="^[0-9]{1,10}(\.[0-9]{1,2})?$|^[0-9]{1,3}(,[0-9]{3})*(\.[0-9]{1,2})?$"
-                           title="Enter a valid amount (maximum ₱10,000,000.00)">
-                    <small class="form-text text-muted">Enter annual income (₱0 - ₱10,000,000)</small>
+                    <label for="family_annual_income" class="form-label {% if 'Family Annual Income' in missing_fields %}missing-field-label{% endif %}">Family Annual Income</label>
+                    <select class="form-control {% if 'Family Annual Income' in missing_fields %}missing-field{% endif %}" id="family_annual_income" name="family_annual_income">
+                        <option value="">-- Select Income Range --</option>
+                        {% for range in income_ranges %}
+                        <option value="{{ range.min }}" 
+                            {% if profile and profile.family_annual_income is not none %}
+                                {% if (range.max and profile.family_annual_income >= range.min and profile.family_annual_income <= range.max) or (not range.max and profile.family_annual_income >= range.min) %}
+                                    selected
+                                {% endif %}
+                            {% endif %}>
+                            {{ range.display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select your annual family income range</small>
                 </div>
             </div>
         </div>
@@ -310,50 +335,7 @@ $(document).ready(function() {
         }
     });
     
-    // Format and validate income input
-    $('#family_annual_income').on('blur', function() {
-        let value = $(this).val().replace(/,/g, '');
-        if (value && !isNaN(value)) {
-            let numValue = parseFloat(value);
-            
-            // Validate range
-            if (numValue < 0) {
-                alert('Family annual income cannot be negative.');
-                $(this).val('');
-                return;
-            }
-            if (numValue > 10000000) {
-                alert('Family annual income exceeds maximum allowed value (₱10,000,000).');
-                $(this).val('10000000.00');
-                return;
-            }
-            
-            $(this).val(numValue.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }));
-        }
-    });
-    
-    // Validate on form submit
-    $('form').on('submit', function(e) {
-        let incomeInput = $('#family_annual_income').val().replace(/,/g, '');
-        if (incomeInput && !isNaN(incomeInput)) {
-            let numValue = parseFloat(incomeInput);
-            if (numValue < 0) {
-                e.preventDefault();
-                alert('Family annual income cannot be negative.');
-                $('#family_annual_income').focus();
-                return false;
-            }
-            if (numValue > 10000000) {
-                e.preventDefault();
-                alert('Family annual income exceeds maximum allowed value (₱10,000,000).');
-                $('#family_annual_income').focus();
-                return false;
-            }
-        }
-    });
+    // Family income is now a dropdown, no complex validation needed
     
     // Form validation
     $('form').submit(function(e) {

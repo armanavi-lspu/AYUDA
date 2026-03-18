@@ -6,7 +6,7 @@ from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.models import (
     Assessment, AssessmentDocument, Applications, Programs,
-    User, Notifications
+    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps
 )
 from app.extensions import db
 from app.utils import role_required
@@ -432,3 +432,41 @@ def reupload_assessment_document(assessment_id, document_id):
 
     flash('Document reloaded successfully.', 'success')
     return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/complete', methods=['POST'], endpoint='complete_assessment')
+@login_required
+@role_required('admin')
+def complete_assessment(assessment_id):
+    """Mark assessment as complete and advance workflow to next step"""
+    assessment = Assessment.query.get_or_404(assessment_id)
+    application_id = assessment.application_id
+    application = Applications.query.get_or_404(application_id)
+    
+    # Mark assessment as completed
+    assessment.status = 'completed'
+    assessment.completed_at = datetime.utcnow()
+    
+    # Find and update the workflow status for assessment step
+    assessment_step = ProgramWorkflowSteps.query.filter_by(
+        program_id=application.program_id,
+        step_type='assessment'
+    ).first()
+    
+    if assessment_step:
+        # Mark the assessment step as completed
+        workflow_status = ApplicationWorkflowStatus.query.filter_by(
+            application_id=application_id,
+            workflow_step_id=assessment_step.id
+        ).first()
+        
+        if workflow_status:
+            workflow_status.step_status = 'completed'
+            workflow_status.completed_at = datetime.utcnow()
+            workflow_status.reviewed_at = datetime.utcnow()
+            workflow_status.reviewed_by = current_user.id
+    
+    db.session.commit()
+    
+    flash('Assessment marked as complete. Proceeding to next step.', 'success')
+    return redirect(url_for('admin.view_application', application_id=application_id))

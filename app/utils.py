@@ -3,6 +3,61 @@ from flask import redirect, url_for, flash
 from flask_login import current_user
 import datetime
 
+
+def _parse_priority_group_tokens(priority_group):
+    """Split a program priority_group string into normalized tokens."""
+    if not priority_group:
+        return []
+    return [token.strip().lower() for token in str(priority_group).split(',') if token.strip()]
+
+
+def evaluate_program_profile_eligibility(priority_group, community_profile):
+    """
+    Evaluate whether a community profile is eligible based on program priority groups.
+
+    Rules:
+    - If no profile-based priority group is configured, everyone is eligible.
+    - If one or more profile-based groups are configured, user must match at least one.
+    """
+    tokens = _parse_priority_group_tokens(priority_group)
+
+    # Only these groups are enforceable using profile fields we already store.
+    enforceable_checks = {
+        'students': lambda p: bool(p and p.is_student),
+        'student': lambda p: bool(p and p.is_student),
+        'senior citizens': lambda p: bool(p and (p.age or 0) >= 60),
+        'senior citizen': lambda p: bool(p and (p.age or 0) >= 60),
+        'seniors': lambda p: bool(p and (p.age or 0) >= 60),
+        'single parents': lambda p: bool(p and p.is_solo_parent),
+        'single parent': lambda p: bool(p and p.is_solo_parent),
+        'solo parent': lambda p: bool(p and p.is_solo_parent),
+        'pwds (persons with disabilities)': lambda p: bool(p and p.is_pwd),
+        'pwd': lambda p: bool(p and p.is_pwd),
+        'persons with disabilities': lambda p: bool(p and p.is_pwd),
+        'low income families': lambda p: bool(p and p.family_annual_income is not None and float(p.family_annual_income) <= 250000),
+        'indigent families': lambda p: bool(p and p.family_annual_income is not None and float(p.family_annual_income) <= 250000),
+        'not employed individuals': lambda p: bool(p and not p.is_currently_employed),
+    }
+
+    enforceable_tokens = [token for token in tokens if token in enforceable_checks]
+    if not enforceable_tokens:
+        return {
+            'is_eligible': True,
+            'required_groups': [],
+            'matched_groups': [],
+        }
+
+    matched_groups = [
+        token for token in enforceable_tokens
+        if enforceable_checks[token](community_profile)
+    ]
+
+    return {
+        'is_eligible': len(matched_groups) > 0,
+        'required_groups': enforceable_tokens,
+        'matched_groups': matched_groups,
+    }
+
 def redirect_user_by_role(user):
     """Redirect user to appropriate dashboard based on their role."""
     if user.role == 'admin':
@@ -98,7 +153,6 @@ def calculate_profile_completion(user):
     
     # Optional but important fields (not required but add to percentage)
     optional_fields = {
-        'middle_name': user.middle_name,
         'birth_month': profile.birth_month if profile else None,
         'birth_day': profile.birth_day if profile else None,
         'sitio': profile.sitio if profile else None,
@@ -139,8 +193,7 @@ def calculate_profile_completion(user):
         'barangay': 'Barangay', 'sitio': 'Sitio', 'address': 'Complete Address',
         'municipality': 'Municipality', 'occupation': 'Occupation',
         'family_annual_income': 'Family Annual Income',
-        'is_currently_employed': 'Employment Status', 'is_student': 'Student Status',
-        'middle_name': 'Middle Name'
+        'is_currently_employed': 'Employment Status', 'is_student': 'Student Status'
     }
     
     return {

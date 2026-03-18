@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% block title %}Areas of Concern - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .aoc-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 3rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 15px 15px;
+        text-align: center;
+    }
+    
+    .aoc-header h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .aoc-header p {
+        font-size: 1.1rem;
+        opacity: 0.95;
+    }
+    
+    .aoc-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .aoc-card {
+        background: white;
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 2rem;
+    }
+    
+    .aoc-intro {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .aoc-intro h3 {
+        font-size: 1.5rem;
+        color: #3a3b45;
+        margin-bottom: 1rem;
+    }
+    
+    .aoc-intro p {
+        font-size: 1.05rem;
+        color: #5a5c69;
+        line-height: 1.6;
+    }
+    
+    .aoc-options {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    @media (min-width: 768px) {
+        .aoc-options {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+    
+    .aoc-option {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+    }
+    
+    .aoc-option input[type="checkbox"] {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+        height: 0;
+        width: 0;
+    }
+    
+    .aoc-option-label {
+        display: flex;
+        align-items: flex-start;
+        cursor: pointer;
+        width: 100%;
+        padding: 1.5rem;
+        border: 2px solid #e3e6f0;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .aoc-option input[type="checkbox"]:checked + .aoc-option-label {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    .aoc-option input[type="checkbox"]:disabled + .aoc-option-label {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .aoc-option-label:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.1);
+    }
+    
+    .aoc-option input[type="checkbox"]:disabled + .aoc-option-label:hover {
+        box-shadow: none;
+    }
+    
+    .aoc-option-icon {
+        font-size: 2rem;
+        margin-right: 1.5rem;
+        color: #667eea;
+        width: 50px;
+        text-align: center;
+        flex-shrink: 0;
+    }
+    
+    .aoc-option input[type="checkbox"]:checked + .aoc-option-label .aoc-option-icon {
+        color: #764ba2;
+    }
+    
+    .aoc-option-content h4 {
+        font-size: 1.2rem;
+        color: #3a3b45;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+    }
+    
+    .aoc-option-content p {
+        font-size: 0.95rem;
+        color: #5a5c69;
+        margin-bottom: 0;
+        line-height: 1.5;
+    }
+    
+    .aoc-checkbox {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        width: 24px;
+        height: 24px;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background: white;
+        border: 2px solid #e3e6f0;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .aoc-option input[type="checkbox"]:checked + .aoc-option-label .aoc-checkbox {
+        background: #667eea;
+        border-color: #667eea;
+    }
+    
+    .aoc-option input[type="checkbox"]:checked + .aoc-option-label .aoc-checkbox::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 1rem;
+        font-weight: bold;
+    }
+    
+    .aoc-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 3rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn-aoc-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.9rem 2.5rem;
+        font-weight: 600;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        font-size: 1rem;
+    }
+    
+    .btn-aoc-submit:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-aoc-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .aoc-note {
+        background: #f8f9fc;
+        border-left: 4px solid #17a2b8;
+        border-radius: 6px;
+        padding: 1rem 1.5rem;
+        margin-top: 2rem;
+        color: #5a5c69;
+    }
+    
+    .aoc-note i {
+        color: #17a2b8;
+        margin-right: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="aoc-header">
+    <div class="container">
+        <h2>
+            <i class="fas fa-compass mr-3" style="font-size: 2.2rem;"></i>Areas of Concern
+        </h2>
+        <p>Help us personalize program recommendations for you</p>
+    </div>
+</div>
+
+<div class="container aoc-container py-5">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <div class="aoc-card">
+        <!-- Introduction -->
+        <div class="aoc-intro">
+            <h3>What are your areas of concern?</h3>
+            <p>
+                Select exactly 2 areas to receive personalized program recommendations that match your interests and needs.
+            </p>
+        </div>
+        
+        <!-- Form -->
+        <form method="POST" id="areasForm">
+            <div class="aoc-options">
+                <!-- Business -->
+                <div class="aoc-option">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="businessConcern" name="areasOfConcern" value="Business"
+                           {% if profile and 'Business' in profile.get_areas_of_concern() %}checked{% endif %}>
+                    <label for="businessConcern" class="aoc-option-label">
+                        <div class="aoc-option-icon">
+                            <i class="fas fa-briefcase"></i>
+                        </div>
+                        <div class="aoc-option-content">
+                            <h4>Business</h4>
+                            <p>Business development, startups, entrepreneurship programs</p>
+                        </div>
+                        <div class="aoc-checkbox"></div>
+                    </label>
+                </div>
+                
+                <!-- Education -->
+                <div class="aoc-option">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="educationConcern" name="areasOfConcern" value="Education"
+                           {% if profile and 'Education' in profile.get_areas_of_concern() %}checked{% endif %}>
+                    <label for="educationConcern" class="aoc-option-label">
+                        <div class="aoc-option-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="aoc-option-content">
+                            <h4>Education</h4>
+                            <p>Scholarships, training, educational advancement programs</p>
+                        </div>
+                        <div class="aoc-checkbox"></div>
+                    </label>
+                </div>
+                
+                <!-- Medical -->
+                <div class="aoc-option">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="medicalConcern" name="areasOfConcern" value="Medical"
+                           {% if profile and 'Medical' in profile.get_areas_of_concern() %}checked{% endif %}>
+                    <label for="medicalConcern" class="aoc-option-label">
+                        <div class="aoc-option-icon">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <div class="aoc-option-content">
+                            <h4>Medical</h4>
+                            <p>Healthcare assistance, medical programs and services</p>
+                        </div>
+                        <div class="aoc-checkbox"></div>
+                    </label>
+                </div>
+                
+                <!-- Emergency -->
+                <div class="aoc-option">
+                    <input type="checkbox" class="custom-control-input" 
+                           id="emergencyConcern" name="areasOfConcern" value="Emergency"
+                           {% if profile and 'Emergency' in profile.get_areas_of_concern() %}checked{% endif %}>
+                    <label for="emergencyConcern" class="aoc-option-label">
+                        <div class="aoc-option-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="aoc-option-content">
+                            <h4>Emergency</h4>
+                            <p>Emergency relief, disaster assistance programs</p>
+                        </div>
+                        <div class="aoc-checkbox"></div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Info Note -->
+            <div class="aoc-note">
+                <i class="fas fa-lightbulb"></i>
+                <strong>Pro Tip:</strong> Choose areas that matter most to you. Your selections will help us recommend programs that are most relevant to your needs.
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="aoc-actions">
+                <button type="submit" class="btn btn-aoc-submit" id="submitBtn" disabled>
+                    <i class="fas fa-check mr-2"></i>Confirm Selection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('input[name="areasOfConcern"]');
+    const submitBtn = document.getElementById('submitBtn');
+    const MAX_SELECTIONS = 2;
+    
+    function updateCheckboxStates() {
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        
+        // Enable submit button only if exactly 2 selected
+        if (checkedCount === MAX_SELECTIONS) {
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.disabled = true;
+        }
+        
+        // Disable unchecked checkboxes if max selections reached
+        checkboxes.forEach(checkbox => {
+            if (checkedCount >= MAX_SELECTIONS && !checkbox.checked) {
+                checkbox.disabled = true;
+            } else if (checkedCount < MAX_SELECTIONS) {
+                checkbox.disabled = false;
+            }
+        });
+    }
+    
+    // Add change event listeners
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+            
+            // Prevent selecting more than MAX_SELECTIONS
+            if (checkedCount > MAX_SELECTIONS) {
+                this.checked = false;
+            }
+            
+            updateCheckboxStates();
+        });
+    });
+    
+    // Initial state
+    updateCheckboxStates();
+});
+</script>
+{% endblock %}

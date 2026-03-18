@@ -428,6 +428,13 @@ class BeneficiaryRecommender:
         return similar
 
 
+def _parse_priority_group_tokens(priority_groups):
+    """Parse a comma-separated priority groups string into normalized tokens."""
+    if not priority_groups:
+        return []
+    return [t.strip().lower() for t in str(priority_groups).split(',') if t.strip()]
+
+
 def _parse_priority_groups(priority_groups):
     """
     Parse a comma-separated priority groups string into individual priority flags.
@@ -438,11 +445,9 @@ def _parse_priority_groups(priority_groups):
     Returns:
         Tuple of (solo_parent_priority, student_priority, pwd_priority, senior_citizen_priority)
     """
-    if not priority_groups:
+    tokens = _parse_priority_group_tokens(priority_groups)
+    if not tokens:
         return False, False, False, False
-    
-    priority_groups_lower = priority_groups.lower()
-    tokens = [t.strip() for t in priority_groups_lower.split(',') if t.strip()]
     
     solo_parent = any('solo parent' in token or 'solo_parent' in token for token in tokens)
     student = any('student' in token for token in tokens)
@@ -450,6 +455,54 @@ def _parse_priority_groups(priority_groups):
     senior = any('senior' in token or 'elderly' in token for token in tokens)
     
     return solo_parent, student, pwd, senior
+
+
+def _beneficiary_matches_priority_groups(beneficiary, priority_groups):
+    """
+    Return True if beneficiary matches at least one enforceable priority group.
+
+    If no enforceable profile-based token exists, this function returns True
+    (program stays open for non-profile descriptors).
+    """
+    tokens = _parse_priority_group_tokens(priority_groups)
+    if not tokens:
+        return True
+
+    age = float(beneficiary.get('age', 0) or 0)
+    income = float(beneficiary.get('family_annual_income', 0) or 0)
+    is_student = bool(beneficiary.get('is_student'))
+    is_solo_parent = bool(beneficiary.get('is_solo_parent'))
+    is_pwd = bool(beneficiary.get('is_pwd'))
+    is_employed = bool(beneficiary.get('is_currently_employed'))
+
+    enforceable_found = False
+    for token in tokens:
+        if 'student' in token:
+            enforceable_found = True
+            if is_student:
+                return True
+        elif 'solo parent' in token or 'single parent' in token:
+            enforceable_found = True
+            if is_solo_parent:
+                return True
+        elif 'pwd' in token or 'disability' in token:
+            enforceable_found = True
+            if is_pwd:
+                return True
+        elif 'senior' in token or 'elderly' in token:
+            enforceable_found = True
+            if age >= SENIOR_CITIZEN_AGE:
+                return True
+        elif 'low income' in token or 'indigent' in token:
+            enforceable_found = True
+            if income <= 250000:
+                return True
+        elif 'not employed' in token or 'unemployed' in token:
+            enforceable_found = True
+            if not is_employed:
+                return True
+
+    return not enforceable_found
 
 
 def get_recommendations(beneficiaries_data, target_profile=None, filters=None, max_beneficiaries=50,
@@ -481,7 +534,8 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         senior_citizen_priority: Whether to prioritize senior citizens (age >= 60)
         priority_barangays: List of barangays to filter by
         priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD")
-                        Overrides individual priority flags if provided
+                        Overrides individual priority flags if provided and acts as
+                        a hard profile filter on returned beneficiaries
         min_income: Minimum income filter (default: 0, max: 10,000,000)
         max_income: Maximum income filter (default: 10,000,000)
         
@@ -525,6 +579,10 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
             barangay = b.get('barangay', '')
             if barangay not in priority_barangays:
                 continue
+
+        # Priority-group profile filter - enforce only matching profiles when configured
+        if priority_groups and not _beneficiary_matches_priority_groups(b, priority_groups):
+            continue
         
         filtered.append(b)
     

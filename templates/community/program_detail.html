@@ -417,6 +417,8 @@
             <div class="card-body text-center">
                 <h5 class="font-weight-bold mb-3">Ready to Apply?</h5>
                 {% set is_closed = program.end_date and program.end_date < today %}
+                {% set fails_profile_rule = profile_eligibility and not profile_eligibility.is_eligible %}
+                {% set has_application_restriction = application_restriction and application_restriction.is_blocked %}
                 {% if is_closed %}
                 <div class="alert alert-danger mb-3">
                     <i class="fas fa-calendar-times mr-2"></i>
@@ -426,6 +428,26 @@
                 <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
                     <i class="fas fa-lock mr-2"></i>Closed
                 </button>
+                {% elif has_application_restriction and application_restriction.type == 'active_application' %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-hourglass-half mr-2"></i>
+                    <strong>Application In Progress</strong><br>
+                    You currently have an ongoing application for <strong>{{ application_restriction.program_name }}</strong>.
+                    Please complete or resolve it before applying to another program.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-pause-circle mr-2"></i>Temporarily Unavailable
+                </button>
+                {% elif has_application_restriction and application_restriction.type == 'cooldown' %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-clock mr-2"></i>
+                    <strong>Cooldown Period Active</strong><br>
+                    You recently completed or had a scheduled release for <strong>{{ application_restriction.program_name }}</strong>.
+                    You may apply again on <strong>{{ application_restriction.lock_until.strftime('%B %d, %Y') if application_restriction.lock_until else 'a later date' }}</strong>.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-calendar-check mr-2"></i>Cooldown Active
+                </button>
                 {% elif is_full %}
                 <div class="alert alert-danger mb-3">
                     <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -434,6 +456,16 @@
                 </div>
                 <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
                     <i class="fas fa-ban mr-2"></i>Applications Closed
+                </button>
+                {% elif fails_profile_rule %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-user-times mr-2"></i>
+                    <strong>Not Eligible for This Program</strong><br>
+                    This program only accepts applicants from these profile groups:
+                    <strong>{{ profile_eligibility.required_groups | map('title') | join(', ') }}</strong>.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-lock mr-2"></i>Profile Not Eligible
                 </button>
                 {% elif completion and not completion.is_complete %}
                 <div class="alert alert-warning mb-3">

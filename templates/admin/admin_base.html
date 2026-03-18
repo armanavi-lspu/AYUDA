@@ -1,8 +1,36 @@
-{% extends "base.html" %}
-{% from "sidebar_macros.html" import admin_sidebar, mobile_sidebar_toggle, mobile_sidebar_overlay, mobile_sidebar_container %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
 
-{% block extra_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Custom styles block -->
+    {% block styles %} <!-- Global Font Style -->
+    
+    <!-- Google Fonts - Elegant & Formal Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Cinzel:wght@600;700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+    
+
+    <link
+      href="{{ url_for('static', filename='css/base.css') }}"
+      rel="stylesheet"
+    />  
+
+    {% endblock %}
+    
+    <!-- Extra CSS block for child templates -->
+    {% block extra_css %}{% endblock %}
 
     <link
       rel="stylesheet"
@@ -922,65 +950,423 @@
         }
     </style>
     
-    <title>{% block title %}Admin Dashboard - AYUDA{% endblock %}</title>
-{% endblock %}
-
-{% block content %}
-    {# Sidebar Navigation #}
-    {{ admin_sidebar(current_user) }}
-    
-    {# Mobile Sidebar Components #}
-    {{ mobile_sidebar_toggle() }}
-    {{ mobile_sidebar_overlay() }}
-    {{ mobile_sidebar_container(current_user, 'admin') }}
-    
-    {# Main Content Area #}
-    <div class="container-with-sidebar">
-        <main class="content-area flex-grow-1 py-4">
-            {# Loading Screen #}
-            <div id="loadingScreen" class="loading-screen">
-                <div class="loading-spinner">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-3 text-muted">Loading your content...</p>
+    <title>{% block title %}Community Portal{% endblock %}</title>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
+        <a class="navbar-brand navbar-brand-elegant" href="/about">AYUDA</a>        
+        <!-- Mobile menu toggle -->
+        <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="ml-auto d-flex align-items-center">
+            <!-- Notification Icon -->
+            <div class="dropdown mr-3">
+                <button class="btn btn-link text-white p-0" type="button" id="notificationDropdown" data-toggle="dropdown">
+                    <i class="fas fa-bell fa-lg"></i>
+                    <span class="badge badge-danger badge-pill position-absolute" style="top: -5px; right: -5px;"></span>
+                </button>                
+            </div>
+            
+            <!-- User Info -->
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-toggle="dropdown">
+                    <i class="fas fa-user mr-2"></i>
+                    {% if current_user.is_authenticated %}
+                        {{ current_user.first_name }} {{ current_user.last_name }}
+                    {% else %}
+                        Guest User
+                    {% endif %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="{{ url_for('admin.admin_profile') }}"><i class="fas fa-user-cog mr-2"></i>Profile</a>
+                    <a class="dropdown-item" href="{{ url_for('admin.admin_profile') }}"><i class="fas fa-cog mr-2"></i>Settings</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
                 </div>
             </div>
+        </div>
+    </nav>
 
-            {# Flash Messages #}
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-messages" style="position: fixed; top: 100px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mb-3" role="alert" style="animation: slideDown 0.3s ease-out;">
-                                <div class="d-flex align-items-start">
-                                    <div>
-                                        {% if category == 'success' %}
-                                            <i class="fas fa-check-circle me-2"></i>
-                                        {% elif category == 'error' %}
-                                            <i class="fas fa-exclamation-circle me-2"></i>
-                                        {% elif category == 'warning' %}
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                        {% elif category == 'info' %}
-                                            <i class="fas fa-info-circle me-2"></i>
-                                        {% endif %}
-                                        <strong>{{ message }}</strong>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    <!-- Side Navigation Bar -->
+    <nav class="col-md-2 d-none d-md-block sidebar collapse" id="sidebarMenu">
+        <div class="sidebar-sticky">
+            <!-- Admin User Info Container -->
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('admin.admin_profile') }}" class="user-info-container mb-4 pb-4 border-bottom text-decoration-none d-block" style="border-color: #e3e6f0 !important; transition: all 0.3s ease; cursor: pointer; padding: 0.75rem 1rem;">
+                <div class="d-flex align-items-center justify-content-center" style="transition: all 0.3s ease; max-width: 240px; margin: 0 auto;">
+                    <!-- Profile Picture -->
+                    <div class="user-avatar-wrapper mr-3" style="flex-shrink: 0; transition: all 0.3s ease;">
+                        {% if current_user.admin_pic %}
+                            <img src="{{ current_user.admin_pic }}" alt="Profile" class="rounded-circle" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid #0032A0; transition: all 0.3s ease;">
+                        {% else %}
+                            <div class="rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 60px; height: 60px; background: linear-gradient(135deg, #0032A0 0%, #002270 100%); color: white; font-weight: bold; font-size: 1.2rem; border: 2px solid #0032A0; transition: all 0.3s ease;">
+                                {{ current_user.first_name[0] | upper }}{{ current_user.last_name[0] | upper }}
                             </div>
-                        {% endfor %}
+                        {% endif %}
                     </div>
-                {% endif %}
-            {% endwith %}
+                    
+                    <!-- Admin Details -->
+                    <div class="user-details-wrapper" style="min-width: 0;">
+                        <h6 class="mb-1 font-weight-bold" style="color: #0032A0; word-break: break-word; font-size: 0.95rem; transition: all 0.3s ease;">
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        </h6>
+                        <p class="mb-0 text-muted" style="font-size: 0.8rem; transition: all 0.3s ease;">
+                            <i class="fas fa-shield-alt mr-1" style="color: #0032A0;"></i>
+                            Administrator
+                        </p>
+                    </div>
+                </div>
+            </a>
+            <style>
+                .user-info-container:hover {
+                    background-color: rgba(0, 50, 160, 0.05);
+                    border-radius: 8px;
+                }
+                .user-info-container:hover .user-avatar-wrapper img,
+                .user-info-container:hover .user-avatar-wrapper > div {
+                    box-shadow: 0 4px 12px rgba(0, 50, 160, 0.3);
+                    transform: scale(1.05);
+                }
+                .user-info-container:hover h6 {
+                    color: #002270 !important;
+                }
+            </style>
+            {% endif %}
+            
+            <!-- Date Display -->
+            <div class="text-center mb-4 p-2" style="background: linear-gradient(135deg, rgba(0, 50, 160, 0.1) 0%, rgba(0, 34, 112, 0.1) 100%); border-radius: 8px; border: 1px solid #e3e6f0;" id="todayDate">
+                <p class="mb-0" style="color: #0032A0; font-size: 1rem; font-weight: 600;">Loading...</p>
+            </div>
+            
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    const today = new Date().toLocaleDateString('en-US', options);
+                    document.getElementById('todayDate').innerHTML = '<p class="mb-0" style="color: #0032A0; font-size: 1rem; font-weight: 600;">' + today + '</p>';
+                });
+            </script>
+            
+            {% set prog_active = request.path.startswith('/admin/programs') or request.path.startswith('/admin/subsidy') %}
+            {% set comm_active = request.path.startswith('/admin/community') %}
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path == '/admin/dashboard' %} active{% endif %}" href="{{ url_for('admin.dashboard') }}">
+                        <i class="fas fa-tachometer-alt mr-2"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/announcement') %} active{% endif %}" href="{{ url_for('admin.adm_announcements') }}">
+                        <i class="fas fa-bullhorn mr-2"></i>
+                        Announcements
+                    </a>
+                </li>
+                <!-- Programs Dropdown -->
+                <li class="nav-item">
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if prog_active %} active{% endif %}" href="#programsSubmenu" data-toggle="collapse" aria-expanded="{{ 'true' if prog_active else 'false' }}">
+                        <span>
+                            <i class="fas fa-calendar-alt mr-2"></i>
+                            Programs
+                        </span>
+                        <i class="fas fa-chevron-down small"></i>
+                    </a>
+                    <div class="collapse{% if prog_active %} show{% endif %}" id="programsSubmenu">
+                        <ul class="nav flex-column pl-4">
+                            <li class="nav-item">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/programs') %} active{% endif %}" href="{{ url_for('admin.adm_programs') }}">
+                                    <i class="fas fa-hand-holding-usd mr-2"></i>
+                                    Financial Assistance
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/subsidy') %} active{% endif %}" href="{{ url_for('admin.adm_subsidy') }}">
+                                    <i class="fas fa-money-check-alt mr-2"></i>
+                                    Subsidy
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/applications') %} active{% endif %}" href="{{ url_for('admin.applications') }}">
+                        <i class="fas fa-file mr-2"></i>
+                        Applications
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/assessments') %} active{% endif %}" href="{{ url_for('admin.assessments') }}">
+                        <i class="fas fa-clipboard-check mr-2"></i>
+                        Assessments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/analytics') %} active{% endif %}" href="{{ url_for('admin.analytics') }}">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Analytics
+                    </a>
+                </li>
 
-            {# Page Content #}
-            {% block admin_content %}{% endblock %}
-        </main>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/admin/admin_management') %} active{% endif %}" href="{{ url_for('admin.admin_management') }}">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        Admin Management
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link d-flex justify-content-between align-items-center{% if comm_active %} active{% endif %}" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="{{ 'true' if comm_active else 'false' }}">
+                        <span>
+                            <i class="fas fa-user-circle mr-2"></i>
+                            Community
+                        </span>
+                        <i class="fas fa-chevron-down small"></i>
+                    </a>
+                    <div class="collapse{% if comm_active %} show{% endif %}" id="communitySubmenu">
+                        <ul class="nav flex-column pl-4">
+                            <li class="nav-item">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community') and not request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community') }}">
+                                    <i class="fas fa-users mr-2"></i>
+                                    Users
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link py-2{% if request.path.startswith('/admin/community/verify') %} active{% endif %}" href="{{ url_for('admin.community_verify') }}">
+                                    <i class="fas fa-user-check mr-2"></i>
+                                    Verify
+                                    {% if pending_verifications_count is defined and pending_verifications_count > 0 %}
+                                    <span class="badge badge-danger ml-2">{{ pending_verifications_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>                
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="content-wrapper">
+        <div class="container-fluid p-4">
+            {% block content %}
+            <h1>Welcome to Community Portal</h1>
+            <p>Select a module from the sidebar to get started.</p>
+            {% endblock %}
+        </div>
     </div>
-{% endblock %}
 
-{% block extra_js %}
-    <script src="{{ url_for('static', filename='js/sidebar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/navigation.js') }}"></script>
-{% endblock %}
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+        {% for category, message in messages %}
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+            <div class="d-flex align-items-center">
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle mr-2"></i>
+                {% elif category == 'error' %}
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle mr-2"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Bootstrap JS -->
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha384-vtXRMe3mGCbOeY7l30aIg8H9p3GdeSe4IFlP6G8JMa7o7lXvnz3GFKzPxzJdPfGK"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+      integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Flash Messages Auto-dismiss Script -->
+    <script src="{{ url_for('static', filename='js/UI.js') }}"></script>
+
+    <script>
+        // Mobile sidebar toggle
+        $('.navbar-toggler').click(function() {
+            $('.sidebar').toggleClass('d-block d-md-block');
+        });
+        
+        // Set active nav item
+        $(document).ready(function() {
+            var path = window.location.pathname;
+            $('.sidebar .nav-link').removeClass('active');
+            $('.sidebar .nav-link[href="' + path + '"]').addClass('active');
+            
+            // Auto-expand Programs submenu if a submenu item is active
+            if ($('#programsSubmenu .nav-link.active').length > 0) {
+                $('#programsSubmenu').addClass('show');
+                $('a[href="#programsSubmenu"]').attr('aria-expanded', 'true').addClass('active');
+            }
+            
+            // Also expand if current path matches any submenu item
+            $('#programsSubmenu .nav-link').each(function() {
+                if ($(this).attr('href') === path) {
+                    $(this).addClass('active');
+                    $('#programsSubmenu').addClass('show');
+                    $('a[href="#programsSubmenu"]').attr('aria-expanded', 'true').addClass('active');
+                }
+            });
+            
+            // Auto-expand Community submenu if a submenu item is active
+            if ($('#communitySubmenu .nav-link.active').length > 0) {
+                $('#communitySubmenu').addClass('show');
+                $('a[data-target="#communitySubmenu"]').attr('aria-expanded', 'true').addClass('active');
+            }
+            
+            // Also expand community if current path matches any submenu item
+            $('#communitySubmenu .nav-link').each(function() {
+                if ($(this).attr('href') === path) {
+                    $(this).addClass('active');
+                    $('#communitySubmenu').addClass('show');
+                    $('a[data-target="#communitySubmenu"]').attr('aria-expanded', 'true').addClass('active');
+                }
+            });
+            
+            // Close notification dropdown when clicking outside
+            $(document).click(function(e) {
+                if (!$(e.target).closest('.dropdown-menu, .notification-badge').length) {
+                    $('.notification-dropdown').removeClass('show');
+                }
+            });
+        });
+        
+        // Enhanced notification functions
+        function markAsRead(notificationId) {
+            fetch(`/admin/notifications/${notificationId}/read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add smooth transition for marking as read
+                    const item = document.querySelector(`[data-notification-id="${notificationId}"]`);
+                    if (item) {
+                        item.style.transition = 'all 0.3s ease';
+                        item.classList.remove('unread');
+                        
+                        // Remove unread indicator
+                        const indicator = item.querySelector('.notification-unread-indicator');
+                        if (indicator) {
+                            indicator.style.animation = 'fadeOut 0.3s ease';
+                            setTimeout(() => indicator.remove(), 300);
+                        }
+                    }
+                    
+                    // Update notification count with animation
+                    updateNotificationCount();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function markAllAsRead() {
+            fetch('/admin/notifications/mark-all-read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Animate all unread items
+                    document.querySelectorAll('.notification-item.unread').forEach((item, index) => {
+                        setTimeout(() => {
+                            item.style.transition = 'all 0.3s ease';
+                            item.classList.remove('unread');
+                            
+                            const indicator = item.querySelector('.notification-unread-indicator');
+                            if (indicator) {
+                                indicator.style.animation = 'fadeOut 0.3s ease';
+                                setTimeout(() => indicator.remove(), 300);
+                            }
+                        }, index * 100); // Stagger the animations
+                    });
+                    
+                    // Hide mark all read button with animation
+                    const markAllBtn = document.querySelector('.mark-all-btn');
+                    if (markAllBtn) {
+                        markAllBtn.style.transition = 'all 0.3s ease';
+                        markAllBtn.style.opacity = '0';
+                        markAllBtn.style.transform = 'scale(0.8)';
+                        setTimeout(() => markAllBtn.style.display = 'none', 300);
+                    }
+                    
+                    // Update notification count
+                    setTimeout(() => updateNotificationCount(), 500);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        function updateNotificationCount() {
+            const unreadCount = document.querySelectorAll('.notification-item.unread').length;
+            const countBadge = document.querySelector('.notification-count');
+            const sidebarBadge = document.querySelector('.sidebar .badge-danger');
+            
+            if (unreadCount === 0) {
+                if (countBadge) {
+                    countBadge.style.animation = 'fadeOut 0.3s ease';
+                    setTimeout(() => countBadge.style.display = 'none', 300);
+                }
+                if (sidebarBadge) {
+                    sidebarBadge.style.animation = 'fadeOut 0.3s ease';
+                    setTimeout(() => sidebarBadge.style.display = 'none', 300);
+                }
+            } else {
+                if (countBadge) {
+                    countBadge.textContent = unreadCount < 99 ? unreadCount : '99+';
+                    countBadge.style.display = 'flex';
+                    countBadge.style.animation = 'bounce 0.5s ease';
+                }
+                if (sidebarBadge) {
+                    sidebarBadge.textContent = unreadCount;
+                    sidebarBadge.style.display = 'inline';
+                }
+            }
+        }
+        
+        // Add CSS for fadeOut animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; transform: scale(1); }
+                to { opacity: 0; transform: scale(0.8); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+    
+    <!-- Extra JS block for child templates -->
+    {% block extra_js %}{% endblock %}
+
+</body>
+</html>

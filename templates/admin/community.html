@@ -52,6 +52,35 @@
     .table-hover tbody tr:hover {
         background-color: #f8f9fc;
     }
+
+    /* Sort dropdown styling */
+    .dropdown-menu {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        border-radius: 0.35rem;
+    }
+
+    .dropdown-item {
+        padding: 0.65rem 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f0f4ff;
+        color: #004085;
+    }
+
+    .dropdown-header {
+        padding: 0.65rem 1.5rem;
+        font-size: 0.85rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #sortDropdown:hover {
+        background-color: #e7f1ff;
+        color: #004085;
+    }
 </style>
 {% endblock %}
 
@@ -166,12 +195,13 @@
                                value="{{ request.args.get('search', '') }}">
                     </div>
                     <div class="col-md-2 mb-3">
-                        <label class="small font-weight-bold">Employment</label>
-                        <select class="form-control" name="employment">
+                        <label class="small font-weight-bold">Status</label>
+                        <select class="form-control" name="status">
                             <option value="">All Status</option>
-                            <option value="employed" {% if request.args.get('employment')=='employed' %}selected{% endif %}>Employed</option>
-                            <option value="student" {% if request.args.get('employment')=='student' %}selected{% endif %}>Student</option>
-                            <option value="solo_parent" {% if request.args.get('employment')=='solo_parent' %}selected{% endif %}>Solo Parent</option>
+                            <option value="student" {% if request.args.get('status')=='student' %}selected{% endif %}>Student</option>
+                            <option value="pwd_verified" {% if request.args.get('status')=='pwd_verified' %}selected{% endif %}>PWD Verified</option>
+                            <option value="senior_citizen_verified" {% if request.args.get('status')=='senior_citizen_verified' %}selected{% endif %}>Senior Citizen Verified</option>
+                            <option value="solo_parent_verified" {% if request.args.get('status')=='solo_parent_verified' %}selected{% endif %}>Solo Parent Verified</option>
                         </select>
                     </div>
                     <div class="col-md-2 mb-3">
@@ -213,8 +243,35 @@
 
     <!-- Users Table -->
     <div class="card shadow">
-        <div class="card-header py-3">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Community Members</h6>
+            <!-- Sort Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Sort users">
+                    <i class="fas fa-sort-amount-down mr-2"></i>Sort
+                </button>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
+                    <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='desc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
+                        {% if sort_by == 'date' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='asc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-up mr-2"></i>Oldest to Newest
+                        {% if sort_by == 'date' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header font-weight-bold">Sort by Name</h6>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='asc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-up mr-2"></i>A-Z
+                        {% if sort_by == 'name' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='desc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-down mr-2"></i>Z-A
+                        {% if sort_by == 'name' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">

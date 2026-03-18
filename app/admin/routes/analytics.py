@@ -334,9 +334,13 @@ def api_generate_recommendations():
     # that the CBF (content-based filtering) KNN pipeline can be used instead of
     # plain rule-based scoring.
     target_profile = None
+    effective_priority_groups = data.get('priority_groups')
     if program_id:
         program = Programs.query.get(program_id)
         if program:
+            if not effective_priority_groups and program.priority_group:
+                effective_priority_groups = program.priority_group
+
             # Gather qualification requirements to build a rich text feature
             requirements = db.session.query(Requirements).join(
                 ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
@@ -398,7 +402,7 @@ def api_generate_recommendations():
         pwd_priority=pwd_priority,
         senior_citizen_priority=senior_citizen_priority,
         priority_barangays=priority_barangays if priority_barangays else None,
-        priority_groups=data.get('priority_groups'),
+        priority_groups=effective_priority_groups,
         min_income=min_income,
         max_income=max_income
     )
@@ -429,6 +433,7 @@ def api_generate_recommendations():
         ],
         'algorithm': 'content-based-knn' if target_profile else 'rule-based-scoring',
         'program_matched': program_id is not None,
+        'priority_groups': effective_priority_groups or '',
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
 

@@ -113,8 +113,8 @@ def sign_up():
                 db.session.commit()
                 
                 login_user(new_user, remember=True)
-                flash('Account created successfully! Welcome to AYUDA!', category='success')
-                return redirect(url_for('community.dashboard'))
+                flash('Account created successfully! Please select your areas of concern to get personalized recommendations.', category='success')
+                return redirect(url_for('community.areas_of_concern', next=url_for('community.dashboard')))
                 
             except ValueError as ve:
                 db.session.rollback()

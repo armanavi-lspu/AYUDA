@@ -23,9 +23,13 @@ def community():
     
     # Get filter parameters
     search = request.args.get('search', '').strip()
-    employment_filter = request.args.get('employment', '').strip()
+    status_filter = request.args.get('status', '').strip()
     barangay_filter = request.args.get('barangay', '').strip()
     date_range = request.args.get('date_range', '').strip()
+    
+    # Get sort parameters
+    sort_by = request.args.get('sort_by', 'date').strip()  # 'date' or 'name'
+    sort_order = request.args.get('sort_order', 'desc').strip()  # 'asc' or 'desc'
     
     # Base query - only community users
     query = User.query.filter_by(role='community')
@@ -39,15 +43,17 @@ def community():
         )
         query = query.filter(search_filter)
     
-    # Apply employment filter
-    if employment_filter:
-        query = query.join(User.community_profile).filter(
-            or_(
-                User.community_profile.has(is_currently_employed=(employment_filter == 'employed')),
-                User.community_profile.has(is_student=(employment_filter == 'student')),
-                User.community_profile.has(is_solo_parent=(employment_filter == 'solo_parent'))
-            )
-        )
+    # Apply status filter (verification status)
+    if status_filter:
+        query = query.join(User.community_profile)
+        if status_filter == 'pwd_verified':
+            query = query.filter(User.community_profile.has(pwd_verification='approved'))
+        elif status_filter == 'senior_citizen_verified':
+            query = query.filter(User.community_profile.has(senior_citizen_verification='approved'))
+        elif status_filter == 'solo_parent_verified':
+            query = query.filter(User.community_profile.has(solo_parent_verification='approved'))
+        elif status_filter == 'student':
+            query = query.filter(User.community_profile.has(is_student=True))
     
     # Apply barangay filter
     if barangay_filter:
@@ -71,8 +77,18 @@ def community():
             start_date = today - timedelta(days=365)
             query = query.filter(User.created_at >= start_date)
     
-    # Order by creation date (newest first)
-    query = query.order_by(desc(User.created_at))
+    # Apply sorting
+    if sort_by == 'name':
+        # Sort by user name
+        if sort_order == 'asc':
+            query = query.order_by(User.first_name.asc(), User.last_name.asc())
+        else:
+            query = query.order_by(User.first_name.desc(), User.last_name.desc())
+    else:  # Default to date sorting
+        if sort_order == 'asc':
+            query = query.order_by(User.created_at.asc())
+        else:
+            query = query.order_by(desc(User.created_at))
     
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
@@ -127,6 +143,8 @@ def community():
         users_with_apps=users_with_apps,
         new_this_month=new_this_month,
         barangays=barangays,
+        sort_by=sort_by,
+        sort_order=sort_order,
         user=current_user
     )
 
@@ -280,6 +298,10 @@ def delete_community_user(user_id):
         
         # Delete notifications
         Notifications.query.filter_by(user_id=user_id).delete()
+        
+        # Delete activity logs
+        from app.models import UserActivityLog
+        UserActivityLog.query.filter_by(user_id=user_id).delete()
         
         # Log activity before deleting user
         from app.activity_logger import log_activity

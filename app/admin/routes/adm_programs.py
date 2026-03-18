@@ -1500,7 +1500,7 @@ def schedule_subsidy_payout():
             return jsonify({'success': False, 'message': 'Payout date must be in the future'}), 400
             
         # Get beneficiaries for selected categories
-        query = CommunityUsers.query.join(User).filter(User.role == 'community')
+        query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id).filter(User.role == 'community')
         
         # Filter by categories - ensure we only get beneficiaries that match at least one selected category
         category_filters = []
