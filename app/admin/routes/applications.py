@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import desc, or_, func
+from sqlalchemy import desc, asc, or_, func
 from app.admin import admin_bp
 from app.utils import role_required
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument
@@ -117,9 +117,23 @@ def applications():
     program_filter = request.args.get('program', '').strip()
     search = request.args.get('search', '').strip()
     date_range = request.args.get('date_range', '').strip()
+    sort_by = request.args.get('sort_by', 'severity').strip().lower()
+    sort_order = request.args.get('sort_order', '').strip().lower()
+
+    if sort_by not in ('severity', 'date', 'name'):
+        sort_by = 'severity'
+
+    if sort_order not in ('asc', 'desc'):
+        if sort_by == 'name':
+            sort_order = 'asc'
+        elif sort_by == 'date':
+            sort_order = 'desc'
+        else:
+            sort_order = 'desc'
     
     # Base query
     query = Applications.query
+    user_joined = False
     
     # Apply status filter
     if status_filter:
@@ -132,6 +146,7 @@ def applications():
     # Apply search filter (search by applicant name, email, or ID)
     if search:
         query = query.join(User, Applications.user_id == User.id)
+        user_joined = True
         # Check if search term is numeric (for ID search)
         try:
             search_id = int(search)
@@ -167,14 +182,42 @@ def applications():
             start_date = today - timedelta(days=30)
             query = query.filter(Applications.application_date >= start_date)
     
-    # Order by application date (newest first)
-    query = query.order_by(desc(Applications.application_date))
+    # Apply sorting
+    if sort_by == 'name':
+        if not user_joined:
+            query = query.join(User, Applications.user_id == User.id)
+
+        if sort_order == 'desc':
+            query = query.order_by(desc(User.last_name), desc(User.first_name), desc(Applications.application_date))
+        else:
+            query = query.order_by(asc(User.last_name), asc(User.first_name), desc(Applications.application_date))
+    elif sort_by == 'severity':
+        severity_score_expr = func.coalesce(func.max(Assessment.severity_score), -1)
+        query = query.outerjoin(Assessment, Assessment.application_id == Applications.id).group_by(Applications.id)
+
+        if sort_order == 'asc':
+            query = query.order_by(asc(severity_score_expr), desc(Applications.application_date))
+        else:
+            query = query.order_by(desc(severity_score_expr), desc(Applications.application_date))
+    else:
+        if sort_order == 'asc':
+            query = query.order_by(asc(Applications.application_date))
+        else:
+            query = query.order_by(desc(Applications.application_date))
     
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Check qualification requirements for each application
     for app in pagination.items:
+        highest_severity_assessment = Assessment.query.filter(
+            Assessment.application_id == app.id,
+            Assessment.case_severity != 'unrated'
+        ).order_by(desc(Assessment.severity_score), desc(Assessment.updated_at)).first()
+
+        app.case_severity = highest_severity_assessment.case_severity if highest_severity_assessment else 'unrated'
+        app.severity_score = highest_severity_assessment.severity_score if highest_severity_assessment else None
+
         # Get qualification requirements for this program
         qualification_reqs = db.session.query(Requirements).join(
             ProgramRequirements,
@@ -235,6 +278,8 @@ def applications():
         active_apps=active_apps,
         completed_apps=completed_apps,
         programs=programs,
+        sort_by=sort_by,
+        sort_order=sort_order,
         user=current_user
     )
 

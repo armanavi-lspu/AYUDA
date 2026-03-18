@@ -46,6 +46,21 @@
     }
     .avatar-overlay:hover { background: #2e59d9; }
     .avatar-overlay i { color: #fff; font-size: 0.8rem; }
+    
+    .profile-avatar-wrapper.clickable {
+        cursor: pointer;
+    }
+    
+    .profile-avatar-wrapper.clickable .profile-avatar,
+    .profile-avatar-wrapper.clickable .profile-avatar-placeholder {
+        transition: transform 0.2s ease, filter 0.2s ease;
+    }
+    
+    .profile-avatar-wrapper.clickable:hover .profile-avatar,
+    .profile-avatar-wrapper.clickable:hover .profile-avatar-placeholder {
+        transform: scale(1.05);
+        filter: brightness(1.1);
+    }
 
     .settings-card {
         border: none;
@@ -162,7 +177,7 @@
                 <div class="card-body text-center py-4">
                     <!-- Avatar -->
                     <form id="photoForm" action="{{ url_for('admin.upload_admin_photo') }}" method="POST" enctype="multipart/form-data">
-                        <div class="profile-avatar-wrapper mb-3 d-inline-block">
+                        <div class="profile-avatar-wrapper mb-3 d-inline-block {% if user.profile_pic %}clickable{% endif %}" {% if user.profile_pic %}onclick="showPhotoModal()"{% endif %}>
                             {% if user.profile_pic %}
                                 <img src="{{ user.profile_pic }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
                             {% else %}
@@ -171,7 +186,7 @@
                                 </div>
                                 <img src="" alt="Profile Photo" class="profile-avatar d-none" id="avatarPreview">
                             {% endif %}
-                            <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo">
+                            <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo" onclick="event.stopPropagation()">
                                 <i class="fas fa-camera"></i>
                             </label>
                             <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="d-none" onchange="previewAndSubmit(this)">
@@ -185,16 +200,6 @@
                     </h5>
                     <p class="text-muted small mb-1">{{ user.email }}</p>
                     <span class="badge badge-primary px-3 py-1">Administrator</span>
-
-                    {% if user.profile_pic %}
-                    <div class="mt-3">
-                        <form action="{{ url_for('admin.remove_admin_photo') }}" method="POST" onsubmit="return confirm('Remove profile photo?')">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash-alt mr-1"></i>Remove Photo
-                            </button>
-                        </form>
-                    </div>
-                    {% endif %}
 
                     <hr class="my-3">
 
@@ -393,11 +398,82 @@
         </div>
     </div>
 </div>
+
+<!-- Photo Preview Modal (for existing photo) -->
+<div class="modal fade" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoPreviewTitle">Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <img id="previewImage" src="" alt="Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('profilePicInput').click()">
+                    <i class="fas fa-camera mr-2"></i>Change Photo
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="removePhoto()">
+                    <i class="fas fa-trash-alt mr-2"></i>Remove Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Upload Confirmation Modal -->
+<div class="modal fade" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoConfirmTitle">Confirm Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelPhotoUpload()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="text-muted mb-3">Preview your new profile picture:</p>
+                <img id="confirmPreviewImage" src="" alt="New Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary" onclick="cancelPhotoUpload()">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmPhotoUpload()">
+                    <i class="fas fa-check mr-2"></i>Confirm & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for removing photo -->
+<form id="removePhotoForm" action="{{ url_for('admin.remove_admin_photo') }}" method="POST" style="display: none;"></form>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Preview & auto-submit photo
+    // Show photo preview modal (for viewing current photo)
+    function showPhotoModal() {
+        const image = document.getElementById('avatarPreview');
+        if (image && image.src) {
+            document.getElementById('previewImage').src = image.src;
+            $('#photoPreviewModal').modal('show');
+        }
+    }
+    
+    // Remove photo
+    function removePhoto() {
+        if (confirm('Are you sure you want to remove your profile photo?')) {
+            $('#photoPreviewModal').modal('hide');
+            document.getElementById('removePhotoForm').submit();
+        }
+    }
+
+    // Preview & show confirmation modal for new photo
     function previewAndSubmit(input) {
         if (input.files && input.files[0]) {
             const file = input.files[0];
@@ -409,16 +485,24 @@
             }
             const reader = new FileReader();
             reader.onload = function(e) {
-                const preview = document.getElementById('avatarPreview');
-                const placeholder = document.getElementById('avatarPlaceholder');
-                preview.src = e.target.result;
-                preview.classList.remove('d-none');
-                if (placeholder) placeholder.classList.add('d-none');
+                // Show the confirmation modal with preview
+                document.getElementById('confirmPreviewImage').src = e.target.result;
+                $('#photoConfirmModal').modal('show');
             };
             reader.readAsDataURL(file);
-            // Submit form
-            document.getElementById('photoForm').submit();
         }
+    }
+    
+    // Confirm and upload the photo
+    function confirmPhotoUpload() {
+        $('#photoConfirmModal').modal('hide');
+        document.getElementById('photoForm').submit();
+    }
+    
+    // Cancel photo upload and clear input
+    function cancelPhotoUpload() {
+        document.getElementById('profilePicInput').value = '';
+        $('#photoConfirmModal').modal('hide');
     }
 
     // Toggle password visibility

@@ -1,6 +1,7 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify, send_from_directory, send_file
 from flask_login import login_required, current_user
 from datetime import datetime
+import json
 import uuid
 from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
@@ -10,6 +11,7 @@ from app.models import (
 )
 from app.extensions import db
 from app.utils import role_required
+from app.activity_logger import log_activity
 import os
 from werkzeug.utils import secure_filename
 from mimetypes import guess_type
@@ -19,10 +21,31 @@ ASSESSMENT_UPLOAD_FOLDER = 'static/uploads/assessments'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
+SEVERITY_RUBRIC_FACTORS = (
+    {'key': 'urgency', 'label': 'Urgency of Need', 'weight': 0.30},
+    {'key': 'vulnerability', 'label': 'Household Vulnerability', 'weight': 0.25},
+    {'key': 'income_impact', 'label': 'Income and Dependency Burden', 'weight': 0.20},
+    {'key': 'risk_level', 'label': 'Health or Disaster Risk', 'weight': 0.15},
+    {'key': 'time_sensitivity', 'label': 'Time Sensitivity', 'weight': 0.10},
+)
+
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def suggest_severity_level(score):
+    """Map computed severity score to severity level bands."""
+    if score is None:
+        return 'unrated'
+    if score <= 24:
+        return 'low'
+    if score <= 49:
+        return 'moderate'
+    if score <= 74:
+        return 'high'
+    return 'critical'
 
 
 @admin_bp.route('/assessments', endpoint='assessments')
@@ -37,6 +60,7 @@ def assessments_index():
     search_query = request.args.get('search', '').strip()
     assessment_type = request.args.get('type', '')
     status_filter = request.args.get('status', '')
+    severity_filter = request.args.get('severity', '').strip()
 
     query = Assessment.query
 
@@ -54,6 +78,9 @@ def assessments_index():
 
     if status_filter:
         query = query.filter(Assessment.status == status_filter)
+
+    if severity_filter:
+        query = query.filter(Assessment.case_severity == severity_filter)
 
     assessments = query.order_by(desc(Assessment.created_at)).paginate(
         page=page, per_page=per_page, error_out=False
@@ -81,6 +108,7 @@ def assessments_index():
         search_query=search_query,
         assessment_type=assessment_type,
         status_filter=status_filter,
+        severity_filter=severity_filter,
         user=current_user,
     )
 
@@ -172,9 +200,25 @@ def create_assessment():
 def view_assessment(assessment_id):
     """View a single assessment with its documents"""
     assessment = Assessment.query.get_or_404(assessment_id)
+
+    severity_factors_data = {factor['key']: 3 for factor in SEVERITY_RUBRIC_FACTORS}
+    if assessment.severity_factors:
+        try:
+            stored_factors = json.loads(assessment.severity_factors)
+            if isinstance(stored_factors, dict):
+                for factor in SEVERITY_RUBRIC_FACTORS:
+                    key = factor['key']
+                    value = stored_factors.get(key)
+                    if isinstance(value, int) and 1 <= value <= 5:
+                        severity_factors_data[key] = value
+        except (ValueError, TypeError):
+            pass
+
     return render_template(
         'admin/view_assessment.html',
         assessment=assessment,
+        severity_rubric_factors=SEVERITY_RUBRIC_FACTORS,
+        severity_factors_data=severity_factors_data,
         user=current_user,
     )
 
@@ -194,6 +238,73 @@ def update_assessment(assessment_id):
     status = request.form.get('status', '').strip()
     findings = request.form.get('findings', '').strip()
     recommendations = request.form.get('recommendations', '').strip()
+    case_severity = request.form.get('case_severity', '').strip().lower()
+    severity_score_value = request.form.get('severity_score', '').strip()
+    severity_justification = request.form.get('severity_justification', '').strip()
+    severity_override = request.form.get('severity_override') == '1'
+
+    rubric_scores = {}
+    rubric_submitted = False
+    rubric_errors = []
+    for factor in SEVERITY_RUBRIC_FACTORS:
+        key = factor['key']
+        raw_value = request.form.get(f'severity_factor_{key}', '').strip()
+        if raw_value:
+            rubric_submitted = True
+        if raw_value:
+            try:
+                score_value = int(raw_value)
+                if score_value < 1 or score_value > 5:
+                    rubric_errors.append(f"{factor['label']} must be between 1 and 5.")
+                else:
+                    rubric_scores[key] = score_value
+            except ValueError:
+                rubric_errors.append(f"{factor['label']} must be a valid number.")
+
+    if case_severity and case_severity not in Assessment.SEVERITY_LEVELS:
+        flash('Invalid case severity level.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if rubric_errors:
+        flash(rubric_errors[0], 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if case_severity and case_severity != 'unrated' and len(rubric_scores) not in (0, len(SEVERITY_RUBRIC_FACTORS)):
+        flash('All severity rubric factors must be scored from 1 to 5.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    severity_score = None
+    if rubric_submitted and len(rubric_scores) == len(SEVERITY_RUBRIC_FACTORS):
+        weighted_score_sum = 0
+        for factor in SEVERITY_RUBRIC_FACTORS:
+            weighted_score_sum += rubric_scores[factor['key']] * factor['weight']
+        severity_score = round((weighted_score_sum / 5) * 100)
+    elif severity_score_value:
+        try:
+            severity_score = int(severity_score_value)
+        except ValueError:
+            flash('Severity score must be a valid whole number from 0 to 100.', 'danger')
+            return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+        if severity_score < 0 or severity_score > 100:
+            flash('Severity score must be between 0 and 100.', 'danger')
+            return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    suggested_severity = suggest_severity_level(severity_score) if severity_score is not None else 'unrated'
+
+    if not severity_override and severity_score is not None:
+        case_severity = suggested_severity
+    elif severity_override and severity_score is not None and case_severity in ('', 'unrated'):
+        flash('Select a manual severity level when override is enabled.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if case_severity in ('high', 'critical') and not severity_justification:
+        flash('Justification is required for high or critical severity.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
+
+    if case_severity and case_severity != 'unrated' and severity_score is None:
+        flash('Severity score could not be computed. Please complete all rubric factors.', 'danger')
+        return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
     if title:
         assessment.title = title
@@ -217,6 +328,35 @@ def update_assessment(assessment_id):
         assessment.findings = findings
     if recommendations is not None:
         assessment.recommendations = recommendations
+
+    if case_severity:
+        old_level = assessment.case_severity
+        old_score = assessment.severity_score
+
+        assessment.case_severity = case_severity
+        assessment.severity_score = severity_score if case_severity != 'unrated' else None
+        assessment.severity_factors = json.dumps(rubric_scores) if (case_severity != 'unrated' and rubric_scores) else None
+        assessment.severity_justification = severity_justification or None
+        assessment.severity_updated_by = current_user.id
+        assessment.severity_updated_at = datetime.utcnow()
+
+        log_activity(
+            action='update_assessment_severity',
+            action_type='update',
+            entity_type='assessment',
+            description=f'Updated severity for Assessment #{assessment.id} from {old_level} to {case_severity}',
+            entity_id=assessment.id,
+            details={
+                'application_id': assessment.application_id,
+                'old_severity': old_level,
+                'new_severity': case_severity,
+                'old_score': old_score,
+                'new_score': severity_score,
+                'rubric_scores': rubric_scores,
+                'suggested_severity': suggested_severity,
+                'severity_override': severity_override,
+            }
+        )
 
     db.session.commit()
     flash('Assessment updated successfully.', 'success')

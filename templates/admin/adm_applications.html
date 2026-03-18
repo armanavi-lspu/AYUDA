@@ -213,6 +213,16 @@
                         <i class="fas fa-sort-amount-down mr-2"></i>Sort
                     </button>
                     <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
+                        <h6 class="dropdown-header font-weight-bold">Sort by Severity</h6>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-down mr-2"></i>Highest Severity First
+                            {% if sort_by == 'severity' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-arrow-up mr-2"></i>Lowest Severity First
+                            {% if sort_by == 'severity' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <div class="dropdown-divider"></div>
                         <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
                         <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
                             <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
@@ -272,6 +282,7 @@
                             <th>ID</th>
                             <th>Applicant</th>
                             <th>Program</th>
+                            <th>Case Severity</th>
                             <th>Status</th>
                             <th>Qualifications</th>
                             <th>Progress</th>
@@ -298,6 +309,19 @@
                                 </td>
                                 <td>
                                     <span class="badge badge-light">{{ app.program.program_name }}</span>
+                                </td>
+                                <td>
+                                    {% if app.case_severity == 'critical' %}
+                                        <span class="badge badge-danger status-badge">Critical{% if app.severity_score is not none %} ({{ app.severity_score }}){% endif %}</span>
+                                    {% elif app.case_severity == 'high' %}
+                                        <span class="badge badge-warning status-badge">High{% if app.severity_score is not none %} ({{ app.severity_score }}){% endif %}</span>
+                                    {% elif app.case_severity == 'moderate' %}
+                                        <span class="badge badge-info status-badge">Moderate{% if app.severity_score is not none %} ({{ app.severity_score }}){% endif %}</span>
+                                    {% elif app.case_severity == 'low' %}
+                                        <span class="badge badge-primary status-badge">Low{% if app.severity_score is not none %} ({{ app.severity_score }}){% endif %}</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary status-badge">Unrated</span>
+                                    {% endif %}
                                 </td>
                                 <td>
                                     {% if app.application_status == 'pending' %}
@@ -366,7 +390,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-5">
+                                <td colspan="11" class="text-center text-muted py-5">
                                     <i class="fas fa-inbox fa-3x mb-3"></i>
                                     <p>No applications found</p>
                                 </td>
@@ -382,7 +406,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -392,7 +416,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.applications', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                                <a class="page-link" href="{{ url_for('admin.applications', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -410,7 +434,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

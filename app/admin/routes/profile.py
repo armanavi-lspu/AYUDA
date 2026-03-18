@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+import json
 
 from app.admin import admin_bp
 from app.models import User, AdminActivityLog, Applications, Programs, Announcements
@@ -113,6 +114,9 @@ def upload_admin_photo():
     upload_path = os.path.join(os.getcwd(), PROFILE_UPLOAD_FOLDER)
     os.makedirs(upload_path, exist_ok=True)
 
+    # Store old photo path for logging
+    old_photo = current_user.profile_pic
+
     # Delete old photo if exists
     if current_user.profile_pic:
         old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
@@ -123,7 +127,28 @@ def upload_admin_photo():
     unique_filename = f"admin_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
     file.save(os.path.join(upload_path, unique_filename))
 
-    current_user.profile_pic = f'/{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
+    new_photo_path = f'/{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
+    current_user.profile_pic = new_photo_path
+    db.session.add(current_user)
+    
+    # Log the activity
+    log_entry = AdminActivityLog(
+        admin_id=current_user.id,
+        action='profile_photo_upload',
+        action_type='update',
+        entity_type='admin',
+        entity_id=current_user.id,
+        description=f"Updated profile photo for {current_user.first_name} {current_user.last_name}",
+        details=json.dumps({
+            'old_photo': old_photo,
+            'new_photo': new_photo_path,
+            'file_name': unique_filename,
+            'file_type': ext
+        }),
+        ip_address=request.remote_addr,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(log_entry)
     db.session.commit()
     flash('Profile photo updated successfully.', 'success')
     return redirect(url_for('admin.admin_profile'))
@@ -135,10 +160,28 @@ def upload_admin_photo():
 def remove_admin_photo():
     """Remove admin profile photo."""
     if current_user.profile_pic:
+        old_photo = current_user.profile_pic
         old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
         if os.path.exists(old_path):
             os.remove(old_path)
         current_user.profile_pic = None
+        db.session.add(current_user)
+        
+        # Log the activity
+        log_entry = AdminActivityLog(
+            admin_id=current_user.id,
+            action='profile_photo_remove',
+            action_type='delete',
+            entity_type='admin',
+            entity_id=current_user.id,
+            description=f"Removed profile photo for {current_user.first_name} {current_user.last_name}",
+            details=json.dumps({
+                'removed_photo': old_photo
+            }),
+            ip_address=request.remote_addr,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(log_entry)
         db.session.commit()
         flash('Profile photo removed.', 'success')
     return redirect(url_for('admin.admin_profile'))

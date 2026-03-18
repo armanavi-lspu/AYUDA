@@ -1,7 +1,8 @@
 from functools import wraps
-from flask import redirect, url_for, flash
+from flask import redirect, url_for, flash, current_app
 from flask_login import current_user
 import datetime
+import pytz
 
 
 def _parse_priority_group_tokens(priority_group):
@@ -93,21 +94,41 @@ def role_required(allowed_role):
     return decorator
 
 def format_date(timestamp):
-    """Format datetime for display"""
+    """Format datetime for display in local timezone"""
     if not timestamp:
         return "N/A"
     if isinstance(timestamp, str):
         return timestamp
-        
-    now = datetime.datetime.utcnow()
-    diff = now - timestamp
     
-    if diff.days == 0:
-        return timestamp.strftime('%I:%M %p')
-    elif diff.days < 7:
-        return timestamp.strftime('%a, %I:%M %p')
-    else:
-        return timestamp.strftime('%b %d, %Y %I:%M %p') 
+    try:
+        # Get the configured timezone
+        tz = current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
+        
+        # Convert UTC timestamp to local timezone
+        # If timestamp is naive (no timezone info), assume it's UTC
+        if timestamp.tzinfo is None:
+            timestamp_utc = pytz.utc.localize(timestamp)
+        else:
+            timestamp_utc = timestamp
+        
+        timestamp_local = timestamp_utc.astimezone(tz)
+        
+        # Get current time in local timezone
+        now_local = datetime.datetime.now(tz)
+        
+        # Calculate difference using local times
+        diff = now_local - timestamp_local
+        
+        if diff.days == 0:
+            return timestamp_local.strftime('%I:%M %p')
+        elif diff.days < 7:
+            return timestamp_local.strftime('%a, %I:%M %p')
+        else:
+            return timestamp_local.strftime('%b %d, %Y %I:%M %p')
+    except Exception as e:
+        # Fallback if timezone conversion fails
+        print(f"Timezone conversion error: {e}")
+        return str(timestamp) 
 
 
 def calculate_profile_completion(user):

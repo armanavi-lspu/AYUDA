@@ -13,6 +13,7 @@ from app.user_activity_logger import log_profile_edit
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
+import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import desc
 
@@ -101,6 +102,10 @@ def edit_profile():
                 community_profile.sitio = request.form.get('sitio', '').strip()
                 community_profile.municipality = request.form.get('municipality', 'Mabitac').strip()
                 community_profile.address = request.form.get('address', '').strip()
+                community_profile.religion = request.form.get('religion', '').strip()
+                community_profile.place_of_birth = request.form.get('place_of_birth', '').strip()
+                community_profile.civil_status = request.form.get('civil_status', '').strip()
+                community_profile.highest_education_attainment = request.form.get('highest_education_attainment', '').strip()
                 community_profile.occupation = request.form.get('occupation', '').strip()
                 community_profile.is_currently_employed = request.form.get('is_currently_employed') == 'on'
                 community_profile.is_student = request.form.get('is_student') == 'on'
@@ -286,6 +291,13 @@ def api_profile_completion():
 
 
 # ============== VERIFICATION REQUEST ROUTES ==============
+
+PROFILE_UPLOAD_FOLDER = 'static/uploads/profile_pics'
+PROFILE_ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def profile_allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in PROFILE_ALLOWED_EXTENSIONS
+
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
 UPLOAD_FOLDER = os.path.join('static', 'uploads', 'verification_documents')
@@ -535,3 +547,105 @@ def areas_of_concern():
     return render_template('community/areas_of_concern.html',
                          user=current_user,
                          profile=community_profile)
+
+
+# ============== PROFILE PICTURE ROUTES ==============
+
+@community_bp.route('/profile/upload-photo', methods=['POST'])
+@login_required
+def upload_community_photo():
+    """Upload community user profile photo."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+    
+    if 'profile_pic' not in request.files:
+        flash('No file selected.', 'danger')
+        return redirect(url_for('community.edit_profile'))
+
+    file = request.files['profile_pic']
+    if file.filename == '':
+        flash('No file selected.', 'danger')
+        return redirect(url_for('community.edit_profile'))
+
+    if not profile_allowed_file(file.filename):
+        flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP.', 'danger')
+        return redirect(url_for('community.edit_profile'))
+
+    upload_path = os.path.join(os.getcwd(), PROFILE_UPLOAD_FOLDER)
+    os.makedirs(upload_path, exist_ok=True)
+
+    # Store old photo path for logging
+    old_photo = current_user.profile_pic
+
+    # Delete old photo if exists
+    if current_user.profile_pic:
+        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_filename = f"community_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
+    file.save(os.path.join(upload_path, unique_filename))
+
+    new_photo_path = f'/{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
+    current_user.profile_pic = new_photo_path
+    db.session.add(current_user)
+    
+    # Log the activity
+    log_entry = UserActivityLog(
+        user_id=current_user.id,
+        action='profile_photo_upload',
+        action_type='update',
+        entity_type='profile',
+        entity_id=current_user.id,
+        description=f"Updated profile photo for {current_user.first_name} {current_user.last_name}",
+        details=json.dumps({
+            'old_photo': old_photo,
+            'new_photo': new_photo_path,
+            'file_name': unique_filename,
+            'file_type': ext
+        }),
+        ip_address=request.remote_addr,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(log_entry)
+    db.session.commit()
+    flash('Profile photo updated successfully.', 'success')
+    return redirect(url_for('community.edit_profile'))
+
+
+@community_bp.route('/profile/remove-photo', methods=['POST'])
+@login_required
+def remove_community_photo():
+    """Remove community user profile photo."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+    
+    if current_user.profile_pic:
+        old_photo = current_user.profile_pic
+        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        current_user.profile_pic = None
+        db.session.add(current_user)
+        
+        # Log the activity
+        log_entry = UserActivityLog(
+            user_id=current_user.id,
+            action='profile_photo_remove',
+            action_type='delete',
+            entity_type='profile',
+            entity_id=current_user.id,
+            description=f"Removed profile photo for {current_user.first_name} {current_user.last_name}",
+            details=json.dumps({
+                'removed_photo': old_photo
+            }),
+            ip_address=request.remote_addr,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(log_entry)
+        db.session.commit()
+        flash('Profile photo removed.', 'success')
+    return redirect(url_for('community.edit_profile'))

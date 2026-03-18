@@ -5,7 +5,7 @@ Provides a simple interface to log admin activities across all admin routes.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import request
 from flask_login import current_user
 from app.extensions import db
@@ -40,7 +40,7 @@ def log_activity(action, action_type, entity_type, description, entity_id=None, 
             description=description,
             details=json.dumps(details) if details else None,
             ip_address=ip_address,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         
         db.session.add(log_entry)

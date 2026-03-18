@@ -13,6 +13,10 @@ def create_app():
     
     app.config.from_object(Config)
     
+    # Set timezone in app config
+    import pytz
+    app.config['TZ'] = pytz.timezone(app.config.get('TIMEZONE', 'Asia/Manila'))
+    
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)

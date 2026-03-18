@@ -105,7 +105,7 @@
                             <option value="home_visit" {% if assessment_type == 'home_visit' %}selected{% endif %}>Home Visit</option>
                         </select>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label class="small font-weight-bold">Status</label>
                         <select class="form-control" name="status">
                             <option value="">All Status</option>
@@ -115,6 +115,17 @@
                         </select>
                     </div>
                     <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Severity</label>
+                        <select class="form-control" name="severity">
+                            <option value="">All Severities</option>
+                            <option value="unrated" {% if severity_filter == 'unrated' %}selected{% endif %}>Unrated</option>
+                            <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+                            <option value="moderate" {% if severity_filter == 'moderate' %}selected{% endif %}>Moderate</option>
+                            <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+                            <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 mb-3">
                         <label class="small font-weight-bold">&nbsp;</label>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-grow-1">
@@ -146,6 +157,7 @@
                             <th>Program</th>
                             <th>Scheduled Date</th>
                             <th>Status</th>
+                            <th>Severity</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -189,6 +201,19 @@
                                         <span class="badge badge-danger status-badge">Cancelled</span>
                                     {% endif %}
                                 </td>
+                                <td>
+                                    {% if a.case_severity == 'critical' %}
+                                        <span class="badge badge-danger status-badge">Critical{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'high' %}
+                                        <span class="badge badge-warning status-badge">High{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'moderate' %}
+                                        <span class="badge badge-info status-badge">Moderate{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'low' %}
+                                        <span class="badge badge-primary status-badge">Low{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary status-badge">Unrated</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-center">
                                     <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" 
                                        class="btn btn-sm btn-primary" title="View Details">
@@ -199,7 +224,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">
+                                <td colspan="8" class="text-center text-muted py-5">
                                     <i class="fas fa-clipboard-check fa-3x mb-3"></i>
                                     <p>No assessments found</p>
                                     <button class="btn btn-primary" data-toggle="modal" data-target="#createAssessmentModal">
@@ -218,7 +243,7 @@
                 <ul class="pagination justify-content-center">
                     {% if assessments.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.prev_num, search=search_query, type=assessment_type, status=status_filter) }}">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.prev_num, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -228,7 +253,7 @@
                         {% if p %}
                             {% if p != assessments.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.assessments', page=p, search=search_query, type=assessment_type, status=status_filter) }}">
+                                <a class="page-link" href="{{ url_for('admin.assessments', page=p, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter) }}">
                                     {{ p }}
                                 </a>
                             </li>
@@ -246,7 +271,7 @@
                     
                     {% if assessments.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.next_num, search=search_query, type=assessment_type, status=status_filter) }}">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.next_num, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

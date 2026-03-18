@@ -1,9 +1,14 @@
 from app.extensions import db
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.sql import func
 import secrets
 import string
+
+
+def get_utc_now():
+    """Get current UTC time as timezone-aware datetime"""
+    return datetime.now(timezone.utc)
 
 
 class JsonSerializableMixin:
@@ -23,7 +28,7 @@ class User(db.Model, UserMixin):
     profile_pic = db.Column(db.String(255))
     last_activity = db.Column(db.DateTime)
     profile_complete_alert_dismissed = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
         
     # Relationships
     created_programs = db.relationship('Programs', backref='creator', lazy=True)
@@ -52,7 +57,7 @@ class Programs(db.Model):
     start_date = db.Column(db.Date)  # Program start date (optional, especially for one-time/time-bound programs)
     end_date = db.Column(db.Date)  # Program end date / deadline for document submission (optional)
     description = db.Column(db.Text)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
+    date = db.Column(db.DateTime, default=get_utc_now)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     file_attachment_id = db.Column(db.Integer, db.ForeignKey('file_attachment.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True, index=True)  # NEW: Track active programs
@@ -84,8 +89,8 @@ class ProgramWorkflowSteps(db.Model):
     requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
     allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
     step_config = db.Column(db.Text)  # JSON configuration for step-specific settings (required documents, etc.)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
     
     # Relationships
     program = db.relationship('Programs', back_populates='workflow_steps')
@@ -143,7 +148,7 @@ class Requirements(db.Model):
     requirement_name = db.Column(db.String(255), nullable=False)  # Changed from document_name
     requirement_type = db.Column(db.String(50), nullable=False, default='document', index=True)  # NEW: 'document' or 'qualification'
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     # Relationships
     application_documents = db.relationship('ApplicationDocuments', back_populates='requirement')
@@ -161,7 +166,7 @@ class ProgramRequirements(db.Model):
     is_mandatory = db.Column(db.Boolean, default=True)
     is_completed = db.Column(db.Boolean, default=True)
     document_status = db.Column(db.String(20), nullable=False, default='pending') # 'draft' or 'published'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     # Relationships
     program = db.relationship('Programs', back_populates='program_requirements')
@@ -181,8 +186,8 @@ class Announcements(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     program_id = db.Column(db.Integer, db.ForeignKey('programs.id'), nullable=True)  # Link to program
     attachment_url = db.Column(db.String(500), nullable=True)  # External link or attachment URL
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now, index=True)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
     
     # Relationships
     images = db.relationship('AnnouncementImages', backref='announcement', lazy=True, cascade='all, delete-orphan')
@@ -199,7 +204,7 @@ class AnnouncementImages(db.Model):
     image_path = db.Column(db.String(255), nullable=False)
     caption = db.Column(db.String(255))
     display_order = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     def __repr__(self):
         return f'<AnnouncementImage {self.id}>'
@@ -242,8 +247,8 @@ class Applications(db.Model):
     cancellation_admin_notes = db.Column(db.Text)  # Admin notes about cancellation decision
     
     remarks = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
     
     # Add composite indexes for common queries
     __table_args__ = (
@@ -329,7 +334,7 @@ class Applications(db.Model):
             existing = Applications.query.filter_by(verification_code=code).first()
             if not existing:
                 self.verification_code = code
-                self.code_generated_at = datetime.utcnow()
+                self.code_generated_at = datetime.now(timezone.utc)
                 return code
     
     def __repr__(self):
@@ -347,8 +352,8 @@ class ApplicationDocuments(db.Model):
     verified_at = db.Column(db.DateTime)
     admin_feedback = db.Column(db.Text)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
     
     # Relationships
     requirement = db.relationship('Requirements', back_populates='application_documents')
@@ -390,8 +395,8 @@ class ApplicationDocumentUploads(db.Model):
     admin_feedback = db.Column(db.Text)  # Feedback from admin review
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
     
     # Relationships
     requirement = db.relationship('Requirements')
@@ -418,7 +423,7 @@ class FileAttachment(db.Model):
     file_size = db.Column(db.Integer)
     file_type = db.Column(db.String(100))
     uploaded_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=get_utc_now)
     attachment_type = db.Column(db.String(50))
     
     uploader = db.relationship('User', backref='uploaded_files')
@@ -438,7 +443,7 @@ class Notifications(db.Model):
     is_read = db.Column(db.Boolean, default=False, index=True)
     related_id = db.Column(db.Integer, nullable=True)  # ID of related resource (application, announcement, etc.)
     related_type = db.Column(db.String(50), nullable=True)  # Type: 'application', 'announcement', 'program', etc.
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     def get_url(self):
         """Generate the appropriate URL for this notification based on its type"""
@@ -494,6 +499,10 @@ class CommunityUsers(db.Model):
     sitio = db.Column(db.String(100))
     address = db.Column(db.Text)
     municipality = db.Column(db.String(100), default='Mabitac')
+    religion = db.Column(db.String(100))  # NEW: Religion
+    place_of_birth = db.Column(db.String(200))  # NEW: Place of birth
+    civil_status = db.Column(db.String(50))  # NEW: Civil status (Single, Married, Divorced, Widowed, etc.)
+    highest_education_attainment = db.Column(db.String(100))  # NEW: Highest education (Elementary, High School, College, etc.)
     is_currently_employed = db.Column(db.Boolean, default=False, index=True) 
     occupation = db.Column(db.String(100))
     occupation_sector = db.Column(db.String(100))  # Logical grouping: agriculture, services, education, etc.
@@ -502,7 +511,7 @@ class CommunityUsers(db.Model):
     is_pwd = db.Column(db.Boolean, default=False, index=True)  
     disability_type = db.Column(db.String(100))
     family_annual_income = db.Column(db.Numeric(12, 2), index=True)  
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     # Verification status fields for Senior Citizen, PWD, Solo Parent
     # Status values: 'none', 'pending', 'approved', 'rejected'
@@ -556,7 +565,7 @@ class AdminUsers(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
     
     def __repr__(self):
         return f'<AdminUser {self.user_id}>'
@@ -568,7 +577,7 @@ class ShelterPhotos(db.Model):
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False)
     photo_path = db.Column(db.String(255), nullable=False)
     caption = db.Column(db.String(255))
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=get_utc_now)
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
     verification_status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected'
@@ -590,7 +599,7 @@ class CALDocuments(db.Model):
     file_path = db.Column(db.String(255), nullable=False)
     original_filename = db.Column(db.String(255))
     description = db.Column(db.Text)  # For proposal: brief description of the business plan
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_at = db.Column(db.DateTime, default=get_utc_now)
     verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     verified_at = db.Column(db.DateTime)
     verification_status = db.Column(db.String(20), default='pending')  # 'pending', 'approved', 'rejected'
@@ -658,7 +667,7 @@ class UserActivityLog(db.Model):
     description = db.Column(db.Text, nullable=False)
     details = db.Column(db.Text)  # JSON string for extra context
     ip_address = db.Column(db.String(45))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=get_utc_now, index=True)
     
     # Relationships
     user = db.relationship('User', foreign_keys=[user_id])
@@ -775,6 +784,8 @@ class Assessment(db.Model):
     """SCSR Assessment: interviews, home visits, and case study records"""
     __tablename__ = 'assessments'
 
+    SEVERITY_LEVELS = ('unrated', 'low', 'moderate', 'high', 'critical')
+
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False, index=True)
     assessment_type = db.Column(db.String(50), nullable=False, index=True)  # 'interview', 'home_visit'
@@ -786,6 +797,12 @@ class Assessment(db.Model):
     status = db.Column(db.String(20), nullable=False, default='scheduled', index=True)  # 'scheduled', 'completed', 'cancelled'
     findings = db.Column(db.Text)  # SCSR output / assessment findings
     recommendations = db.Column(db.Text)
+    case_severity = db.Column(db.String(20), nullable=False, default='unrated', index=True)
+    severity_score = db.Column(db.Integer, index=True)  # 0 to 100
+    severity_factors = db.Column(db.Text)  # JSON string breakdown of rubric factors
+    severity_justification = db.Column(db.Text)
+    severity_updated_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    severity_updated_at = db.Column(db.DateTime)
     conducted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -794,10 +811,21 @@ class Assessment(db.Model):
     # Relationships
     application = db.relationship('Applications', backref='assessments')
     conductor = db.relationship('User', backref='conducted_assessments', foreign_keys=[conducted_by])
+    severity_reviewer = db.relationship('User', backref='severity_updated_assessments', foreign_keys=[severity_updated_by])
     documents = db.relationship('AssessmentDocument', backref='assessment', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Assessment {self.id}: {self.assessment_type} for Application {self.application_id}>'
+
+    @property
+    def severity_display(self):
+        """Human-readable severity label"""
+        return (self.case_severity or 'unrated').replace('_', ' ').title()
+
+    @property
+    def has_scored_severity(self):
+        """True when the assessment has both level and numeric score"""
+        return self.case_severity not in (None, '', 'unrated') and self.severity_score is not None
 
 
 class AssessmentDocument(db.Model):

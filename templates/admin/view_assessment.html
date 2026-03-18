@@ -21,6 +21,34 @@
         padding: 0.35rem 0.75rem;
         font-weight: 600;
     }
+
+    /* Fullscreen Modal Styles */
+    #fullscreenModal .modal-body {
+        flex: 1 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+    }
+
+    [id^="fullscreen-preview-"] {
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    [id^="fullscreen-preview-"] iframe {
+        width: 100% !important;
+        height: 100% !important;
+        display: block !important;
+        border: none !important;
+    }
+
+    [id^="fullscreen-preview-"] img {
+        max-width: 95% !important;
+        max-height: 95% !important;
+    }
 </style>
 {% endblock %}
 
@@ -55,6 +83,37 @@
                     <span class="badge badge-danger badge-pill px-3 py-2" style="font-size: 0.9rem;">
                         <i class="fas fa-circle mr-1"></i>Cancelled
                     </span>
+                {% endif %}
+                {% if assessment.case_severity == 'critical' %}
+                    <div class="mt-2">
+                        <span class="badge badge-danger badge-pill px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>Critical Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
+                        </span>
+                    </div>
+                {% elif assessment.case_severity == 'high' %}
+                    <div class="mt-2">
+                        <span class="badge badge-warning badge-pill px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-exclamation-circle mr-1"></i>High Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
+                        </span>
+                    </div>
+                {% elif assessment.case_severity == 'moderate' %}
+                    <div class="mt-2">
+                        <span class="badge badge-info badge-pill px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-balance-scale mr-1"></i>Moderate Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
+                        </span>
+                    </div>
+                {% elif assessment.case_severity == 'low' %}
+                    <div class="mt-2">
+                        <span class="badge badge-primary badge-pill px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-check-circle mr-1"></i>Low Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
+                        </span>
+                    </div>
+                {% else %}
+                    <div class="mt-2">
+                        <span class="badge badge-secondary badge-pill px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-minus-circle mr-1"></i>Severity Unrated
+                        </span>
+                    </div>
                 {% endif %}
                 <div class="text-light mt-2" style="font-size: 0.85rem;">
                     <i class="fas fa-calendar-alt mr-1"></i>
@@ -230,16 +289,87 @@
                             <small class="text-muted font-weight-bold">Recommendations</small>
                             <textarea name="recommendations" class="form-control" rows="3" placeholder="Enter recommendations...">{{ assessment.recommendations or '' }}</textarea>
                         </div>
+                        <hr>
+                        <h6 class="font-weight-bold"><i class="fas fa-layer-group mr-1"></i> Case Severity (Prioritization)</h6>
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <small class="text-muted font-weight-bold">Severity Level</small>
+                                <select name="case_severity" id="severityLevelSelect" class="form-control">
+                                    <option value="unrated" {% if assessment.case_severity == 'unrated' %}selected{% endif %}>Unrated</option>
+                                    <option value="low" {% if assessment.case_severity == 'low' %}selected{% endif %}>Low</option>
+                                    <option value="moderate" {% if assessment.case_severity == 'moderate' %}selected{% endif %}>Moderate</option>
+                                    <option value="high" {% if assessment.case_severity == 'high' %}selected{% endif %}>High</option>
+                                    <option value="critical" {% if assessment.case_severity == 'critical' %}selected{% endif %}>Critical</option>
+                                </select>
+                                <small id="severitySuggestionText" class="form-text text-muted mt-1">Suggested level will appear after score calculation.</small>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="severityOverrideCheckbox" name="severity_override" value="1">
+                                    <label class="form-check-label small" for="severityOverrideCheckbox">
+                                        Override suggested severity manually
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-4">
+                                <small class="text-muted font-weight-bold">Severity Score (0-100)</small>
+                                <input type="text" id="severityScoreDisplay" class="form-control" value="{{ assessment.severity_score if assessment.severity_score is not none else 'Auto-calculated from rubric' }}" readonly>
+                                <input type="hidden" name="severity_score" id="severityScore" value="{{ assessment.severity_score if assessment.severity_score is not none else '' }}">
+                            </div>
+                            <div class="form-group col-md-4">
+                                <small class="text-muted font-weight-bold">Last Severity Update</small>
+                                <input type="text" class="form-control" value="{{ assessment.severity_updated_at.strftime('%b %d, %Y %I:%M %p') if assessment.severity_updated_at else 'Not yet scored' }}" readonly>
+                            </div>
+                        </div>
+                        <div class="card border-left-info mb-3">
+                            <div class="card-body py-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted font-weight-bold mb-0">Weighted Rubric Factors (1 to 5 scale)</small>
+                                    <small class="text-muted">1 = lowest urgency, 5 = highest urgency</small>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Factor</th>
+                                                <th>Weight</th>
+                                                <th style="width: 180px;">Score (1-5)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for factor in severity_rubric_factors %}
+                                            <tr>
+                                                <td>{{ factor.label }}</td>
+                                                <td>{{ (factor.weight * 100) | int }}%</td>
+                                                <td>
+                                                    <select name="severity_factor_{{ factor.key }}" class="form-control form-control-sm severity-factor-input" data-weight="{{ factor.weight }}">
+                                                        <option value="1" {% if severity_factors_data[factor.key] == 1 %}selected{% endif %}>1</option>
+                                                        <option value="2" {% if severity_factors_data[factor.key] == 2 %}selected{% endif %}>2</option>
+                                                        <option value="3" {% if severity_factors_data[factor.key] == 3 %}selected{% endif %}>3</option>
+                                                        <option value="4" {% if severity_factors_data[factor.key] == 4 %}selected{% endif %}>4</option>
+                                                        <option value="5" {% if severity_factors_data[factor.key] == 5 %}selected{% endif %}>5</option>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <small class="text-muted font-weight-bold">Severity Justification</small>
+                            <textarea name="severity_justification" class="form-control" rows="3" placeholder="Explain why this case should be prioritized at the selected severity level.">{{ assessment.severity_justification or '' }}</textarea>
+                            <small class="form-text text-muted">Required for high and critical levels to support fairness and auditability.</small>
+                        </div>
                         <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>Save Changes</button>
                     </form>
                 </div>
             </div>
 
-            <!-- Documents Section -->
+            <!-- Supporting Documents Section -->
             <div class="card shadow mb-4">
                 <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold">
-                        <i class="fas fa-folder-open mr-2"></i>Documents
+                        <i class="fas fa-folder-open mr-2"></i>Supporting Documents
                     </h6>
                     <button class="btn btn-sm btn-light" data-toggle="modal" data-target="#uploadDocModal">
                         <i class="fas fa-upload mr-1"></i>Upload Document
@@ -289,7 +419,7 @@
                     {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">No documents uploaded yet.</p>
+                        <p class="text-muted mb-0">No supporting documents uploaded yet.</p>
                     </div>
                     {% endif %}
                 </div>
@@ -333,7 +463,9 @@
 
 <!-- Preview Document Modals -->
 {% for doc in assessment.documents %}
-<div class="modal fade" id="previewModal{{ doc.id }}" tabindex="-1" role="dialog">
+<div class="modal fade" id="previewModal{{ doc.id }}" tabindex="-1" role="dialog"
+    data-filename="{{ doc.original_filename }}"
+    data-view-url="{{ url_for('admin.view_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
@@ -353,12 +485,46 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" data-dismiss="modal" data-toggle="modal" data-target="#fullscreenModal{{ doc.id }}" title="Enlarge document to full size">
+                    <i class="fas fa-expand mr-1"></i>Enlarge
+                </button>
                 <button type="button" class="btn btn-warning" data-dismiss="modal" data-toggle="modal" data-target="#reuploadModal{{ doc.id }}">
                     <i class="fas fa-redo mr-1"></i>Reupload
                 </button>
                 <button type="button" class="btn btn-danger" data-dismiss="modal" data-toggle="modal" data-target="#deleteModal{{ doc.id }}">
                     <i class="fas fa-trash mr-1"></i>Delete
                 </button>
+                <a href="{{ url_for('admin.download_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>Download
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fullscreen Preview Modal -->
+<div class="modal fade" id="fullscreenModal{{ doc.id }}" tabindex="-1" role="dialog" 
+    data-filename="{{ doc.original_filename }}"
+    data-view-url="{{ url_for('admin.view_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}">
+    <div class="modal-dialog modal-xl" role="document" style="max-width: 95vw; max-height: 95vh;">
+        <div class="modal-content" style="height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-expand-alt mr-2"></i>{{ doc.original_filename }}
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow: auto; display: flex; flex-direction: column;">
+                <div id="fullscreen-preview-{{ doc.id }}" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close Fullscreen</button>
                 <a href="{{ url_for('admin.download_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}" class="btn btn-primary">
                     <i class="fas fa-download mr-1"></i>Download
                 </a>
@@ -492,14 +658,105 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function getSeverityLevelFromScore(score) {
+        if (score === null || score === undefined || isNaN(score)) {
+            return 'unrated';
+        }
+        if (score <= 24) {
+            return 'low';
+        }
+        if (score <= 49) {
+            return 'moderate';
+        }
+        if (score <= 74) {
+            return 'high';
+        }
+        return 'critical';
+    }
+
+    function formatSeverityLabel(level) {
+        if (!level) {
+            return 'Unrated';
+        }
+        return level.charAt(0).toUpperCase() + level.slice(1);
+    }
+
+    function calculateSeverityScoreFromRubric() {
+        var factorInputs = document.querySelectorAll('.severity-factor-input');
+        var weightedTotal = 0;
+        var hasValidFactors = true;
+
+        factorInputs.forEach(function(input) {
+            var score = parseInt(input.value || '0', 10);
+            var weight = parseFloat(input.getAttribute('data-weight') || '0');
+
+            if (!score || score < 1 || score > 5) {
+                hasValidFactors = false;
+                return;
+            }
+
+            weightedTotal += (score * weight);
+        });
+
+        var hiddenScoreInput = document.getElementById('severityScore');
+        var scoreDisplayInput = document.getElementById('severityScoreDisplay');
+        var severitySelect = document.getElementById('severityLevelSelect');
+        var overrideCheckbox = document.getElementById('severityOverrideCheckbox');
+        var suggestionText = document.getElementById('severitySuggestionText');
+
+        if (hasValidFactors && factorInputs.length > 0) {
+            var computedScore = Math.round((weightedTotal / 5) * 100);
+            var suggestedLevel = getSeverityLevelFromScore(computedScore);
+            hiddenScoreInput.value = computedScore;
+            scoreDisplayInput.value = computedScore;
+
+            if (!overrideCheckbox.checked) {
+                severitySelect.value = suggestedLevel;
+            }
+
+            suggestionText.textContent = 'Suggested level from score band: ' + formatSeverityLabel(suggestedLevel) + ' (' + computedScore + ')';
+        } else {
+            hiddenScoreInput.value = '';
+            scoreDisplayInput.value = 'Auto-calculated from rubric';
+            suggestionText.textContent = 'Suggested level will appear after score calculation.';
+        }
+    }
+
+    var severitySelect = document.getElementById('severityLevelSelect');
+    var overrideCheckbox = document.getElementById('severityOverrideCheckbox');
+    var initialSeverity = severitySelect ? severitySelect.value : 'unrated';
+
+    function initializeOverrideState() {
+        var existingScoreValue = parseInt((document.getElementById('severityScore') || {}).value || '', 10);
+        if (isNaN(existingScoreValue) || !severitySelect || !overrideCheckbox) {
+            return;
+        }
+
+        var suggestedLevel = getSeverityLevelFromScore(existingScoreValue);
+        if (initialSeverity !== 'unrated' && initialSeverity !== suggestedLevel) {
+            overrideCheckbox.checked = true;
+        }
+    }
+
+    var rubricInputs = document.querySelectorAll('.severity-factor-input');
+    rubricInputs.forEach(function(input) {
+        input.addEventListener('change', calculateSeverityScoreFromRubric);
+    });
+
+    if (overrideCheckbox) {
+        overrideCheckbox.addEventListener('change', calculateSeverityScoreFromRubric);
+    }
+
+    initializeOverrideState();
+    calculateSeverityScoreFromRubric();
+
     // Handle preview modals
-    {% for doc in assessment.documents %}
-    $('#previewModal{{ doc.id }}').on('show.bs.modal', function(e) {
-        var previewContainer = $('#preview-{{ doc.id }}');
-        var docId = '{{ doc.id }}';
-        var filename = '{{ doc.original_filename }}';
+    $('[id^="previewModal"]').on('show.bs.modal', function(e) {
+        var modal = $(this);
+        var previewContainer = modal.find('[id^="preview-"]');
+        var filename = modal.data('filename') || '';
         var fileExtension = filename.split('.').pop().toLowerCase();
-        var viewUrl = "{{ url_for('admin.view_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}";
+        var viewUrl = modal.data('view-url') || '';
         
         // Check file type and load appropriate preview
         if (['pdf'].includes(fileExtension)) {
@@ -522,7 +779,51 @@ document.addEventListener('DOMContentLoaded', function() {
             `);
         }
     });
-    {% endfor %}
+
+    // Handle fullscreen preview modals
+    $('[id^="fullscreenModal"]').on('show.bs.modal', function(e) {
+        var modal = $(this);
+        var previewContainer = modal.find('[id^="fullscreen-preview-"]');
+        var filename = modal.data('filename') || '';
+        var fileExtension = filename.split('.').pop().toLowerCase();
+        var viewUrl = modal.data('view-url') || '';
+        
+        // Check file type and load appropriate preview
+        if (['pdf'].includes(fileExtension)) {
+            previewContainer.html(`
+                <iframe src="${viewUrl}" type="application/pdf" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+            `);
+        } else if (['jpg', 'jpeg', 'png'].includes(fileExtension)) {
+            previewContainer.html(`
+                <img src="${viewUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="Document Preview">
+            `);
+        } else {
+            previewContainer.html(`
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Preview not available for this file type. Please download to view.
+                </div>
+                <div class="text-center">
+                    <p class="text-muted">File: <strong>${filename}</strong></p>
+                </div>
+            `);
+        }
+    });
+
+    // Handle fullscreen modal shown event to ensure proper sizing
+    $('[id^="fullscreenModal"]').on('shown.bs.modal', function(e) {
+        var previewContainer = $(this).find('[id^="fullscreen-preview-"]');
+        var iframe = previewContainer.find('iframe');
+        
+        // Force recalculation of iframe dimensions
+        if (iframe.length) {
+            iframe.css({
+                'width': '100%',
+                'height': '100%',
+                'display': 'block'
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

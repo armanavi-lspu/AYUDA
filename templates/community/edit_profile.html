@@ -87,6 +87,65 @@
         color: #e74a3b !important;
         font-weight: 700;
     }
+
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .profile-avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #fff;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .avatar-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: #667eea;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #fff;
+        transition: background 0.2s;
+    }
+    .avatar-overlay:hover { background: #5568d3; }
+    .avatar-overlay i { color: #fff; font-size: 0.8rem; }
+    
+    .profile-avatar-wrapper.clickable {
+        cursor: pointer;
+    }
+    
+    .profile-avatar-wrapper.clickable .profile-avatar,
+    .profile-avatar-wrapper.clickable .profile-avatar-placeholder {
+        transition: transform 0.2s ease, filter 0.2s ease;
+    }
+    
+    .profile-avatar-wrapper.clickable:hover .profile-avatar,
+    .profile-avatar-wrapper.clickable:hover .profile-avatar-placeholder {
+        transform: scale(1.05);
+        filter: brightness(1.1);
+    }
 </style>
 {% endblock %}
 
@@ -102,7 +161,34 @@
 </div>
 
 <div class="container pb-5">
-    <form method="POST" action="{{ url_for('community.edit_profile') }}">
+    <!-- Profile Picture Section -->
+    <div class="form-section">
+        <h5 class="section-header">
+            <i class="fas fa-image"></i>
+            Profile Picture
+        </h5>
+        <div class="text-center py-3">
+            <form id="photoForm" action="{{ url_for('community.upload_community_photo') }}" method="POST" enctype="multipart/form-data">
+                <div class="profile-avatar-wrapper mb-3 d-inline-block {% if user.profile_pic %}clickable{% endif %}" {% if user.profile_pic %}onclick="showPhotoModal()"{% endif %}>
+                    {% if user.profile_pic %}
+                        <img src="{{ user.profile_pic }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
+                    {% else %}
+                        <div class="profile-avatar-placeholder" id="avatarPlaceholder">
+                            {{ user.first_name[0] | upper }}{{ user.last_name[0] | upper }}
+                        </div>
+                        <img src="" alt="Profile Photo" class="profile-avatar d-none" id="avatarPreview">
+                    {% endif %}
+                    <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo" onclick="event.stopPropagation()">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                    <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="d-none" onchange="previewAndSubmit(this)">
+                </div>
+            </form>
+            <p class="text-muted small mt-2">Click the image or camera icon to upload a new profile picture</p>
+        </div>
+    </div>
+    
+    <form method="POST" action="{{ url_for('community.edit_profile') }}" id="editProfileForm">
         <!-- Basic Information -->
         <div class="form-section">
             <h5 class="section-header">
@@ -217,6 +303,68 @@
             </div>
         </div>
         
+        <!-- Personal Details -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-user-circle"></i>
+                Personal Details
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="religion" class="form-label">Religion</label>
+                    <select class="form-control" id="religion" name="religion">
+                        <option value="">Select Religion</option>
+                        <option value="Roman Catholic" {% if profile and profile.religion == 'Roman Catholic' %}selected{% endif %}>Roman Catholic</option>
+                        <option value="Protestant" {% if profile and profile.religion == 'Protestant' %}selected{% endif %}>Protestant</option>
+                        <option value="Islam" {% if profile and profile.religion == 'Islam' %}selected{% endif %}>Islam</option>
+                        <option value="Jehovah's Witness" {% if profile and profile.religion == "Jehovah's Witness" %}selected{% endif %}>Jehovah's Witness</option>
+                        <option value="Buddhist" {% if profile and profile.religion == 'Buddhist' %}selected{% endif %}>Buddhist</option>
+                        <option value="Christian Orthodox" {% if profile and profile.religion == 'Christian Orthodox' %}selected{% endif %}>Christian Orthodox</option>
+                        <option value="Hindu" {% if profile and profile.religion == 'Hindu' %}selected{% endif %}>Hindu</option>
+                        <option value="Atheist/Agnostic" {% if profile and profile.religion == 'Atheist/Agnostic' %}selected{% endif %}>Atheist/Agnostic</option>
+                        <option value="Others" {% if profile and profile.religion == 'Others' %}selected{% endif %}>Others</option>
+                        <option value="Prefer not to say" {% if profile and profile.religion == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="civil_status" class="form-label">Civil Status</label>
+                    <select class="form-control" id="civil_status" name="civil_status">
+                        <option value="">Select Civil Status</option>
+                        <option value="Single" {% if profile and profile.civil_status == 'Single' %}selected{% endif %}>Single</option>
+                        <option value="Married" {% if profile and profile.civil_status == 'Married' %}selected{% endif %}>Married</option>
+                        <option value="Divorced" {% if profile and profile.civil_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                        <option value="Widowed" {% if profile and profile.civil_status == 'Widowed' %}selected{% endif %}>Widowed</option>
+                        <option value="Separated" {% if profile and profile.civil_status == 'Separated' %}selected{% endif %}>Separated</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="place_of_birth" class="form-label">Place of Birth</label>
+                    <input type="text" class="form-control" id="place_of_birth" name="place_of_birth" 
+                           value="{{ profile.place_of_birth or '' }}" placeholder="City/Municipality, Province">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="highest_education_attainment" class="form-label">Highest Education Attainment</label>
+                    <select class="form-control" id="highest_education_attainment" name="highest_education_attainment">
+                        <option value="">Select Education Level</option>
+                        <option value="No Formal Education" {% if profile and profile.highest_education_attainment == 'No Formal Education' %}selected{% endif %}>No Formal Education</option>
+                        <option value="Elementary School" {% if profile and profile.highest_education_attainment == 'Elementary School' %}selected{% endif %}>Elementary School</option>
+                        <option value="High School" {% if profile and profile.highest_education_attainment == 'High School' %}selected{% endif %}>High School</option>
+                        <option value="Vocational/Technical" {% if profile and profile.highest_education_attainment == 'Vocational/Technical' %}selected{% endif %}>Vocational/Technical</option>
+                        <option value="Some College" {% if profile and profile.highest_education_attainment == 'Some College' %}selected{% endif %}>Some College</option>
+                        <option value="Bachelor's Degree" {% if profile and profile.highest_education_attainment == "Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree</option>
+                        <option value="Master's Degree" {% if profile and profile.highest_education_attainment == "Master's Degree" %}selected{% endif %}>Master's Degree</option>
+                        <option value="Doctorate" {% if profile and profile.highest_education_attainment == 'Doctorate' %}selected{% endif %}>Doctorate</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
         <!-- Employment & Education -->
         <div class="form-section">
             <h5 class="section-header">
@@ -320,10 +468,114 @@
         </div>
     </form>
 </div>
+
+<!-- Photo Preview Modal (for viewing current photo) -->
+<div class="modal fade" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoPreviewTitle">Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <img id="previewImage" src="" alt="Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('profilePicInput').click()">
+                    <i class="fas fa-camera mr-2"></i>Change Photo
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="removePhoto()">
+                    <i class="fas fa-trash-alt mr-2"></i>Remove Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Upload Confirmation Modal -->
+<div class="modal fade" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoConfirmTitle">Confirm Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelPhotoUpload()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="text-muted mb-3">Preview your new profile picture:</p>
+                <img id="confirmPreviewImage" src="" alt="New Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary" onclick="cancelPhotoUpload()">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmPhotoUpload()">
+                    <i class="fas fa-check mr-2"></i>Confirm & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for removing photo -->
+<form id="removePhotoForm" action="{{ url_for('community.remove_community_photo') }}" method="POST" style="display: none;"></form>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // Show photo preview modal (for viewing current photo)
+    function showPhotoModal() {
+        const image = document.getElementById('avatarPreview');
+        if (image && image.src) {
+            document.getElementById('previewImage').src = image.src;
+            $('#photoPreviewModal').modal('show');
+        }
+    }
+    
+    // Remove photo
+    function removePhoto() {
+        if (confirm('Are you sure you want to remove your profile photo?')) {
+            $('#photoPreviewModal').modal('hide');
+            document.getElementById('removePhotoForm').submit();
+        }
+    }
+
+    // Preview & show confirmation modal for new photo
+    function previewAndSubmit(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Show the confirmation modal with preview
+                document.getElementById('confirmPreviewImage').src = e.target.result;
+                $('#photoConfirmModal').modal('show');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Confirm and upload the photo
+    function confirmPhotoUpload() {
+        $('#photoConfirmModal').modal('hide');
+        document.getElementById('photoForm').submit();
+    }
+    
+    // Cancel photo upload and clear input
+    function cancelPhotoUpload() {
+        document.getElementById('profilePicInput').value = '';
+        $('#photoConfirmModal').modal('hide');
+    }
+
 $(document).ready(function() {
     // Show/hide disability type field based on PWD checkbox
     $('#is_pwd').change(function() {
@@ -338,7 +590,7 @@ $(document).ready(function() {
     // Family income is now a dropdown, no complex validation needed
     
     // Form validation
-    $('form').submit(function(e) {
+    $('form#editProfileForm').submit(function(e) {
         let isValid = true;
         
         // Check required fields
