@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.community import community_bp
-from app.models import Applications, Announcements, Programs, User
+from app.models import Applications, Announcements, Programs, User, Assessment
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
@@ -78,6 +78,28 @@ def dashboard():
                     'date': claim_date,
                     'status': app.application_status,
                     'description': 'Visit the office to claim your assistance'
+                })
+        
+        # Add scheduled assessments
+        scheduled_assessments = Assessment.query.filter_by(
+            application_id=app.id,
+            status='scheduled'
+        ).all()
+        
+        for assessment in scheduled_assessments:
+            if assessment.scheduled_date and assessment.scheduled_date >= datetime.now():
+                assessment_type_label = assessment.assessment_type.replace('_', ' ').title()
+                schedule_events.append({
+                    'type': 'assessment',
+                    'title': f'{assessment_type_label} Assessment',
+                    'program': app.program.program_name,
+                    'application_id': app.id,
+                    'assessment_id': assessment.id,
+                    'date': assessment.scheduled_date,
+                    'time': assessment.scheduled_time,
+                    'location': assessment.location,
+                    'status': 'scheduled',
+                    'description': f'{assessment_type_label} scheduled at {assessment.location or "TBD"}'
                 })
     
     # Sort events by date and get next 5

@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func, case
+from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 import secrets
@@ -153,7 +154,7 @@ def community():
 @role_required('admin')
 def view_community_user(user_id):
     """View detailed information about a community user"""
-    community_user = User.query.filter_by(id=user_id, role='community').first_or_404()
+    community_user = User.query.options(joinedload(User.community_profile)).filter_by(id=user_id, role='community').first_or_404()
     
     # Get application statistics
     total_apps = Applications.query.filter_by(user_id=user_id).count()
@@ -187,7 +188,8 @@ def view_community_user(user_id):
         rejected_apps=rejected_apps,
         applications=applications,
         user_activities=user_activities,
-        user=current_user
+        user=current_user,
+        get_income_range_display=get_income_range_display
     )
 
 @admin_bp.route('/community/reset-password/<int:user_id>', methods=['POST'])

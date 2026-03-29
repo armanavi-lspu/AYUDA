@@ -4,10 +4,12 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment
 from app.extensions import db
 from app.utils import role_required
 from app.activity_logger import log_activity
+from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
+from app.community.routes.profile import get_income_range_display
 import os
 from werkzeug.utils import secure_filename
 
@@ -15,10 +17,46 @@ from werkzeug.utils import secure_filename
 UPLOAD_FOLDER = 'static/uploads/programs'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+DEFAULT_TARGET_AGE = 30
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _parse_program_income_upper_bound(income_range):
+    """Parse a program income range string and return a reasonable upper bound."""
+    if not income_range:
+        return 250000
+
+    normalized = str(income_range).replace(',', '').strip().lower()
+    numbers = []
+    current = ''
+    for ch in normalized:
+        if ch.isdigit() or ch == '.':
+            current += ch
+        elif current:
+            try:
+                numbers.append(float(current))
+            except ValueError:
+                pass
+            current = ''
+    if current:
+        try:
+            numbers.append(float(current))
+        except ValueError:
+            pass
+
+    if not numbers:
+        return 250000
+
+    if 'below' in normalized or 'under' in normalized:
+        return max(numbers)
+    if 'above' in normalized or 'over' in normalized:
+        return max(numbers) * 1.5
+    if len(numbers) >= 2:
+        return max(numbers)
+    return numbers[0]
 
 @admin_bp.route('/programs', endpoint='adm_programs')
 @login_required
@@ -251,8 +289,18 @@ def add_program():
             Requirements.requirement_type,
             Requirements.requirement_name
         ).all()
+
+        barangays = [
+            row[0] for row in db.session.query(CommunityUsers.barangay)
+            .filter(CommunityUsers.barangay.isnot(None))
+            .distinct()
+            .order_by(CommunityUsers.barangay)
+            .all()
+        ]
+
         return render_template('admin/add_program.html', 
                              requirements=requirements,
+                             barangays=barangays,
                              user=current_user)
     
     if request.method == 'POST':
@@ -350,11 +398,49 @@ def add_program():
             # Add program requirements
             for req_id in requirement_ids:
                 is_mandatory = str(req_id) in mandatory_requirements
+                
+                # Get multiple copy specifications
+                copy_specs_key = f'copy_specs_{req_id}'
+                copy_specs_json = request.form.get(copy_specs_key, '[]')
+                
+                # Parse and validate copy specifications
+                import json
+                try:
+                    copy_specs = json.loads(copy_specs_json)
+                except:
+                    copy_specs = []
+                
+                # Validate each specification
+                valid_copy_types = ['original', 'photocopy', 'certified_true_copy']
+                validated_specs = []
+                
+                for spec in copy_specs:
+                    try:
+                        copy_type = spec.get('type', 'original')
+                        copy_count = int(spec.get('count', 1))
+                        
+                        if copy_type not in valid_copy_types:
+                            copy_type = 'original'
+                        if copy_count < 1 or copy_count > 10:
+                            copy_count = 1
+                        
+                        validated_specs.append({
+                            'type': copy_type,
+                            'count': copy_count
+                        })
+                    except (ValueError, TypeError, AttributeError):
+                        continue
+                
+                # If no valid specs, use default
+                if not validated_specs:
+                    validated_specs = [{'type': 'original', 'count': 1}]
+                
                 prog_req = ProgramRequirements(
                     program_id=new_program.id,
                     requirement_id=int(req_id),
                     is_mandatory=is_mandatory
                 )
+                prog_req.set_copy_specifications(validated_specs)
                 db.session.add(prog_req)
             
             # Add workflow steps
@@ -445,6 +531,22 @@ def edit_program(id):
         # Get existing program requirements
         existing_reqs = {pr.requirement_id: pr.is_mandatory for pr in program.program_requirements}
         
+        # Get all barangays for filter dropdown
+        barangays = [
+            row[0] for row in db.session.query(CommunityUsers.barangay)
+            .filter(CommunityUsers.barangay.isnot(None))
+            .distinct()
+            .order_by(CommunityUsers.barangay)
+            .all()
+        ]
+        
+        # Get count of eligible unscheduled applications
+        eligible_unscheduled_count = Applications.query.filter(
+            Applications.program_id == program.id,
+            Applications.application_status == 'completed',
+            Applications.claim_status == 'not_scheduled'
+        ).count()
+        
         # Add application and requirement counts
         program.application_count = Applications.query.filter_by(program_id=program.id).count()
         program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
@@ -453,6 +555,8 @@ def edit_program(id):
                              program=program,
                              requirements=requirements,
                              existing_reqs=existing_reqs,
+                             barangays=barangays,
+                             eligible_unscheduled_count=eligible_unscheduled_count,
                              user=current_user,
                              today=datetime.utcnow().date())
     
@@ -469,6 +573,85 @@ def edit_program(id):
     elif 'program_name' in request.form:  # Program info update
         update_type = 'program_info'
     
+    def _extract_copy_specs_from_form(form, req_id, mode='default'):
+        """Extract copy specs from form data with fallbacks.
+
+        mode='edit' expects edit tab naming first, mode='default' expects add/modal naming first.
+        """
+        import json
+
+        valid_copy_types = ['original', 'photocopy', 'certified_true_copy']
+        specs = []
+
+        if mode == 'edit':
+            json_keys = [f'copy_specs_edit_{req_id}', f'copy_specs_{req_id}']
+            type_keys = [f'copy_type_edit_{req_id}[]', f'copy_type_{req_id}[]']
+            count_keys = [f'copy_count_edit_{req_id}[]', f'copy_count_{req_id}[]']
+            legacy_count_key = f'copies_{req_id}'
+            legacy_type_key = f'copy_type_{req_id}'
+        else:
+            json_keys = [f'copy_specs_{req_id}', f'copy_specs_edit_{req_id}']
+            type_keys = [f'copy_type_{req_id}[]', f'copy_type_edit_{req_id}[]']
+            count_keys = [f'copy_count_{req_id}[]', f'copy_count_edit_{req_id}[]']
+            legacy_count_key = f'copies_{req_id}'
+            legacy_type_key = f'copy_type_{req_id}'
+
+        # 1) Preferred hidden JSON payload
+        for key in json_keys:
+            raw = form.get(key)
+            if raw:
+                try:
+                    parsed = json.loads(raw)
+                    if isinstance(parsed, list):
+                        specs = parsed
+                        break
+                except Exception:
+                    continue
+
+        # 2) Array payload fallback: copy_type_*[] + copy_count_*[]
+        if not specs:
+            type_values = []
+            count_values = []
+            for key in type_keys:
+                vals = form.getlist(key)
+                if vals:
+                    type_values = vals
+                    break
+            for key in count_keys:
+                vals = form.getlist(key)
+                if vals:
+                    count_values = vals
+                    break
+
+            if type_values:
+                for idx, t in enumerate(type_values):
+                    c = count_values[idx] if idx < len(count_values) else 1
+                    specs.append({'type': t, 'count': c})
+
+        # 3) Legacy single-value fallback
+        if not specs:
+            specs = [{
+                'type': form.get(legacy_type_key, 'original'),
+                'count': form.get(legacy_count_key, 1)
+            }]
+
+        validated_specs = []
+        for spec in specs:
+            try:
+                copy_type = spec.get('type', 'original')
+                copy_count = int(spec.get('count', 1))
+            except Exception:
+                continue
+
+            if copy_type not in valid_copy_types:
+                copy_type = 'original'
+            if copy_count < 1 or copy_count > 10:
+                copy_count = 1
+
+            validated_specs.append({'type': copy_type, 'count': copy_count})
+
+        return validated_specs or [{'type': 'original', 'count': 1}]
+
     try:
         if update_type == 'requirements':
             # Handle requirements-only update
@@ -477,13 +660,16 @@ def edit_program(id):
             # Delete existing requirements
             ProgramRequirements.query.filter_by(program_id=id).delete()
             
-            # Add new requirements (all as mandatory for now)
+            # Add new requirements with their copy specifications
             for req_id in requirement_ids:
+                copy_specs = _extract_copy_specs_from_form(request.form, req_id, mode='default')
+                
                 prog_req = ProgramRequirements(
                     program_id=id,
                     requirement_id=int(req_id),
                     is_mandatory=True  # Default to mandatory
                 )
+                prog_req.set_copy_specifications(copy_specs)
                 db.session.add(prog_req)
             
             # Update the last modified timestamp
@@ -689,14 +875,17 @@ def edit_program(id):
             # Delete existing requirements
             ProgramRequirements.query.filter_by(program_id=id).delete()
             
-            # Add new requirements
+            # Add new requirements with copy specifications
             for req_id in requirement_ids:
                 is_mandatory = str(req_id) in mandatory_requirements
+                copy_specs = _extract_copy_specs_from_form(request.form, req_id, mode='edit')
+                
                 prog_req = ProgramRequirements(
                     program_id=id,
                     requirement_id=int(req_id),
                     is_mandatory=is_mandatory
                 )
+                prog_req.set_copy_specifications(copy_specs)
                 db.session.add(prog_req)
         
         # Update workflow steps (only for full program updates, not modal-specific updates)
@@ -849,6 +1038,304 @@ def view_program(id):
         recent_applications=recent_applications,
         user=current_user
     )
+
+
+@admin_bp.route('/programs/<int:program_id>/ranked-list', endpoint='program_ranked_list')
+@login_required
+@role_required('admin')
+def program_ranked_list(program_id):
+    """Dedicated page for generating ranked beneficiaries for a program."""
+    program = Programs.query.get_or_404(program_id)
+
+    barangays = [
+        row[0] for row in db.session.query(CommunityUsers.barangay)
+        .filter(CommunityUsers.barangay.isnot(None))
+        .distinct()
+        .order_by(CommunityUsers.barangay)
+        .all()
+    ]
+
+    eligible_unscheduled_count = Applications.query.filter(
+        Applications.program_id == program_id,
+        Applications.application_status == 'completed',
+        Applications.claim_status == 'not_scheduled'
+    ).count()
+
+    return render_template(
+        'admin/program_ranked_list.html',
+        program=program,
+        barangays=barangays,
+        eligible_unscheduled_count=eligible_unscheduled_count,
+        user=current_user
+    )
+
+
+@admin_bp.route('/programs/<int:program_id>/generate-ranked-list', methods=['POST'], endpoint='generate_program_ranked_list')
+@login_required
+@role_required('admin')
+def generate_program_ranked_list(program_id):
+    """Generate ranked beneficiaries for a specific program from completed/unscheduled applications only."""
+    program = Programs.query.get_or_404(program_id)
+    data = request.get_json() or {}
+
+    try:
+        max_beneficiaries = int(data.get('max_beneficiaries', 50))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid max beneficiaries value.'}), 400
+
+    if max_beneficiaries < 1:
+        return jsonify({'success': False, 'message': 'Max beneficiaries must be at least 1.'}), 400
+    if max_beneficiaries > 1000:
+        return jsonify({'success': False, 'message': 'Max beneficiaries cannot exceed 1000.'}), 400
+
+    try:
+        min_income = float(data.get('min_income', 0) or 0)
+        max_income = float(data.get('max_income', 10000000) or 10000000)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid income range values.'}), 400
+
+    if min_income < 0 or max_income < 0 or min_income > 10000000 or max_income > 10000000:
+        return jsonify({'success': False, 'message': 'Income range must be between 0 and 10,000,000.'}), 400
+    if min_income > max_income:
+        return jsonify({'success': False, 'message': 'Minimum income cannot be greater than maximum income.'}), 400
+
+    priority_barangays = data.get('priority_barangays', []) or []
+    priority_groups = (data.get('priority_groups') or program.priority_group or '').strip()
+    case_severity = (data.get('case_severity') or '').strip()
+    solo_parent_priority = bool(data.get('solo_parent_priority', False))
+    student_priority = bool(data.get('student_priority', False))
+    pwd_priority = bool(data.get('pwd_priority', False))
+    senior_citizen_priority = bool(data.get('senior_citizen_priority', False))
+
+    # Restrict candidate pool to completed applications that are not yet scheduled for claiming.
+    query = db.session.query(
+        Applications.id.label('application_id'),
+        Applications.application_date,
+        User.id.label('user_id'),
+        User.first_name,
+        User.last_name,
+        User.email,
+        CommunityUsers.age,
+        CommunityUsers.barangay,
+        CommunityUsers.family_annual_income,
+        CommunityUsers.is_solo_parent,
+        CommunityUsers.is_student,
+        CommunityUsers.is_pwd,
+        CommunityUsers.is_currently_employed,
+        CommunityUsers.occupation
+    ).join(
+        User, Applications.user_id == User.id
+    ).join(
+        CommunityUsers, User.id == CommunityUsers.user_id
+    ).filter(
+        Applications.program_id == program_id,
+        Applications.application_status == 'completed',
+        Applications.claim_status == 'not_scheduled'
+    )
+    
+    # Apply severity case filtering if specified
+    if case_severity and case_severity in ['unrated', 'low', 'moderate', 'high', 'critical']:
+        # Order severity levels for filtering: we want to include the specified level and higher
+        severity_levels = ['critical', 'high', 'moderate', 'low', 'unrated']
+        severity_index = severity_levels.index(case_severity)
+        included_severities = severity_levels[:severity_index + 1]
+        
+        # Subquery to get the most severe case for each application
+        max_severity_subquery = db.session.query(
+            func.max(Assessment.case_severity).label('max_severity'),
+            Assessment.application_id
+        ).group_by(Assessment.application_id).subquery()
+        
+        query = query.outerjoin(
+            max_severity_subquery,
+            Applications.id == max_severity_subquery.c.application_id
+        ).filter(
+            or_(
+                max_severity_subquery.c.max_severity.in_(included_severities),
+                max_severity_subquery.c.max_severity.is_(None)  # Include applicants without assessments
+            )
+        )
+    
+    eligible_rows = query.all()
+
+    if not eligible_rows:
+        return jsonify({
+            'success': True,
+            'count': 0,
+            'eligible_pool_count': 0,
+            'recommendations': [],
+            'message': 'No eligible beneficiaries found. Only completed applications that are not yet scheduled are included.'
+        })
+
+    user_ids = [row.user_id for row in eligible_rows]
+
+    # Map user_id to application_id and application_date for quick actions from ranked results.
+    application_id_map = {row.user_id: row.application_id for row in eligible_rows}
+    application_date_map = {row.user_id: row.application_date for row in eligible_rows}
+
+    # Build compact application history signal for better CBF relevance.
+    app_history_rows = db.session.query(
+        Applications.user_id,
+        Programs.program_name,
+        Programs.program_type
+    ).join(
+        Programs, Applications.program_id == Programs.id
+    ).filter(
+        Applications.user_id.in_(user_ids),
+        Applications.application_status.in_(['approved', 'active', 'completed'])
+    ).all()
+
+    app_history_map = {}
+    for user_id, program_name, program_type in app_history_rows:
+        token = ' '.join(filter(None, [program_name, program_type]))
+        if user_id in app_history_map:
+            app_history_map[user_id] += ' ' + token
+        else:
+            app_history_map[user_id] = token
+
+    # Build severity map for each application
+    severity_map = {}
+    if user_ids:
+        severity_rows = db.session.query(
+            Applications.user_id,
+            func.max(Assessment.case_severity).label('max_severity')
+        ).join(
+            Assessment, Assessment.application_id == Applications.id
+        ).filter(
+            Applications.user_id.in_(user_ids)
+        ).group_by(Applications.user_id).all()
+        
+        for user_id, max_severity in severity_rows:
+            severity_map[user_id] = max_severity or 'unrated'
+
+    beneficiaries_data = [
+        {
+            'user_id': row.user_id,
+            'first_name': row.first_name,
+            'last_name': row.last_name,
+            'email': row.email,
+            'age': row.age,
+            'barangay': row.barangay,
+            'family_annual_income': float(row.family_annual_income) if row.family_annual_income and 0 <= row.family_annual_income <= 10000000 else 0,
+            'is_solo_parent': row.is_solo_parent,
+            'is_student': row.is_student,
+            'is_pwd': row.is_pwd,
+            'is_currently_employed': row.is_currently_employed,
+            'occupation': row.occupation,
+            'past_applications': app_history_map.get(row.user_id, ''),
+            'case_severity': severity_map.get(row.user_id, 'unrated'),
+        }
+        for row in eligible_rows
+    ]
+
+    requirements = db.session.query(Requirements).join(
+        ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+    ).filter(
+        ProgramRequirements.program_id == program_id,
+        Requirements.requirement_type == 'qualification'
+    ).all()
+
+    req_text = ' '.join([
+        req.requirement_name + ' ' + (req.description or '')
+        for req in requirements
+    ])
+    priority_group = (program.priority_group or '').lower()
+    priority_tokens = [token.strip() for token in priority_group.split(',') if token.strip()]
+    senior_targeted = any(
+        token in {'senior', 'senior citizen', 'senior citizens', 'seniors', 'elderly'} or 'senior' in token
+        for token in priority_tokens
+    )
+
+    max_income_target = _parse_program_income_upper_bound(program.income_range)
+    target_profile = {
+        'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
+        'family_annual_income': max_income_target / 2 if max_income_target > 0 else 0,
+        'barangay': 'Unknown',
+        'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
+        'is_student': 'student' in priority_group,
+        'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
+        'is_currently_employed': False,
+        'occupation': req_text or program.description or '',
+        'past_applications': ' '.join(filter(None, [
+            program.program_name,
+            program.program_type,
+            program.priority_group or ''
+        ])),
+    }
+
+    ranked = get_recommendations(
+        beneficiaries_data=beneficiaries_data,
+        target_profile=target_profile,
+        max_beneficiaries=max_beneficiaries,
+        solo_parent_priority=solo_parent_priority,
+        student_priority=student_priority,
+        pwd_priority=pwd_priority,
+        senior_citizen_priority=senior_citizen_priority,
+        priority_barangays=priority_barangays if priority_barangays else None,
+        priority_groups=priority_groups,
+        min_income=min_income,
+        max_income=max_income,
+        case_severity_prioritization=bool(case_severity),
+    )
+
+    recommendations = []
+    for row in ranked:
+        user_id = row.get('user_id')
+        
+        # Use 'score' if available (from rule-based path), otherwise compute from similarity_score
+        if 'score' in row:
+            score_value = row.get('score', 0.0)
+        elif 'similarity_score' in row:
+            # CBF path: compute combined score with case severity
+            breakdown = row.get('score_breakdown', {})
+            score_value = (
+                breakdown.get('severity_component', 0) +
+                breakdown.get('income_score', 0) +
+                breakdown.get('solo_parent_bonus', 0) +
+                breakdown.get('student_bonus', 0) +
+                breakdown.get('pwd_bonus', 0) +
+                breakdown.get('senior_bonus', 0)
+            )
+        else:
+            score_value = 0.0
+        
+        family_annual_income = row.get('family_annual_income', 0)
+        # Ensure income is numeric for the display function
+        try:
+            income_numeric = float(family_annual_income) if family_annual_income else 0.0
+        except (ValueError, TypeError):
+            income_numeric = 0.0
+        
+        # Format application date
+        app_date = application_date_map.get(user_id)
+        application_date_str = app_date.strftime('%B %d, %Y at %I:%M %p') if app_date else 'N/A'
+        
+        recommendations.append({
+            'application_id': application_id_map.get(user_id),
+            'user_id': user_id,
+            'name': f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+            'email': row.get('email', ''),
+            'barangay': row.get('barangay', 'N/A'),
+            'income': family_annual_income,
+            'income_range': get_income_range_display(income_numeric),
+            'application_date': application_date_str,
+            'case_severity': row.get('case_severity', 'unrated'),
+            'age': row.get('age'),
+            'is_solo_parent': row.get('is_solo_parent', False),
+            'is_student': row.get('is_student', False),
+            'is_pwd': row.get('is_pwd', False),
+            'is_senior': (row.get('age') or 0) >= SENIOR_CITIZEN_AGE,
+            'score': float(score_value),
+            'score_breakdown': row.get('score_breakdown', {}),
+        })
+
+    return jsonify({
+        'success': True,
+        'count': len(recommendations),
+        'eligible_pool_count': len(beneficiaries_data),
+        'recommendations': recommendations,
+        'message': 'Ranked list generated from completed and unscheduled applications only.'
+    })
 
 @admin_bp.route('/programs/<int:id>/requirements', methods=['GET'])
 @login_required

@@ -154,11 +154,75 @@
                         </div>
                         <div class="col-md-12 mb-3">
                             <strong>Family Annual Income:</strong>
-                            <p>{{ '₱{:,.2f}'.format(community_user.community_profile.family_annual_income) if community_user.community_profile.family_annual_income else 'Not provided' }}</p>
+                            {% if community_user.community_profile.family_annual_income is not none %}
+                                {% set income_val = community_user.community_profile.family_annual_income %}
+                                {% if income_val <= 10000 %}
+                                    <p>Below ₱10,000 (Indigent Families)</p>
+                                {% elif income_val <= 20000 %}
+                                    <p>₱10,000 - ₱20,000 (Low Income Families)</p>
+                                {% elif income_val <= 30000 %}
+                                    <p>₱20,001 - ₱30,000 (Low Income Families)</p>
+                                {% elif income_val <= 40000 %}
+                                    <p>₱30,001 - ₱40,000</p>
+                                {% elif income_val <= 50000 %}
+                                    <p>₱40,001 - ₱50,000</p>
+                                {% elif income_val <= 75000 %}
+                                    <p>₱50,001 - ₱75,000</p>
+                                {% elif income_val <= 100000 %}
+                                    <p>₱75,001 - ₱100,000</p>
+                                {% elif income_val <= 150000 %}
+                                    <p>₱100,001 - ₱150,000</p>
+                                {% elif income_val <= 200000 %}
+                                    <p>₱150,001 - ₱200,000</p>
+                                {% elif income_val <= 300000 %}
+                                    <p>₱200,001 - ₱300,000</p>
+                                {% elif income_val <= 400000 %}
+                                    <p>₱300,001 - ₱400,000</p>
+                                {% elif income_val <= 500000 %}
+                                    <p>₱400,001 - ₱500,000</p>
+                                {% else %}
+                                    <p>₱500,001 and above</p>
+                                {% endif %}
+                            {% else %}
+                                <p>Not provided</p>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
                     <p class="text-muted">No profile information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Personal Details -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-id-card mr-2"></i>Personal Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if community_user.community_profile %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <strong>Religion:</strong>
+                            <p>{{ community_user.community_profile.religion or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Civil Status:</strong>
+                            <p>{{ community_user.community_profile.civil_status or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Place of Birth:</strong>
+                            <p>{{ community_user.community_profile.place_of_birth or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong>Highest Education Attainment:</strong>
+                            <p>{{ community_user.community_profile.highest_education_attainment or 'Not provided' }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No personal details information available.</p>
                     {% endif %}
                 </div>
             </div>

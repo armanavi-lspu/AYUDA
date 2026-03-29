@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, request, render_template
 from flask_login import login_required, current_user
 from app.admin import admin_bp
 from app.utils import role_required
@@ -125,3 +125,84 @@ def _get_icon_type(title):
     elif 'application' in title_lower or 'applied' in title_lower:
         return 'primary'
     return 'info'
+
+
+@admin_bp.route('/notifications-list')
+@login_required
+@role_required('admin')
+def view_notifications():
+    """Display all notifications for the current admin with pagination and filtering"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
+    status_filter = request.args.get('status', 'all')  # 'all', 'unread', 'read'
+    
+    # Base query
+    query = Notifications.query.filter_by(user_id=current_user.id)
+    
+    # Apply status filter
+    if status_filter == 'unread':
+        query = query.filter_by(is_read=False)
+    elif status_filter == 'read':
+        query = query.filter_by(is_read=True)
+    
+    # Order by newest first
+    query = query.order_by(desc(Notifications.created_at))
+    
+    # Paginate
+    paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+    notifications = paginated.items
+    
+    # Add icons and styles to notifications
+    for notification in notifications:
+        notification.icon = _get_icon(notification.notif_title)
+        notification.icon_type = _get_icon_type(notification.notif_title)
+    
+    # Get statistics
+    total_count = Notifications.query.filter_by(user_id=current_user.id).count()
+    unread_count = Notifications.query.filter_by(user_id=current_user.id, is_read=False).count()
+    
+    return render_template('admin/notifications.html',
+                         notifications=notifications,
+                         paginated=paginated,
+                         total_count=total_count,
+                         unread_count=unread_count,
+                         status_filter=status_filter)
+
+
+@admin_bp.route('/notifications/<int:notification_id>/delete', methods=['POST'])
+@login_required
+@role_required('admin')
+def delete_notification(notification_id):
+    """Delete a specific notification"""
+    notification = Notifications.query.filter_by(
+        id=notification_id,
+        user_id=current_user.id
+    ).first()
+
+    if not notification:
+        return jsonify({'success': False, 'message': 'Notification not found'}), 404
+
+    try:
+        db.session.delete(notification)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Notification deleted'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/notifications/delete-read', methods=['POST'])
+@login_required
+@role_required('admin')
+def delete_read_notifications():
+    """Delete all read notifications for the current admin"""
+    try:
+        Notifications.query.filter_by(
+            user_id=current_user.id,
+            is_read=True
+        ).delete()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Read notifications deleted'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500

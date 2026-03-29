@@ -545,8 +545,8 @@
         }
         /* Enhanced Notification Dropdown Styles */
         .notification-dropdown {
-            width: 380px;
-            max-height: 450px;
+            width: 500px;
+            max-height: 600px;
             padding: 0;
             border: none;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1), 0 5px 15px rgba(0,0,0,0.07);
@@ -564,6 +564,17 @@
                 opacity: 1;
                 transform: translateY(0);
             }
+        }
+        
+        @keyframes bellRing {
+            0%, 100% { transform: rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+            20%, 40%, 60%, 80% { transform: rotate(10deg); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
         
         .notification-header {
@@ -608,12 +619,6 @@
             animation: bellRing 2s ease-in-out infinite;
         }
         
-        @keyframes bellRing {
-            0%, 100% { transform: rotate(0deg); }
-            10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
-            20%, 40%, 60%, 80% { transform: rotate(10deg); }
-        }
-        
         .mark-all-btn {
             background: rgba(255,255,255,0.2);
             border: 1px solid rgba(255,255,255,0.3);
@@ -633,13 +638,19 @@
         }
         
         .notification-list {
-            max-height: 340px;
+            max-height: 480px;
             overflow-y: auto;
             overflow-x: hidden;
+            width: 100%;
         }
         
         .notification-list::-webkit-scrollbar {
             width: 4px;
+            height: 0;
+        }
+        
+        .notification-list::-webkit-scrollbar-corner {
+            background: transparent;
         }
         
         .notification-list::-webkit-scrollbar-track {
@@ -710,7 +721,7 @@
         }
         
         .notification-icon.success {
-            background: linear-gradient(135deg, #4caf50, #388e3c);
+            background: linear-gradient(135deg, #388e3c, #388e3c);
             color: white;
         }
         
@@ -862,8 +873,8 @@
         }
         
         .empty-notifications p {
-            font-size: 0.85rem;
-            margin-bottom: 0;
+            margin: 0;
+            font-size: 0.9rem;
         }
         
         @media (max-width: 768px) {
@@ -964,10 +975,36 @@
         <div class="ml-auto d-flex align-items-center">
             <!-- Notification Icon -->
             <div class="dropdown mr-3">
-                <button class="btn btn-link text-white p-0" type="button" id="notificationDropdown" data-toggle="dropdown">
+                <button class="btn btn-link text-white p-2 notification-badge" type="button" id="notificationDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Notifications">
                     <i class="fas fa-bell fa-lg"></i>
-                    <span class="badge badge-danger badge-pill position-absolute" style="top: -5px; right: -5px;"></span>
-                </button>                
+                    <span class="notification-count" style="display: none;"></span>
+                </button>
+                
+                <div class="dropdown-menu dropdown-menu-right notification-dropdown" aria-labelledby="notificationDropdown">
+                    <div class="notification-header">
+                        <div class="notification-header-content">
+                            <h6><i class="fas fa-bell"></i> Notifications</h6>
+                            <button class="btn mark-all-btn" onclick="markAllAsRead()" title="Mark all as read" style="display: none;">
+                                <i class="fas fa-check-double mr-1"></i> Mark all read
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="notification-list overflow-auto" id="notificationList">
+                        <div class="empty-notifications">
+                            <i class="fas fa-bell-slash"></i>
+                            <h6>Loading notifications...</h6>
+                            <p class="text-muted">Please wait</p>
+                        </div>
+                    </div>
+                    
+                    <div class="notification-footer">
+                        <a href="{{ url_for('admin.view_notifications') }}" title="View all notifications">
+                            <i class="fas fa-list mr-1"></i>View All Notifications
+                            <span class="badge badge-primary" style="display: none;"></span>
+                        </a>
+                    </div>
+                </div>
             </div>
             
             <!-- User Info -->
@@ -1363,6 +1400,94 @@
             }
         `;
         document.head.appendChild(style);
+        
+        // Load notifications from API
+        function loadNotifications() {
+            fetch('/admin/notifications/data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.notifications) {
+                        const notificationList = document.getElementById('notificationList');
+                        const markAllBtn = document.querySelector('.mark-all-btn');
+                        const countBadge = document.querySelector('.notification-count');
+                        
+                        if (data.notifications.length === 0) {
+                            notificationList.innerHTML = `
+                                <div class="empty-notifications">
+                                    <i class="fas fa-bell-slash"></i>
+                                    <h6>No notifications yet</h6>
+                                    <p class="text-muted">You're all caught up! 🎉</p>
+                                </div>
+                            `;
+                            if (markAllBtn) markAllBtn.style.display = 'none';
+                            if (countBadge) countBadge.style.display = 'none';
+                        } else {
+                            let html = '';
+                            data.notifications.forEach(notif => {
+                                const unreadClass = notif.is_read ? '' : 'unread';
+                                const indicator = notif.is_read ? '' : '<div class="notification-unread-indicator flex-shrink-0"></div>';
+                                html += `
+                                    <a href="${notif.url || '#'}" 
+                                       class="notification-item ${unreadClass} text-decoration-none"
+                                       onclick="markAsRead(${notif.id}); return false;"
+                                       data-notification-id="${notif.id}"
+                                       style="display: flex; color: inherit; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #f1f3f4; transition: all 0.2s ease; cursor: pointer; position: relative;"
+                                       title="Click to view details">
+                                        
+                                        <div class="notification-icon ${notif.icon_type || 'info'} flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                            <i class="fas ${notif.icon || 'fa-info-circle'}"></i>
+                                        </div>
+                                        
+                                        <div class="notification-content flex-grow-1" style="min-width: 0;">
+                                            <div class="notification-title" style="font-size: 0.9rem; font-weight: 600; color: #212529; margin-bottom: 4px; line-height: 1.3;">${notif.title}</div>
+                                            <div class="notification-message" style="font-size: 0.8rem; color: #6c757d; margin-bottom: 6px; line-height: 1.4;">${notif.message.substring(0, 100)}...</div>
+                                            <div class="notification-time" style="font-size: 0.75rem; color: #adb5bd; display: flex; align-items: center; gap: 4px;">
+                                                <i class="fas fa-clock"></i>
+                                                ${notif.created_at}
+                                            </div>
+                                        </div>
+                                        
+                                        ${indicator}
+                                    </a>
+                                `;
+                            });
+                            notificationList.innerHTML = html;
+                            
+                            // Show mark all button if there are unread notifications
+                            const unreadCount = data.notifications.filter(n => !n.is_read).length;
+                            if (unreadCount > 0) {
+                                if (markAllBtn) markAllBtn.style.display = 'block';
+                            } else {
+                                if (markAllBtn) markAllBtn.style.display = 'none';
+                            }
+                            
+                            // Update badge count
+                            if (countBadge) {
+                                if (data.unread_count > 0) {
+                                    countBadge.textContent = data.unread_count < 99 ? data.unread_count : '99+';
+                                    countBadge.style.display = 'flex';
+                                } else {
+                                    countBadge.style.display = 'none';
+                                }
+                            }
+                        }
+                    }
+                })
+                .catch(error => console.error('Error loading notifications:', error));
+        }
+        
+        // Load notifications on page load
+        $(document).ready(function() {
+            loadNotifications();
+            
+            // Reload notifications when dropdown is opened
+            $('#notificationDropdown').on('click', function() {
+                setTimeout(loadNotifications, 100);
+            });
+            
+            // Auto-refresh notifications every 30 seconds
+            setInterval(loadNotifications, 30000);
+        });
     </script>
     
     <!-- Extra JS block for child templates -->

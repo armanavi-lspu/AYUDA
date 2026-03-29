@@ -826,10 +826,16 @@
             max-height: 480px;
             overflow-y: auto;
             overflow-x: hidden;
+            width: 100%;
         }
         
         .notification-list::-webkit-scrollbar {
             width: 4px;
+            height: 0;
+        }
+        
+        .notification-list::-webkit-scrollbar-corner {
+            background: transparent;
         }
         
         .notification-list::-webkit-scrollbar-track {
@@ -1146,18 +1152,16 @@
                             {% for notification in notifications %}
                             <a href="{{ notification.get_url() or '#' }}" 
                                class="notification-item {% if not notification.is_read %}unread{% endif %} text-decoration-none"
-                               onclick="markAsRead({{ notification.id }})"
+                               onclick="markAsRead({{ notification.id }}); return false;"
                                data-notification-id="{{ notification.id }}"
-                               style="display: block; color: inherit;"
+                               style="display: flex; color: inherit; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #f1f3f4; transition: all 0.2s ease; cursor: pointer; position: relative;"
                                title="Click to view details">
                                 
-                                <div class="d-flex align-items-center ">
-                                    <!-- Icon centered -->
-                                    <div class="notification-icon {{ notification.icon_type or 'info' }} flex-shrink-0 d-flex align-items-center justify-content-center">
-                                        <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
-                                    </div>
-                                    
-                                    <div class="notification-content flex-grow-1 ms-5">
+                                <div class="notification-icon {{ notification.icon_type or 'info' }} flex-shrink-0 d-flex align-items-center justify-content-center">
+                                    <i class="fas {{ notification.icon or 'fa-info-circle' }}"></i>
+                                </div>
+                                
+                                <div class="notification-content flex-grow-1" style="min-width: 0;">
                                         <div class="notification-title">{{ notification.notif_title }}</div>
                                         <div class="notification-message">{{ notification.notif_message | truncate(100) }}</div>
                                         <div class="notification-time">
@@ -1169,14 +1173,6 @@
                                     {% if not notification.is_read %}
                                     <div class="notification-unread-indicator flex-shrink-0"></div>
                                     {% endif %}
-                                </div>
-                                
-                                <!-- Category Badge (optional) -->
-                                {% if notification.category %}
-                                <span class="notification-category-badge category-{{ notification.category }}">
-                                    {{ notification.category.title() }}
-                                </span>
-                                {% endif %}
                             </a>
                             {% endfor %}
                         {% else %}

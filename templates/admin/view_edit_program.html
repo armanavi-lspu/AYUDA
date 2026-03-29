@@ -133,6 +133,17 @@
     .card-header .btn {
         z-index: 10;
     }
+
+    .ranked-pill {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+
+    .ranked-row:hover {
+        background-color: #f8f9fc;
+    }
 </style>
 {% endblock %}
 
@@ -379,11 +390,22 @@
                                 <h6 class="text-primary mb-3"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
                                 <ul class="list-group mb-3">
                                     {% for pr in doc_reqs %}
+                                    <!-- Parse copy specifications from JSON -->
+                                    {% set copy_specs = pr.get_copy_specifications() %}
                                     <li class="list-group-item">
-                                        <strong>{{ pr.requirement.requirement_name }}</strong>
-                                        {% if pr.requirement.description %}
-                                            <br><small class="text-muted">{{ pr.requirement.description }}</small>
-                                        {% endif %}
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>{{ pr.requirement.requirement_name }}</strong>
+                                                {% if pr.requirement.description %}
+                                                    <br><small class="text-muted">{{ pr.requirement.description }}</small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="text-right small text-muted">
+                                                {% for spec in copy_specs %}
+                                                    <div>{{ spec['count'] }} {{ spec['type'].replace('_', ' ')|title }}</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
                                     </li>
                                     {% endfor %}
                                 </ul>
@@ -454,25 +476,33 @@
                                     </div>
                                     <div class="col-6">
                                         <div class="stat-box">
-                                            <h4 class="font-weight-bold text-success mb-1">
-                                                {{ program.applications|selectattr('status', 'equalto', 'approved')|list|length }}
+                                            <h4 class="font-weight-bold text-info mb-1">
+                                                {{ program.applications|selectattr('application_status', 'equalto', 'completed')|list|length }}
                                             </h4>
-                                            <small class="text-muted">Approved Applications</small>
+                                            <small class="text-muted">Completed Applications</small>
                                         </div>
                                     </div>
                                 </div>
                                 <hr class="my-3">
                                 <div class="row text-center">
                                     <div class="col-6">
-                                        <small class="text-muted">Pending:</small>
-                                        <span class="font-weight-bold text-warning ml-1">
-                                            {{ program.applications|selectattr('status', 'equalto', 'pending')|list|length }}
+                                        <small class="text-muted">Approved:</small>
+                                        <span class="font-weight-bold text-success ml-1">
+                                            {{ program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length }}
                                         </span>
                                     </div>
                                     <div class="col-6">
+                                        <small class="text-muted">Pending:</small>
+                                        <span class="font-weight-bold text-warning ml-1">
+                                            {{ program.applications|selectattr('application_status', 'equalto', 'pending')|list|length }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="row text-center mt-3">
+                                    <div class="col-12">
                                         <small class="text-muted">Rejected:</small>
                                         <span class="font-weight-bold text-danger ml-1">
-                                            {{ program.applications|selectattr('status', 'equalto', 'rejected')|list|length }}
+                                            {{ program.applications|selectattr('application_status', 'equalto', 'rejected')|list|length }}
                                         </span>
                                     </div>
                                 </div>
@@ -528,6 +558,9 @@
                                 </button>
                                 <a href="{{ url_for('admin.applications', program=program.id) }}" class="btn btn-info btn-block mb-2">
                                     <i class="fas fa-list mr-2"></i>View Applicants
+                                </a>
+                                <a href="{{ url_for('admin.program_ranked_list', program_id=program.id) }}" class="btn btn-success btn-block mb-2">
+                                    <i class="fas fa-sort-amount-down mr-2"></i>Open Ranked Beneficiary List
                                 </a>
                                 <button class="btn btn-danger btn-block" data-toggle="modal" data-target="#deleteModal">
                                     <i class="fas fa-trash mr-2"></i>Delete Program
@@ -742,17 +775,9 @@
                                     <input type="checkbox" class="custom-control-input" name="priority_group" value="Single Parents" id="editPriority5" {% if "Single Parents" in selected_groups %}checked{% endif %}>
                                     <label class="custom-control-label" for="editPriority5">Single Parents</label>
                                 </div>
-                                <div class="custom-control custom-checkbox mb-2">
+                                <div class="custom-control custom-checkbox">
                                     <input type="checkbox" class="custom-control-input" name="priority_group" value="Indigent Families" id="editPriority6" {% if "Indigent Families" in selected_groups %}checked{% endif %}>
                                     <label class="custom-control-label" for="editPriority6">Indigent Families</label>
-                                </div>
-                                <div class="custom-control custom-checkbox mb-2">
-                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Not Employed Individuals" id="editPriority7" {% if "Not Employed Individuals" in selected_groups %}checked{% endif %}>
-                                    <label class="custom-control-label" for="editPriority7">Not Employed Individuals</label>
-                                </div>
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" name="priority_group" value="Informal Settlers" id="editPriority8" {% if "Informal Settlers" in selected_groups %}checked{% endif %}>
-                                    <label class="custom-control-label" for="editPriority8">Informal Settlers</label>
                                 </div>
                             </div>
                             <small class="form-text text-muted">
@@ -891,6 +916,39 @@
                                                             </button>
                                                         </div>
                                                     </div>
+                                                    {% set prog_req = program.program_requirements|selectattr('requirement_id', 'equalto', req.id)|first %}
+                                                    {% if prog_req %}
+                                                    <div class="ml-4 mt-2 p-2 bg-light rounded">
+                                                        {% set copy_specs = prog_req.get_copy_specifications() %}
+                                                        <div class="copy-specs-list-edit-{{ req.id }}">
+                                                            {% for spec in copy_specs %}
+                                                            <div class="copy-spec-row form-row align-items-end mb-2">
+                                                                <div class="form-group col-md-5">
+                                                                    <label class="small font-weight-bold">Copy Type</label>
+                                                                    <select class="form-control form-control-sm copy-type-select" name="copy_type_edit_{{ req.id }}[]">
+                                                                        <option value="">-- Select --</option>
+                                                                        <option value="original" {% if spec['type'] == 'original' %}selected{% endif %}>Original</option>
+                                                                        <option value="photocopy" {% if spec['type'] == 'photocopy' %}selected{% endif %}>Photocopy</option>
+                                                                        <option value="certified_true_copy" {% if spec['type'] == 'certified_true_copy' %}selected{% endif %}>Certified True Copy</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group col-md-5">
+                                                                    <label class="small font-weight-bold">Number of Copies</label>
+                                                                    <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_edit_{{ req.id }}[]" value="{{ spec['count'] }}" min="1" max="10">
+                                                                </div>
+                                                                <div class="form-group col-md-2">
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow(this)">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRowEdit({{ req.id }})">
+                                                            <i class="fas fa-plus mr-1"></i>Add Another Copy Type
+                                                        </button>
+                                                    </div>
+                                                    {% endif %}
                                                 </div>
                                                 {% endfor %}
                                             {% endif %}
@@ -1050,6 +1108,217 @@
                     </div>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Program Ranked List Modal -->
+<div class="modal fade" id="programRankedListModal" tabindex="-1" role="dialog" aria-labelledby="programRankedListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="programRankedListModalLabel">
+                    <i class="fas fa-sort-amount-down mr-2"></i>Ranked Beneficiary List - {{ program.program_name }}
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Only applicants with <strong>Completed</strong> status and <strong>Not Scheduled</strong> claiming status are included.
+                    <span class="ml-2">Eligible pool: <strong id="eligiblePoolBadge">{{ eligible_unscheduled_count or 0 }}</strong></span>
+                </div>
+
+                <form id="programRankedListForm">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 font-weight-bold text-success">Ranking Criteria and Parameters</h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="editRankedCriteriaBtnTop">
+                            <i class="fas fa-edit mr-1"></i>Edit Parameters
+                        </button>
+                    </div>
+
+                    <div class="border rounded p-2 mb-3 bg-light">
+                        <small class="font-weight-bold">Included parameters:</small>
+                        <small class="d-block text-muted" id="rankedCriteriaSummaryText">Income Range, Priority Groups</small>
+                    </div>
+
+                    <div id="rankedCriteriaPanel">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Maximum Beneficiaries</label>
+                                <input type="number" class="form-control" id="rankedMaxBeneficiaries" min="1" max="1000" value="{{ program.beneficiary_limit if program.beneficiary_limit else 50 }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Family Annual Income</label>
+                                <select class="form-control" id="rankedIncomeRangeFilter">
+                                    <option value="0|10000000" selected>Any Income (0 - 10,000,000)</option>
+                                    <option value="0|10000">Below 10,000</option>
+                                    <option value="10000|20000">10,000 - 20,000</option>
+                                    <option value="20001|30000">20,001 - 30,000</option>
+                                    <option value="30001|40000">30,001 - 40,000</option>
+                                    <option value="40001|50000">40,001 - 50,000</option>
+                                    <option value="50001|75000">50,001 - 75,000</option>
+                                    <option value="75001|100000">75,001 - 100,000</option>
+                                    <option value="100001|150000">100,001 - 150,000</option>
+                                    <option value="150001|200000">150,001 - 200,000</option>
+                                    <option value="200001|300000">200,001 - 300,000</option>
+                                    <option value="300001|400000">300,001 - 400,000</option>
+                                    <option value="400001|500000">400,001 - 500,000</option>
+                                    <option value="500001|10000000">500,001 and above</option>
+                                </select>
+                                <input type="hidden" id="rankedMinIncome" value="0">
+                                <input type="hidden" id="rankedMaxIncome" value="10000000">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label class="font-weight-bold">Priority Groups</label>
+                                {% set selected_ranked_groups = program.priority_group.split(', ') if program.priority_group else [] %}
+                                <div class="dropdown" id="rankedPriorityGroupsDropdown">
+                                    <button class="btn btn-outline-secondary btn-block text-left dropdown-toggle" type="button" id="rankedPriorityGroupsDropdownBtn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        Select priority groups...
+                                    </button>
+                                    <div class="dropdown-menu p-3" aria-labelledby="rankedPriorityGroupsDropdownBtn" style="width: 100%; max-height: 220px; overflow-y: auto;">
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupLowIncomeFamilies" value="Low Income Families" {% if 'Low Income Families' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupLowIncomeFamilies">Low Income Families</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupStudents" value="Students" {% if 'Students' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupStudents">Students</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupPwd" value="PWDs (Persons with Disabilities)" {% if 'PWDs (Persons with Disabilities)' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupPwd">PWDs (Persons with Disabilities)</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSenior" value="Senior Citizens" {% if 'Senior Citizens' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupSenior">Senior Citizens</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox mb-2">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSingleParents" value="Single Parents" {% if 'Single Parents' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupSingleParents">Single Parents</label>
+                                        </div>
+                                        <div class="custom-control custom-checkbox mb-0">
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupIndigent" value="Indigent Families" {% if 'Indigent Families' in selected_ranked_groups %}checked{% endif %}>
+                                            <label class="custom-control-label" for="rankedGroupIndigent">Indigent Families</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label class="font-weight-bold mb-2">Priority Barangays</label>
+                            <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                                {% if barangays %}
+                                    {% for barangay in barangays %}
+                                    <div class="custom-control custom-checkbox mb-1">
+                                        <input type="checkbox" class="custom-control-input ranked-barangay" id="rankedBarangay{{ loop.index }}" value="{{ barangay }}">
+                                        <label class="custom-control-label" for="rankedBarangay{{ loop.index }}">{{ barangay }}</label>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <small class="text-muted">No barangay data available.</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    </div>
+
+                    <div class="mt-3 text-right">
+                        <button type="submit" class="btn btn-success" id="generateProgramRankedListBtn">
+                            <i class="fas fa-magic mr-1"></i>Generate Ranked List
+                        </button>
+                    </div>
+                </form>
+
+                <div id="programRankedListLoading" class="text-center py-4" style="display: none;">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0">Generating ranked list...</p>
+                </div>
+
+                <div id="programRankedListResults" class="mt-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 font-weight-bold">Ranked Results</h6>
+                        <div class="text-right">
+                            <small class="text-muted d-block" id="programRankedListMeta"></small>
+                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="editRankedCriteriaBtn">
+                                <i class="fas fa-edit mr-1"></i>Edit Criteria / Parameters
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th style="width: 60px;">Rank</th>
+                                    <th>Beneficiary</th>
+                                    <th style="width: 130px;">Barangay</th>
+                                    <th style="width: 130px;">Annual Income</th>
+                                    <th style="width: 100px;">Score</th>
+                                    <th style="width: 140px;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="programRankedListBody"></tbody>
+                        </table>
+                    </div>
+                    <p id="programRankedListEmpty" class="text-muted text-center py-3 mb-0" style="display: none;">
+                        No eligible beneficiaries matched the selected filters.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ranked Parameters Selection Modal -->
+<div class="modal fade" id="rankedParametersSelectionModal" tabindex="-1" role="dialog" aria-labelledby="rankedParametersSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rankedParametersSelectionModalLabel">
+                    <i class="fas fa-sliders-h mr-2"></i>Edit Ranked List Parameters
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Select which parameters should be included when generating the ranked list.</p>
+
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludeIncomeCriteria" checked>
+                    <label class="custom-control-label" for="modalIncludeIncomeCriteria">Include Income Range Filter</label>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludePriorityGroupsCriteria" checked>
+                    <label class="custom-control-label" for="modalIncludePriorityGroupsCriteria">Include Priority Groups Filter</label>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludeBarangayCriteria">
+                    <label class="custom-control-label" for="modalIncludeBarangayCriteria">Include Priority Barangays Filter</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRankedParametersBtn">
+                    <i class="fas fa-save mr-1"></i>Apply Parameters
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1493,14 +1762,14 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p class="text-muted mb-4">Select the requirements that applicants need to meet for this program.</p>
+                <p class="text-muted mb-4">Select the requirements that applicants need to meet for this program. For document requirements, you can specify the number of copies needed and the type (original, photocopy, or certified true copy).</p>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header bg-light">
                                 <h6 class="mb-0 text-primary"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
                             </div>
-                            <div class="card-body" id="modalDocRequirements" style="max-height: 300px; overflow-y: auto;">
+                            <div class="card-body" id="modalDocRequirements" style="max-height: 500px; overflow-y: auto;">
                                 <!-- Will be populated via JavaScript -->
                             </div>
                         </div>
@@ -1510,7 +1779,7 @@
                             <div class="card-header bg-light">
                                 <h6 class="mb-0 text-success"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
                             </div>
-                            <div class="card-body" id="modalQualRequirements" style="max-height: 300px; overflow-y: auto;">
+                            <div class="card-body" id="modalQualRequirements" style="max-height: 500px; overflow-y: auto;">
                                 <!-- Will be populated via JavaScript -->
                             </div>
                         </div>
@@ -1627,6 +1896,96 @@
     // Debug: Check if jQuery and Bootstrap are available
     console.log('jQuery available:', typeof $ !== 'undefined');
     console.log('Bootstrap modal available:', typeof $.fn.modal !== 'undefined');
+    
+    // Functions for handling multiple copy specifications in edit tab
+    function addCopySpecRowEdit(reqId) {
+        const container = document.querySelector(`.copy-specs-list-edit-${reqId}`);
+        const rowId = Date.now();
+        
+        const row = document.createElement('div');
+        row.className = 'copy-spec-row form-row align-items-end mb-2';
+        row.id = `spec-row-${rowId}`;
+        row.innerHTML = `
+            <div class="form-group col-md-5">
+                <label class="small font-weight-bold">Copy Type</label>
+                <select class="form-control form-control-sm copy-type-select" name="copy_type_edit_${reqId}[]">
+                    <option value="">-- Select --</option>
+                    <option value="original">Original</option>
+                    <option value="photocopy">Photocopy</option>
+                    <option value="certified_true_copy">Certified True Copy</option>
+                </select>
+            </div>
+            <div class="form-group col-md-5">
+                <label class="small font-weight-bold">Number of Copies</label>
+                <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_edit_${reqId}[]" value="1" min="1" max="10">
+            </div>
+            <div class="form-group col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(row);
+    }
+    
+    function removeCopySpecRow(rowIdOrBtn) {
+        // Handle both cases: passed as button element or row ID string
+        if (typeof rowIdOrBtn === 'string') {
+            // rowIdOrBtn is a row ID string
+            const row = document.getElementById(`spec-row-${rowIdOrBtn}`);
+            if (row) row.remove();
+        } else {
+            // rowIdOrBtn is the button element
+            rowIdOrBtn.closest('.copy-spec-row').remove();
+        }
+    }
+    
+    // Collect copy specifications from edit tab before form submission
+    function collectEditCopySpecs(form) {
+        // Get all checked requirements in edit mode
+        const requirements = form.querySelectorAll('input[name="requirements"]:checked');
+        requirements.forEach(req => {
+            const reqId = req.value;
+            const container = document.querySelector(`.copy-specs-list-edit-${reqId}`);
+            
+            if (container) {
+                const specs = [];
+                const rows = container.querySelectorAll('.copy-spec-row');
+                
+                rows.forEach(row => {
+                    const typeSelect = row.querySelector(`select[name="copy_type_edit_${reqId}[]"]`);
+                    const countInput = row.querySelector(`input[name="copy_count_edit_${reqId}[]"]`);
+                    
+                    if (typeSelect && countInput && typeSelect.value) {
+                        specs.push({
+                            type: typeSelect.value,
+                            count: parseInt(countInput.value) || 1
+                        });
+                    }
+                });
+                
+                // Create hidden input with JSON specs
+                let specsInput = document.querySelector(`input[name="copy_specs_edit_${reqId}"]`);
+                if (!specsInput) {
+                    specsInput = document.createElement('input');
+                    specsInput.type = 'hidden';
+                    specsInput.name = `copy_specs_edit_${reqId}`;
+                    form.appendChild(specsInput);
+                }
+                specsInput.value = JSON.stringify(specs);
+            }
+        });
+    }
+    
+    // Intercept form submission for edit tab
+    document.addEventListener('DOMContentLoaded', function() {
+        const editForm = document.querySelector('form[method="POST"][action*="edit_program"]');
+        if (editForm) {
+            editForm.addEventListener('submit', function(e) {
+                collectEditCopySpecs(editForm);
+            });
+        }
+    });
     
     // Get template data safely
     const programData = JSON.parse(document.getElementById('program-data').textContent);
@@ -1808,6 +2167,40 @@
                 
                 const reqItem = document.createElement('div');
                 reqItem.className = 'requirement-item';
+
+                let copySpecsHtml = '';
+                if (type === 'document') {
+                    copySpecsHtml = `
+                        <div class="ml-4 mt-2 p-2 bg-light rounded">
+                            <div class="copy-specs-list-edit-${data.requirement.id}">
+                                <div class="copy-spec-row form-row align-items-end mb-2">
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Copy Type</label>
+                                        <select class="form-control form-control-sm copy-type-select" name="copy_type_edit_${data.requirement.id}[]">
+                                            <option value="">-- Select --</option>
+                                            <option value="original" selected>Original</option>
+                                            <option value="photocopy">Photocopy</option>
+                                            <option value="certified_true_copy">Certified True Copy</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Number of Copies</label>
+                                        <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_edit_${data.requirement.id}[]" value="1" min="1" max="10">
+                                    </div>
+                                    <div class="form-group col-md-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRowEdit(${data.requirement.id})">
+                                <i class="fas fa-plus mr-1"></i>Add Another Copy Type
+                            </button>
+                        </div>
+                    `;
+                }
+
                 reqItem.innerHTML = `
                     <div class="d-flex justify-content-between align-items-start">
                         <div class="custom-control custom-checkbox flex-grow-1">
@@ -1828,6 +2221,7 @@
                             </button>
                         </div>
                     </div>
+                    ${copySpecsHtml}
                 `;
                 
                 list.appendChild(reqItem);
@@ -2079,12 +2473,16 @@
         docContainer.innerHTML = '';
         qualContainer.innerHTML = '';
         
-        // Get current program requirements
-        const currentReqs = [
-            {% for pr in program.program_requirements %}
-            {{ pr.requirement_id }}{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ];
+        // Get current program requirements with their details
+        const currentReqsMap = {};
+        {% for pr in program.program_requirements %}
+            {% set _specs = pr.get_copy_specifications() %}
+            {% set _first = _specs[0] if _specs else {'count': 1, 'type': 'original'} %}
+            currentReqsMap[{{ pr.requirement_id }}] = {
+                number_of_copies: {{ _first['count'] }},
+                copy_type: '{{ _first["type"] }}'
+            };
+        {% endfor %}
         
         // Add document requirements
         {% if requirements %}
@@ -2105,27 +2503,65 @@
         ];
         
         docReqs.forEach(req => {
-            const isChecked = currentReqs.includes(req.id);
+            const isChecked = currentReqsMap.hasOwnProperty(req.id);
+            const numCopies = isChecked ? currentReqsMap[req.id].number_of_copies : 1;
+            const copyType = isChecked ? currentReqsMap[req.id].copy_type : 'original';
+            
             docContainer.innerHTML += `
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalDocReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
-                    <label class="custom-control-label" for="modalDocReq${req.id}">
-                        <strong>${req.name}</strong>
-                        ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
-                    </label>
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input doc-req-checkbox" 
+                               id="modalDocReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''} 
+                               onchange="toggleCopyFields(${req.id}, this.checked)">
+                        <label class="custom-control-label" for="modalDocReq${req.id}">
+                            <strong>${req.name}</strong>
+                            ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
+                        </label>
+                    </div>
+                    <div class="ml-4 copy-fields-${req.id}" style="display: ${isChecked ? 'block' : 'none'};">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="copies${req.id}" class="small font-weight-bold">Number of Copies</label>
+                                <div class="input-group input-group-sm">
+                                    <div class="input-group-prepend">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="decrementCopies(${req.id})">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                    </div>
+                                    <input type="number" class="form-control form-control-sm text-center copies-input" id="copies${req.id}" name="copies_${req.id}" value="${numCopies}" min="1" max="10">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="incrementCopies(${req.id})">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="copyType${req.id}" class="small font-weight-bold">Copy Type</label>
+                                <select class="form-control form-control-sm copy-type-select" id="copyType${req.id}" name="copy_type_${req.id}">
+                                    <option value="original" ${copyType === 'original' ? 'selected' : ''}>Original</option>
+                                    <option value="photocopy" ${copyType === 'photocopy' ? 'selected' : ''}>Photocopy</option>
+                                    <option value="certified_true_copy" ${copyType === 'certified_true_copy' ? 'selected' : ''}>Certified True Copy</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         });
         
         qualReqs.forEach(req => {
-            const isChecked = currentReqs.includes(req.id);
+            const isChecked = currentReqsMap.hasOwnProperty(req.id);
             qualContainer.innerHTML += `
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalQualReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
-                    <label class="custom-control-label" for="modalQualReq${req.id}">
-                        <strong>${req.name}</strong>
-                        ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
-                    </label>
+                <div class="mb-3 pb-3 border-bottom">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input qual-req-checkbox" 
+                               id="modalQualReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
+                        <label class="custom-control-label" for="modalQualReq${req.id}">
+                            <strong>${req.name}</strong>
+                            ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
+                        </label>
+                    </div>
                 </div>
             `;
         });
@@ -2134,14 +2570,61 @@
         $('#requirementsModal').modal('show');
     }
     
+    function toggleCopyFields(reqId, isChecked) {
+        const copyFieldsDiv = document.querySelector(`.copy-fields-${reqId}`);
+        if (copyFieldsDiv) {
+            copyFieldsDiv.style.display = isChecked ? 'block' : 'none';
+        }
+    }
+    
+    function incrementCopies(reqId) {
+        const input = document.querySelector(`#copies${reqId}, #editCopies${reqId}`);
+        if (input) {
+            let value = parseInt(input.value) || 1;
+            value = Math.min(value + 1, 10);
+            input.value = value;
+        }
+    }
+    
+    function decrementCopies(reqId) {
+        const input = document.querySelector(`#copies${reqId}, #editCopies${reqId}`);
+        if (input) {
+            let value = parseInt(input.value) || 1;
+            value = Math.max(value - 1, 1);
+            input.value = value;
+        }
+    }
+    
     function saveRequirements(button) {
         const selectedReqs = [];
-        document.querySelectorAll('#requirementsModal input[type="checkbox"]:checked').forEach(checkbox => {
+        const reqDetails = {};
+        
+        // Collect document requirements with copy details
+        document.querySelectorAll('#requirementsModal .doc-req-checkbox:checked').forEach(checkbox => {
+            const reqId = checkbox.value;
+            selectedReqs.push(reqId);
+            const numCopies = document.querySelector(`#copies${reqId}`)?.value || '1';
+            const copyType = document.querySelector(`#copyType${reqId}`)?.value || 'original';
+            reqDetails[`copies_${reqId}`] = numCopies;
+            reqDetails[`copy_type_${reqId}`] = copyType;
+        });
+        
+        // Collect qualification requirements
+        document.querySelectorAll('#requirementsModal .qual-req-checkbox:checked').forEach(checkbox => {
             selectedReqs.push(checkbox.value);
         });
         
         const formData = new FormData();
         selectedReqs.forEach(reqId => formData.append('requirements', reqId));
+        
+        // Add copy details for document requirements
+        Object.keys(reqDetails).forEach(key => {
+            formData.append(key, reqDetails[key]);
+        });
+        
+        // Debug: log what we're sending
+        console.log('Sending requirements:', selectedReqs);
+        console.log('Copy details:', reqDetails);
         
         const saveBtn = button;
         const originalText = saveBtn.innerHTML;
@@ -2156,24 +2639,26 @@
             body: formData
         })
         .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('Failed to save');
-            }
+            return response.json().then(data => ({
+                status: response.status,
+                ok: response.ok,
+                data: data
+            }));
         })
-        .then(data => {
-            if (data.success) {
+        .then(({status, ok, data}) => {
+            if (ok && data.success) {
                 showToast('Requirements updated successfully!', 'success');
                 $('#requirementsModal').modal('hide');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                throw new Error(data.message || 'Failed to save');
+                const errorMsg = data.message || `Error (Status: ${status})`;
+                console.error('Server error:', data);
+                throw new Error(errorMsg);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast('Error updating requirements', 'danger');
+            showToast(error.message || 'Error updating requirements', 'danger');
         })
         .finally(() => {
             saveBtn.disabled = false;
@@ -2449,9 +2934,13 @@
         // Override form submission to check for unsaved changes
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+
+            // Always serialize current copy specs before submitting.
+            collectEditCopySpecs(form);
             
             if (unsavedWorkflowChanges) {
                 showUnsavedChangesModal('submit', () => {
+                    collectEditCopySpecs(form);
                     form.submit();
                 });
                 return false;
@@ -3448,6 +3937,269 @@
             return '';
         }
     });
+
+    // ===================================
+    // PROGRAM RANKED LIST GENERATOR
+    // ===================================
+    const rankedListForm = document.getElementById('programRankedListForm');
+    const rankedListLoading = document.getElementById('programRankedListLoading');
+    const rankedListResults = document.getElementById('programRankedListResults');
+    const rankedListBody = document.getElementById('programRankedListBody');
+    const rankedListEmpty = document.getElementById('programRankedListEmpty');
+    const rankedListMeta = document.getElementById('programRankedListMeta');
+    const rankedListButton = document.getElementById('generateProgramRankedListBtn');
+    const rankedCriteriaSummaryText = document.getElementById('rankedCriteriaSummaryText');
+    const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
+    const editRankedCriteriaBtn = document.getElementById('editRankedCriteriaBtn');
+    const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
+    const modalIncludeIncomeCriteria = document.getElementById('modalIncludeIncomeCriteria');
+    const modalIncludePriorityGroupsCriteria = document.getElementById('modalIncludePriorityGroupsCriteria');
+    const modalIncludeBarangayCriteria = document.getElementById('modalIncludeBarangayCriteria');
+    const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
+    const rankedMinIncomeInput = document.getElementById('rankedMinIncome');
+    const rankedMaxIncomeInput = document.getElementById('rankedMaxIncome');
+    const rankedPriorityGroupsDropdownBtn = document.getElementById('rankedPriorityGroupsDropdownBtn');
+    const rankedPriorityGroupCheckboxes = Array.from(document.querySelectorAll('.ranked-priority-group'));
+    const rankedBarangayInputs = Array.from(document.querySelectorAll('.ranked-barangay'));
+
+    const rankedCriteriaState = {
+        includeIncome: true,
+        includePriorityGroups: {{ 'true' if program.priority_group else 'false' }},
+        includeBarangays: false
+    };
+
+    function renderRankedCriteriaSummary() {
+        if (!rankedCriteriaSummaryText) {
+            return;
+        }
+
+        const labels = [];
+        if (rankedCriteriaState.includeIncome) labels.push('Income Range');
+        if (rankedCriteriaState.includePriorityGroups) labels.push('Priority Groups');
+        if (rankedCriteriaState.includeBarangays) labels.push('Priority Barangays');
+
+        rankedCriteriaSummaryText.textContent = labels.length > 0 ? labels.join(', ') : 'No optional parameters included';
+    }
+
+    function applyRankedCriteriaStateToInputs() {
+        if (rankedIncomeRangeFilterInput) rankedIncomeRangeFilterInput.disabled = !rankedCriteriaState.includeIncome;
+
+        if (rankedPriorityGroupsDropdownBtn) {
+            rankedPriorityGroupsDropdownBtn.disabled = !rankedCriteriaState.includePriorityGroups;
+        }
+        rankedPriorityGroupCheckboxes.forEach(function(input) {
+            input.disabled = !rankedCriteriaState.includePriorityGroups;
+            if (!rankedCriteriaState.includePriorityGroups) {
+                input.checked = false;
+            }
+        });
+        updateRankedPriorityGroupsDropdownLabel();
+
+        rankedBarangayInputs.forEach(function(input) {
+            input.disabled = !rankedCriteriaState.includeBarangays;
+            if (!rankedCriteriaState.includeBarangays) {
+                input.checked = false;
+            }
+        });
+
+        renderRankedCriteriaSummary();
+    }
+
+    function syncRankedIncomeRangeBoundsFromDropdown() {
+        const selected = (rankedIncomeRangeFilterInput && rankedIncomeRangeFilterInput.value ? rankedIncomeRangeFilterInput.value : '0|10000000').split('|');
+        const minIncome = parseFloat(selected[0]) || 0;
+        const maxIncome = parseFloat(selected[1]) || 10000000;
+        if (rankedMinIncomeInput) rankedMinIncomeInput.value = String(minIncome);
+        if (rankedMaxIncomeInput) rankedMaxIncomeInput.value = String(maxIncome);
+    }
+
+    function getSelectedRankedPriorityGroups() {
+        return rankedPriorityGroupCheckboxes.filter(function(input) {
+            return input.checked;
+        }).map(function(input) {
+            return input.value;
+        });
+    }
+
+    function updateRankedPriorityGroupsDropdownLabel() {
+        if (!rankedPriorityGroupsDropdownBtn) {
+            return;
+        }
+
+        const selected = getSelectedRankedPriorityGroups();
+        if (selected.length === 0) {
+            rankedPriorityGroupsDropdownBtn.textContent = 'Select priority groups...';
+            return;
+        }
+        if (selected.length <= 2) {
+            rankedPriorityGroupsDropdownBtn.textContent = selected.join(', ');
+            return;
+        }
+        rankedPriorityGroupsDropdownBtn.textContent = selected.length + ' groups selected';
+    }
+
+    rankedPriorityGroupCheckboxes.forEach(function(input) {
+        input.addEventListener('change', updateRankedPriorityGroupsDropdownLabel);
+    });
+
+    const rankedPriorityGroupsMenu = document.querySelector('#rankedPriorityGroupsDropdown .dropdown-menu');
+    if (rankedPriorityGroupsMenu) {
+        rankedPriorityGroupsMenu.addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+    }
+
+    function openRankedParametersSelectionModal() {
+        if (modalIncludeIncomeCriteria) modalIncludeIncomeCriteria.checked = rankedCriteriaState.includeIncome;
+        if (modalIncludePriorityGroupsCriteria) modalIncludePriorityGroupsCriteria.checked = rankedCriteriaState.includePriorityGroups;
+        if (modalIncludeBarangayCriteria) modalIncludeBarangayCriteria.checked = rankedCriteriaState.includeBarangays;
+        $('#rankedParametersSelectionModal').modal('show');
+    }
+
+    if (editRankedCriteriaBtnTop) {
+        editRankedCriteriaBtnTop.addEventListener('click', function() {
+            openRankedParametersSelectionModal();
+        });
+    }
+
+    if (editRankedCriteriaBtn) {
+        editRankedCriteriaBtn.addEventListener('click', function() {
+            openRankedParametersSelectionModal();
+        });
+    }
+
+    if (saveRankedParametersBtn) {
+        saveRankedParametersBtn.addEventListener('click', function() {
+            rankedCriteriaState.includeIncome = !!(modalIncludeIncomeCriteria && modalIncludeIncomeCriteria.checked);
+            rankedCriteriaState.includePriorityGroups = !!(modalIncludePriorityGroupsCriteria && modalIncludePriorityGroupsCriteria.checked);
+            rankedCriteriaState.includeBarangays = !!(modalIncludeBarangayCriteria && modalIncludeBarangayCriteria.checked);
+
+            applyRankedCriteriaStateToInputs();
+            $('#rankedParametersSelectionModal').modal('hide');
+        });
+    }
+
+    if (rankedIncomeRangeFilterInput) {
+        rankedIncomeRangeFilterInput.addEventListener('change', syncRankedIncomeRangeBoundsFromDropdown);
+    }
+
+    syncRankedIncomeRangeBoundsFromDropdown();
+    applyRankedCriteriaStateToInputs();
+
+    if (rankedListForm) {
+        rankedListForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            syncRankedIncomeRangeBoundsFromDropdown();
+            const minIncome = Number(document.getElementById('rankedMinIncome').value || 0);
+            const maxIncome = Number(document.getElementById('rankedMaxIncome').value || 0);
+            const incomeFilterEnabled = rankedCriteriaState.includeIncome;
+            const priorityGroupsEnabled = rankedCriteriaState.includePriorityGroups;
+            const barangayFilterEnabled = rankedCriteriaState.includeBarangays;
+            const selectedPriorityGroups = getSelectedRankedPriorityGroups();
+            const selectedPriorityGroupsText = selectedPriorityGroups.join(', ');
+            const selectedPriorityGroupTokens = selectedPriorityGroups.map(function(group) {
+                return String(group || '').toLowerCase();
+            });
+
+            const hasToken = function(keywords) {
+                return selectedPriorityGroupTokens.some(function(token) {
+                    return keywords.some(function(keyword) {
+                        return token.indexOf(keyword) !== -1;
+                    });
+                });
+            };
+
+            if (incomeFilterEnabled && minIncome > maxIncome) {
+                alert('Minimum income cannot be greater than maximum income.');
+                return;
+            }
+
+            const selectedBarangays = Array.from(document.querySelectorAll('.ranked-barangay:checked'))
+                .map(function(el) { return el.value; });
+
+            const payload = {
+                max_beneficiaries: document.getElementById('rankedMaxBeneficiaries').value,
+                min_income: incomeFilterEnabled ? minIncome : 0,
+                max_income: incomeFilterEnabled ? maxIncome : 10000000,
+                priority_groups: priorityGroupsEnabled ? selectedPriorityGroupsText : '',
+                priority_barangays: barangayFilterEnabled ? selectedBarangays : [],
+                solo_parent_priority: priorityGroupsEnabled ? hasToken(['solo', 'single']) : false,
+                student_priority: priorityGroupsEnabled ? hasToken(['student']) : false,
+                pwd_priority: priorityGroupsEnabled ? hasToken(['pwd', 'disability']) : false,
+                senior_citizen_priority: priorityGroupsEnabled ? hasToken(['senior', 'elderly']) : false
+            };
+
+            rankedListLoading.style.display = 'block';
+            rankedListResults.style.display = 'none';
+            rankedListButton.disabled = true;
+
+            fetch('{{ url_for("admin.generate_program_ranked_list", program_id=program.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.success) {
+                    alert(data.message || 'Failed to generate ranked list.');
+                    return;
+                }
+
+                const applicationViewBaseUrl = '{{ url_for("admin.view_application", application_id=0) }}'.replace(/0$/, '');
+                document.getElementById('eligiblePoolBadge').textContent = String(data.eligible_pool_count || 0);
+
+                rankedListBody.innerHTML = '';
+                const recommendations = data.recommendations || [];
+
+                if (recommendations.length === 0) {
+                    rankedListEmpty.style.display = 'block';
+                } else {
+                    rankedListEmpty.style.display = 'none';
+                    recommendations.forEach(function(rec, index) {
+                        const row = document.createElement('tr');
+                        row.className = 'ranked-row';
+
+                        const badges = [];
+                        if (rec.is_solo_parent) badges.push('<span class="badge badge-info ranked-pill mr-1">Solo Parent</span>');
+                        if (rec.is_student) badges.push('<span class="badge badge-primary ranked-pill mr-1">Student</span>');
+                        if (rec.is_pwd) badges.push('<span class="badge badge-warning ranked-pill mr-1">PWD</span>');
+                        if (rec.is_senior) badges.push('<span class="badge badge-secondary ranked-pill mr-1">Senior</span>');
+
+                        row.innerHTML = `
+                            <td class="text-center font-weight-bold">${index + 1}</td>
+                            <td>
+                                <div class="font-weight-bold">${rec.name || 'N/A'}</div>
+                                <small class="text-muted">${rec.email || ''}</small>
+                                <div class="mt-1">${badges.join('')}</div>
+                            </td>
+                            <td>${rec.barangay || 'N/A'}</td>
+                            <td>PHP ${Number(rec.income || 0).toLocaleString()}</td>
+                            <td><span class="badge badge-success">${Number(rec.score || 0).toFixed(4)}</span></td>
+                            <td>
+                                ${rec.application_id
+                                    ? `<a href="${applicationViewBaseUrl}${rec.application_id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-external-link-alt mr-1"></i>Open</a>`
+                                    : '<span class="text-muted small">No linked application</span>'}
+                            </td>
+                        `;
+                        rankedListBody.appendChild(row);
+                    });
+                }
+
+                rankedListMeta.textContent = `Generated ${recommendations.length} ranked beneficiaries from ${data.eligible_pool_count || 0} eligible applicants.`;
+                rankedListResults.style.display = 'block';
+            })
+            .catch(function() {
+                alert('An error occurred while generating the ranked list.');
+            })
+            .finally(function() {
+                rankedListLoading.style.display = 'none';
+                rankedListButton.disabled = false;
+            });
+        });
+    }
     
 </script>
 {% endblock %}

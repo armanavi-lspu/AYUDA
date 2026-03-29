@@ -10,46 +10,269 @@ from app.user_activity_logger import log_program_detail_view, log_application_st
 from sqlalchemy import desc, func, or_
 from werkzeug.utils import secure_filename
 import os
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 
-def get_application_restriction(user_id):
-    """Return application restrictions for a user based on active and recent completed applications."""
-    active_application = Applications.query.filter(
-        Applications.user_id == user_id,
-        Applications.application_status.in_(['pending', 'approved', 'active'])
-    ).order_by(Applications.application_date.desc()).first()
+def _build_user_profile_document(profile, activity_signals=None):
+    """Build a normalized text profile used for content-based matching."""
+    if not profile:
+        return ''
 
-    if active_application:
-        return {
-            'is_blocked': True,
-            'type': 'active_application',
-            'application': active_application,
-            'program_name': active_application.program.program_name if active_application.program else 'another program',
-            'message': 'You already have an ongoing application. Please complete or resolve it before applying to another program.'
-        }
+    activity_signals = activity_signals or {}
+    tokens = []
 
-    cooldown_reference = datetime.utcnow() - relativedelta(months=3)
-    recent_applications = Applications.query.filter(
-        Applications.user_id == user_id,
-        or_(
-            Applications.application_status == 'completed',
-            Applications.claim_date.isnot(None)
+    # Explicitly include areas of concern as primary preference signals.
+    areas = [str(a).strip().lower() for a in (profile.get_areas_of_concern() or []) if str(a).strip()]
+    tokens.extend(areas)
+    tokens.extend(areas)
+
+    if profile.is_student:
+        tokens.append('student education scholarship training')
+    if profile.is_solo_parent:
+        tokens.append('solo parent family support')
+    if profile.is_pwd:
+        tokens.append('pwd disability special assistance medical')
+    if profile.age and profile.age >= 60:
+        tokens.append('senior citizen elderly')
+
+    if profile.is_currently_employed:
+        tokens.append('employed livelihood')
+    else:
+        tokens.append('unemployed job livelihood support')
+
+    if profile.income_category:
+        tokens.append(str(profile.income_category).lower())
+    if profile.occupation:
+        tokens.append(str(profile.occupation).lower())
+    if profile.occupation_sector:
+        tokens.append(str(profile.occupation_sector).lower())
+
+    # Activity-based personalization signals
+    saved_program_text = activity_signals.get('saved_program_text', '')
+    applied_program_text = activity_signals.get('applied_program_text', '')
+    if saved_program_text:
+        tokens.append(saved_program_text)
+        tokens.append(saved_program_text)
+    if applied_program_text:
+        tokens.append(applied_program_text)
+
+    return ' '.join(tokens).strip()
+
+
+def _build_program_document(program):
+    """Build a program text representation for TF-IDF vectorization."""
+    type_hints = {
+        'AICS': 'medical emergency crisis food education transportation social assistance',
+        'ESA': 'emergency shelter disaster housing calamity relief',
+        '4Ps': 'education family children conditional cash transfer poverty',
+        'CA': 'business livelihood entrepreneurship capital assistance employment skills'
+    }
+
+    parts = [
+        str(program.program_name or ''),
+        str(program.description or ''),
+        str(program.priority_group or ''),
+        str(program.income_range or ''),
+        str(program.program_type or ''),
+        type_hints.get(program.program_type, '')
+    ]
+    return ' '.join(parts).lower().strip()
+
+
+def _build_recommendation_reasons(program, profile, activity_signals, saved_ids):
+    """Generate simple user-facing reasons for why a program was recommended."""
+    reasons = []
+    haystack = ' '.join([
+        str(program.program_name or ''),
+        str(program.description or ''),
+        str(program.priority_group or ''),
+        str(program.program_type or '')
+    ]).lower()
+
+    areas = [str(a).strip() for a in (profile.get_areas_of_concern() or []) if str(a).strip()] if profile else []
+    matched_areas = [area for area in areas if area.lower() in haystack]
+    if matched_areas:
+        reasons.append(f"Matches your selected areas of concern: {', '.join(matched_areas[:2])}.")
+
+    if profile and profile.is_student and ('student' in haystack or 'education' in haystack):
+        reasons.append('Aligned with your student and education profile.')
+    if profile and profile.is_solo_parent and 'solo parent' in haystack:
+        reasons.append('Aligned with solo parent support priorities.')
+    if profile and profile.is_pwd and ('pwd' in haystack or 'disability' in haystack):
+        reasons.append('Aligned with PWD-related assistance.')
+    if profile and profile.income_category and str(profile.income_category).lower() in haystack:
+        reasons.append('Matches your income category profile.')
+
+    applied_types = activity_signals.get('applied_program_types', set())
+    program_type = str(program.program_type or '').strip().upper()
+    if program_type and program_type in applied_types:
+        reasons.append('Similar to programs you previously applied to.')
+
+    if program.id in saved_ids:
+        reasons.append('You previously saved a related program.')
+
+    if not reasons:
+        reasons.append('Recommended based on overall similarity to your profile and activity history.')
+    return reasons
+
+
+def _get_content_based_recommended_programs(user, limit=4):
+    """Return top-N program recommendations using TF-IDF + cosine similarity."""
+    profile = user.community_profile
+    hidden_ids = [p.program_id for p in HiddenProgram.query.filter_by(user_id=user.id).all()]
+    saved_ids = [p.program_id for p in SavedProgram.query.filter_by(user_id=user.id).all()]
+    applied_rows = db.session.query(Programs.program_type, Programs.program_name, Programs.description).join(
+        Applications, Applications.program_id == Programs.id
+    ).filter(
+        Applications.user_id == user.id
+    ).all()
+
+    saved_rows = Programs.query.filter(Programs.id.in_(saved_ids)).all() if saved_ids else []
+
+    activity_signals = {
+        'saved_program_text': ' '.join(
+            f"{row.program_name or ''} {row.description or ''} {row.program_type or ''}" for row in saved_rows
+        ).lower(),
+        'applied_program_text': ' '.join(
+            f"{name or ''} {desc or ''} {ptype or ''}" for ptype, name, desc in applied_rows
+        ).lower(),
+        'applied_program_types': {str(ptype).strip().upper() for ptype, _, _ in applied_rows if ptype}
+    }
+
+    user_document = _build_user_profile_document(profile, activity_signals=activity_signals)
+    if not user_document:
+        return []
+
+    active_programs = Programs.query.filter_by(is_active=True).all()
+
+    candidate_programs = [
+        p for p in active_programs
+        if p.id not in hidden_ids and not is_emergency_program(p)
+    ]
+
+    if not candidate_programs:
+        return []
+
+    program_documents = [_build_program_document(program) for program in candidate_programs]
+    corpus = [user_document] + program_documents
+
+    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), min_df=1)
+    tfidf_matrix = vectorizer.fit_transform(corpus)
+
+    user_vector = tfidf_matrix[0:1]
+    program_vectors = tfidf_matrix[1:]
+    similarities = cosine_similarity(user_vector, program_vectors)[0]
+
+    applied_types = activity_signals.get('applied_program_types', set())
+    scored = []
+    for index, score in enumerate(similarities):
+        if score <= 0:
+            continue
+
+        program = candidate_programs[index]
+        final_score = float(score)
+
+        # Similar-program history boost: prioritize programs similar to what user already applied for.
+        if str(program.program_type or '').strip().upper() in applied_types:
+            final_score += 0.08
+
+        # Positive feedback boost for saved programs.
+        if program.id in saved_ids:
+            final_score += 0.05
+
+        # Hidden programs are filtered out above; this is kept as a defensive guard.
+        if program.id in hidden_ids:
+            continue
+
+        scored.append((program, final_score))
+
+    scored.sort(key=lambda row: row[1], reverse=True)
+
+    recommended = []
+    for program, score in scored[:limit]:
+        program.recommendation_score = round(score, 3)
+        program.recommendation_reasons = _build_recommendation_reasons(
+            program,
+            profile,
+            activity_signals,
+            saved_ids
         )
-    ).order_by(Applications.updated_at.desc()).all()
+        recommended.append(program)
+    return recommended
 
-    for app in recent_applications:
-        reference_date = app.claim_date or app.updated_at or app.review_date or app.application_date
-        if reference_date and reference_date >= cooldown_reference:
-            lock_until = (reference_date + relativedelta(months=3)).date()
+
+def is_emergency_program(program):
+    """Check if a program is an emergency-type program."""
+    if not program:
+        return False
+    type_text = str(program.program_type or '').strip().lower()
+    name_text = str(program.program_name or '').strip().lower()
+    desc_text = str(program.description or '').strip().lower()
+    priority_text = str(program.priority_group or '').strip().lower()
+    period_text = str(program.program_period or '').strip().lower()
+    haystack = ' '.join([type_text, name_text, desc_text, priority_text, period_text])
+    return (
+        type_text == 'esa'
+        or period_text == 'emergency'
+        or 'emergency' in haystack
+        or 'burial assistance' in haystack
+        or 'funeral assistance' in haystack
+        or 'burial' in name_text
+        or 'funeral' in name_text
+    )
+
+
+def get_application_restriction(user_id, program_id=None):
+    """Return application restrictions for a user based on active and recent completed applications."""
+    
+    # Check for ongoing application for THIS SPECIFIC PROGRAM
+    if program_id:
+        active_application = Applications.query.filter(
+            Applications.user_id == user_id,
+            Applications.program_id == program_id,
+            Applications.application_status.in_(['pending', 'approved', 'active'])
+        ).order_by(Applications.application_date.desc()).first()
+
+        if active_application:
             return {
                 'is_blocked': True,
-                'type': 'cooldown',
-                'application': app,
-                'program_name': app.program.program_name if app.program else 'your previous program',
-                'reference_date': reference_date,
-                'lock_until': lock_until,
-                'message': f'You can apply again after {lock_until.strftime("%B %d, %Y")} due to the 3-month cooldown after completion or scheduled release.'
+                'type': 'active_application',
+                'application': active_application,
+                'program_name': active_application.program.program_name if active_application.program else 'this program',
+                'message': 'You already have an ongoing application for this program. Please complete or resolve it before applying again.'
             }
+
+    # Check for cooldown period (only applicable to non-emergency programs)
+    # Skip cooldown for emergency-period/type programs as they're crisis-response programs
+    current_program = Programs.query.get(program_id) if program_id else None
+    if not is_emergency_program(current_program):
+        cooldown_reference = datetime.utcnow() - relativedelta(months=3)
+        recent_applications = Applications.query.filter(
+            Applications.user_id == user_id,
+            or_(
+                Applications.application_status == 'completed',
+                Applications.claim_date.isnot(None)
+            )
+        ).order_by(Applications.updated_at.desc()).all()
+
+        for app in recent_applications:
+            reference_date = app.claim_date or app.updated_at or app.review_date or app.application_date
+            if reference_date and reference_date >= cooldown_reference:
+                # But check if the completed/claimed program was also an emergency program
+                # If it was emergency, don't apply cooldown
+                completed_program = app.program if hasattr(app, 'program') else None
+                if not is_emergency_program(completed_program):
+                    lock_until = (reference_date + relativedelta(months=3)).date()
+                    return {
+                        'is_blocked': True,
+                        'type': 'cooldown',
+                        'application': app,
+                        'program_name': app.program.program_name if app.program else 'your previous program',
+                        'reference_date': reference_date,
+                        'lock_until': lock_until,
+                        'message': f'You can apply again after {lock_until.strftime("%B %d, %Y")} due to the 3-month cooldown after completion or scheduled release.'
+                    }
 
     return {
         'is_blocked': False,
@@ -86,11 +309,14 @@ def programs():
     
     # Total categories count
     total_categories = len(categories)
+    recommended_programs = _get_content_based_recommended_programs(current_user)
     
     return render_template('community/programs_category.html',
                          categories=program_stats,
                          total_categories=total_categories,
-                         total_programs=total_programs)
+                         total_programs=total_programs,
+                         recommended_programs=recommended_programs,
+                         today=datetime.utcnow().date())
 
 @community_bp.route('/programs/category/<category>')
 @login_required  
@@ -137,7 +363,7 @@ def program_detail(program_id):
     
     # Get program requirements with is_mandatory info from junction table
     program_requirements = db.session.query(
-        Requirements, ProgramRequirements.is_mandatory
+        Requirements, ProgramRequirements
     ).join(
         ProgramRequirements, 
         Requirements.id == ProgramRequirements.requirement_id
@@ -206,13 +432,22 @@ def program_detail(program_id):
     document_requirements = []
     qualification_requirements = []
     
-    for req, is_mandatory in program_requirements:
+    for req, prog_req in program_requirements:
+        import json
+        
+        # Parse copy specifications from JSON
+        try:
+            copy_specs = json.loads(prog_req.copy_type) if isinstance(prog_req.copy_type, str) else prog_req.copy_type
+        except:
+            copy_specs = [{"type": "original", "count": 1}]
+        
         req_data = {
             'id': req.id,
             'requirement_name': req.requirement_name,
             'description': req.description,
-            'is_mandatory': is_mandatory,
-            'requirement_type': req.requirement_type
+            'is_mandatory': prog_req.is_mandatory,
+            'requirement_type': req.requirement_type,
+            'copy_specs': copy_specs  # New: list of {type, count}
         }
         
         if req.requirement_type == 'document':
@@ -239,7 +474,7 @@ def program_detail(program_id):
     # Check if user has saved/hidden this program
     is_saved = SavedProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
     is_hidden = HiddenProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first() is not None
-    application_restriction = get_application_restriction(current_user.id)
+    application_restriction = get_application_restriction(current_user.id, program_id)
     
     # Log detail view
     log_program_detail_view(program)
@@ -288,7 +523,7 @@ def submit_application(program_id):
         return redirect(url_for('community.program_detail', program_id=program_id))
     
     # Restrict concurrent applications and enforce cooldown after completion/scheduled release
-    application_restriction = get_application_restriction(current_user.id)
+    application_restriction = get_application_restriction(current_user.id, program_id)
     if application_restriction['is_blocked']:
         if application_restriction['type'] == 'active_application':
             flash(

@@ -119,6 +119,8 @@ def edit_profile():
                     try:
                         income_value = int(income_min_str)
                         community_profile.family_annual_income = income_value
+                        # Update income category based on income value
+                        community_profile.update_income_category()
                     except (ValueError, TypeError) as e:
                         print(f"Error converting income: {e}, value: {income_min_str}")
                         flash('Invalid income selection.', 'error')

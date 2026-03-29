@@ -1,0 +1,664 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Ranked Beneficiary List - {{ program.program_name }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ranked-pill {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+
+    .ranked-row:hover {
+        background-color: #f8f9fc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1 text-gray-800">
+                <i class="fas fa-sort-amount-down mr-2"></i>Ranked Beneficiary List
+            </h1>
+            <p class="text-muted mb-0">Program: <strong>{{ program.program_name }}</strong></p>
+        </div>
+        <a href="{{ url_for('admin.edit_program', id=program.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Program
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">Ranking Criteria and Parameters</h6>
+            <button type="button" class="btn btn-sm btn-light" id="editRankedCriteriaBtnTop">
+                <i class="fas fa-edit mr-1"></i>Edit Parameters
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info py-2">
+                <i class="fas fa-info-circle mr-2"></i>
+                Only applicants with <strong>Completed</strong> status and <strong>Not Scheduled</strong> claiming status are included.
+                <span class="ml-2">Eligible pool: <strong id="eligiblePoolBadge">{{ eligible_unscheduled_count or 0 }}</strong></span>
+            </div>
+
+            <form id="programRankedListForm" data-has-priority-groups="{{ '1' if program.priority_group else '0' }}">
+                <div class="border rounded p-2 mb-3 bg-light">
+                    <small class="font-weight-bold">Included parameters:</small>
+                    <small class="d-block text-muted" id="rankedCriteriaSummaryText">Income Range, Priority Groups, Case Severity, Completion Date</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Maximum Beneficiaries</label>
+                            <input type="number" class="form-control" id="rankedMaxBeneficiaries" min="1" max="1000" value="{{ program.beneficiary_limit if program.beneficiary_limit else 50 }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Family Annual Income</label>
+                            <select class="form-control" id="rankedIncomeRangeFilter">
+                                <option value="0|10000000" selected>Any Income (0 - 10,000,000)</option>
+                                <option value="0|10000">Below 10,000</option>
+                                <option value="10000|20000">10,000 - 20,000</option>
+                                <option value="20001|30000">20,001 - 30,000</option>
+                                <option value="30001|40000">30,001 - 40,000</option>
+                                <option value="40001|50000">40,001 - 50,000</option>
+                                <option value="50001|75000">50,001 - 75,000</option>
+                                <option value="75001|100000">75,001 - 100,000</option>
+                                <option value="100001|150000">100,001 - 150,000</option>
+                                <option value="150001|200000">150,001 - 200,000</option>
+                                <option value="200001|300000">200,001 - 300,000</option>
+                                <option value="300001|400000">300,001 - 400,000</option>
+                                <option value="400001|500000">400,001 - 500,000</option>
+                                <option value="500001|10000000">500,001 and above</option>
+                            </select>
+                            <input type="hidden" id="rankedMinIncome" value="0">
+                            <input type="hidden" id="rankedMaxIncome" value="10000000">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Priority Groups</label>
+                            {% set selected_ranked_groups = program.priority_group.split(', ') if program.priority_group else [] %}
+                            <div class="dropdown" id="rankedPriorityGroupsDropdown">
+                                <button class="btn btn-outline-secondary btn-block text-left dropdown-toggle" type="button" id="rankedPriorityGroupsDropdownBtn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Select priority groups...
+                                </button>
+                                <div class="dropdown-menu p-3" aria-labelledby="rankedPriorityGroupsDropdownBtn" style="width: 100%; max-height: 220px; overflow-y: auto;">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupLowIncomeFamilies" value="Low Income Families" {% if 'Low Income Families' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupLowIncomeFamilies">Low Income Families</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupStudents" value="Students" {% if 'Students' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupStudents">Students</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupPwd" value="PWDs (Persons with Disabilities)" {% if 'PWDs (Persons with Disabilities)' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupPwd">PWDs (Persons with Disabilities)</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSenior" value="Senior Citizens" {% if 'Senior Citizens' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupSenior">Senior Citizens</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSingleParents" value="Single Parents" {% if 'Single Parents' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupSingleParents">Single Parents</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-0">
+                                        <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupIndigent" value="Indigent Families" {% if 'Indigent Families' in selected_ranked_groups %}checked{% endif %}>
+                                        <label class="custom-control-label" for="rankedGroupIndigent">Indigent Families</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Case Severity Level</label>
+                            <select class="form-control" id="rankedCaseSeverityFilter">
+                                <option value="" selected>All Severity Levels</option>
+                                <option value="critical">Critical</option>
+                                <option value="high">High</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="low">Low</option>
+                                <option value="unrated">Unrated</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <label class="font-weight-bold mb-2">Priority Barangays</label>
+                        <div class="border rounded p-2" style="max-height: 180px; overflow-y: auto;">
+                            {% if barangays %}
+                                {% for barangay in barangays %}
+                                <div class="custom-control custom-checkbox mb-1">
+                                    <input type="checkbox" class="custom-control-input ranked-barangay" id="rankedBarangay{{ loop.index }}" value="{{ barangay }}">
+                                    <label class="custom-control-label" for="rankedBarangay{{ loop.index }}">{{ barangay }}</label>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <small class="text-muted">No barangay data available.</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-right">
+                    <button type="submit" class="btn btn-success" id="generateProgramRankedListBtn">
+                        <i class="fas fa-magic mr-1"></i>Generate Ranked List
+                    </button>
+                </div>
+            </form>
+
+            <div id="programRankedListLoading" class="text-center py-4" style="display: none;">
+                <div class="spinner-border text-success" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">Generating ranked list...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow" id="programRankedListResults" style="display: none;">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">Ranked Results</h6>
+            <div class="text-right">
+                <small class="text-muted d-block" id="programRankedListMeta"></small>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 60px;">Rank</th>
+                            <th>Beneficiary</th>
+                            <th style="width: 130px;">Barangay</th>
+                            <th style="width: 130px;">Annual Income</th>
+                            <th style="width: 160px;">Completion Date</th>
+                            <th style="width: 100px;">Score</th>
+                            <th style="width: 140px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="programRankedListBody"></tbody>
+                </table>
+            </div>
+            <p id="programRankedListEmpty" class="text-muted text-center py-3 mb-0" style="display: none;">
+                No eligible beneficiaries matched the selected filters.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankedParametersSelectionModal" tabindex="-1" role="dialog" aria-labelledby="rankedParametersSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rankedParametersSelectionModalLabel">
+                    <i class="fas fa-sliders-h mr-2"></i>Edit Ranked List Parameters
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Select which parameters should be included when generating the ranked list.</p>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludeIncomeCriteria" checked>
+                    <label class="custom-control-label" for="modalIncludeIncomeCriteria">Include Income Range Filter</label>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludePriorityGroupsCriteria" {% if program.priority_group %}checked{% endif %}>
+                    <label class="custom-control-label" for="modalIncludePriorityGroupsCriteria">Include Priority Groups Filter</label>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludeBarangayCriteria">
+                    <label class="custom-control-label" for="modalIncludeBarangayCriteria">Include Priority Barangays Filter</label>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="modalIncludeSeverityCriteria">
+                    <label class="custom-control-label" for="modalIncludeSeverityCriteria">Include Case Severity Filter</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRankedParametersBtn">
+                    <i class="fas fa-save mr-1"></i>Apply Parameters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rankedListForm = document.getElementById('programRankedListForm');
+    const rankedListLoading = document.getElementById('programRankedListLoading');
+    const rankedListResults = document.getElementById('programRankedListResults');
+    const rankedListBody = document.getElementById('programRankedListBody');
+    const rankedListEmpty = document.getElementById('programRankedListEmpty');
+    const rankedListMeta = document.getElementById('programRankedListMeta');
+    const rankedListButton = document.getElementById('generateProgramRankedListBtn');
+    const rankedCriteriaSummaryText = document.getElementById('rankedCriteriaSummaryText');
+    const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
+    const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
+    const modalIncludeIncomeCriteria = document.getElementById('modalIncludeIncomeCriteria');
+    const modalIncludePriorityGroupsCriteria = document.getElementById('modalIncludePriorityGroupsCriteria');
+    const modalIncludeBarangayCriteria = document.getElementById('modalIncludeBarangayCriteria');
+    const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
+    const rankedMinIncomeInput = document.getElementById('rankedMinIncome');
+    const rankedMaxIncomeInput = document.getElementById('rankedMaxIncome');
+    const rankedPriorityGroupsDropdownBtn = document.getElementById('rankedPriorityGroupsDropdownBtn');
+    const rankedPriorityGroupCheckboxes = Array.from(document.querySelectorAll('.ranked-priority-group'));
+    const rankedBarangayInputs = Array.from(document.querySelectorAll('.ranked-barangay'));
+    const rankedCaseSeverityFilterInput = document.getElementById('rankedCaseSeverityFilter');
+    const modalIncludeSeverityCriteria = document.getElementById('modalIncludeSeverityCriteria');
+
+    const hasPriorityGroupsDefault = rankedListForm && rankedListForm.dataset.hasPriorityGroups === '1';
+
+    const rankedCriteriaState = {
+        includeIncome: true,
+        includePriorityGroups: hasPriorityGroupsDefault,
+        includeBarangays: false,
+        includeSeverity: false
+    };
+
+    function getSelectedRankedPriorityGroups() {
+        return rankedPriorityGroupCheckboxes.filter(function(input) {
+            return input.checked;
+        }).map(function(input) {
+            return input.value;
+        });
+    }
+
+    function updateRankedPriorityGroupsDropdownLabel() {
+        if (!rankedPriorityGroupsDropdownBtn) {
+            return;
+        }
+
+        const selected = getSelectedRankedPriorityGroups();
+        if (selected.length === 0) {
+            rankedPriorityGroupsDropdownBtn.textContent = 'Select priority groups...';
+            return;
+        }
+        if (selected.length <= 2) {
+            rankedPriorityGroupsDropdownBtn.textContent = selected.join(', ');
+            return;
+        }
+        rankedPriorityGroupsDropdownBtn.textContent = selected.length + ' groups selected';
+    }
+
+    function renderRankedCriteriaSummary() {
+        if (!rankedCriteriaSummaryText) {
+            return;
+        }
+
+        const labels = [];
+        if (rankedCriteriaState.includeIncome) labels.push('Income Range');
+        if (rankedCriteriaState.includePriorityGroups) labels.push('Priority Groups');
+        if (rankedCriteriaState.includeBarangays) labels.push('Priority Barangays');
+        if (rankedCriteriaState.includeSeverity) labels.push('Case Severity');
+
+        rankedCriteriaSummaryText.textContent = labels.length > 0 ? labels.join(', ') : 'No optional parameters included';
+    }
+
+    function applyRankedCriteriaStateToInputs() {
+        if (rankedIncomeRangeFilterInput) rankedIncomeRangeFilterInput.disabled = !rankedCriteriaState.includeIncome;
+
+        if (rankedPriorityGroupsDropdownBtn) {
+            rankedPriorityGroupsDropdownBtn.disabled = !rankedCriteriaState.includePriorityGroups;
+        }
+        if (rankedCaseSeverityFilterInput) rankedCaseSeverityFilterInput.disabled = !rankedCriteriaState.includeSeverity;
+
+        rankedPriorityGroupCheckboxes.forEach(function(input) {
+            input.disabled = !rankedCriteriaState.includePriorityGroups;
+            if (!rankedCriteriaState.includePriorityGroups) {
+                input.checked = false;
+            }
+        });
+        updateRankedPriorityGroupsDropdownLabel();
+
+        rankedBarangayInputs.forEach(function(input) {
+            input.disabled = !rankedCriteriaState.includeBarangays;
+            if (!rankedCriteriaState.includeBarangays) {
+                input.checked = false;
+            }
+        });
+
+        renderRankedCriteriaSummary();
+    }
+
+    function syncRankedIncomeRangeBoundsFromDropdown() {
+        const selected = (rankedIncomeRangeFilterInput && rankedIncomeRangeFilterInput.value ? rankedIncomeRangeFilterInput.value : '0|10000000').split('|');
+        const minIncome = parseFloat(selected[0]) || 0;
+        const maxIncome = parseFloat(selected[1]) || 10000000;
+        if (rankedMinIncomeInput) rankedMinIncomeInput.value = String(minIncome);
+        if (rankedMaxIncomeInput) rankedMaxIncomeInput.value = String(maxIncome);
+    }
+
+    function openRankedParametersSelectionModal() {
+        if (modalIncludeIncomeCriteria) modalIncludeIncomeCriteria.checked = rankedCriteriaState.includeIncome;
+        if (modalIncludePriorityGroupsCriteria) modalIncludePriorityGroupsCriteria.checked = rankedCriteriaState.includePriorityGroups;
+        if (modalIncludeBarangayCriteria) modalIncludeBarangayCriteria.checked = rankedCriteriaState.includeBarangays;
+        if (modalIncludeSeverityCriteria) modalIncludeSeverityCriteria.checked = rankedCriteriaState.includeSeverity;
+        $('#rankedParametersSelectionModal').modal('show');
+    }
+
+    rankedPriorityGroupCheckboxes.forEach(function(input) {
+        input.addEventListener('change', updateRankedPriorityGroupsDropdownLabel);
+    });
+
+    const rankedPriorityGroupsMenu = document.querySelector('#rankedPriorityGroupsDropdown .dropdown-menu');
+    if (rankedPriorityGroupsMenu) {
+        rankedPriorityGroupsMenu.addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+    }
+
+    if (editRankedCriteriaBtnTop) {
+        editRankedCriteriaBtnTop.addEventListener('click', function() {
+            openRankedParametersSelectionModal();
+        });
+    }
+
+    if (saveRankedParametersBtn) {
+        saveRankedParametersBtn.addEventListener('click', function() {
+            rankedCriteriaState.includeIncome = !!(modalIncludeIncomeCriteria && modalIncludeIncomeCriteria.checked);
+            rankedCriteriaState.includePriorityGroups = !!(modalIncludePriorityGroupsCriteria && modalIncludePriorityGroupsCriteria.checked);
+            rankedCriteriaState.includeBarangays = !!(modalIncludeBarangayCriteria && modalIncludeBarangayCriteria.checked);
+            rankedCriteriaState.includeSeverity = !!(modalIncludeSeverityCriteria && modalIncludeSeverityCriteria.checked);
+
+            applyRankedCriteriaStateToInputs();
+            renderRankedCriteriaSummary();
+            $('#rankedParametersSelectionModal').modal('hide');
+        });
+    }
+
+    if (rankedIncomeRangeFilterInput) {
+        rankedIncomeRangeFilterInput.addEventListener('change', syncRankedIncomeRangeBoundsFromDropdown);
+    }
+
+    syncRankedIncomeRangeBoundsFromDropdown();
+    applyRankedCriteriaStateToInputs();
+
+    if (rankedListForm) {
+        rankedListForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            syncRankedIncomeRangeBoundsFromDropdown();
+            const minIncome = Number(document.getElementById('rankedMinIncome').value || 0);
+            const maxIncome = Number(document.getElementById('rankedMaxIncome').value || 0);
+            const incomeFilterEnabled = rankedCriteriaState.includeIncome;
+            const priorityGroupsEnabled = rankedCriteriaState.includePriorityGroups;
+            const barangayFilterEnabled = rankedCriteriaState.includeBarangays;
+            const severityFilterEnabled = rankedCriteriaState.includeSeverity;
+            const selectedPriorityGroups = getSelectedRankedPriorityGroups();
+            const selectedPriorityGroupsText = selectedPriorityGroups.join(', ');
+            const selectedPriorityGroupTokens = selectedPriorityGroups.map(function(group) {
+                return String(group || '').toLowerCase();
+            });
+
+            const hasToken = function(keywords) {
+                return selectedPriorityGroupTokens.some(function(token) {
+                    return keywords.some(function(keyword) {
+                        return token.indexOf(keyword) !== -1;
+                    });
+                });
+            };
+
+            if (incomeFilterEnabled && minIncome > maxIncome) {
+                alert('Minimum income cannot be greater than maximum income.');
+                return;
+            }
+
+            const selectedBarangays = Array.from(document.querySelectorAll('.ranked-barangay:checked'))
+                .map(function(el) { return el.value; });
+
+            const payload = {
+                max_beneficiaries: document.getElementById('rankedMaxBeneficiaries').value,
+                min_income: incomeFilterEnabled ? minIncome : 0,
+                max_income: incomeFilterEnabled ? maxIncome : 10000000,
+                priority_groups: priorityGroupsEnabled ? selectedPriorityGroupsText : '',
+                priority_barangays: barangayFilterEnabled ? selectedBarangays : [],
+                case_severity: severityFilterEnabled && rankedCaseSeverityFilterInput ? rankedCaseSeverityFilterInput.value : '',
+                solo_parent_priority: priorityGroupsEnabled ? hasToken(['solo', 'single']) : false,
+                student_priority: priorityGroupsEnabled ? hasToken(['student']) : false,
+                pwd_priority: priorityGroupsEnabled ? hasToken(['pwd', 'disability']) : false,
+                senior_citizen_priority: priorityGroupsEnabled ? hasToken(['senior', 'elderly']) : false
+            };
+
+            rankedListLoading.style.display = 'block';
+            rankedListResults.style.display = 'none';
+            rankedListButton.disabled = true;
+
+            fetch('{{ url_for("admin.generate_program_ranked_list", program_id=program.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.success) {
+                    alert(data.message || 'Failed to generate ranked list.');
+                    return;
+                }
+
+                const applicationViewBaseUrl = '{{ url_for("admin.view_application", application_id=0) }}'.replace(/0$/, '');
+                document.getElementById('eligiblePoolBadge').textContent = String(data.eligible_pool_count || 0);
+
+                rankedListBody.innerHTML = '';
+                const recommendations = data.recommendations || [];
+
+                if (recommendations.length === 0) {
+                    rankedListEmpty.style.display = 'block';
+                } else {
+                    rankedListEmpty.style.display = 'none';
+                    recommendations.forEach(function(rec, index) {
+                        const row = document.createElement('tr');
+                        row.className = 'ranked-row';
+
+                        const badges = [];
+                        if (rec.is_solo_parent) badges.push('<span class="badge badge-info ranked-pill mr-1">Solo Parent</span>');
+                        if (rec.is_student) badges.push('<span class="badge badge-primary ranked-pill mr-1">Student</span>');
+                        if (rec.is_pwd) badges.push('<span class="badge badge-warning ranked-pill mr-1">PWD</span>');
+                        if (rec.is_senior) badges.push('<span class="badge badge-secondary ranked-pill mr-1">Senior</span>');
+
+                        // Format score breakdown for tooltip
+                        const breakdown = rec.score_breakdown || {};
+                        const severityLabels = {
+                            'critical': 'CRITICAL (1.0)',
+                            'high': 'HIGH (0.8)',
+                            'moderate': 'MODERATE (0.6)',
+                            'low': 'LOW (0.4)',
+                            'unrated': 'UNRATED (0.0)'
+                        };
+                        const caseSeverity = (rec.case_severity || 'unrated').toLowerCase();
+                        const severityBadgeColor = 
+                            caseSeverity === 'critical' ? 'danger' :
+                            caseSeverity === 'high' ? 'warning' :
+                            caseSeverity === 'moderate' ? 'info' :
+                            caseSeverity === 'low' ? 'success' :
+                            'secondary';
+                        
+                        const scoreTooltip = `Severity: ${severityLabels[caseSeverity] || 'UNRATED'} (${(breakdown.severity_component || 0).toFixed(4)})
+Income: ${(breakdown.income_score || 0).toFixed(4)}
+Solo Parent: ${(breakdown.solo_parent_bonus || 0).toFixed(4)}
+Student: ${(breakdown.student_bonus || 0).toFixed(4)}
+PWD: ${(breakdown.pwd_bonus || 0).toFixed(4)}
+Senior: ${(breakdown.senior_bonus || 0).toFixed(4)}`;
+
+                        row.innerHTML = `
+                            <td class="text-center font-weight-bold">${index + 1}</td>
+                            <td>
+                                <div class="font-weight-bold">${rec.name || 'N/A'}</div>
+                                <small class="text-muted">${rec.email || ''}</small>
+                                <div class="mt-1">${badges.join('')}</div>
+                                <small class="badge badge-${severityBadgeColor}">${caseSeverity.toUpperCase()}</small>
+                            </td>
+                            <td>${rec.barangay || 'N/A'}</td>
+                            <td>${rec.income_range || 'Not specified'}</td>
+                            <td><small>${rec.application_date || 'N/A'}</small></td>
+                            <td>
+                                <span class="badge badge-success" title="${scoreTooltip}" style="cursor: help;">
+                                    ${Number(rec.score || 0).toFixed(4)}
+                                </span>
+                                <br/><small class="text-muted">Severity: ${(breakdown.severity_component || 0).toFixed(4)}</small>
+                                <br/><button type="button" class="btn btn-xs btn-info mt-1 view-score-breakdown" data-user-id="${rec.user_id}" data-name="${rec.name}" data-breakdown="${encodeURIComponent(JSON.stringify(breakdown))}">
+                                    <i class="fas fa-info-circle"></i> Why?
+                                </button>
+                            </td>
+                            <td>
+                                ${rec.application_id
+                                    ? `<a href="${applicationViewBaseUrl}${rec.application_id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-external-link-alt mr-1"></i>Open</a>`
+                                    : '<span class="text-muted small">No linked application</span>'}
+                            </td>
+                        `;
+                        rankedListBody.appendChild(row);
+                    });
+                }
+
+                rankedListMeta.textContent = `Generated ${recommendations.length} ranked beneficiaries from ${data.eligible_pool_count || 0} eligible applicants.`;
+                rankedListResults.style.display = 'block';
+            })
+            .catch(function() {
+                alert('An error occurred while generating the ranked list.');
+            })
+            .finally(function() {
+                rankedListLoading.style.display = 'none';
+                rankedListButton.disabled = false;
+            });
+        });
+    }
+});
+</script>
+
+<!-- Score Breakdown Modal -->
+<div class="modal fade" id="scoreBreakdownModal" tabindex="-1" role="dialog" aria-labelledby="scoreBreakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="scoreBreakdownModalLabel">
+                    <i class="fas fa-chart-pie mr-2"></i>Ranking Score Breakdown
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6 id="breakdownBeneficiaryName" class="font-weight-bold mb-3"></h6>
+                
+                <div class="card border-left-danger mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><strong>Case Severity (50% weight):</strong></span>
+                            <span id="breakdownSeverity" class="badge badge-danger">0.0000</span>
+                        </div>
+                        <small class="text-muted" id="breakdownSeverityDesc">Loading...</small>
+                    </div>
+                </div>
+                
+                <div class="card border-left-warning mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><strong>Family Income Score (20% weight):</strong></span>
+                            <span id="breakdownIncome" class="badge badge-warning">0.0000</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-left-success mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span><strong>Priority Bonuses:</strong></span>
+                        </div>
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr>
+                                    <td>Solo Parent (10%):</td>
+                                    <td class="text-right"><span id="breakdownSoloParent" class="badge badge-success">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Student (8%):</td>
+                                    <td class="text-right"><span id="breakdownStudent" class="badge badge-info">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td>PWD (10%):</td>
+                                    <td class="text-right"><span id="breakdownPWD" class="badge badge-secondary">0</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Senior Citizen (2%):</td>
+                                    <td class="text-right"><span id="breakdownSenior" class="badge badge-dark">0</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="alert alert-success">
+                    <strong>Total Score: <span id="breakdownTotal">0.0000</span></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle score breakdown button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-score-breakdown')) {
+            const btn = e.target.closest('.view-score-breakdown');
+            const userName = btn.getAttribute('data-name');
+            const breakdownStr = decodeURIComponent(btn.getAttribute('data-breakdown'));
+            const breakdown = JSON.parse(breakdownStr);
+            
+            // Update modal with breakdown data
+            document.getElementById('breakdownBeneficiaryName').textContent = 'Score breakdown for: ' + userName;
+            
+            const severityLabels = {
+                'critical': 'CRITICAL (Perfect: 1.0)',
+                'high': 'HIGH (0.8)',
+                'moderate': 'MODERATE (0.6)',
+                'low': 'LOW (0.4)',
+                'unrated': 'UNRATED (0.0)'
+            };
+            
+            const totalScore = (
+                (breakdown.severity_component || 0) +
+                (breakdown.income_score || 0) +
+                (breakdown.solo_parent_bonus || 0) +
+                (breakdown.student_bonus || 0) +
+                (breakdown.pwd_bonus || 0) +
+                (breakdown.senior_bonus || 0)
+            );
+            
+            document.getElementById('breakdownSeverity').textContent = (breakdown.severity_component || 0).toFixed(4);
+            document.getElementById('breakdownIncome').textContent = (breakdown.income_score || 0).toFixed(4);
+            document.getElementById('breakdownSoloParent').textContent = (breakdown.solo_parent_bonus || 0).toFixed(4);
+            document.getElementById('breakdownStudent').textContent = (breakdown.student_bonus || 0).toFixed(4);
+            document.getElementById('breakdownPWD').textContent = (breakdown.pwd_bonus || 0).toFixed(4);
+            document.getElementById('breakdownSenior').textContent = (breakdown.senior_bonus || 0).toFixed(4);
+            document.getElementById('breakdownTotal').textContent = totalScore.toFixed(4);
+            
+            $('#scoreBreakdownModal').modal('show');
+        }
+    });
+});
+</script>
+
+{% endblock %}
+

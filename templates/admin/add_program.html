@@ -84,6 +84,106 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('admin.add_program') }}" enctype="multipart/form-data">
+                        <!-- Define copy field functions early so they're available to inline event handlers -->
+                        <script>
+                            function toggleCopyFieldsAdd(reqId, isChecked) {
+                                const copyFieldsDiv = document.querySelector(`.copy-fields-add-${reqId}`);
+                                if (copyFieldsDiv) {
+                                    copyFieldsDiv.style.display = isChecked ? 'block' : 'none';
+                                }
+                            }
+                            
+                            // Add new copy specification row
+                            function addCopySpecRow(reqId) {
+                                const container = document.querySelector(`.copy-specs-list-${reqId}`);
+                                const rowId = Date.now();
+                                
+                                const row = document.createElement('div');
+                                row.className = 'copy-spec-row form-row align-items-end mb-2';
+                                row.id = `spec-row-${rowId}`;
+                                row.innerHTML = `
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Copy Type</label>
+                                        <select class="form-control form-control-sm copy-type-select" name="copy_type_${reqId}[]" required>
+                                            <option value="">-- Select --</option>
+                                            <option value="original">Original</option>
+                                            <option value="photocopy">Photocopy</option>
+                                            <option value="certified_true_copy">Certified True Copy</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Number of Copies</label>
+                                        <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_${reqId}[]" value="1" min="1" max="10" required>
+                                    </div>
+                                    <div class="form-group col-md-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow('${rowId}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                `;
+                                container.appendChild(row);
+                            }
+                            
+                            // Remove copy specification row
+                            function removeCopySpecRow(rowIdOrBtn) {
+                                // Handle both cases: passed as button element or row ID string
+                                if (typeof rowIdOrBtn === 'string') {
+                                    // rowIdOrBtn is a row ID string
+                                    const row = document.getElementById(`spec-row-${rowIdOrBtn}`);
+                                    if (row) row.remove();
+                                } else {
+                                    // rowIdOrBtn is the button element
+                                    rowIdOrBtn.closest('.copy-spec-row').remove();
+                                }
+                            }
+                            
+                            // Collect copy specifications before form submission
+                            function collectCopySpecs(form) {
+                                const requirements = form.querySelectorAll('input[name="requirements"]:checked');
+                                requirements.forEach(req => {
+                                    const reqId = req.value;
+                                    const container = document.querySelector(`.copy-specs-list-${reqId}`);
+                                    
+                                    if (container) {
+                                        const specs = [];
+                                        const rows = container.querySelectorAll('.copy-spec-row');
+                                        
+                                        rows.forEach(row => {
+                                            const typeSelect = row.querySelector(`select[name="copy_type_${reqId}[]"]`);
+                                            const countInput = row.querySelector(`input[name="copy_count_${reqId}[]"]`);
+                                            
+                                            if (typeSelect && countInput && typeSelect.value) {
+                                                specs.push({
+                                                    type: typeSelect.value,
+                                                    count: parseInt(countInput.value) || 1
+                                                });
+                                            }
+                                        });
+                                        
+                                        // Create hidden input with JSON specs
+                                        let specsInput = document.querySelector(`input[name="copy_specs_${reqId}"]`);
+                                        if (!specsInput) {
+                                            specsInput = document.createElement('input');
+                                            specsInput.type = 'hidden';
+                                            specsInput.name = `copy_specs_${reqId}`;
+                                            form.appendChild(specsInput);
+                                        }
+                                        specsInput.value = JSON.stringify(specs);
+                                    }
+                                });
+                            }
+                            
+                            // Intercept form submission
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const form = document.querySelector('form');
+                                if (form) {
+                                    form.addEventListener('submit', function(e) {
+                                        collectCopySpecs(form);
+                                    });
+                                }
+                            });
+                        </script>
+                        
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle mr-2"></i>
                             Fill in the program details and select the required documents.
@@ -377,17 +477,18 @@
                                         </div>
                                     </div>
                                     
-                                    <div class="requirements-list" style="max-height: 250px;" id="documentReqsList">
+                                    <div class="requirements-list" style="max-height: 350px;" id="documentReqsList">
                                         {% if requirements %}
                                             {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
                                             {% if document_reqs %}
                                                 {% for req in document_reqs %}
-                                                <div class="requirement-item">
-                                                    <div class="custom-control custom-checkbox">
-                                                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                <div class="requirement-item mb-3 pb-3 border-bottom">
+                                                    <div class="custom-control custom-checkbox mb-2">
+                                                        <input type="checkbox" class="custom-control-input doc-req-checkbox" 
                                                                name="requirements" 
                                                                value="{{ req.id }}" 
-                                                               id="addReq{{ req.id }}">
+                                                               id="addReq{{ req.id }}"
+                                                               onchange="toggleCopyFieldsAdd({{ req.id }}, this.checked)">
                                                         <label class="custom-control-label" for="addReq{{ req.id }}">
                                                             <strong>{{ req.requirement_name }}</strong>
                                                             {% if req.description %}
@@ -395,7 +496,41 @@
                                                             {% endif %}
                                                         </label>
                                                     </div>
-                                                    <div class="ml-4 mt-1">
+                                                    <div class="ml-4 copy-fields-add-{{ req.id }}" style="display: none;">
+                                                        <div class="card card-sm bg-light">
+                                                            <div class="card-header py-2 bg-white">
+                                                                <h6 class="mb-0 small font-weight-bold">Copy Requirements</h6>
+                                                                <small class="text-muted">Specify how many of each copy type are needed</small>
+                                                            </div>
+                                                            <div class="card-body py-2">
+                                                                <div class="copy-specs-list-{{ req.id }}">
+                                                                    <!-- Copy spec rows will be added here -->
+                                                                    <div class="copy-spec-row form-row align-items-end mb-2">
+                                                                        <div class="form-group col-md-5">
+                                                                            <label class="small font-weight-bold">Copy Type</label>
+                                                                            <select class="form-control form-control-sm copy-type-select" name="copy_type_{{ req.id }}[]" required>
+                                                                                <option value="">-- Select --</option>
+                                                                                <option value="original" selected>Original</option>
+                                                                                <option value="photocopy">Photocopy</option>
+                                                                                <option value="certified_true_copy">Certified True Copy</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="form-group col-md-5">
+                                                                            <label class="small font-weight-bold">Number of Copies</label>
+                                                                            <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_{{ req.id }}[]" value="1" min="1" max="10" required>
+                                                                        </div>
+                                                                        <div class="form-group col-md-2">
+                                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow(this)">
+                                                                                <i class="fas fa-trash"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRow({{ req.id }})">
+                                                                    <i class="fas fa-plus mr-1"></i>Add Another Copy Type
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 {% endfor %}
@@ -697,21 +832,54 @@ $(document).ready(function() {
                 
                 const reqItem = document.createElement('div');
                 reqItem.className = 'requirement-item';
+                
+                let copyFieldsHtml = '';
+                if (type === 'document') {
+                    copyFieldsHtml = `
+                        <div class="ml-4 copy-fields-add-${data.requirement.id}" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label for="copies${data.requirement.id}" class="small font-weight-bold">Number of Copies</label>
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="decrementCopies(${data.requirement.id})">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                        </div>
+                                        <input type="number" class="form-control form-control-sm text-center" id="copies${data.requirement.id}" name="copies_${data.requirement.id}" value="1" min="1" max="10">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="incrementCopies(${data.requirement.id})">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="copyType${data.requirement.id}" class="small font-weight-bold">Copy Type</label>
+                                    <select class="form-control form-control-sm" id="copyType${data.requirement.id}" name="copy_type_${data.requirement.id}">
+                                        <option value="original" selected>Original</option>
+                                        <option value="photocopy">Photocopy</option>
+                                        <option value="certified_true_copy">Certified True Copy</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
                 reqItem.innerHTML = `
-                    <div class="custom-control custom-checkbox">
-                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                    <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input req-checkbox doc-req-checkbox" 
                                name="requirements" 
                                value="${data.requirement.id}" 
-                               id="addReq${data.requirement.id}">
+                               id="addReq${data.requirement.id}"
+                               onchange="toggleCopyFieldsAdd(${data.requirement.id}, this.checked)">
                         <label class="custom-control-label" for="addReq${data.requirement.id}">
                             <strong>${data.requirement.name}</strong>
                             ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
                         </label>
                     </div>
-                    <div class="ml-4 mt-1">
-                        <div class="custom-control custom-checkbox">
-                        </div>
-                    </div>
+                    ${copyFieldsHtml}
                 `;
                 
                 list.appendChild(reqItem);

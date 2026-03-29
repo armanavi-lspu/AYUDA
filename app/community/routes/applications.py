@@ -632,7 +632,7 @@ def upload_documents(application_id):
     # Get document requirements for this program (exclude qualifications)
     program_requirements = db.session.query(
         Requirements,
-        ProgramRequirements.is_mandatory
+        ProgramRequirements
     ).join(
         ProgramRequirements,
         Requirements.id == ProgramRequirements.requirement_id
@@ -654,18 +654,26 @@ def upload_documents(application_id):
     mandatory_count = 0
     uploaded_count = 0
     
-    for req, is_mandatory in program_requirements:
+    for req, prog_req in program_requirements:
         has_upload = req.id in existing_uploads
         if has_upload:
             uploaded_count += 1
-        if is_mandatory:
+        if prog_req.is_mandatory:
             mandatory_count += 1
+        
+        # Parse copy specifications from JSON
+        import json
+        try:
+            copy_specs = json.loads(prog_req.copy_type) if isinstance(prog_req.copy_type, str) else prog_req.copy_type
+        except:
+            copy_specs = [{"type": "original", "count": 1}]
             
         document_requirements.append({
             'id': req.id,
             'requirement_name': req.requirement_name,
             'description': req.description,
-            'is_mandatory': is_mandatory,
+            'is_mandatory': prog_req.is_mandatory,
+            'copy_specs': copy_specs,  # New: list of {type, count}
             'has_upload': has_upload,
             'upload': existing_uploads.get(req.id)
         })

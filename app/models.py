@@ -166,6 +166,7 @@ class ProgramRequirements(db.Model):
     is_mandatory = db.Column(db.Boolean, default=True)
     is_completed = db.Column(db.Boolean, default=True)
     document_status = db.Column(db.String(20), nullable=False, default='pending') # 'draft' or 'published'
+    copy_type = db.Column(db.Text(), default='[{"type": "original", "count": 1}]')  # JSON array of copy specifications
     created_at = db.Column(db.DateTime, default=get_utc_now)
     
     # Relationships
@@ -174,6 +175,31 @@ class ProgramRequirements(db.Model):
 
     def __repr__(self):
         return f'<ProgramRequirement {self.program_id}-{self.requirement_id}>'
+    
+    def get_copy_specifications(self):
+        """Parse JSON copy specifications and return as list of dicts"""
+        import json
+        try:
+            if isinstance(self.copy_type, str):
+                specs = json.loads(self.copy_type)
+            else:
+                specs = self.copy_type
+            return specs if isinstance(specs, list) else [{"type": "original", "count": 1}]
+        except:
+            return [{"type": "original", "count": 1}]
+    
+    def set_copy_specifications(self, specs):
+        """Set copy specifications from list of dicts and store as JSON"""
+        import json
+        if not specs:
+            specs = [{"type": "original", "count": 1}]
+        self.copy_type = json.dumps(specs)
+    
+    @staticmethod
+    def get_default_specifications():
+        """Get default copy specifications"""
+        import json
+        return json.dumps([{"type": "original", "count": 1}])
 
 class Announcements(db.Model):
     __tablename__ = 'announcements'
@@ -511,6 +537,7 @@ class CommunityUsers(db.Model):
     is_pwd = db.Column(db.Boolean, default=False, index=True)  
     disability_type = db.Column(db.String(100))
     family_annual_income = db.Column(db.Numeric(12, 2), index=True)  
+    income_category = db.Column(db.String(50), index=True)  # Backend flag: 'Indigent Families', 'Low Income Families', or None
     created_at = db.Column(db.DateTime, default=get_utc_now)
     
     # Verification status fields for Senior Citizen, PWD, Solo Parent
@@ -541,6 +568,31 @@ class CommunityUsers(db.Model):
     
     def __repr__(self):
         return f'<CommunityUser {self.user_id}>'
+    
+    def calculate_income_category(self):
+        """
+        Calculate and return the income category based on family annual income.
+        Categories:
+        - ≤ 10,000: "Indigent Families"
+        - 10,001 - 20,000: "Low Income Families"
+        - 20,001 - 30,000: "Low Income Families"
+        - Otherwise: None
+        """
+        if self.family_annual_income is None:
+            return None
+        
+        income = float(self.family_annual_income)
+        
+        if income <= 10000:
+            return "Indigent Families"
+        elif 10000 < income <= 30000:
+            return "Low Income Families"
+        else:
+            return None
+    
+    def update_income_category(self):
+        """Update the income_category field based on current family_annual_income."""
+        self.income_category = self.calculate_income_category()
     
     def get_areas_of_concern(self):
         """Get areas of concern as a list"""
