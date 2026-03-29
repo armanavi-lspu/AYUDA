@@ -233,7 +233,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-info text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Information</h6>
-                            <button type="button" class="btn btn-sm btn-light" onclick="openProgramInfoModal(); return false;">
+                            <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editProgramInfoSection'); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit
                             </button>
                         </div>
@@ -371,7 +371,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Requirements</h6>
-                            <button type="button" class="btn btn-sm btn-light" onclick="openRequirementsModal(); return false;">
+                            <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editRequirementsSection'); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit
                             </button>
                         </div>
@@ -442,7 +442,7 @@
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 bg-dark text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Workflow Steps</h6>
-                            <button type="button" class="btn btn-sm btn-light" onclick="openWorkflowModal(); return false;">
+                            <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editWorkflowSection'); return false;">
                                 <i class="fas fa-edit mr-1"></i>Edit Steps
                             </button>
                         </div>
@@ -1494,349 +1494,9 @@
     </div>
 </div>
 
-<!-- Program Information Edit Modal -->
-<div class="modal fade" id="programInfoModal" tabindex="-1" role="dialog" aria-labelledby="programInfoModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title" id="programInfoModalLabel">
-                    <i class="fas fa-info-circle mr-2"></i>Edit Program Information
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="programInfoForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold">Program Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="modalProgramName" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold">Program Type <span class="text-danger">*</span></label>
-                                <select class="form-control" id="modalProgramType" required>
-                                    <option value="ESA">Educational Service Assistance (ESA)</option>
-                                    <option value="CA">Capital Assistance (CA)</option>
-                                    <option value="AICS">Assistance to Individuals in Crisis Situations (AICS)</option>
-                                    <option value="4Ps">Pantawid Pamilyang Pilipino Program (4Ps)</option>
-                                    <option value="SOLO">Solo Parent Support</option>
-                                    <option value="PWD">PWD Support Program</option>
-                                    <option value="Senior Citizen">Senior Citizen Assistance</option>
-                                    <option value="Other">Other Program</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="font-weight-bold">Program Period</label>
-                                <select class="form-control" id="modalProgramPeriod">
-                                    <option value="Quarterly">Quarterly</option>
-                                    <option value="Semi-Annual">Semi-Annual</option>
-                                    <option value="Annual">Annual</option>
-                                    <option value="Monthly">Monthly</option>
-                                    <option value="One-time">One-time</option>
-                                    <option value="Ongoing">Ongoing</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <!-- Modal Beneficiary Limit Toggle -->
-                            <div class="form-group">
-                                <label class="font-weight-bold">
-                                    <i class="fas fa-users mr-2"></i>Beneficiary Limit Control
-                                </label>
-                                <div class="custom-control custom-switch mb-3">
-                                    <input type="checkbox" class="custom-control-input" id="modalUseBeneficiaryLimit">
-                                    <label class="custom-control-label" for="modalUseBeneficiaryLimit">
-                                        Enable beneficiary limit
-                                    </label>
-                                </div>
-                                
-                                <div id="modalBeneficiaryLimitGroup" style="display: none;">
-                                    <label class="font-weight-bold">Beneficiary Limit</label>
-                                    <input type="number" class="form-control" id="modalBeneficiaryLimit" min="1" placeholder="Maximum beneficiaries">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Modal Target Income Range Toggle -->
-                    <div class="form-group">
-                        <label class="font-weight-bold">
-                            <i class="fas fa-chart-line mr-2"></i>Income Range Filtering
-                        </label>
-                        <div class="custom-control custom-switch mb-3">
-                            <input type="checkbox" class="custom-control-input" id="modalUseIncomeRange">
-                            <label class="custom-control-label" for="modalUseIncomeRange">
-                                Enable income range targeting
-                            </label>
-                        </div>
-                        
-                        <div id="modalIncomeRangeGroup" style="display: none;">
-                            <label class="font-weight-bold">Target Income Range</label>
-                            <select class="form-control" id="modalIncomeRange">
-                                <option value="">Select Income Range</option>
-                                <option value="Below 10,000">Below ₱10,000</option>
-                                <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
-                                <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
-                                <option value="20,001 - 30,000">₱20,001 - ₱30,000</option>
-                                <option value="30,001 - 50,000">₱30,001 - ₱50,000</option>
-                                <option value="Above 50,000">Above ₱50,000</option>
-                            </select>
-                            <small class="form-text text-muted">
-                                <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program.
-                            </small>
-                        </div>
-                    </div>
-                    
-<script>
-// Modal toggle functionality
-(function() {
-    // Wait for modal to be ready
-    $('#programInfoModal').on('shown.bs.modal', function() {
-        setTimeout(function() {
-            console.log('🎯 Setting up modal toggles...');
-            
-            // Modal Beneficiary Limit Toggle
-            const modalBeneficiaryToggle = document.getElementById('modalUseBeneficiaryLimit');
-            const modalBeneficiaryGroup = document.getElementById('modalBeneficiaryLimitGroup');
-            
-            if (modalBeneficiaryToggle && modalBeneficiaryGroup) {
-                console.log('✅ Found modal beneficiary elements');
-                modalBeneficiaryToggle.addEventListener('change', function() {
-                    console.log('Modal beneficiary toggle:', this.checked);
-                    if (this.checked) {
-                        modalBeneficiaryGroup.style.display = 'block';
-                        console.log('🟢 Showing modal beneficiary group');
-                    } else {
-                        modalBeneficiaryGroup.style.display = 'none';
-                        document.getElementById('modalBeneficiaryLimit').value = '';
-                        console.log('🔴 Hiding modal beneficiary group');
-                    }
-                });
-            }
-            
-            // Modal Income Range Toggle
-            const modalIncomeToggle = document.getElementById('modalUseIncomeRange');
-            const modalIncomeGroup = document.getElementById('modalIncomeRangeGroup');
-            
-            if (modalIncomeToggle && modalIncomeGroup) {
-                console.log('✅ Found modal income elements');
-                modalIncomeToggle.addEventListener('change', function() {
-                    console.log('Modal income toggle:', this.checked);
-                    if (this.checked) {
-                        modalIncomeGroup.style.display = 'block';
-                        console.log('🟢 Showing modal income group');
-                    } else {
-                        modalIncomeGroup.style.display = 'none';
-                        document.getElementById('modalIncomeRange').value = '';
-                        console.log('🔴 Hiding modal income group');
-                    }
-                });
-            }
-        }, 200);
-    });
-})();
-</script>
-                    
-                    <!-- Priority Groups -->
-                    <div class="form-group">
-                        <label class="font-weight-bold">Priority Groups (Target Beneficiaries)</label>
-                        <div class="border rounded p-3" style="max-height: 180px; overflow-y: auto;">
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Low Income Families" id="modalPriority1">
-                                <label class="custom-control-label" for="modalPriority1">Low Income Families</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Students" id="modalPriority2">
-                                <label class="custom-control-label" for="modalPriority2">Students</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="PWDs (Persons with Disabilities)" id="modalPriority3">
-                                <label class="custom-control-label" for="modalPriority3">PWDs (Persons with Disabilities)</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Senior Citizens" id="modalPriority4">
-                                <label class="custom-control-label" for="modalPriority4">Senior Citizens</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Single Parents" id="modalPriority5">
-                                <label class="custom-control-label" for="modalPriority5">Single Parents</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Indigent Families" id="modalPriority6">
-                                <label class="custom-control-label" for="modalPriority6">Indigent Families</label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Not Employed Individuals" id="modalPriority7">
-                                <label class="custom-control-label" for="modalPriority7">Not Employed Individuals</label>
-                            </div>
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" name="modal_priority_group" value="Informal Settlers" id="modalPriority8">
-                                <label class="custom-control-label" for="modalPriority8">Informal Settlers</label>
-                            </div>
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Select one or more priority groups. Leave unchecked if program is open to all.
-                        </small>
-                    </div>
-                    
-                    <!-- Online Document Submission -->
-                    <div class="form-group">
-                        <label class="font-weight-bold">
-                            <i class="fas fa-cloud-upload-alt mr-2"></i>Online Document Submission
-                        </label>
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" name="modal_allow_online_upload" id="modalAllowOnlineUpload">
-                            <label class="custom-control-label" for="modalAllowOnlineUpload">
-                                Enable online document upload for this program
-                            </label>
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> When enabled, applicants can upload their documents online for pre-verification before visiting the MSWD office.
-                        </small>
-                    </div>
-                    
-                    <!-- Application Slip Printing -->
-                    <div class="form-group">
-                        <label class="font-weight-bold">
-                            <i class="fas fa-print mr-2"></i>Application Slip Printing
-                        </label>
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" name="modal_enable_application_slip" id="modalEnableApplicationSlip">
-                            <label class="custom-control-label" for="modalEnableApplicationSlip">
-                                Enable application slip printing for this program
-                            </label>
-                        </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> When enabled, applicants and admins can print an official application slip as proof of submission.
-                        </small>
-                    </div>
-                    
-                    <!-- Update Attachment -->
-                    <div class="form-group">
-                        <label class="font-weight-bold">Update Attachment (Optional)</label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" name="modal_attachment" id="modalAttachment"
-                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                            <label class="custom-file-label" for="modalAttachment">Choose new file...</label>
-                        </div>
-                        <small class="form-text text-muted" id="modalCurrentAttachment">
-                            <!-- Current attachment info will be shown here -->
-                        </small>
-                    </div>
-                    <div class="form-group">
-                        <label class="font-weight-bold">Description</label>
-                        <textarea class="form-control" id="modalDescription" rows="4"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    <i class="fas fa-times mr-1"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-info" onclick="saveProgramInfo(this)">
-                    <i class="fas fa-save mr-1"></i>Save Changes
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Requirements Edit Modal -->
-<div class="modal fade" id="requirementsModal" tabindex="-1" role="dialog" aria-labelledby="requirementsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="requirementsModalLabel">
-                    <i class="fas fa-clipboard-check mr-2"></i>Edit Program Requirements
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted mb-4">Select the requirements that applicants need to meet for this program. For document requirements, you can specify the number of copies needed and the type (original, photocopy, or certified true copy).</p>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 text-primary"><i class="fas fa-file-alt mr-2"></i>Document Requirements</h6>
-                            </div>
-                            <div class="card-body" id="modalDocRequirements" style="max-height: 500px; overflow-y: auto;">
-                                <!-- Will be populated via JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0 text-success"><i class="fas fa-user-check mr-2"></i>Qualification Requirements</h6>
-                            </div>
-                            <div class="card-body" id="modalQualRequirements" style="max-height: 500px; overflow-y: auto;">
-                                <!-- Will be populated via JavaScript -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    <i class="fas fa-times mr-1"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveRequirements(this)">
-                    <i class="fas fa-save mr-1"></i>Save Changes
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Workflow Steps Edit Modal -->
-<div class="modal fade" id="workflowModal" tabindex="-1" role="dialog" aria-labelledby="workflowModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title" id="workflowModalLabel">
-                    <i class="fas fa-tasks mr-2"></i>Edit Workflow Steps
-                </h5>
-                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    Define the steps applicants must complete. Drag to reorder, use the gear icon for detailed configuration.
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">Current Workflow Steps</h6>
-                    <button type="button" class="btn btn-sm btn-success" onclick="console.log('Modal add workflow step clicked'); addWorkflowStep(); return false;">
-                        <i class="fas fa-plus mr-1"></i>Add Step
-                    </button>
-                </div>
-                <div id="modalWorkflowStepsList">
-                    <!-- Will be populated via JavaScript -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                    <i class="fas fa-times mr-1"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-dark" onclick="console.log('Save workflow steps clicked'); saveWorkflowSteps(this); return false;">
-                    <i class="fas fa-save mr-1"></i>Save Changes
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
+<!-- Removed: programInfoModal HTML and script -->
+<!-- Removed: requirementsModal HTML -->
+<!-- Removed: workflowModal HTML -->
 <!-- Unsaved Changes Confirmation Modal -->
 <div class="modal fade" id="unsavedChangesModal" tabindex="-1" role="dialog" aria-labelledby="unsavedChangesModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -1992,35 +1652,6 @@
     console.log('Program data loaded:', programData);
     
     // Make functions globally accessible
-    window.openProgramInfoModal = function() {
-        console.log('openProgramInfoModal called');
-        try {
-            openProgramInfoModalImpl();
-        } catch (error) {
-            console.error('Error in openProgramInfoModal:', error);
-            alert('Error opening modal: ' + error.message);
-        }
-    };
-    
-    window.openRequirementsModal = function() {
-        console.log('openRequirementsModal called');
-        try {
-            openRequirementsModalImpl();
-        } catch (error) {
-            console.error('Error in openRequirementsModal:', error);
-            alert('Error opening modal: ' + error.message);
-        }
-    };
-    
-    window.openWorkflowModal = function() {
-        console.log('openWorkflowModal called');
-        try {
-            openWorkflowModalImpl();
-        } catch (error) {
-            console.error('Error in openWorkflowModal:', error);
-            alert('Error opening modal: ' + error.message);
-        }
-    };
 
     // Simple error handling for problematic onclick handlers
     window.editRequirement = function(id, name, description, type) {
@@ -2340,242 +1971,10 @@
         });
     }
     
-    // ===================================
-    // MODAL EDITING FUNCTIONS
-    // ===================================
     
-    function openProgramInfoModalImpl() {
-        // Populate modal with current program data using safely passed data
-        document.getElementById('modalProgramName').value = programData.program_name;
-        document.getElementById('modalProgramType').value = programData.program_type;
-        document.getElementById('modalProgramPeriod').value = programData.program_period;
-        document.getElementById('modalBeneficiaryLimit').value = programData.beneficiary_limit || '';
-        document.getElementById('modalIncomeRange').value = programData.income_range || '';
-        document.getElementById('modalDescription').value = programData.description || '';
-        
-        // Set toggle states and show/hide groups accordingly
-        const useBeneficiaryLimit = {{ 'true' if program.beneficiary_limit else 'false' }};
-        const useIncomeRange = {{ 'true' if program.income_range else 'false' }};
-        
-        document.getElementById('modalUseBeneficiaryLimit').checked = useBeneficiaryLimit;
-        document.getElementById('modalUseIncomeRange').checked = useIncomeRange;
-        
-        // Show/hide groups based on toggle states
-        document.getElementById('modalBeneficiaryLimitGroup').style.display = useBeneficiaryLimit ? 'block' : 'none';
-        document.getElementById('modalIncomeRangeGroup').style.display = useIncomeRange ? 'block' : 'none';
-        
-        // Populate Priority Groups
-        const priorityGroups = (programData.priority_group || "").split(', ');
-        document.querySelectorAll('input[name="modal_priority_group"]').forEach(checkbox => {
-            checkbox.checked = priorityGroups.includes(checkbox.value);
-        });
-        
-        // Populate Online Upload setting
-        document.getElementById('modalAllowOnlineUpload').checked = programData.allow_online_upload;
-        document.getElementById('modalEnableApplicationSlip').checked = programData.enable_application_slip;
-        
-        // Show current attachment info
-        const currentAttachmentEl = document.getElementById('modalCurrentAttachment');
-        if (programData.file_attachment_filename) {
-            currentAttachmentEl.innerHTML = '<i class="fas fa-paperclip mr-1"></i>Current: ' + programData.file_attachment_filename;
-        } else {
-            currentAttachmentEl.innerHTML = '<i class="fas fa-info-circle mr-1"></i>No attachment currently uploaded.';
-        }
-        
-        // Initialize file input change handler
-        document.getElementById('modalAttachment').addEventListener('change', function(e) {
-            const fileName = e.target.files[0]?.name || 'Choose new file...';
-            const label = e.target.nextElementSibling;
-            label.textContent = fileName;
-        });
-        
-        $('#programInfoModal').modal('show');
-    }
     
-    function saveProgramInfo(button) {
-        const formData = new FormData();
-        formData.append('program_name', document.getElementById('modalProgramName').value);
-        formData.append('program_type', document.getElementById('modalProgramType').value);
-        formData.append('program_period', document.getElementById('modalProgramPeriod').value);
-        formData.append('beneficiary_limit', document.getElementById('modalBeneficiaryLimit').value);
-        formData.append('income_range', document.getElementById('modalIncomeRange').value);
-        formData.append('description', document.getElementById('modalDescription').value);
-        
-        // Add toggle values
-        if (document.getElementById('modalUseBeneficiaryLimit').checked) {
-            formData.append('use_beneficiary_limit', 'on');
-        }
-        if (document.getElementById('modalUseIncomeRange').checked) {
-            formData.append('use_income_range', 'on');
-        }
-        
-        // Handle Priority Groups
-        const selectedPriorityGroups = [];
-        document.querySelectorAll('input[name="modal_priority_group"]:checked').forEach(checkbox => {
-            selectedPriorityGroups.push(checkbox.value);
-        });
-        formData.append('priority_group', selectedPriorityGroups.join(', '));
-        
-        // Handle Online Upload setting
-        formData.append('allow_online_upload', document.getElementById('modalAllowOnlineUpload').checked ? '1' : '0');
-        formData.append('enable_application_slip', document.getElementById('modalEnableApplicationSlip').checked ? '1' : '0');
-        
-        // Handle Attachment
-        const attachmentFile = document.getElementById('modalAttachment').files[0];
-        if (attachmentFile) {
-            formData.append('attachment', attachmentFile);
-        }
-        
-        const saveBtn = button;
-        const originalText = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
-        
-        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('Failed to save');
-            }
-        })
-        .then(data => {
-            if (data.success) {
-                showToast('Program information updated successfully!', 'success');
-                $('#programInfoModal').modal('hide');
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                throw new Error(data.message || 'Failed to save');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error updating program information', 'danger');
-        })
-        .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        });
-    }
     
-    function openRequirementsModalImpl() {
-        // Populate requirements checkboxes
-        const docContainer = document.getElementById('modalDocRequirements');
-        const qualContainer = document.getElementById('modalQualRequirements');
-        
-        // Clear existing content
-        docContainer.innerHTML = '';
-        qualContainer.innerHTML = '';
-        
-        // Get current program requirements with their details
-        const currentReqsMap = {};
-        {% for pr in program.program_requirements %}
-            {% set _specs = pr.get_copy_specifications() %}
-            {% set _first = _specs[0] if _specs else {'count': 1, 'type': 'original'} %}
-            currentReqsMap[{{ pr.requirement_id }}] = {
-                number_of_copies: {{ _first['count'] }},
-                copy_type: '{{ _first["type"] }}'
-            };
-        {% endfor %}
-        
-        // Add document requirements
-        {% if requirements %}
-        const docReqs = [
-            {% for req in requirements %}
-            {% if req.requirement_type == 'document' %}
-            { id: {{ req.id }}, name: '{{ req.requirement_name }}', description: '{{ req.description or "" }}' }{% if not loop.last %},{% endif %}
-            {% endif %}
-            {% endfor %}
-        ];
-        
-        const qualReqs = [
-            {% for req in requirements %}
-            {% if req.requirement_type == 'qualification' %}
-            { id: {{ req.id }}, name: '{{ req.requirement_name }}', description: '{{ req.description or "" }}' }{% if not loop.last %},{% endif %}
-            {% endif %}
-            {% endfor %}
-        ];
-        
-        docReqs.forEach(req => {
-            const isChecked = currentReqsMap.hasOwnProperty(req.id);
-            const numCopies = isChecked ? currentReqsMap[req.id].number_of_copies : 1;
-            const copyType = isChecked ? currentReqsMap[req.id].copy_type : 'original';
-            
-            docContainer.innerHTML += `
-                <div class="mb-3 pb-3 border-bottom">
-                    <div class="custom-control custom-checkbox mb-2">
-                        <input type="checkbox" class="custom-control-input doc-req-checkbox" 
-                               id="modalDocReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''} 
-                               onchange="toggleCopyFields(${req.id}, this.checked)">
-                        <label class="custom-control-label" for="modalDocReq${req.id}">
-                            <strong>${req.name}</strong>
-                            ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
-                        </label>
-                    </div>
-                    <div class="ml-4 copy-fields-${req.id}" style="display: ${isChecked ? 'block' : 'none'};">
-                        <div class="form-row">
-                            <div class="form-group col-md-6">
-                                <label for="copies${req.id}" class="small font-weight-bold">Number of Copies</label>
-                                <div class="input-group input-group-sm">
-                                    <div class="input-group-prepend">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="decrementCopies(${req.id})">
-                                            <i class="fas fa-minus"></i>
-                                        </button>
-                                    </div>
-                                    <input type="number" class="form-control form-control-sm text-center copies-input" id="copies${req.id}" name="copies_${req.id}" value="${numCopies}" min="1" max="10">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="incrementCopies(${req.id})">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-group col-md-6">
-                                <label for="copyType${req.id}" class="small font-weight-bold">Copy Type</label>
-                                <select class="form-control form-control-sm copy-type-select" id="copyType${req.id}" name="copy_type_${req.id}">
-                                    <option value="original" ${copyType === 'original' ? 'selected' : ''}>Original</option>
-                                    <option value="photocopy" ${copyType === 'photocopy' ? 'selected' : ''}>Photocopy</option>
-                                    <option value="certified_true_copy" ${copyType === 'certified_true_copy' ? 'selected' : ''}>Certified True Copy</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        qualReqs.forEach(req => {
-            const isChecked = currentReqsMap.hasOwnProperty(req.id);
-            qualContainer.innerHTML += `
-                <div class="mb-3 pb-3 border-bottom">
-                    <div class="custom-control custom-checkbox">
-                        <input type="checkbox" class="custom-control-input qual-req-checkbox" 
-                               id="modalQualReq${req.id}" value="${req.id}" ${isChecked ? 'checked' : ''}>
-                        <label class="custom-control-label" for="modalQualReq${req.id}">
-                            <strong>${req.name}</strong>
-                            ${req.description ? '<br><small class="text-muted">' + req.description + '</small>' : ''}
-                        </label>
-                    </div>
-                </div>
-            `;
-        });
-        {% endif %}
-        
-        $('#requirementsModal').modal('show');
-    }
-    
-    function toggleCopyFields(reqId, isChecked) {
-        const copyFieldsDiv = document.querySelector(`.copy-fields-${reqId}`);
-        if (copyFieldsDiv) {
-            copyFieldsDiv.style.display = isChecked ? 'block' : 'none';
-        }
-    }
+
     
     function incrementCopies(reqId) {
         const input = document.querySelector(`#copies${reqId}, #editCopies${reqId}`);
@@ -2595,237 +1994,9 @@
         }
     }
     
-    function saveRequirements(button) {
-        const selectedReqs = [];
-        const reqDetails = {};
-        
-        // Collect document requirements with copy details
-        document.querySelectorAll('#requirementsModal .doc-req-checkbox:checked').forEach(checkbox => {
-            const reqId = checkbox.value;
-            selectedReqs.push(reqId);
-            const numCopies = document.querySelector(`#copies${reqId}`)?.value || '1';
-            const copyType = document.querySelector(`#copyType${reqId}`)?.value || 'original';
-            reqDetails[`copies_${reqId}`] = numCopies;
-            reqDetails[`copy_type_${reqId}`] = copyType;
-        });
-        
-        // Collect qualification requirements
-        document.querySelectorAll('#requirementsModal .qual-req-checkbox:checked').forEach(checkbox => {
-            selectedReqs.push(checkbox.value);
-        });
-        
-        const formData = new FormData();
-        selectedReqs.forEach(reqId => formData.append('requirements', reqId));
-        
-        // Add copy details for document requirements
-        Object.keys(reqDetails).forEach(key => {
-            formData.append(key, reqDetails[key]);
-        });
-        
-        // Debug: log what we're sending
-        console.log('Sending requirements:', selectedReqs);
-        console.log('Copy details:', reqDetails);
-        
-        const saveBtn = button;
-        const originalText = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
-        
-        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => {
-            return response.json().then(data => ({
-                status: response.status,
-                ok: response.ok,
-                data: data
-            }));
-        })
-        .then(({status, ok, data}) => {
-            if (ok && data.success) {
-                showToast('Requirements updated successfully!', 'success');
-                $('#requirementsModal').modal('hide');
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                const errorMsg = data.message || `Error (Status: ${status})`;
-                console.error('Server error:', data);
-                throw new Error(errorMsg);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast(error.message || 'Error updating requirements', 'danger');
-        })
-        .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        });
-    }
+
     
-    function openWorkflowModalImpl() {
-        // Create a temporary copy of workflow steps for editing
-        tempWorkflowSteps = JSON.parse(JSON.stringify(workflowSteps));
-        // Render workflow steps properly in the modal with correct form states
-        renderWorkflowStepsModal();
-        $('#workflowModal').modal('show');
-    }
-    
-    // Handle modal cancel/close to discard temporary changes
-    $('#workflowModal').on('hidden.bs.modal', function() {
-        // Clear temporary changes when modal is closed without saving
-        tempWorkflowSteps = [];
-    });
-    
-    function renderWorkflowStepsModal() {
-        const modalContainer = document.getElementById('modalWorkflowStepsList');
-        
-        if (tempWorkflowSteps.length === 0) {
-            modalContainer.innerHTML = `
-                <div class="text-center text-muted py-3">
-                    <i class="fas fa-stream fa-2x mb-2"></i>
-                    <p class="mb-0">No workflow steps defined. Click "Add Step" to create one.</p>
-                </div>
-            `;
-            return;
-        }
-        
-        modalContainer.innerHTML = tempWorkflowSteps.map(step => `
-            <div class="card mb-2 border-left-${stepTypes[step.step_type]?.color || 'primary'} workflow-step-card" 
-                 data-step-id="${step.id}" 
-                 draggable="true"
-                 ondragstart="handleDragStart(event, ${step.id})"
-                 ondragover="handleDragOver(event)"
-                 ondragenter="handleDragEnter(event)"
-                 ondragleave="handleDragLeave(event)"
-                 ondrop="handleDrop(event, ${step.id})"
-                 ondragend="handleDragEnd(event)"
-                 style="border-left-width: 4px !important; cursor: move;">
-                <div class="card-body p-3">
-                    <div class="row">
-                        <div class="col-md-1 d-flex align-items-center">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-grip-vertical text-muted mr-2 drag-handle" style="cursor: grab;"></i>
-                                <span class="badge badge-${stepTypes[step.step_type]?.color || 'primary'} rounded-circle" style="width:30px;height:30px;line-height:22px;font-size:14px;">
-                                    ${step.step_order}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <input type="text" class="form-control form-control-sm" placeholder="Step Name *" 
-                                   value="${step.step_name}" onchange="updateWorkflowStep(${step.id}, 'step_name', this.value)">
-                        </div>
-                        <div class="col-md-2">
-                            <select class="form-control form-control-sm" onchange="updateWorkflowStep(${step.id}, 'step_type', this.value)">
-                                ${Object.entries(stepTypes).map(([key, val]) => 
-                                    `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
-                                ).join('')}
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="custom-control custom-checkbox mt-1">
-                                <input type="checkbox" class="custom-control-input" id="modalPreApproval${step.id}" 
-                                       ${step.is_pre_approval ? 'checked' : ''} 
-                                       onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
-                                <label class="custom-control-label small" for="modalPreApproval${step.id}">Pre-Approval</label>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="custom-control custom-checkbox mt-1">
-                                <input type="checkbox" class="custom-control-input" id="modalReqVerify${step.id}" 
-                                       ${step.requires_verification ? 'checked' : ''} 
-                                       onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
-                                <label class="custom-control-label small" for="modalReqVerify${step.id}">Admin Verify</label>
-                            </div>
-                        </div>
-                        <div class="col-md-2 text-right">
-                            <button type="button" class="btn btn-sm btn-outline-info mr-1" onclick="openStepProcessModal(${step.id})" title="Edit process details">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-        
-        // Initialize sortable for modal workflow steps
-        if (typeof Sortable !== 'undefined') {
-            Sortable.create(modalContainer, {
-                animation: 150,
-                handle: '.drag-handle',
-                onEnd: function (evt) {
-                    // Reorder the temporary workflow steps array
-                    const movedItem = tempWorkflowSteps[evt.oldIndex];
-                    tempWorkflowSteps.splice(evt.oldIndex, 1);
-                    tempWorkflowSteps.splice(evt.newIndex, 0, movedItem);
-                    
-                    // Update step orders
-                    tempWorkflowSteps.forEach((step, index) => {
-                        step.step_order = index + 1;
-                    });
-                    
-                    // Re-render modal to reflect the new order
-                    renderWorkflowStepsModal();
-                }
-            });
-        }
-    }
-    
-    function saveWorkflowStepsImpl(button) {
-        // Apply temporary changes to main workflow steps array
-        workflowSteps = JSON.parse(JSON.stringify(tempWorkflowSteps));
-        updateWorkflowStepsJson();
-        
-        // Use the existing workflow steps save functionality
-        const formData = new FormData();
-        formData.append('workflow_steps_json', document.getElementById('workflowStepsJson').value);
-        
-        const saveBtn = button;
-        const originalText = saveBtn.innerHTML;
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
-        
-        fetch('{{ url_for("admin.edit_program", id=program.id) }}', {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('Failed to save');
-            }
-        })
-        .then(data => {
-            if (data.success) {
-                showToast('Workflow steps updated successfully!', 'success');
-                // Clear change tracking since we successfully saved
-                clearChangeTracking('workflow');
-                // Refresh the main view and close modal
-                renderWorkflowSteps();
-                renderViewWorkflowSteps();
-                $('#workflowModal').modal('hide');
-            } else {
-                throw new Error(data.message || 'Failed to save');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error updating workflow steps', 'danger');
-        })
-        .finally(() => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        });
+
     }
     
     // ===================================
@@ -2958,80 +2129,44 @@
     });
     
     window.addWorkflowStepImpl = function() {
-        // Check if modal is open to determine which array to use
-        if ($('#workflowModal').hasClass('show')) {
-            // Working in modal - use temporary array
-            const stepOrder = tempWorkflowSteps.length + 1;
-            const newStep = {
-                id: Date.now(),
-                step_order: stepOrder,
-                step_name: '',
-                step_description: '',
-                step_type: 'approval',
-                is_pre_approval: false,
-                requires_verification: true,
-                min_items: 1,
-                allowed_file_types: '',
-                step_config: null
-            };
-            tempWorkflowSteps.push(newStep);
-            renderWorkflowStepsModal();
-        } else {
-            // Working in main view - use main array and mark as changed
-            const stepOrder = workflowSteps.length + 1;
-            const newStep = {
-                id: Date.now(),
-                step_order: stepOrder,
-                step_name: '',
-                step_description: '',
-                step_type: 'approval',
-                is_pre_approval: false,
-                requires_verification: true,
-                min_items: 1,
-                allowed_file_types: '',
-                step_config: null
-            };
-            workflowSteps.push(newStep);
-            markAsChanged('workflow');
-            updateWorkflowStepsJson();
-            renderWorkflowSteps();
-        }
+        // Add workflow step to main array
+        const stepOrder = workflowSteps.length + 1;
+        const newStep = {
+            id: Date.now(),
+            step_order: stepOrder,
+            step_name: '',
+            step_description: '',
+            step_type: 'approval',
+            is_pre_approval: false,
+            requires_verification: true,
+            min_items: 1,
+            allowed_file_types: '',
+            step_config: null
+        };
+        workflowSteps.push(newStep);
+        markAsChanged('workflow');
+        updateWorkflowStepsJson();
+        renderWorkflowSteps();
     };
     
     function removeWorkflowStep(stepId) {
-        if ($('#workflowModal').hasClass('show')) {
-            // Working in modal - use temporary array
-            tempWorkflowSteps = tempWorkflowSteps.filter(s => s.id !== stepId);
-            // Reorder steps
-            tempWorkflowSteps.forEach((s, index) => s.step_order = index + 1);
-            renderWorkflowStepsModal();
-        } else {
-            // Working in main view - use main array and mark as changed
-            workflowSteps = workflowSteps.filter(s => s.id !== stepId);
-            // Reorder steps
-            workflowSteps.forEach((s, index) => s.step_order = index + 1);
-            markAsChanged('workflow');
-            updateWorkflowStepsJson();
-            renderWorkflowSteps();
-        }
+        // Remove from main array and mark as changed
+        workflowSteps = workflowSteps.filter(s => s.id !== stepId);
+        // Reorder steps
+        workflowSteps.forEach((s, index) => s.step_order = index + 1);
+        markAsChanged('workflow');
+        updateWorkflowStepsJson();
+        renderWorkflowSteps();
     }
     
     function updateWorkflowStep(stepId, field, value) {
-        if ($('#workflowModal').hasClass('show')) {
-            // Working in modal - use temporary array
-            const step = tempWorkflowSteps.find(s => s.id === stepId);
-            if (step) {
-                step[field] = value;
-            }
-        } else {
-            // Working in main view - use main array and mark as changed
-            const step = workflowSteps.find(s => s.id === stepId);
-            if (step) {
-                step[field] = value;
-                markAsChanged('workflow');
-                updateWorkflowStepsJson();
-                renderWorkflowSteps(); // Re-render to show changes
-            }
+        // Update workflow step in main array
+        const step = workflowSteps.find(s => s.id === stepId);
+        if (step) {
+            step[field] = value;
+            markAsChanged('workflow');
+            updateWorkflowStepsJson();
+            renderWorkflowSteps(); // Re-render to show changes
         }
     }
     

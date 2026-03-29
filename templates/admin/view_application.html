@@ -1148,15 +1148,6 @@
                             <i class="fas fa-clipboard-check mr-2"></i>
                             {% if approval_step %}{{ approval_step.step_name }}{% else %}Review Application{% endif %}
                         </h5>
-                        <div>
-                            {% if approval_step_status and approval_step_status.step_status == 'pending_review' %}
-                            <span class="badge badge-warning px-3 py-2">Pending Review</span>
-                            {% elif approval_step_status and approval_step_status.step_status in ['not_started', 'in_progress'] %}
-                            <span class="badge badge-info px-3 py-2">Awaiting Action</span>
-                            {% else %}
-                            <span class="badge badge-dark px-3 py-2">Pending Decision</span>
-                            {% endif %}
-                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -1388,9 +1379,41 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success"><i class="fas fa-check mr-1"></i>Approve Application</button>
+                        <button type="button" onclick="checkQualificationsBeforeApproval()" class="btn btn-success"><i class="fas fa-check mr-1"></i>Approve Application</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirm Override Qualification Requirements Modal -->
+    <div class="modal fade" id="confirmApprovalOverrideModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Qualification Requirements Not Met</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger" id="qualificationWarningMessage">
+                        <!-- Dynamically populated with qualification issues -->
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Important:</strong> Approving this application despite unmet qualification requirements may violate program eligibility rules and guidelines.
+                    </div>
+                    <p class="mb-0">
+                        <strong>Are you sure you want to proceed with approval?</strong> This action will allow the applicant to move forward in the process.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-arrow-left mr-1"></i>Go Back and Review
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="submitApprovalOverride()">
+                        <i class="fas fa-check mr-1"></i>Approve Anyway
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1424,6 +1447,42 @@
     {% endif %}
     <!-- End of Dynamic Approval Step Module -->
 
+    <!-- Document Submission Confirmation Modal -->
+    <div class="modal fade" id="confirmDocumentSubmissionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="fas fa-file-upload mr-2"></i>Confirm Document Submission at MSWD Office</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Please confirm:</strong> Has the applicant physically submitted their required documents at the MSWD Office?
+                    </div>
+                    <p class="mb-3">
+                        Once you confirm, the system will:
+                    </p>
+                    <ul>
+                        <li>Record that documents have been submitted</li>
+                        <li>Allow you to proceed with document verification</li>
+                        <li>Update the applicant's application status</li>
+                    </ul>
+                    <div class="alert alert-warning mb-0">
+                        <small><i class="fas fa-exclamation-triangle mr-1"></i><strong>Note:</strong> Confirm only if the applicant has actually submitted their documents at the MSWD Office. This cannot be undone.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-arrow-left mr-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="confirmDocumentsSubmitted('docSubmissionOverlay')" data-dismiss="modal">
+                        <i class="fas fa-check-circle mr-1"></i>Yes, Documents Submitted
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- FULL DETAILS SECTION (Hidden during pre-approval for step focus) -->
     <!-- ============================================== -->
@@ -1468,7 +1527,7 @@
                         {% elif application.completion_percentage >= 50 %}badge-info
                         {% else %}badge-warning{% endif %}">
                         <i class="fas fa-{% if application.completion_percentage == 100 %}check-circle{% else %}tasks{% endif %} mr-1"></i>
-                        {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Verified
+                        {{ document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length }} / {{ document_requirements|length }} Approved
                         ({{ application.completion_percentage }}%)
                     </span>
                 </div>
@@ -1515,7 +1574,7 @@
                                 
                                 <span class="badge badge-{% if upload.verification_status == 'approved' %}success{% elif upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
                                     {% if upload.verification_status == 'approved' %}
-                                        <i class="fas fa-check-circle"></i> Verified
+                                        <i class="fas fa-check-circle"></i> Approved
                                     {% elif upload.verification_status == 'rejected' %}
                                         <i class="fas fa-times-circle"></i> Rejected
                                     {% else %}
@@ -1598,27 +1657,19 @@
         <div class="card-footer bg-light py-3 border-top">
             <div class="mb-3">
                 <div id="docRequirementsStatus">
-                    {% set approved_docs = 0 %}
-                    {% set mandatory_docs = 0 %}
-                    {% for req in document_requirements %}
-                        {% if req.is_mandatory %}
-                            {% set mandatory_docs = mandatory_docs + 1 %}
-                            {% if req.requirement_id in uploads_by_requirement and uploads_by_requirement[req.requirement_id].verification_status == 'approved' %}
-                                {% set approved_docs = approved_docs + 1 %}
-                            {% endif %}
-                        {% endif %}
-                    {% endfor %}
-                    
-                    {% if approved_docs == mandatory_docs and mandatory_docs > 0 %}
+                    {% set total_docs = document_requirements|length %}
+                    {% set approved_docs = document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length %}
+
+                    {% if total_docs > 0 and approved_docs == total_docs %}
                     <div class="alert alert-success mb-0" id="statusAllVerified">
                         <i class="fas fa-check-circle mr-2"></i>
-                        <strong>All required documents verified!</strong> You can now complete this step and proceed to the next.
+                        <strong>All documents approved!</strong> You can now complete this step and proceed to the next.
                     </div>
                     {% else %}
                     <div class="alert alert-info mb-0" id="statusPending">
                         <i class="fas fa-hourglass-half mr-2"></i>
-                        <strong>Documents pending:</strong> {{ approved_docs }} of {{ mandatory_docs }} required documents verified
-                        {% if mandatory_docs > approved_docs %}<br><strong>{{ mandatory_docs - approved_docs }} document(s) still need verification before proceeding</strong>{% endif %}
+                        <strong>Documents pending:</strong> {{ approved_docs }} of {{ total_docs }} documents approved
+                        {% if total_docs > approved_docs %}<br><strong>{{ total_docs - approved_docs }} document(s) still need approval before proceeding</strong>{% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -1628,7 +1679,7 @@
                         data-toggle="modal" 
                         data-target="#completeDocUploadStepModal"
                         id="completeDocStepBtn"
-                        {% if mandatory_docs > 0 and approved_docs != mandatory_docs %}disabled{% endif %}>
+                        {% if total_docs > 0 and approved_docs != total_docs %}disabled{% endif %}>
                     <i class="fas fa-check-circle mr-2"></i>Complete Step & Proceed
                 </button>
             </div>
@@ -1798,22 +1849,11 @@
                     <div id="stepCompletionChecks">
                         {% set approved_count = document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length %}
                         {% set total_count = document_requirements|length %}
-                        {% set mandatory_count = document_requirements|selectattr('is_mandatory')|list|length %}
-                        {% set approved_mandatory = document_requirements|selectattr('is_mandatory') | selectattr('submission_status', 'equalto', 'approved') | list | length %}
                         
                         <p class="mb-3">
                             <strong>Document Verification Status:</strong><br>
                             <span class="badge badge-info">{{ approved_count }} of {{ total_count }} documents approved</span>
                         </p>
-                        
-                        {% if mandatory_count > 0 %}
-                        <p class="mb-3">
-                            <strong>Mandatory Documents:</strong><br>
-                            <span class="badge {% if approved_mandatory == mandatory_count %}badge-success{% else %}badge-warning{% endif %}">
-                                {{ approved_mandatory }} of {{ mandatory_count }} required documents approved
-                            </span>
-                        </p>
-                        {% endif %}
                     </div>
                     
                     <div class="form-group">
@@ -1831,7 +1871,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="completeDocUploadStep()">
+                    {% set approved_count = document_requirements|selectattr('submission_status', 'equalto', 'approved')|list|length %}
+                    {% set total_count = document_requirements|length %}
+                    <button type="button" class="btn btn-primary" onclick="completeDocUploadStep()" {% if total_count > 0 and approved_count != total_count %}disabled{% endif %} id="completeDocStepModalBtn">
                         <i class="fas fa-check-circle mr-1"></i>Complete Step & Proceed
                     </button>
                 </div>
@@ -1841,6 +1883,7 @@
 
     <!-- Document Submission at MSWD Office -->
     {% set doc_submission_status = 'pending' %}
+    {% set doc_submission_state = namespace(confirmed=false) %}
     {% for step in application.program.workflow_steps|sort(attribute='step_order') %}
         {% if step.step_type in ['document_submission', 'document_submission_office', 'physical_submission'] %}
             {% for ws in workflow_status %}
@@ -1849,6 +1892,9 @@
                         {% set doc_submission_status = 'approved' %}
                     {% elif ws.step_status in ['in_progress', 'pending_review'] %}
                         {% set doc_submission_status = 'active' %}
+                    {% endif %}
+                    {% if ws.step_data_json and ws.step_data_json.get('office_submission_confirmed') %}
+                        {% set doc_submission_state.confirmed = true %}
                     {% endif %}
                 {% endif %}
             {% endfor %}
@@ -1881,7 +1927,21 @@
         </div>
         {% endif %}
         
-        <div class="card-body p-0">
+        <div class="card-body p-0 position-relative" id="docSubmissionBody">
+            <!-- Document Submission Confirmation Overlay -->
+            <div class="document-submission-overlay position-absolute w-100 h-100" id="docSubmissionOverlay" style="top: 0; left: 0; z-index: 100; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); border-radius: 0.25rem; display: {% if doc_submission_state.confirmed %}none{% else %}flex{% endif %}; flex-direction: column; justify-content: center; align-items: center;">
+                <div class="text-center">
+                    <i class="fas fa-file-upload fa-3x mb-3 text-primary"></i>
+                    <h5 class="font-weight-bold mb-3">Documents Submitted at MSWD Office?</h5>
+                    <p class="text-muted mb-4">
+                        Confirm that the applicant has physically submitted their required documents <br> at the MSWD Office before proceeding with verification.
+                    </p>
+                    <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#confirmDocumentSubmissionModal">
+                        <i class="fas fa-check-circle mr-2"></i>Document Submitted
+                    </button>
+                </div>
+            </div>
+            
             <!-- Documents Table -->
             <table class="table table-hover mb-0" id="docSubmissionTable" style="table-layout: fixed;">
                     <thead class="thead-light">
@@ -2507,215 +2567,7 @@
     </div>
 </div>
 
-{% if application.program.program_type == 'CA' %}
-<div class="card shadow mb-4" id="caDocumentsSection" data-step-type="approval" style="display: none;">
-    <div class="card-header bg-success text-white">
-        <div class="d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 font-weight-bold">
-                <i class="fas fa-file-contract mr-2"></i>CA Pre-Approval Documents
-            </h6>
-            <small>Certificate & Proposal Verification</small>
-        </div>
-    </div>
-    <div class="card-body">
-        {% if certificate or proposal %}
-        <div class="row">
-            <!-- Certificate of Participation -->
-            <div class="col-md-6 mb-3">
-                <div class="card h-100 {% if cert_approved %}border-success{% elif certificate and certificate.verification_status == 'rejected' %}border-danger{% elif certificate %}border-warning{% else %}border-secondary{% endif %}">
-                    <div class="card-header {% if cert_approved %}bg-success text-white{% elif certificate and certificate.verification_status == 'rejected' %}bg-danger text-white{% elif certificate %}bg-warning text-white{% else %}bg-secondary text-white{% endif %}">
-                        <i class="fas fa-certificate mr-2"></i>Certificate of Participation
-                    </div>
-                    <div class="card-body">
-                        {% if certificate %}
-                        <div class="mb-3">
-                            <a href="/{{ certificate.file_path }}" target="_blank" class="btn btn-outline-primary btn-block">
-                                <i class="fas fa-eye mr-2"></i>View Certificate
-                            </a>
-                            <small class="text-muted d-block mt-1">{{ certificate.original_filename }}</small>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Uploaded: {{ certificate.uploaded_at.strftime('%b %d, %Y %I:%M %p') }}</small>
-                        </div>
-                        {% if certificate.admin_notes %}
-                        <div class="alert alert-info py-2 mb-2">
-                            <small><strong>Admin Notes:</strong><br>{{ certificate.admin_notes }}</small>
-                        </div>
-                        {% endif %}
-                        <div class="text-center">
-                            {% if certificate.verification_status == 'approved' %}
-                            <span class="badge badge-success badge-lg"><i class="fas fa-check mr-1"></i>Approved</span>
-                            {% elif certificate.verification_status == 'rejected' %}
-                            <span class="badge badge-danger badge-lg"><i class="fas fa-times mr-1"></i>Rejected</span>
-                            {% else %}
-                            <span class="badge badge-warning badge-lg"><i class="fas fa-clock mr-1"></i>Pending Review</span>
-                            {% endif %}
-                        </div>
-                        {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-file-upload fa-3x mb-3 text-secondary"></i>
-                            <p class="mb-0">Certificate not yet uploaded</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Proposal -->
-            <div class="col-md-6 mb-3">
-                <div class="card h-100 {% if proposal_approved %}border-success{% elif proposal and proposal.verification_status == 'rejected' %}border-danger{% elif proposal %}border-warning{% else %}border-secondary{% endif %}">
-                    <div class="card-header {% if proposal_approved %}bg-success text-white{% elif proposal and proposal.verification_status == 'rejected' %}bg-danger text-white{% elif proposal %}bg-warning text-white{% else %}bg-secondary text-white{% endif %}">
-                        <i class="fas fa-file-alt mr-2"></i>Capital Assistance Proposal
-                    </div>
-                    <div class="card-body">
-                        {% if proposal %}
-                        <div class="mb-3">
-                            <a href="/{{ proposal.file_path }}" target="_blank" class="btn btn-outline-primary btn-block">
-                                <i class="fas fa-eye mr-2"></i>View Proposal
-                            </a>
-                            <small class="text-muted d-block mt-1">{{ proposal.original_filename }}</small>
-                        </div>
-                        {% if proposal.description %}
-                        <div class="alert alert-light py-2 mb-2">
-                            <small><strong>Description:</strong> {{ proposal.description }}</small>
-                        </div>
-                        {% endif %}
-                        <div class="mb-2">
-                            <small class="text-muted">Uploaded: {{ proposal.uploaded_at.strftime('%b %d, %Y %I:%M %p') }}</small>
-                        </div>
-                        {% if proposal.admin_notes %}
-                        <div class="alert alert-info py-2 mb-2">
-                            <small><strong>Admin Notes:</strong><br>{{ proposal.admin_notes }}</small>
-                        </div>
-                        {% endif %}
-                        <div class="text-center">
-                            {% if proposal.verification_status == 'approved' %}
-                            <span class="badge badge-success badge-lg"><i class="fas fa-check mr-1"></i>Approved</span>
-                            {% elif proposal.verification_status == 'rejected' %}
-                            <span class="badge badge-danger badge-lg"><i class="fas fa-times mr-1"></i>Rejected</span>
-                            {% else %}
-                            <span class="badge badge-warning badge-lg"><i class="fas fa-clock mr-1"></i>Pending Review</span>
-                            {% endif %}
-                        </div>
-                        {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-file-upload fa-3x mb-3 text-secondary"></i>
-                            <p class="mb-0">Proposal not yet uploaded</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Verification Actions -->
-        {% if both_uploaded and not both_approved %}
-        <div class="card mt-3">
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <h6 class="font-weight-bold mb-1">CA Documents Verification</h6>
-                        <p class="text-muted mb-0 small">
-                            {% if both_approved %}
-                            <i class="fas fa-check-circle text-success mr-1"></i>Both documents verified and approved
-                            {% elif any_rejected %}
-                            <i class="fas fa-times-circle text-danger mr-1"></i>One or more documents rejected
-                            {% else %}
-                            <i class="fas fa-clock text-warning mr-1"></i>Both documents pending review
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="col-md-6 text-right">
-                        {% if not both_approved %}
-                        <form method="POST" action="{{ url_for('admin.verify_all_ca_documents', application_id=application.id) }}" class="d-inline">>>
-                            <input type="hidden" name="action" value="approve">
-                            <button type="submit" class="btn btn-success mr-2" onclick="return confirm('Approve both Certificate and Proposal?')">
-                                <i class="fas fa-check mr-1"></i>Approve Both
-                            </button>
-                        </form>
-                        <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#rejectCALDocsModal">
-                            <i class="fas fa-times mr-1"></i>Reject
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Overall Status -->
-        <div class="mt-3 p-3 {% if both_approved %}bg-success{% elif any_rejected %}bg-danger{% elif both_uploaded %}bg-warning{% else %}bg-secondary{% endif %} text-white rounded">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>CA Documents Status</strong>
-                    <br>
-                    {% if not certificate and not proposal %}
-                    <small>Waiting for applicant to upload Certificate and Proposal</small>
-                    {% elif not both_uploaded %}
-                    <small>Waiting for {% if not certificate %}Certificate{% endif %}{% if not certificate and not proposal %} and {% endif %}{% if not proposal %}Proposal{% endif %}</small>
-                    {% elif both_approved %}
-                    <small>Both documents approved ✓ - Ready for document submission phase</small>
-                    {% elif any_rejected %}
-                    <small>Documents rejected - Applicant needs to resubmit</small>
-                    {% else %}
-                    <small>Both documents uploaded - Pending verification</small>
-                    {% endif %}
-                </div>
-                <div class="text-right">
-                    {% if both_approved %}
-                    <i class="fas fa-check-circle fa-2x"></i>
-                    {% elif any_rejected %}
-                    <i class="fas fa-times-circle fa-2x"></i>
-                    {% elif both_uploaded %}
-                    <i class="fas fa-clock fa-2x"></i>
-                    {% else %}
-                    <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        {% else %}
-        <div class="alert alert-warning mb-0">
-            <i class="fas fa-exclamation-triangle mr-2"></i>
-            <strong>No CA documents uploaded yet.</strong>
-            <p class="mb-0">CA applications require the applicant to upload a Certificate of Participation (seminar/training) and a Capital Assistance Proposal before proceeding.</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
 
-<!-- Reject CA Documents Modal -->
-<div class="modal fade" id="rejectCALDocsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('admin.verify_all_ca_documents', application_id=application.id) }}">
-                <input type="hidden" name="action" value="reject">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject CA Documents</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="font-weight-bold">Reason for Rejection <span class="text-danger">*</span></label>
-                        <textarea name="admin_notes" class="form-control" rows="4" required 
-                                  placeholder="Please explain why the Certificate or Proposal is being rejected..."></textarea>
-                        <small class="form-text text-muted">This feedback will be sent to the applicant.</small>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-times mr-1"></i>Reject Documents
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 </div> <!-- End container-fluid -->
 
@@ -2871,6 +2723,60 @@ function handleApprove() {
     showConfirmModal('Proceed to APPROVE this application?', function() { updateStatus('approved'); });
     return;
     {% endif %}
+}
+
+// Check qualifications and show approval modal if issues detected
+function checkQualificationsBeforeApproval() {
+    {% if qualification_requirements %}
+    // Count unqualified and needs verification
+    const notQualified = {{ qualification_requirements|selectattr('is_qualified', 'equalto', False)|list|length }};
+    const needsVerification = {{ qualification_requirements|rejectattr('is_qualified', 'in', [True, False])|list|length }};
+    
+    if (notQualified > 0 || needsVerification > 0) {
+        // Build detailed warning message
+        let warningHtml = '<div><strong style="color: #d32f2f;">Qualification Issues Detected:</strong><ul style="margin-top: 10px;">';
+        
+        if (notQualified > 0) {
+            warningHtml += `<li style="color: #d32f2f;"><strong>❌ ${notQualified} qualification requirement(s) NOT MET</strong></li>`;
+        }
+        if (needsVerification > 0) {
+            warningHtml += `<li style="color: #f57c00;"><strong>⚠️ ${needsVerification} qualification(s) need manual verification</strong></li>`;
+        }
+        warningHtml += '</ul></div>';
+        
+        // Populate and show the override modal
+        document.getElementById('qualificationWarningMessage').innerHTML = warningHtml;
+        $('#approveWorkflowStepModal').modal('hide');
+        $('#confirmApprovalOverrideModal').modal('show');
+        return;
+    }
+    
+    // All qualifications met, proceed directly to approval
+    submitApproval();
+    {% else %}
+    // No qualification requirements, proceed directly to approval
+    submitApproval();
+    {% endif %}
+}
+
+// Submit approval form
+function submitApproval() {
+    // Get the form data from the approve modal
+    const deadline = document.querySelector('#approveWorkflowStepModal input[name="submission_deadline"]').value;
+    const feedback = document.querySelector('#approveWorkflowStepModal textarea[name="feedback"]').value;
+    
+    // Create a form and submit
+    const form = document.querySelector('#approveWorkflowStepModal form');
+    form.submit();
+}
+
+// Override unmet qualifications and approve anyway
+function submitApprovalOverride() {
+    // Close the warning modal
+    $('#confirmApprovalOverrideModal').modal('hide');
+    // Submit the approval
+    const form = document.querySelector('#approveWorkflowStepModal form');
+    form.submit();
 }
 
 function handleReject() {
@@ -4359,6 +4265,17 @@ function verifyUploadWithFeedback(uploadId, status, feedback) {
 }
 
 function completeDocUploadStep() {
+    // Validate that all documents are approved
+    const documentRequirements = {{ document_requirements | tojson | safe }};
+    
+    // Check if all listed requirements are approved
+    const approvedDocs = documentRequirements.filter(doc => doc.submission_status === 'approved');
+
+    if (documentRequirements.length === 0 || approvedDocs.length < documentRequirements.length) {
+        showErrorToast('Cannot complete this step. All documents must be approved first.');
+        return;
+    }
+    
     // Find the document_upload step from workflow steps
     const workflowSteps = {{ workflow_steps_json | tojson | safe }};
     const docUploadStep = workflowSteps.find(step => step.step_type === 'document_upload');
@@ -4449,6 +4366,44 @@ function updateCompleteStepButtonState() {
     }
 }
 
+function confirmDocumentsSubmitted(overlayId) {
+    const workflowSteps = {{ workflow_steps_json | tojson | safe }};
+    const docSubmissionStep = workflowSteps.find(step =>
+        step.step_type === 'document_submission_office' ||
+        step.step_type === 'document_submission' ||
+        step.step_type === 'physical_submission'
+    );
+
+    if (!docSubmissionStep) {
+        alert('Document Submission step not found in workflow.');
+        return;
+    }
+
+    fetch(`/admin/applications/{{ application.id }}/workflow-step/${docSubmissionStep.id}/confirm-office-submission`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const overlay = document.getElementById(overlayId);
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+            showSuccessToast('Document submission confirmed. You may now verify submitted documents.');
+        } else {
+            alert(data.message || 'Failed to confirm document submission.');
+        }
+    })
+    .catch(error => {
+        console.error('Error confirming office submission:', error);
+        alert('Failed to confirm document submission. Please try again.');
+    });
+}
+
 function completeDocSubmissionStep() {
     // First verify all documents are verified
     const allDocumentRows = document.querySelectorAll('#docSubmissionTable tbody tr.document-row');
@@ -4461,6 +4416,11 @@ function completeDocSubmissionStep() {
         return;
     }
     
+    // Show the confirmation modal
+    $('#confirmCompleteDocSubmissionModal').modal('show');
+}
+
+function executeCompleteDocSubmissionStep() {
     // Find the document submission step from workflow steps
     const workflowSteps = {{ workflow_steps_json | tojson | safe }};
     console.log('Available workflow steps:', workflowSteps);
@@ -4477,11 +4437,6 @@ function completeDocSubmissionStep() {
     if (!docSubmissionStep) {
         console.error('Available step types:', workflowSteps.map(s => s.step_type));
         alert('Document Submission step not found in workflow.');
-        return;
-    }
-    
-    // Confirm before completing
-    if (!confirm('Mark all verified documents and complete this step? The next workflow step will be activated.')) {
         return;
     }
     
@@ -5318,6 +5273,43 @@ $(function () {
                 </button>
                 <button type="button" class="btn btn-success" onclick="bulkVerifyDocuments()" data-dismiss="modal">
                     <i class="fas fa-check-double mr-1"></i>Verify All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Complete Document Submission Step Modal -->
+<div class="modal fade" id="confirmCompleteDocSubmissionModal" tabindex="-1" role="dialog" aria-labelledby="confirmCompleteDocSubmissionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-primary">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="confirmCompleteDocSubmissionLabel">
+                    <i class="fas fa-exclamation-circle mr-2"></i>Complete Document Submission Step
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-primary" role="alert">
+                    <i class="fas fa-arrow-right mr-2"></i>
+                    <strong>Complete this step and proceed to the next?</strong>
+                </div>
+                <p class="mb-3">
+                    All verified documents will be marked as complete. The applicant will proceed to the next workflow step.
+                </p>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    This action cannot be undone. The applicant will be notified of the completion.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="executeCompleteDocSubmissionStep()" data-dismiss="modal">
+                    <i class="fas fa-arrow-right mr-1"></i>Complete and Proceed
                 </button>
             </div>
         </div>

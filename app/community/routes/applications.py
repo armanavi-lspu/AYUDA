@@ -237,7 +237,7 @@ def _get_step_content(application, step, step_status):
         'form_data': step_status.step_data_json if step_status else {}
     }
     
-    if step.step_type in ['document_upload', 'document_submission']:
+    if step.step_type in ['document_upload']:
         # Get required documents for this step
         step_config = step.config_data if hasattr(step, 'config_data') else {}
         required_docs = step_config.get('required_documents', [])
@@ -266,6 +266,66 @@ def _get_step_content(application, step, step_status):
             ApplicationDocumentUploads.requirement_id.in_([d.id for d in documents])
         ).all()
         content['uploads'] = uploads
+
+    elif step.step_type in ['document_submission', 'document_submission_office', 'physical_submission']:
+        # Read-only checklist view for physically submitted documents at MSWD Office
+        step_config = step.config_data if hasattr(step, 'config_data') else {}
+        required_docs = step_config.get('required_documents', [])
+
+        checklist_query = db.session.query(
+            Requirements,
+            ProgramRequirements,
+            ApplicationDocuments
+        ).join(
+            ProgramRequirements,
+            Requirements.id == ProgramRequirements.requirement_id
+        ).outerjoin(
+            ApplicationDocuments,
+            db.and_(
+                ApplicationDocuments.application_id == application.id,
+                ApplicationDocuments.requirement_id == Requirements.id
+            )
+        ).filter(
+            ProgramRequirements.program_id == application.program_id,
+            Requirements.requirement_type == 'document'
+        )
+
+        if required_docs:
+            checklist_query = checklist_query.filter(Requirements.id.in_(required_docs))
+
+        checklist_rows = checklist_query.order_by(Requirements.requirement_name.asc()).all()
+
+        checklist_items = []
+        requirement_ids = []
+        for req, prog_req, app_doc in checklist_rows:
+            requirement_ids.append(req.id)
+            checklist_items.append({
+                'id': app_doc.id if app_doc else None,
+                'requirement_id': req.id,
+                'requirement_name': req.requirement_name,
+                'description': req.description,
+                'is_mandatory': prog_req.is_mandatory,
+                'submission_status': app_doc.submission_status if app_doc else 'not_submitted',
+                'admin_feedback': app_doc.admin_feedback if app_doc else None,
+                'notes': app_doc.notes if app_doc else None,
+                'verified_at': app_doc.verified_at if app_doc else None
+            })
+
+        # Include uploaded document copies for read-only viewing when available
+        uploads = []
+        if requirement_ids:
+            uploads = ApplicationDocumentUploads.query.filter(
+                ApplicationDocumentUploads.application_id == application.id,
+                ApplicationDocumentUploads.requirement_id.in_(requirement_ids)
+            ).all()
+
+        content['checklist'] = checklist_items
+        content['uploads'] = uploads
+        content['total_checklist'] = len(checklist_items)
+        content['verified_checklist'] = len([
+            item for item in checklist_items
+            if item['submission_status'] in ['verified', 'approved']
+        ])
         
     elif step.step_type == 'photo_upload':
         # Get shelter photos for this application

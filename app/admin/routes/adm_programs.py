@@ -481,7 +481,7 @@ def add_program():
                 else:
                     # Default steps for other programs (AICS, CA, etc.)
                     default_steps = [
-                        {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
+                        {'step_name': 'Application Review', 'step_description': '', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
@@ -731,7 +731,7 @@ def edit_program(id):
                 else:
                     # Default steps for other programs (AICS, CA, etc.)
                     default_steps = [
-                        {'step_name': 'Application Review', 'step_description': 'Wait for admin to review and approve your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
+                        {'step_name': 'Application Review', 'step_description': '', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
                         {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
                         {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}

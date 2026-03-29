@@ -498,7 +498,126 @@
                         {% endif %}
                         {% endif %} {# End pending_review check #}
                     
-                    {% elif current_step.step_type in ['document_upload', 'document_submission'] %}
+                    {% elif current_step.step_type in ['document_submission', 'document_submission_office', 'physical_submission'] %}
+                        <!-- Physical Submission (MSWD Office) - Initial submission instruction or read-only checklist view -->
+                        {% set office_submission_confirmed = step_content.form_data.get('office_submission_confirmed', False) %}
+                        
+                        {% if current_step_status and current_step_status.step_status == 'in_progress' and not office_submission_confirmed %}
+                        <!-- Initial submission - Show instruction overlay -->
+                        <div class="position-relative" style="min-height: 400px;">
+                            <div class="submission-instruction-overlay position-absolute w-100 h-100" id="mswordSubmissionOverlay" style="top: 0; left: 0; z-index: 100; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); border-radius: 0.25rem; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
+                                <div class="text-center">
+                                    <i class="fas fa-building fa-3x mb-3" style="color: #6c757d;"></i>
+                                    <h4 class="font-weight-bold mb-3">Submit Documents at MSWD Office</h4>
+                                    <p class="text-muted mb-4" style="max-width: 500px;">
+                                        Please bring all the required documents to the <strong>MSWD Office</strong> for physical submission. <br><br>
+                                        The MSWD office staff will process your documents and update your application status once verified.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- After submission - Show read-only checklist view -->
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            This step is read-only. It shows the status of documents you submitted physically at the MSWD Office.
+                        </div>
+
+                        {% set verified_count = step_content.verified_checklist or 0 %}
+                        {% set total_docs = step_content.total_checklist or 0 %}
+
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">
+                                        <i class="fas fa-clipboard-check mr-2 text-primary"></i>MSWD Document Checklist
+                                    </h6>
+                                    <small class="text-muted">Track physical submission verification and admin feedback</small>
+                                </div>
+                                <span class="badge badge-light px-3 py-2" style="font-size: 0.9rem;">
+                                    {{ verified_count }} / {{ total_docs }} Verified
+                                </span>
+                            </div>
+                        </div>
+
+                        {% if step_content.checklist %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Status</th>
+                                        <th>Submitted Copy</th>
+                                        <th>Admin Feedback</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in step_content.checklist %}
+                                    {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', item.requirement_id) | first %}
+                                    <tr>
+                                        <td>
+                                            <div class="font-weight-bold">{{ item.requirement_name }}</div>
+                                            {% if item.is_mandatory %}
+                                            <span class="badge badge-danger badge-pill">Required</span>
+                                            {% endif %}
+                                            {% if item.description %}
+                                            <div class="small text-muted mt-1">{{ item.description }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.submission_status in ['verified', 'approved'] %}
+                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Verified</span>
+                                            {% elif item.submission_status == 'rejected' %}
+                                            <span class="badge badge-danger"><i class="fas fa-times-circle mr-1"></i>Rejected</span>
+                                            {% elif item.submission_status in ['pending', 'submitted'] %}
+                                            <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending Review</span>
+                                            {% elif item.submission_status == 'returned' %}
+                                            <span class="badge badge-secondary"><i class="fas fa-undo mr-1"></i>Returned</span>
+                                            {% else %}
+                                            <span class="badge badge-light text-muted"><i class="fas fa-minus-circle mr-1"></i>Not Submitted</span>
+                                            {% endif %}
+                                            {% if item.verified_at %}
+                                            <div class="small text-muted mt-1">Updated {{ item.verified_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if existing_upload %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
+                                                <i class="fas fa-eye mr-1"></i>View
+                                            </button>
+                                            <div class="small text-muted mt-1">{{ existing_upload.original_filename }}</div>
+                                            {% else %}
+                                            <span class="text-muted small"><i class="fas fa-file-alt mr-1"></i>No uploaded copy</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.admin_feedback %}
+                                            <div class="alert alert-info py-2 px-3 mb-0">
+                                                <small><strong>Feedback:</strong> {{ item.admin_feedback }}</small>
+                                            </div>
+                                            {% elif item.notes %}
+                                            <div class="alert alert-light py-2 px-3 mb-0 border">
+                                                <small><strong>Notes:</strong> {{ item.notes }}</small>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted small">No feedback yet</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-info-circle fa-3x mb-3"></i>
+                            <p class="mb-0">No document checklist items are configured for this step.</p>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% elif current_step.step_type in ['document_upload'] %}
                         
                         {% if current_step_status and current_step_status.step_status == 'pending_review' %}
                         <!-- Documents submitted and waiting for admin review -->

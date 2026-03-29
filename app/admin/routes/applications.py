@@ -2385,6 +2385,36 @@ def approve_workflow_step(application_id, step_id):
     data = request.get_json()
     feedback = data.get('feedback', '')
     
+    # Get the workflow step to check its type
+    step = workflow_status.workflow_step
+    
+    # Validate Application Review step: all program requirements must be approved before leaving this gate
+    if step and 'application review' in step.step_name.lower():
+        from sqlalchemy.orm import joinedload
+        
+        # Get all document requirements for this program (with requirement info)
+        program_requirements = db.session.query(ProgramRequirements).options(
+            joinedload(ProgramRequirements.requirement)
+        ).filter_by(
+            program_id=application.program_id
+        ).all()
+        
+        # Check each requirement
+        for req in program_requirements:
+            # Check if there's a document upload for this requirement that's approved
+            upload = ApplicationDocumentUploads.query.filter_by(
+                application_id=application_id,
+                requirement_id=req.requirement_id,
+                verification_status='approved'
+            ).first()
+            
+            if not upload:
+                req_name = req.requirement.requirement_name if req.requirement else f"Requirement {req.requirement_id}"
+                return jsonify({
+                    'success': False, 
+                    'message': f'Cannot complete Application Review. All documents must be approved first. Missing approval for: {req_name}'
+                })
+    
     # Update workflow status
     workflow_status.step_status = 'approved'
     workflow_status.reviewed_at = datetime.utcnow()
@@ -2394,7 +2424,6 @@ def approve_workflow_step(application_id, step_id):
 
     # If this is the Application Review step, set application status to 'approved'
     # Status will transition to 'active' when the user opens/views the application
-    step = workflow_status.workflow_step
     if step and 'application review' in step.step_name.lower():
         application.application_status = 'approved'
         application.reviewed_by = current_user.id
@@ -2404,8 +2433,11 @@ def approve_workflow_step(application_id, step_id):
     try:
         db.session.commit()
         
-        # Check if this enables the next step
+        # Check if this enables the next step and update application status
         _check_and_enable_next_step(application, step_id)
+        # Also update status in case we're at the last step or need status refresh
+        _update_application_status_based_on_step(application)
+        db.session.commit()
 
         # Determine notification message based on step type
         if step and 'application review' in step.step_name.lower():
@@ -2431,6 +2463,42 @@ def approve_workflow_step(application_id, step_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
+
+
+@admin_bp.route('/applications/<int:application_id>/workflow-step/<int:step_id>/confirm-office-submission', methods=['POST'])
+@login_required
+@role_required('admin')
+def confirm_office_submission(application_id, step_id):
+    """Persist admin confirmation that applicant submitted documents at MSWD Office.
+
+    This must NOT mark the workflow step as completed/approved.
+    """
+    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application_id,
+        workflow_step_id=step_id
+    ).first()
+
+    if not workflow_status:
+        return jsonify({'success': False, 'message': 'Workflow status not found.'}), 404
+
+    step = workflow_status.workflow_step
+    if not step or step.step_type not in ['document_submission', 'document_submission_office', 'physical_submission']:
+        return jsonify({'success': False, 'message': 'Invalid workflow step for office submission confirmation.'}), 400
+
+    try:
+        step_data = workflow_status.step_data_json or {}
+        step_data['office_submission_confirmed'] = True
+        step_data['office_submission_confirmed_at'] = datetime.utcnow().isoformat()
+        step_data['office_submission_confirmed_by'] = current_user.id
+
+        workflow_status.set_step_data(step_data)
+        workflow_status.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Office submission confirmed.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 @admin_bp.route('/applications/<int:application_id>/workflow-step/<int:step_id>/reject', methods=['POST'])
@@ -2629,6 +2697,68 @@ def decline_workflow_approval_step(application_id):
         return redirect(url_for('admin.view_application', application_id=application_id))
 
 
+def _update_application_status_based_on_step(application):
+    """Update application status based on current workflow step position
+    
+    Status rules:
+    - If current step is the first step (order=1): status = 'pending'
+    - If current step is not first and not last: status = 'active'
+    - If current step is the last step (scheduling): status = 'completed'
+    """
+    if not application or not application.program or not application.program.workflow_steps:
+        return
+    
+    # Get all workflow steps and sort by order
+    workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order)
+    if not workflow_steps:
+        return
+    
+    # Find the current active step (in_progress or pending_review)
+    current_step = None
+    workflow_status_list = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application.id
+    ).all()
+    
+    # Map step IDs to their status
+    status_map = {ws.workflow_step_id: ws.step_status for ws in workflow_status_list}
+    
+    # Find the latest step that's in progress or pending_review
+    for step in reversed(workflow_steps):  # Start from the end and go backwards
+        if status_map.get(step.id) in ['in_progress', 'pending_review']:
+            current_step = step
+            break
+    
+    # If no in-progress step, find the first not_started step (the current active step user is on)
+    if not current_step:
+        for step in workflow_steps:
+            if status_map.get(step.id) == 'not_started':
+                current_step = step
+                break
+    
+    # If still no current step (all completed or approved), use the last step
+    if not current_step:
+        current_step = workflow_steps[-1]
+    
+    # Determine new status based on step order
+    first_step = workflow_steps[0]
+    last_step = workflow_steps[-1]
+    
+    if current_step.step_order == first_step.step_order:
+        # First step: pending
+        new_status = 'pending'
+    elif current_step.step_order == last_step.step_order:
+        # Last step: completed
+        new_status = 'completed'
+    else:
+        # Middle steps: active
+        new_status = 'active'
+    
+    # Only update if status has changed
+    if application.application_status != new_status:
+        application.application_status = new_status
+        application.updated_at = datetime.utcnow()
+
+
 def _check_and_enable_next_step(application, completed_step_id):
     """Check if the next workflow step can be enabled"""
     # Get all workflow steps for this application
@@ -2673,6 +2803,9 @@ def _check_and_enable_next_step(application, completed_step_id):
         next_step_status.step_status = 'in_progress'
         next_step_status.started_at = datetime.utcnow()
         next_step_status.updated_at = datetime.utcnow()
+        
+        # Update application status based on the newly enabled step
+        _update_application_status_based_on_step(application)
     
     db.session.commit()
 
@@ -2703,6 +2836,10 @@ def reset_workflow_step(application_id, step_id):
     workflow_status.updated_at = datetime.utcnow()
     
     try:
+        db.session.commit()
+        
+        # Update application status based on current workflow position after reset
+        _update_application_status_based_on_step(application)
         db.session.commit()
         
         # Create notification for user
