@@ -473,37 +473,39 @@ class Notifications(db.Model):
     
     def get_url(self):
         """Generate the appropriate URL for this notification based on its type"""
-        if not self.related_type or not self.related_id:
+        if not self.related_type:
             return None
             
         if self.related_type == 'application':
-            return f'/community/applications/{self.related_id}'
+            return f'/community/applications/{self.related_id}' if self.related_id else '/community/applications'
         elif self.related_type == 'announcement':
-            return f'/community/announcements/{self.related_id}'
+            return f'/community/announcements/{self.related_id}' if self.related_id else '/community/announcements'
         elif self.related_type == 'program':
-            return f'/community/programs/{self.related_id}'
+            return f'/community/programs/{self.related_id}' if self.related_id else '/community/programs'
         elif self.related_type == 'schedule':
             return '/community/schedule'
         elif self.related_type == 'profile':
             return '/community/profile'
         elif self.related_type == 'assessment':
-            return f'/admin/assessments/{self.related_id}'
+            return f'/admin/assessments/{self.related_id}' if self.related_id else '/admin/assessments'
         else:
             return None
 
     def get_admin_url(self):
         """Generate the appropriate URL for admin-side notifications"""
-        if not self.related_type or not self.related_id:
+        if not self.related_type:
             return None
 
         if self.related_type == 'application':
-            return f'/admin/applications/{self.related_id}'
+            return f'/admin/applications/{self.related_id}' if self.related_id else '/admin/applications'
         elif self.related_type == 'announcement':
             return f'/admin/announcements'
         elif self.related_type == 'program':
             return f'/admin/programs'
         elif self.related_type == 'assessment':
-            return f'/admin/assessments/{self.related_id}'
+            return f'/admin/assessments/{self.related_id}' if self.related_id else '/admin/assessments'
+        elif self.related_type == 'admin_alert':
+            return '/admin/applications'
         else:
             return None
     

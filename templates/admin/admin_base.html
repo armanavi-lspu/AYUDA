@@ -59,6 +59,11 @@
             --shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
             --shadow-lg: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.175);
         }
+
+        html {
+            overflow-y: scroll;
+            scrollbar-gutter: stable;
+        }
         
         body {
             overflow-x: hidden;
@@ -105,7 +110,7 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1000;
+            z-index: 1200;
             height: 60px;
             background: linear-gradient(135deg, #0032A0 0%, #002270 100%) !important;
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
@@ -1251,8 +1256,6 @@
         // Set active nav item
         $(document).ready(function() {
             var path = window.location.pathname;
-            $('.sidebar .nav-link').removeClass('active');
-            $('.sidebar .nav-link[href="' + path + '"]').addClass('active');
             
             // Auto-expand Programs submenu if a submenu item is active
             if ($('#programsSubmenu .nav-link.active').length > 0) {
@@ -1293,7 +1296,21 @@
         });
         
         // Enhanced notification functions
-        function markAsRead(notificationId) {
+        function handleNotificationClick(event, notificationId, element) {
+            event.preventDefault();
+
+            const destination = element ? element.getAttribute('href') : null;
+
+            markAsRead(notificationId, function() {
+                if (destination && destination !== '#') {
+                    window.location.href = destination;
+                }
+            });
+
+            return false;
+        }
+
+        function markAsRead(notificationId, onSuccess) {
             fetch(`/admin/notifications/${notificationId}/read`, {
                 method: 'POST',
                 headers: {
@@ -1319,6 +1336,10 @@
                     
                     // Update notification count with animation
                     updateNotificationCount();
+
+                    if (typeof onSuccess === 'function') {
+                        onSuccess();
+                    }
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -1429,7 +1450,7 @@
                                 html += `
                                     <a href="${notif.url || '#'}" 
                                        class="notification-item ${unreadClass} text-decoration-none"
-                                       onclick="markAsRead(${notif.id}); return false;"
+                                       onclick="return handleNotificationClick(event, ${notif.id}, this);"
                                        data-notification-id="${notif.id}"
                                        style="display: flex; color: inherit; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #f1f3f4; transition: all 0.2s ease; cursor: pointer; position: relative;"
                                        title="Click to view details">

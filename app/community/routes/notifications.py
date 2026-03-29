@@ -209,11 +209,10 @@ def create_notification(user_id, title, message, related_id=None, related_type=N
 def inject_notifications():
     """Inject notification data into community templates for dropdown only"""
     if current_user.is_authenticated:
-        # Get recent unread notifications (for dropdown - limit to 5)
+        # Get recent notifications (read and unread) for dropdown visibility
         notifications = Notifications.query.filter_by(
-            user_id=current_user.id,
-            is_read=False
-        ).order_by(desc(Notifications.created_at)).limit(5).all()
+            user_id=current_user.id
+        ).order_by(desc(Notifications.created_at)).limit(15).all()
         
         # Get unread count
         unread_count = Notifications.query.filter_by(

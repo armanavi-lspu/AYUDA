@@ -54,6 +54,15 @@
         </div>
 
         <div class="col-lg col-md-6 mb-4">
+            <div class="card border-left-info shadow stats-card h-100">
+                <div class="card-body py-4">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-2">Requested</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ requested_assessments }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg col-md-6 mb-4">
             <div class="card border-left-warning shadow stats-card h-100">
                 <div class="card-body py-4">
                     <div class="text-xs font-weight-bold text-warning text-uppercase mb-2">Scheduled</div>
@@ -109,6 +118,7 @@
                         <label class="small font-weight-bold">Status</label>
                         <select class="form-control" name="status">
                             <option value="">All Status</option>
+                            <option value="requested" {% if status_filter == 'requested' %}selected{% endif %}>Requested</option>
                             <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
                             <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
                             <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
@@ -193,7 +203,9 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if a.status == 'scheduled' %}
+                                    {% if a.status == 'requested' %}
+                                        <span class="badge badge-info status-badge">Requested</span>
+                                    {% elif a.status == 'scheduled' %}
                                         <span class="badge badge-warning status-badge">Scheduled</span>
                                     {% elif a.status == 'completed' %}
                                         <span class="badge badge-success status-badge">Completed</span>

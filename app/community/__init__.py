@@ -4,7 +4,7 @@ from flask_login import current_user
 community_bp = Blueprint('community', __name__, url_prefix='/community')
 
 # Import routes after blueprint creation to avoid circular imports
-from .routes import dashboard, announcements, applications, programs, notifications, schedule, profile  
+from .routes import dashboard, announcements, applications, programs, notifications, schedule, profile, other_services
 
 # Routes that don't require areas of concern check
 AREAS_CHECK_EXEMPT = {

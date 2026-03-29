@@ -88,6 +88,7 @@ def assessments_index():
 
     # Statistics for summary cards
     total_assessments = Assessment.query.count()
+    requested_assessments = Assessment.query.filter_by(status='requested').count()
     scheduled_assessments = Assessment.query.filter_by(status='scheduled').count()
     completed_assessments = Assessment.query.filter_by(status='completed').count()
     cancelled_assessments = Assessment.query.filter_by(status='cancelled').count()
@@ -102,6 +103,7 @@ def assessments_index():
         assessments=assessments,
         approved_applications=approved_applications,
         total_assessments=total_assessments,
+        requested_assessments=requested_assessments,
         scheduled_assessments=scheduled_assessments,
         completed_assessments=completed_assessments,
         cancelled_assessments=cancelled_assessments,
@@ -320,7 +322,7 @@ def update_assessment(assessment_id):
         assessment.scheduled_time = scheduled_time
     if location is not None:
         assessment.location = location
-    if status and status in ('scheduled', 'completed', 'cancelled'):
+    if status and status in ('requested', 'scheduled', 'completed', 'cancelled'):
         assessment.status = status
         if status == 'completed' and not assessment.completed_at:
             assessment.completed_at = datetime.utcnow()

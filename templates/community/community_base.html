@@ -71,6 +71,11 @@
             --gradient-warning: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
             --gradient-danger: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
         }
+
+        html {
+            overflow-y: scroll;
+            scrollbar-gutter: stable;
+        }
         
         .navbar-brand-elegant {
             font-family: 'Cinzel', serif;
@@ -148,7 +153,7 @@
             background: var(--gradient-primary);
             box-shadow: 0 4px 12px rgba(0, 50, 160, 0.3);
         }
-        
+
         .sidebar .nav-link i {
             width: 1.25rem;
             margin-right: 0.625rem;
@@ -165,10 +170,45 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1000;
+            z-index: 1200;
             height: 60px;
             background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+        }
+
+        .top-navbar .navbar-toggler {
+            margin-left: 0;
+            margin-right: 0.5rem;
+            padding: 0.35rem 0.55rem;
+            border: none;
+        }
+
+        .top-navbar .navbar-toggler:focus {
+            box-shadow: none;
+            outline: none;
+        }
+
+        .top-navbar .navbar-brand-elegant {
+            margin-left: 0.25rem;
+            margin-right: auto;
+        }
+
+        .mobile-sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 1025;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+
+        body.sidebar-overlay-open .mobile-sidebar-backdrop {
+            opacity: 1;
+            visibility: visible;
         }
         
         @media (max-width: 768px) {
@@ -178,6 +218,126 @@
             
             .content-wrapper {
                 margin-left: 0;
+            }
+        }
+
+        @media (max-width: 991.98px) {
+            .top-navbar {
+                height: 64px;
+                padding: 0.35rem 0.75rem;
+            }
+
+            .navbar-brand-elegant {
+                font-size: 1.5rem;
+                letter-spacing: 1px;
+            }
+
+            .content-wrapper {
+                margin-left: 0;
+                padding-top: 64px;
+            }
+
+            .content-wrapper .container-fluid {
+                padding: 1rem !important;
+            }
+
+            .sidebar {
+                width: min(86vw, 320px);
+                margin-left: 0;
+                height: 100vh;
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                z-index: 1030;
+                padding-top: 5rem;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                touch-action: pan-y;
+            }
+
+            .sidebar.sidebar-mobile-open {
+                transform: translateX(0);
+                margin-left: 0 !important;
+            }
+
+            body.sidebar-overlay-open {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                overscroll-behavior: none;
+            }
+
+            .sidebar .nav-link,
+            .dropdown-item,
+            .btn {
+                min-height: 44px;
+            }
+
+            .sidebar .nav-link {
+                padding: 0.75rem 0.95rem;
+                font-size: 0.92rem;
+            }
+
+            .page-header-gradient {
+                padding: 1.25rem 1rem;
+                margin-bottom: 1.25rem;
+            }
+
+            .page-header-gradient h1 {
+                font-size: 1.35rem;
+                line-height: 1.25;
+            }
+
+            .card-body,
+            .card-header {
+                padding: 1rem;
+            }
+
+            .notification-dropdown {
+                width: min(360px, calc(100vw - 1rem));
+                max-height: 70vh;
+            }
+
+            .notification-list {
+                max-height: calc(70vh - 120px);
+            }
+
+            .user-name-text {
+                display: none;
+            }
+
+            #userDropdown {
+                padding-left: 0.7rem;
+                padding-right: 0.7rem;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .notification-dropdown {
+                width: calc(100vw - 1rem);
+                max-width: none;
+                right: -0.5rem;
+                left: auto;
+            }
+
+            .notification-item {
+                padding: 0.75rem;
+                gap: 0.65rem;
+            }
+
+            .notification-title {
+                font-size: 0.85rem;
+            }
+
+            .notification-message {
+                font-size: 0.78rem;
+            }
+
+            .notification-icon {
+                width: 34px;
+                height: 34px;
+                font-size: 0.85rem;
             }
         }
         
@@ -1066,17 +1226,27 @@
         }
         
         @media (max-width: 768px) {
-            .sidebar {
-                margin-left: -250px;
-            }
-            
-            .content-wrapper {
-                margin-left: 0;
-            }
-            
             .notification-dropdown {
-                width: 320px;
-                max-height: 400px;
+                position: fixed;
+                top: 64px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                max-width: 100vw;
+                height: calc(100vh - 64px);
+                max-height: calc(100vh - 64px);
+                margin: 0;
+                border-radius: 0;
+                transform: none !important;
+            }
+
+            .notification-header,
+            .notification-footer {
+                border-radius: 0;
+            }
+
+            .notification-list {
+                max-height: calc(100vh - 64px - 112px);
             }
             
             .notification-item {
@@ -1086,10 +1256,17 @@
         
         @media (max-width: 576px) {
             .notification-dropdown {
-                width: 300px;
-                left: 10px !important;
-                right: 10px !important;
+                top: 64px !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                height: calc(100vh - 64px);
+                max-height: calc(100vh - 64px);
                 transform: none !important;
+            }
+
+            .notification-list {
+                max-height: calc(100vh - 64px - 112px);
             }
         }
         
@@ -1113,11 +1290,12 @@
 <body>
     <!-- Top Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark top-navbar">
-        <a class="navbar-brand navbar-brand-elegant px-2" href="/about">AYUDA</a>        
-        <!-- Mobile menu toggle -->
-        <button class="navbar-toggler d-lg-none" type="button" data-toggle="collapse" data-target="#sidebarMenu">
+        <!-- Mobile menu toggle - positioned on the left -->
+        <button class="navbar-toggler d-lg-none btn-no-outline" type="button" id="sidebarToggle" aria-label="Toggle menu" aria-controls="sidebarMenu" aria-expanded="false" style="order: -1; margin-right: 0.5rem;">
             <span class="navbar-toggler-icon"></span>
         </button>
+        
+        <a class="navbar-brand navbar-brand-elegant px-2" href="/about">AYUDA</a>
         
         <div class="ml-auto d-flex align-items-center">
             <!-- Enhanced Notification Icon -->
@@ -1152,7 +1330,7 @@
                             {% for notification in notifications %}
                             <a href="{{ notification.get_url() or '#' }}" 
                                class="notification-item {% if not notification.is_read %}unread{% endif %} text-decoration-none"
-                               onclick="markAsRead({{ notification.id }}); return false;"
+                                         onclick="return handleNotificationClick(event, {{ notification.id }}, this);"
                                data-notification-id="{{ notification.id }}"
                                style="display: flex; color: inherit; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #f1f3f4; transition: all 0.2s ease; cursor: pointer; position: relative;"
                                title="Click to view details">
@@ -1200,9 +1378,11 @@
             <div class="dropdown">
                 <button class="btn btn-outline-light dropdown-toggle" type="button" id="userDropdown" data-toggle="dropdown">
                     <i class="fas fa-user mr-2"></i>
+                    <span class="user-name-text">
                     {% if current_user.is_authenticated %}
                         {{ current_user.first_name }} {{ current_user.last_name }}
                     {% endif %}
+                    </span>
                 </button>
                 <div class="dropdown-menu dropdown-menu-right">
                     <a class="dropdown-item" href="{{ url_for('community.profile') }}"><i class="fas fa-user-cog mr-2"></i>Profile</a>
@@ -1214,8 +1394,10 @@
         </div>
     </nav>
 
+    <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" aria-hidden="true"></div>
+
     <!-- Side Navigation Bar -->
-    <nav class="col-md-2 d-none d-md-block sidebar collapse" id="sidebarMenu">
+    <nav class="sidebar" id="sidebarMenu">
         <div class="sidebar-sticky">
             <!-- User Info Container -->
             {% if current_user.is_authenticated %}
@@ -1291,6 +1473,12 @@
                     <a class="nav-link{% if request.path.startswith('/community/program') %} active{% endif %}" href="{{ url_for('community.programs') }}">
                         <i class="fas fa-file mr-2"></i>
                         Programs
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if request.path.startswith('/community/other_services') %} active{% endif %}" href="{{ url_for('community.other_services') }}">
+                        <i class="fas fa-layer-group mr-2"></i>
+                        Other Services
                     </a>
                 </li>
                 <li class="nav-item">
@@ -1390,16 +1578,124 @@
     <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
 
     <script>
-        // Mobile sidebar toggle
-        $('.navbar-toggler').click(function() {
-            $('.sidebar').toggleClass('d-block d-md-block');
-        });
-        
         // Set active nav item
         $(document).ready(function() {
             var path = window.location.pathname;
-            $('.sidebar .nav-link').removeClass('active');
-            $('.sidebar .nav-link[href="' + path + '"]').addClass('active');
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+
+            function isSidebarLinkActive(hrefPath, currentPath) {
+                if (!hrefPath) return false;
+
+                // Exact path match always wins.
+                if (currentPath === hrefPath) return true;
+
+                // Route families that include detail/sub pages.
+                if (hrefPath === '/community/announcements') {
+                    return currentPath.startsWith('/community/announcement');
+                }
+
+                if (hrefPath === '/community/programs') {
+                    return currentPath.startsWith('/community/program');
+                }
+
+                if (hrefPath === '/community/applications') {
+                    return (
+                        currentPath.startsWith('/community/applications') ||
+                        currentPath.startsWith('/community/document') ||
+                        currentPath.startsWith('/community/upload-workflow') ||
+                        currentPath === '/community/verify-code'
+                    );
+                }
+
+                if (hrefPath === '/community/schedule') {
+                    return currentPath.startsWith('/community/schedule');
+                }
+
+                return false;
+            }
+
+            navLinks.forEach(function(link) {
+                link.classList.remove('active');
+                const linkPath = new URL(link.href, window.location.origin).pathname;
+                if (isSidebarLinkActive(linkPath, path)) {
+                    link.classList.add('active');
+                }
+            });
+
+            const sidebar = document.getElementById('sidebarMenu');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const backdrop = document.getElementById('mobileSidebarBackdrop');
+            let lockedScrollY = 0;
+
+            function lockBodyScroll() {
+                lockedScrollY = window.scrollY || window.pageYOffset || 0;
+                document.body.style.top = `-${lockedScrollY}px`;
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.classList.add('sidebar-overlay-open');
+            }
+
+            function unlockBodyScroll() {
+                document.body.classList.remove('sidebar-overlay-open');
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                window.scrollTo(0, lockedScrollY);
+            }
+
+            function closeSidebar() {
+                if (!sidebar) return;
+                sidebar.classList.remove('sidebar-mobile-open');
+                unlockBodyScroll();
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            function openSidebar() {
+                if (!sidebar) return;
+                sidebar.classList.add('sidebar-mobile-open');
+                lockBodyScroll();
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    if (sidebar.classList.contains('sidebar-mobile-open')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                });
+            }
+
+            if (backdrop) {
+                backdrop.addEventListener('click', closeSidebar);
+            }
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeSidebar();
+                }
+            });
+
+            $('.sidebar .nav-link').on('click', function() {
+                const href = $(this).attr('href');
+                if (href && href.startsWith('#')) {
+                    return;
+                }
+                if (window.innerWidth < 992) {
+                    closeSidebar();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992) {
+                    closeSidebar();
+                }
+            });
             
             // Close notification dropdown when clicking outside
             $(document).click(function(e) {
@@ -1410,7 +1706,21 @@
         });
         
         // Enhanced notification functions
-        function markAsRead(notificationId) {
+        function handleNotificationClick(event, notificationId, element) {
+            event.preventDefault();
+
+            const destination = element ? element.getAttribute('href') : null;
+
+            markAsRead(notificationId, function() {
+                if (destination && destination !== '#') {
+                    window.location.href = destination;
+                }
+            });
+
+            return false;
+        }
+
+        function markAsRead(notificationId, onSuccess) {
             fetch(`/community/notifications/${notificationId}/read`, {
                 method: 'POST',
                 headers: {
@@ -1436,6 +1746,10 @@
                     
                     // Update notification count with animation
                     updateNotificationCount();
+
+                    if (typeof onSuccess === 'function') {
+                        onSuccess();
+                    }
                 }
             })
             .catch(error => console.error('Error:', error));

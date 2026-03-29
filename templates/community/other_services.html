@@ -3,70 +3,210 @@
 
 {% block extra_css %}
 <style>
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+    .service-card {
+        border-left: 4px solid #0032a0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-20px); }
+
+    .service-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 50, 160, 0.15);
     }
-    
-    @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.3; }
+
+    .service-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        background: rgba(0, 50, 160, 0.1);
+        color: #0032a0;
     }
-    
-    .simple-card {
-        animation: fadeIn 1s ease-out;
+
+    .status-pill {
+        border-radius: 999px;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+        font-weight: 600;
     }
-    
-    .logo-large {
-        animation: float 3s ease-in-out infinite;
+
+    .request-history-item {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.75rem;
+        padding: 0.85rem 0.9rem;
+        margin-bottom: 0.7rem;
+        background: #fff;
     }
-    
-    .status-dot {
-        animation: blink 1.5s infinite;
+
+    .request-history-item:last-child {
+        margin-bottom: 0;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid d-flex align-items-center justify-content-center" style="min-height: 70vh;">
-    <div class="text-center simple-card" style="max-width: 500px;">
-        <!-- Logo -->
-        <div class="display-1 mb-4 logo-large" style="font-size: 8rem; filter: grayscale(0.3);">
-            🚀
+<div class="page-header-gradient mb-4">
+    <h1 class="mb-1">Other Services</h1>
+    <p class="lead mb-0">Apply for subsidy support and request an Assessment/SCSR for your specific needs.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-hand-holding-heart mr-2"></i>Available Subsidies
+                </h6>
+                <span class="text-muted small">Based on your profile eligibility</span>
+            </div>
+            <div class="card-body">
+                {% if subsidy_cards %}
+                    <div class="row">
+                        {% for subsidy in subsidy_cards %}
+                        <div class="col-md-12 mb-3">
+                            <div class="service-card card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon mr-3"><i class="fas {{ subsidy.icon }}"></i></span>
+                                            <div>
+                                                <h6 class="mb-1 font-weight-bold">{{ subsidy.name }}</h6>
+                                                <small class="text-muted">{{ subsidy.description }}</small>
+                                            </div>
+                                        </div>
+                                        {% if subsidy.eligible %}
+                                            <span class="badge badge-success status-pill">Eligible</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary status-pill">Not Eligible</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="small text-muted mb-3">{{ subsidy.eligibility_note }}</p>
+
+                                    {% if subsidy.eligible and not subsidy.has_open_request %}
+                                    <form method="POST" action="{{ url_for('community.apply_subsidy') }}" class="mb-0">
+                                        <input type="hidden" name="category" value="{{ subsidy.key }}">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-paper-plane mr-1"></i>Apply Subsidy
+                                        </button>
+                                    </form>
+                                    {% elif subsidy.has_open_request %}
+                                        <span class="badge badge-info status-pill">Application Submitted</span>
+                                    {% else %}
+                                        <button type="button" class="btn btn-light btn-sm" disabled>
+                                            <i class="fas fa-lock mr-1"></i>Complete verification first
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No subsidy categories are available at the moment.</p>
+                {% endif %}
+            </div>
         </div>
-        
-        <!-- Title -->
-        <h1 class="display-3 font-weight-bold mb-3" style="color: #2e3440;">
-            Coming Soon
-        </h1>
-        
-        <!-- Subtitle -->
-        <p class="h4 text-secondary mb-4">
-            Other Services
-        </p>
-        
-        <!-- Status -->
-        <div class="mb-4">
-            <span class="badge badge-warning d-inline-flex align-items-center px-4 py-3 rounded-pill border border-warning" style="font-size: 1rem; font-weight: 600;">
-                <span class="rounded-circle mr-2 status-dot" style="width: 10px; height: 10px; background: #ffc107;"></span>
-                Page Under Development
-            </span>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-list-check mr-2"></i>Your Subsidy Applications
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if subsidy_requests %}
+                    {% for req in subsidy_requests %}
+                    <div class="request-history-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ req.details.get('category_name', 'Subsidy Request') }}</strong>
+                                <div class="small text-muted">Requested on {{ req.created_at.strftime('%b %d, %Y %I:%M %p') if req.created_at else 'N/A' }}</div>
+                            </div>
+                            <span class="badge badge-info status-pill">{{ req.status|replace('_', ' ')|title }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">No subsidy applications submitted yet.</p>
+                {% endif %}
+            </div>
         </div>
-        
-        <!-- Description -->
-        <p class="text-muted mb-4">
-            This page is currently being developed. Check back soon for new features and services!
-        </p>
-        
-        <!-- Button -->
-        <a href="{{ url_for('community.dashboard') }}" class="btn btn-primary btn-lg">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
-        </a>
+    </div>
+
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-clipboard-list mr-2"></i>Request Assessment / SCSR
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('community.request_assessment_service') }}">
+                    <div class="form-group">
+                        <label for="application_id">Related Application <span class="text-danger">*</span></label>
+                        <select class="form-control" id="application_id" name="application_id" required>
+                            <option value="">Select your application...</option>
+                            {% for app in user_applications %}
+                            <option value="{{ app.id }}">
+                                #{{ app.id }} - {{ app.program.program_name }} ({{ app.application_status|title }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if not user_applications %}
+                            <small class="text-muted">You need at least one application to request an assessment/SCSR.</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="purpose">Purpose <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="purpose" name="purpose" maxlength="255" placeholder="e.g., Scholarship requirement" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preferred_date">Preferred Date (optional)</label>
+                        <input type="date" class="form-control" id="preferred_date" name="preferred_date">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notes (optional)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" maxlength="1000" placeholder="Provide extra details for the assessor."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block" {% if not user_applications %}disabled{% endif %}>
+                        <i class="fas fa-paper-plane mr-1"></i>Submit Assessment/SCSR Request
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-history mr-2"></i>Your Assessment/SCSR Requests
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if assessment_requests %}
+                    {% for req in assessment_requests %}
+                    <div class="request-history-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>{{ req.details.get('purpose', 'Assessment Request') }}</strong>
+                            <span class="badge badge-info status-pill">{{ req.status|replace('_', ' ')|title }}</span>
+                        </div>
+                        {% if req.details.get('preferred_date') %}
+                            <div class="small text-muted">Preferred date: {{ req.details.get('preferred_date') }}</div>
+                        {% endif %}
+                        <div class="small text-muted">Submitted on {{ req.created_at.strftime('%b %d, %Y %I:%M %p') if req.created_at else 'N/A' }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">No assessment/SCSR requests submitted yet.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
