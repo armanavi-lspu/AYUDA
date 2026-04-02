@@ -577,7 +577,7 @@
             <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
                 
                 <!-- 1. Program Information Card -->
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-4" id="editProgramInfoSection">
                     <div class="card-header py-3 bg-warning text-white">
                         <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Program Information</h6>
                     </div>
@@ -840,7 +840,7 @@
                 </div>
                 
                 <!-- 2. Requirements Card -->
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-4" id="editRequirementsSection">
                     <div class="card-header py-3 bg-primary text-white">
                         <div class="d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>Program Requirements</h6>
@@ -900,6 +900,7 @@
                                                                    name="requirements" 
                                                                    value="{{ req.id }}" 
                                                                    id="editReq{{ req.id }}"
+                                                                   onchange="toggleRequirementCopySpecs(this)"
                                                                    {% if req.id in existing_reqs %}checked{% endif %}>
                                                             <label class="custom-control-label" for="editReq{{ req.id }}">
                                                                 <strong>{{ req.requirement_name }}</strong>
@@ -917,9 +918,8 @@
                                                         </div>
                                                     </div>
                                                     {% set prog_req = program.program_requirements|selectattr('requirement_id', 'equalto', req.id)|first %}
-                                                    {% if prog_req %}
-                                                    <div class="ml-4 mt-2 p-2 bg-light rounded">
-                                                        {% set copy_specs = prog_req.get_copy_specifications() %}
+                                                    {% set copy_specs = prog_req.get_copy_specifications() if prog_req else [{'type': 'original', 'count': 1}] %}
+                                                    <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: {% if req.id in existing_reqs %}block{% else %}none{% endif %};">
                                                         <div class="copy-specs-list-edit-{{ req.id }}">
                                                             {% for spec in copy_specs %}
                                                             <div class="copy-spec-row form-row align-items-end mb-2">
@@ -948,7 +948,6 @@
                                                             <i class="fas fa-plus mr-1"></i>Add Another Copy Type
                                                         </button>
                                                     </div>
-                                                    {% endif %}
                                                 </div>
                                                 {% endfor %}
                                             {% endif %}
@@ -1033,7 +1032,7 @@
                 </div>
                 
                 <!-- 3. Workflow Steps Card -->
-                <div class="card shadow mb-4">
+                <div class="card shadow mb-4" id="editWorkflowSection">
                     <div class="card-header py-3 bg-dark text-white">
                         <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Application Workflow Steps</h6>
                     </div>
@@ -1556,6 +1555,30 @@
     // Debug: Check if jQuery and Bootstrap are available
     console.log('jQuery available:', typeof $ !== 'undefined');
     console.log('Bootstrap modal available:', typeof $.fn.modal !== 'undefined');
+
+    function goToEditSection(sectionId) {
+        const editTab = document.getElementById('edit-tab');
+        if (!editTab) return false;
+
+        if (typeof $ !== 'undefined' && typeof $('#edit-tab').tab === 'function') {
+            $('#edit-tab').tab('show');
+        } else {
+            editTab.click();
+        }
+
+        setTimeout(() => {
+            const target = document.getElementById(sectionId);
+            if (!target) return;
+
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.classList.add('border', 'border-warning');
+            setTimeout(() => {
+                target.classList.remove('border', 'border-warning');
+            }, 1200);
+        }, 220);
+
+        return false;
+    }
     
     // Functions for handling multiple copy specifications in edit tab
     function addCopySpecRowEdit(reqId) {
@@ -1802,7 +1825,7 @@
                 let copySpecsHtml = '';
                 if (type === 'document') {
                     copySpecsHtml = `
-                        <div class="ml-4 mt-2 p-2 bg-light rounded">
+                        <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: none;">
                             <div class="copy-specs-list-edit-${data.requirement.id}">
                                 <div class="copy-spec-row form-row align-items-end mb-2">
                                     <div class="form-group col-md-5">
@@ -1838,7 +1861,8 @@
                             <input type="checkbox" class="custom-control-input req-checkbox" 
                                    name="requirements" 
                                    value="${data.requirement.id}" 
-                                   id="editReq${data.requirement.id}">
+                                   id="editReq${data.requirement.id}"
+                                   onchange="toggleRequirementCopySpecs(this)">
                             <label class="custom-control-label" for="editReq${data.requirement.id}">
                                 <strong>${data.requirement.name}</strong>
                                 ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
@@ -1856,6 +1880,11 @@
                 `;
                 
                 list.appendChild(reqItem);
+
+                const newlyAddedCheckbox = reqItem.querySelector('input.req-checkbox');
+                if (newlyAddedCheckbox) {
+                    toggleRequirementCopySpecs(newlyAddedCheckbox);
+                }
                 
                 document.getElementById(nameField).value = '';
                 document.getElementById(descField).value = '';
@@ -1908,13 +1937,15 @@
             const label = e.target.nextElementSibling;
             label.textContent = fileName;
         });
-        // Modal Toggle Event Listeners
-        const modalBeneficiaryToggle = document.getElementById('modalUseBeneficiaryLimit');
-        const modalBeneficiaryGroup = document.getElementById('modalBeneficiaryLimitGroup');
-        const modalIncomeToggle = document.getElementById('modalUseIncomeRange');
-        const modalIncomeGroup = document.getElementById('modalIncomeRangeGroup');
-        
-        if (modalBeneficiaryToggle && modalBeneficiaryGroup) {
+    });
+    
+    // Modal Toggle Event Listeners
+    const modalBeneficiaryToggle = document.getElementById('modalUseBeneficiaryLimit');
+    const modalBeneficiaryGroup = document.getElementById('modalBeneficiaryLimitGroup');
+    const modalIncomeToggle = document.getElementById('modalUseIncomeRange');
+    const modalIncomeGroup = document.getElementById('modalIncomeRangeGroup');
+    
+    if (modalBeneficiaryToggle && modalBeneficiaryGroup) {
             console.log('Modal beneficiary toggle elements found');
             modalBeneficiaryToggle.addEventListener('change', function() {
                 console.log('Modal beneficiary toggle changed:', this.checked);
@@ -1945,7 +1976,6 @@
         } else {
             console.error('Modal income toggle elements not found');
         }
-    });
     
     // Date validation for edit form
     const editStartDate = document.getElementById('editStartDate');
@@ -1993,11 +2023,24 @@
             input.value = value;
         }
     }
-    
 
-    
+    function toggleRequirementCopySpecs(checkbox) {
+        const requirementItem = checkbox.closest('.requirement-item');
+        if (!requirementItem) return;
 
+        const container = requirementItem.querySelector('.copy-specs-container');
+        if (!container) return;
+
+        container.style.display = checkbox.checked ? 'block' : 'none';
     }
+
+    function initializeRequirementCopySpecsState() {
+        const checkboxes = document.querySelectorAll('#editDocumentReqsList input.req-checkbox');
+        checkboxes.forEach((checkbox) => {
+            toggleRequirementCopySpecs(checkbox);
+        });
+    }
+    
     
     // ===================================
     // WORKFLOW STEPS MANAGEMENT
@@ -2125,6 +2168,7 @@
     // Initialize form change detection when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         initializeProgramFormChangeDetection();
+        initializeRequirementCopySpecsState();
         renderViewWorkflowSteps();
     });
     

@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram, ProgramWorkflowSteps, ApplicationWorkflowStatus
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
@@ -568,6 +568,23 @@ def submit_application(program_id):
             submission_status='pending'
         )
         db.session.add(app_doc)
+    
+    # Initialize workflow status for all workflow steps
+    # This ensures workflow status records are created immediately on application submission
+    workflow_steps = program.workflow_steps if program.workflow_steps else []
+    for step in workflow_steps:
+        existing_status = ApplicationWorkflowStatus.query.filter_by(
+            application_id=new_application.id,
+            workflow_step_id=step.id
+        ).first()
+        
+        if not existing_status:
+            status = ApplicationWorkflowStatus(
+                application_id=new_application.id,
+                workflow_step_id=step.id,
+                step_status='not_started'
+            )
+            db.session.add(status)
     
     # Create notification
     notification = Notifications(

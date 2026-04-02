@@ -34,7 +34,13 @@ class User(db.Model, UserMixin):
     created_programs = db.relationship('Programs', backref='creator', lazy=True)
     announcements = db.relationship('Announcements', backref='author', lazy=True)
     notifications = db.relationship('Notifications', backref='user', lazy=True, cascade='all, delete-orphan')
-    user_activity_logs = db.relationship('UserActivityLog', lazy='dynamic', cascade='all, delete-orphan', foreign_keys='UserActivityLog.user_id')
+    user_activity_logs = db.relationship(
+        'UserActivityLog',
+        back_populates='user',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+        foreign_keys='UserActivityLog.user_id'
+    )
     applications = db.relationship('Applications', foreign_keys='Applications.user_id', backref='applicant', lazy=True)
     reviewed_applications = db.relationship('Applications', foreign_keys='Applications.reviewed_by', backref='reviewer', lazy=True)
     scheduled_claims = db.relationship('Applications', foreign_keys='Applications.claim_scheduled_by', backref='claim_scheduler', lazy=True)
@@ -724,7 +730,7 @@ class UserActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=get_utc_now, index=True)
     
     # Relationships
-    user = db.relationship('User', foreign_keys=[user_id])
+    user = db.relationship('User', foreign_keys=[user_id], back_populates='user_activity_logs')
     
     __table_args__ = (
         db.Index('idx_user_activity_user_date', 'user_id', 'created_at'),

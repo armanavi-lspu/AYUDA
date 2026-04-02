@@ -303,6 +303,82 @@
             </div>
         </div>
 
+        <!-- Application Workflow Preview Card -->
+        {% if program.workflow_steps %}
+        <div class="card shadow mb-4 info-card border-left-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-tasks mr-2"></i>Application Process Steps</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Your application will go through the following steps:</p>
+                <div class="timeline">
+                    {% for step in program.workflow_steps|sort(attribute='step_order') %}
+                    <div class="timeline-item mb-3">
+                        <div class="d-flex">
+                            <div class="timeline-marker">
+                                <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 8px rgba(78, 115, 223, 0.3);">
+                                    {{ step.step_order }}
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ml-3">
+                                <h6 class="font-weight-bold mb-1">
+                                    {{ step.step_name }}
+                                    <span class="badge badge-pill" style="
+                                        {% if step.step_type == 'photo_upload' %}
+                                            background: #d4edda; color: #155724;
+                                        {% elif step.step_type == 'document_upload' or step.step_type == 'document_submission' %}
+                                            background: #cce5ff; color: #004085;
+                                        {% elif step.step_type == 'approval' %}
+                                            background: #fff3cd; color: #856404;
+                                        {% elif step.step_type == 'assessment' %}
+                                            background: #f8d7da; color: #721c24;
+                                        {% elif step.step_type == 'scheduling' %}
+                                            background: #e7d4f5; color: #4a148c;
+                                        {% else %}
+                                            background: #e2e3e5; color: #383d41;
+                                        {% endif %}
+                                    ">
+                                        {% if step.step_type == 'photo_upload' %}
+                                            <i class="fas fa-camera mr-1"></i>Photos
+                                        {% elif step.step_type == 'document_upload' %}
+                                            <i class="fas fa-cloud-upload-alt mr-1"></i>Upload
+                                        {% elif step.step_type == 'document_submission' %}
+                                            <i class="fas fa-file-alt mr-1"></i>Documents
+                                        {% elif step.step_type == 'approval' %}
+                                            <i class="fas fa-check-circle mr-1"></i>Review
+                                        {% elif step.step_type == 'assessment' %}
+                                            <i class="fas fa-clipboard-list mr-1"></i>Assessment
+                                        {% elif step.step_type == 'scheduling' %}
+                                            <i class="fas fa-calendar-check mr-1"></i>Schedule
+                                        {% else %}
+                                            <i class="fas fa-tasks mr-1"></i>{{ step.step_type|title }}
+                                        {% endif %}
+                                    </span>
+                                </h6>
+                                {% if step.step_description %}
+                                <p class="text-muted small mb-0">{{ step.step_description }}</p>
+                                {% endif %}
+                                {% if step.is_pre_approval %}
+                                <small class="badge badge-info mt-2">
+                                    <i class="fas fa-star mr-1"></i>Must complete before approval
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="ml-5 mb-3" style="height: 20px; border-left: 2px solid #dee2e6;"></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="alert alert-light mt-3 mb-0" style="border-left: 4px solid #4e73df;">
+                    <i class="fas fa-info-circle text-info mr-2"></i>
+                    <small>After you apply and your application is approved, you'll be guided through each step. Admins may need to review and verify your submissions at each stage.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 
     

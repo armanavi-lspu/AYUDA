@@ -518,7 +518,8 @@ def edit_program(id):
     program = Programs.query.options(
         db.joinedload(Programs.program_requirements)
         .joinedload(ProgramRequirements.requirement),
-        db.joinedload(Programs.applications)  # Load applications for counting
+        db.joinedload(Programs.applications),  # Load applications for counting
+        db.joinedload(Programs.workflow_steps)  # Load workflow steps
     ).get_or_404(id)
     
     if request.method == 'GET':
