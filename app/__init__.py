@@ -1,6 +1,11 @@
 from flask import Flask
 from pathlib import Path
 from flask_login import LoginManager
+from dotenv import load_dotenv
+
+# Load environment variables for all app entry points (CLI, tests, WSGI, scripts)
+load_dotenv()
+
 from config import Config
 from app.extensions import db, migrate
 

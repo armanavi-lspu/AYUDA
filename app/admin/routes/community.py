@@ -210,14 +210,14 @@ def reset_user_password(user_id):
         notification = Notifications(
             user_id=user_id,
             title='Password Reset',
-            message=f'Your password has been reset by an administrator. Your new temporary password is: {new_password}. Please change it after logging in.',
+            message=f'Your password has been reset by an administrator. Your new temporary password has been sent to your registered email. Please change it after logging in.',
             notification_type='system',
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
         db.session.commit()
         
-        flash(f'Password reset successfully for {community_user.first_name} {community_user.last_name}. New password: {new_password}', 'success')
+        flash(f'Password reset successfully for {community_user.first_name} {community_user.last_name}. User will receive credentials via email.', 'success')
         
         # Log activity
         log_user_modification(community_user, 'reset_password')

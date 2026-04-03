@@ -50,9 +50,7 @@ CREATE TABLE programs (
     file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
     is_active BOOLEAN DEFAULT TRUE, -- Track active programs
     allow_online_upload BOOLEAN DEFAULT TRUE, -- Enable/disable online document submission
-    enable_application_slip BOOLEAN DEFAULT TRUE, -- Enable/disable application slip generation
-    use_beneficiary_limit BOOLEAN, -- Whether to enforce beneficiary limit
-    use_income_range BOOLEAN -- Whether to enforce income range requirement
+    enable_application_slip BOOLEAN DEFAULT TRUE -- Enable/disable application slip generation
 );
 
 --Create index on programs 
@@ -191,13 +189,19 @@ CREATE TABLE community_users (
     sitio VARCHAR(100),
     address TEXT,
     municipality VARCHAR(100) DEFAULT 'Mabitac',
+    religion VARCHAR(100),
+    place_of_birth VARCHAR(200),
+    civil_status VARCHAR(50),
+    highest_education_attainment VARCHAR(100),
     is_currently_employed BOOLEAN DEFAULT FALSE,
     occupation VARCHAR(100),
+    occupation_sector VARCHAR(100),
     is_student BOOLEAN DEFAULT FALSE,
     is_solo_parent BOOLEAN DEFAULT FALSE,
     is_pwd BOOLEAN DEFAULT FALSE,
     disability_type VARCHAR(100),
     family_annual_income DECIMAL(12,2),
+    income_category VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Verification status fields for Senior Citizen, PWD, Solo Parent
@@ -221,7 +225,10 @@ CREATE TABLE community_users (
     solo_parent_verified_at TIMESTAMP,
     solo_parent_verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     solo_parent_document_path VARCHAR(255),
-    solo_parent_rejection_reason TEXT
+    solo_parent_rejection_reason TEXT,
+
+    -- Areas of concern for program recommendations
+    areas_of_concern TEXT -- JSON array: ['Business', 'Education', 'Medical', 'Emergency']
 );
 
 -- Create indexes for community_users (for analytics and filtering)
@@ -233,6 +240,8 @@ CREATE INDEX idx_community_users_student ON community_users(is_student);
 CREATE INDEX idx_community_users_solo_parent ON community_users(is_solo_parent);
 CREATE INDEX idx_community_users_pwd ON community_users(is_pwd);
 CREATE INDEX idx_community_users_income ON community_users(family_annual_income);
+CREATE INDEX idx_community_users_occupation_sector ON community_users(occupation_sector);
+CREATE INDEX idx_community_users_income_category ON community_users(income_category);
 -- Verification status indexes
 CREATE INDEX idx_community_users_senior_verification ON community_users(senior_citizen_verification);
 CREATE INDEX idx_community_users_pwd_verification ON community_users(pwd_verification);
@@ -261,6 +270,7 @@ CREATE TABLE program_requirements (
     is_mandatory BOOLEAN DEFAULT TRUE,
     is_completed BOOLEAN DEFAULT TRUE,
     document_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    copy_type TEXT DEFAULT '[{"type": "original", "count": 1}]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(program_id, requirement_id) -- prevent duplicate requirements per program
 );
@@ -424,6 +434,121 @@ CREATE TABLE application_workflow_history (
 CREATE INDEX idx_application_workflow_history_application_id ON application_workflow_history(application_id);
 CREATE INDEX idx_application_workflow_history_workflow_step_id ON application_workflow_history(workflow_step_id);
 CREATE INDEX idx_application_workflow_history_action_type ON application_workflow_history(action_type);
+
+-- Create admin activity logs table
+CREATE TABLE admin_activity_logs (
+    id SERIAL PRIMARY KEY,
+    admin_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(50) NOT NULL,
+    action_type VARCHAR(20) NOT NULL DEFAULT 'update',
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INTEGER,
+    description TEXT NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_admin_activity_logs_admin_id ON admin_activity_logs(admin_id);
+CREATE INDEX idx_admin_activity_logs_action ON admin_activity_logs(action);
+CREATE INDEX idx_admin_activity_logs_action_type ON admin_activity_logs(action_type);
+CREATE INDEX idx_admin_activity_logs_entity_type ON admin_activity_logs(entity_type);
+CREATE INDEX idx_admin_activity_logs_created_at ON admin_activity_logs(created_at DESC);
+CREATE INDEX idx_activity_admin_date ON admin_activity_logs(admin_id, created_at);
+CREATE INDEX idx_activity_entity ON admin_activity_logs(entity_type, entity_id);
+
+-- Create community user activity logs table
+CREATE TABLE user_activity_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    action VARCHAR(50) NOT NULL,
+    action_type VARCHAR(20) NOT NULL DEFAULT 'view',
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INTEGER,
+    description TEXT NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_user_activity_logs_user_id ON user_activity_logs(user_id);
+CREATE INDEX idx_user_activity_logs_action ON user_activity_logs(action);
+CREATE INDEX idx_user_activity_logs_action_type ON user_activity_logs(action_type);
+CREATE INDEX idx_user_activity_logs_entity_type ON user_activity_logs(entity_type);
+CREATE INDEX idx_user_activity_logs_created_at ON user_activity_logs(created_at DESC);
+CREATE INDEX idx_user_activity_user_date ON user_activity_logs(user_id, created_at);
+CREATE INDEX idx_user_activity_entity ON user_activity_logs(entity_type, entity_id);
+
+-- Create saved programs table
+CREATE TABLE saved_programs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_saved_program UNIQUE(user_id, program_id)
+);
+
+CREATE INDEX idx_saved_programs_user_id ON saved_programs(user_id);
+CREATE INDEX idx_saved_programs_program_id ON saved_programs(program_id);
+
+-- Create hidden programs table
+CREATE TABLE hidden_programs (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_hidden_program UNIQUE(user_id, program_id)
+);
+
+CREATE INDEX idx_hidden_programs_user_id ON hidden_programs(user_id);
+CREATE INDEX idx_hidden_programs_program_id ON hidden_programs(program_id);
+
+-- Create assessments table
+CREATE TABLE assessments (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    assessment_type VARCHAR(50) NOT NULL, -- 'interview', 'home_visit'
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    scheduled_date TIMESTAMP,
+    scheduled_time VARCHAR(10),
+    location VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'scheduled', -- 'scheduled', 'completed', 'cancelled'
+    findings TEXT,
+    recommendations TEXT,
+    case_severity VARCHAR(20) NOT NULL DEFAULT 'unrated',
+    severity_score INTEGER,
+    severity_factors TEXT,
+    severity_justification TEXT,
+    severity_updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    severity_updated_at TIMESTAMP,
+    conducted_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_assessments_application_id ON assessments(application_id);
+CREATE INDEX idx_assessments_assessment_type ON assessments(assessment_type);
+CREATE INDEX idx_assessments_scheduled_date ON assessments(scheduled_date);
+CREATE INDEX idx_assessments_status ON assessments(status);
+CREATE INDEX idx_assessments_case_severity ON assessments(case_severity);
+CREATE INDEX idx_assessments_severity_score ON assessments(severity_score);
+
+-- Create assessment documents table
+CREATE TABLE assessment_documents (
+    id SERIAL PRIMARY KEY,
+    assessment_id INTEGER NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
+    file_path VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) NOT NULL,
+    file_size INTEGER,
+    file_type VARCHAR(100),
+    description TEXT,
+    uploaded_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_assessment_documents_assessment_id ON assessment_documents(assessment_id);
 
 -- INSERT ADMIN USER
 INSERT INTO users (email, password_hash, first_name, middle_name, last_name, role) VALUES 

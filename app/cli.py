@@ -15,16 +15,23 @@ from werkzeug.security import generate_password_hash
 @click.command()
 @with_appcontext
 def init_db():
-    """Initialize the data  base with initial data."""
+    """Initialize the database with initial data."""
+    import os
     click.echo('Initializing database with initial data...')
     
     try:
         # Create admin user if not exists
         admin_user = User.query.filter_by(email='MSWDMabitac@gmail.com').first()
         if not admin_user:
+            # SECURITY: For production, use strong password from environment variable
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'MabitacMSWD_2025')
+            if admin_password == 'MabitacMSWD_2025' and os.environ.get('FLASK_ENV') == 'production':
+                click.echo('⚠️  WARNING: Using default admin password in production!')
+                click.echo('Set ADMIN_PASSWORD environment variable for security.')
+            
             admin_user = User(
                 email='MSWDMabitac@gmail.com',
-                password_hash=generate_password_hash('MabitacMSWD_2025', method='pbkdf2:sha256'),
+                password_hash=generate_password_hash(admin_password, method='pbkdf2:sha256'),
                 first_name='MSWD',
                 middle_name='',
                 last_name='Mabitac',
@@ -40,12 +47,14 @@ def init_db():
         else:
             click.echo('✅ Admin user already exists')
 
-        # Create sample community user if not exists
+        # Create sample community user if not exists (dev/testing only)
         sample_user = User.query.filter_by(email='user1@test.com').first()
         if not sample_user:
+            # SECURITY: Sample user password - should only exist in dev environments
+            sample_password = os.environ.get('SAMPLE_USER_PASSWORD', 'password123')
             sample_user = User(
                 email='user1@test.com',
-                password_hash=generate_password_hash('password123', method='pbkdf2:sha256'),
+                password_hash=generate_password_hash(sample_password, method='pbkdf2:sha256'),
                 first_name='Juan',
                 middle_name='A',
                 last_name='Dela Cruz',

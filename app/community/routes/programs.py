@@ -332,12 +332,7 @@ def programs_by_category(category):
         'CA': 'Capital Assistance (CA)'
     }
     
-    print(f"DEBUG: Received category: '{category}'")
-    print(f"DEBUG: Category in category_names: {category in category_names}")
-    print(f"DEBUG: Available categories: {list(category_names.keys())}")
-    
     if category not in category_names:
-        print(f"DEBUG: Category '{category}' not found, redirecting to programs page")
         return redirect(url_for('community.programs'))
     
     # Get programs for this category

@@ -145,14 +145,14 @@ def add_admin():
         notification = Notifications(
             user_id=new_admin.id,
             notif_title='Welcome to AYUDA Admin',
-            notif_message=f'Your admin account has been created. Your temporary password is: {temp_password}. Please change it after logging in.',
+            notif_message=f'Your admin account has been created. Your temporary password has been sent to your registered email. Please change it after logging in.',
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
         
         db.session.commit()
         
-        flash(f'Admin account created successfully for {first_name} {last_name}. Temporary password: {temp_password}', 'success')
+        flash(f'Admin account created successfully for {first_name} {last_name}. Credentials sent via email.', 'success')
         
         # Log activity
         log_admin_management(new_admin, 'create')
@@ -231,14 +231,14 @@ def reset_admin_password(admin_id):
         notification = Notifications(
             user_id=admin_id,
             notif_title='Password Reset',
-            notif_message=f'Your password has been reset. Your new temporary password is: {new_password}. Please change it after logging in.',
+            notif_message=f'Your password has been reset. Your new temporary password has been sent to your registered email. Please change it after logging in.',
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
         
         db.session.commit()
         
-        flash(f'Password reset successfully for {admin_user.first_name} {admin_user.last_name}. New password: {new_password}', 'success')
+        flash(f'Password reset successfully for {admin_user.first_name} {admin_user.last_name}. Credentials sent via email.', 'success')
         
         # Log activity
         log_admin_management(admin_user, 'reset_password')
