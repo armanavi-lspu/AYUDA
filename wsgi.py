@@ -19,3 +19,5 @@ if __name__ == '__main__':
     # This should not be used directly in production
     # Use Gunicorn or other WSGI server instead
     app.run()
+
+    
