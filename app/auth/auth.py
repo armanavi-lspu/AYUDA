@@ -89,6 +89,9 @@ def sign_up():
         lastName = (request.form.get('lastName') or '').strip()
         birthDate = request.form.get('birthDate')  # YYYY-MM-DD format
         gender = request.form.get('gender')
+        municipality = (request.form.get('municipality') or '').strip()
+        barangay = (request.form.get('barangay') or '').strip()
+        address = (request.form.get('address') or '').strip()
 
         # Validation
         user = User.query.filter(func.lower(User.email) == email).first()
@@ -107,6 +110,12 @@ def sign_up():
             flash('Please enter your birth date.', category='error')
         elif not gender:
             flash('Please select your gender.', category='error')
+        elif not municipality:
+            flash('Please enter your municipality.', category='error')
+        elif not barangay:
+            flash('Please enter your barangay.', category='error')
+        elif not address:
+            flash('Please enter your address.', category='error')
         elif password != confirmPassword:
             flash('Passwords don\'t match.', category='error')
         elif len(password) < 8:
@@ -141,7 +150,10 @@ def sign_up():
                     birth_month=birth_date_obj.month,
                     birth_day=birth_date_obj.day,
                     birth_year=birth_date_obj.year,
-                    gender=gender
+                    gender=gender,
+                    municipality=municipality,
+                    barangay=barangay,
+                    address=address
                 )
                 db.session.add(community_profile)
                 db.session.commit()
