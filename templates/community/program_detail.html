@@ -3,13 +3,93 @@
 
 {% block extra_css %}
 <style>
-    .program-header {
-        background: linear-gradient(135deg, #7486ff 0%, #1700b0 100%);
-        border-radius: 10px;
-        padding: 2rem;
-        color: white;
-        margin-bottom: 2rem;
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
     }
+
+    .program-detail-shell {
+        animation: detailFadeIn 0.45s ease-out;
+    }
+
+    @keyframes detailFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .program-breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin: 0 0 0.8rem;
+    }
+
+    .program-breadcrumb .breadcrumb-item a {
+        color: #5f7393;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .program-breadcrumb .breadcrumb-item.active {
+        color: #264a80;
+        font-weight: 700;
+    }
+
+    .program-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+        color: #94a3b8;
+    }
+
+    .program-header {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        color: var(--dash-slate);
+        box-shadow: 0 10px 24px rgba(31, 42, 68, 0.07);
+    }
+
+    .program-header h1 {
+        font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+        color: var(--dash-slate);
+    }
+
+    .program-header .lead,
+    .program-header .posted-text {
+        color: var(--dash-muted);
+    }
+
+    .program-info-panel {
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.86);
+        color: #1f2a44;
+    }
+
+    .program-info-panel h6 {
+        color: #1e3a8a;
+        margin-bottom: 0.9rem;
+    }
+
+    .program-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
     .info-card {
         border-left: 4px solid #0032A0;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -21,30 +101,82 @@
     .requirement-badge {
         display: inline-block;
         padding: 0.5rem 1rem;
-        background: #f8f9fc;
+        background: #f8fbff;
         border-left: 3px solid #4e73df;
         margin-bottom: 0.5rem;
         width: 100%;
+        border-radius: 8px;
     }
+
     .attachment-card {
-        border: 2px dashed #e3e6f0;
+        border: 2px dashed #d7e2f6;
         transition: all 0.3s ease;
+        background: #fff;
     }
+
     .attachment-card:hover {
         border-color: #4e73df;
-        background-color: #f8f9fc;
+        background-color: #f8fbff;
     }
+
     .slip-preview {
-        border: 2px dashed #dee2e6;
-        background: #f8f9fa;
+        border: 2px dashed #d7e2f6;
+        background: #f8fbff;
+        border-radius: 12px;
+    }
+
+    .program-modal .modal-content {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 24px 52px rgba(15, 23, 42, 0.22);
+    }
+
+    .program-modal .modal-header {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f5ea8 100%);
+        border-bottom: none;
+        color: #fff;
+    }
+
+    .program-modal .modal-body {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .program-modal .modal-footer {
+        border-top: 1px solid #e2eaf8;
+        background: #f7faff;
+    }
+
+    @media (max-width: 991.98px) {
+        .program-detail-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .program-header {
+            padding: 1.15rem;
+        }
+
+        .program-info-panel {
+            margin-top: 1rem;
+        }
+
+        .program-card .card-body {
+            padding: 1rem;
+        }
+
+        .program-card .card-header {
+            padding: 0.8rem 1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="container-fluid program-detail-shell py-4">
 <!-- Breadcrumb -->
 <nav aria-label="breadcrumb" class="mb-4">
-    <ol class="breadcrumb">
+    <ol class="breadcrumb program-breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}">Programs</a></li>
         <li class="breadcrumb-item"><a href="{{ url_for('community.programs_by_category', category=program.program_type) }}">{{ program.program_type }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ program.program_name }}</li>
@@ -57,10 +189,10 @@
         <div class="col-lg-8">
             <h1 class="display-5 font-weight-bold mb-3">{{ program.program_name }}</h1>
             <p class="lead mb-2">{{ program.program_type }}</p>
-            <p class="mb-0"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}</p>
+            <p class="mb-0 posted-text"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}</p>
         </div>
         <div class="col text-left">
-            <div class="bg-white text-dark rounded p-3">
+            <div class="program-info-panel">
                 <h6 class="font-weight-bold mb-3">Program Information</h6>
                 <ul class="list-unstyled mb-0">
                     <li class="mb-2">
@@ -152,7 +284,7 @@
         {% endif %}
         
         <!-- Description Card -->
-        <div class="card shadow mb-4 info-card">
+        <div class="card shadow mb-4 info-card program-card">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>Program Description</h5>
             </div>
@@ -164,7 +296,7 @@
         
         <!-- Additional Program Details Card -->
         {% if program.priority_group or program.income_range or program.beneficiary_limit %}
-        <div class="card shadow mb-4 info-card">
+        <div class="card shadow mb-4 info-card program-card">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0"><i class="fas fa-bullseye mr-2"></i>Target Beneficiaries</h5>
             </div>
@@ -217,7 +349,7 @@
 
         <!-- Requirements Cards -->
         <!-- Qualification Requirements Card -->
-        <div class="card shadow mb-4 info-card">
+        <div class="card shadow mb-4 info-card program-card">
             <div class="card-header bg-warning text-white">
                 <h5 class="mb-0"><i class="fas fa-check-circle mr-2"></i>Eligibility Qualifications</h5>
             </div>
@@ -261,7 +393,7 @@
         </div>
 
         <!-- Document Requirements Card -->
-        <div class="card shadow mb-4 info-card">
+        <div class="card shadow mb-4 info-card program-card">
             <div class="card-header bg-success text-white">
                 <h5 class="mb-0"><i class="fas fa-file-alt mr-2"></i>Required Documents</h5>
             </div>
@@ -305,7 +437,7 @@
 
         <!-- Application Workflow Preview Card -->
         {% if program.workflow_steps %}
-        <div class="card shadow mb-4 info-card border-left-info">
+        <div class="card shadow mb-4 info-card border-left-info program-card">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0"><i class="fas fa-tasks mr-2"></i>Application Process Steps</h5>
             </div>
@@ -387,7 +519,7 @@
     <div class="col-lg-4">
         <!-- Program Duration Card -->
         {% if program.start_date or program.end_date %}
-        <div class="card shadow mb-4 border-left-warning">
+        <div class="card shadow mb-4 border-left-warning program-card">
             <div class="card-header bg-warning text-white">
                 <h6 class="mb-0"><i class="fas fa-calendar-alt mr-2"></i>Program Duration</h6>
             </div>
@@ -472,7 +604,7 @@
         {% endif %}
 
         <!-- Application Form Card -->
-        <div class="card shadow mb-4 attachment-card">
+        <div class="card shadow mb-4 attachment-card program-card">
             <div class="card-header bg-info text-white">
                 <h5 class="mb-0"><i class="fas fa-file-download mr-2"></i>Application Form</h5>
             </div>
@@ -500,7 +632,7 @@
         </div>
 
         <!-- Apply Button Card -->
-        <div class="card shadow border-left-primary">
+        <div class="card shadow border-left-primary program-card">
             <div class="card-body text-center">
                 <h5 class="font-weight-bold mb-3">Ready to Apply?</h5>
                 {% set is_closed = program.end_date and program.end_date < today %}
@@ -579,16 +711,16 @@
         </div>
 
         <!-- Save & Hide Actions Card -->
-        <div class="card shadow mt-3">
+        <div class="card shadow mt-3 program-card">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <button type="button" class="btn {% if is_saved %}btn-warning{% else %}btn-outline-warning{% endif %} flex-fill mr-2" 
-                            id="saveBtn" onclick="toggleSaveProgram({{ program.id }})">
+                            id="saveBtn" data-program-id="{{ program.id }}">
                         <i class="fas fa-bookmark mr-1" id="saveIcon"></i>
                         <span id="saveText">{% if is_saved %}Saved{% else %}Save{% endif %}</span>
                     </button>
                     <button type="button" class="btn {% if is_hidden %}btn-secondary{% else %}btn-outline-secondary{% endif %} flex-fill ml-2" 
-                            id="hideBtn" onclick="toggleHideProgram({{ program.id }})">
+                            id="hideBtn" data-program-id="{{ program.id }}">
                         <i class="fas fa-eye-slash mr-1" id="hideIcon"></i>
                         <span id="hideText">{% if is_hidden %}Hidden{% else %}Not Interested{% endif %}</span>
                     </button>
@@ -609,8 +741,8 @@
 </div>
 
 <!-- Confirmation Modal -->
-<div class="modal fade" id="confirmApplicationModal" tabindex="-1" role="dialog" aria-labelledby="confirmApplicationModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade program-modal" id="confirmApplicationModal" tabindex="-1" role="dialog" aria-labelledby="confirmApplicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h6 class="modal-title" id="confirmApplicationModalLabel">
@@ -727,11 +859,32 @@
         </div>
     </div>
 </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            const programId = parseInt(saveBtn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleSaveProgram(programId);
+            }
+        });
+    }
+
+    const hideBtn = document.getElementById('hideBtn');
+    if (hideBtn) {
+        hideBtn.addEventListener('click', function() {
+            const programId = parseInt(hideBtn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleHideProgram(programId);
+            }
+        });
+    }
+
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {

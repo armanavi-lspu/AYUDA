@@ -2896,7 +2896,7 @@ def review_cancellation_request(application_id):
             notification = Notifications(
                 user_id=application.user_id,
                 notif_title=f'Cancellation Approved - {application.program.program_name}',
-                notif_message=f'Your cancellation request has been approved. Your application for {application.program.program_name} has been cancelled.',
+                notif_message=f'Your cancellation request has been approved. Your application for {application.program.program_name} is now cancelled and ready for permanent deletion from your account.',
                 is_read=False,
                 related_id=application_id,
                 related_type='application'

@@ -3,14 +3,78 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .other-services-shell {
+        animation: otherServicesFadeIn 0.45s ease-out;
+    }
+
+    @keyframes otherServicesFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .other-services-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .other-services-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .other-services-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        margin-bottom: 1rem;
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
     .service-card {
-        border-left: 4px solid #0032a0;
+        border-left: 4px solid #1f6feb;
+        border: 1px solid #dbe5f7;
+        border-left-width: 4px;
+        border-radius: 12px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .service-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 0.5rem 1rem rgba(0, 50, 160, 0.15);
+        box-shadow: 0 12px 20px rgba(31, 42, 68, 0.11);
     }
 
     .service-icon {
@@ -21,8 +85,8 @@
         align-items: center;
         justify-content: center;
         font-size: 1.2rem;
-        background: rgba(0, 50, 160, 0.1);
-        color: #0032a0;
+        background: rgba(31, 111, 235, 0.12);
+        color: #1f6feb;
     }
 
     .status-pill {
@@ -33,28 +97,73 @@
     }
 
     .request-history-item {
-        border: 1px solid #e3e6f0;
+        border: 1px solid #dbe5f7;
         border-radius: 0.75rem;
         padding: 0.85rem 0.9rem;
         margin-bottom: 0.7rem;
-        background: #fff;
+        background: #fbfdff;
     }
 
     .request-history-item:last-child {
         margin-bottom: 0;
     }
+
+    .service-form .form-control,
+    .service-form select,
+    .service-form textarea {
+        border-radius: 10px;
+        border: 1px solid #d8deea;
+        transition: all 0.2s ease;
+    }
+
+    .service-form .form-control:focus,
+    .service-form select:focus,
+    .service-form textarea:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .service-empty {
+        border: 2px dashed #d3ddf5;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        padding: 1rem;
+        color: #5a6b87;
+        text-align: center;
+    }
+
+    @media (max-width: 991.98px) {
+        .other-services-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .other-services-hero {
+            padding: 1.15rem;
+        }
+
+        .other-services-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .section-card .card-body,
+        .service-card .card-body {
+            padding: 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-header-gradient mb-4">
-    <h1 class="mb-1">Other Services</h1>
-    <p class="lead mb-0">Apply for subsidy support and request an Assessment/SCSR for your specific needs.</p>
-</div>
+<div class="container-fluid other-services-shell py-4">
+    <div class="other-services-hero">
+        <h1 class="mb-1"><i class="fas fa-layer-group mr-2"></i>Other Services</h1>
+        <p class="subtitle">Apply for subsidy support and request an Assessment/SCSR based on your needs.</p>
+    </div>
 
-<div class="row">
-    <div class="col-lg-7 mb-4">
-        <div class="card shadow-sm">
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+        <div class="card section-card">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold text-primary">
                     <i class="fas fa-hand-holding-heart mr-2"></i>Available Subsidies
@@ -105,12 +214,12 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted mb-0">No subsidy categories are available at the moment.</p>
+                    <div class="service-empty">No subsidy categories are available at the moment.</div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="card shadow-sm">
+        <div class="card section-card">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">
                     <i class="fas fa-list-check mr-2"></i>Your Subsidy Applications
@@ -130,21 +239,21 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <p class="text-muted mb-0">No subsidy applications submitted yet.</p>
+                    <div class="service-empty">No subsidy applications submitted yet.</div>
                 {% endif %}
             </div>
         </div>
     </div>
 
     <div class="col-lg-5 mb-4">
-        <div class="card shadow-sm mb-4">
+        <div class="card section-card mb-4">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">
                     <i class="fas fa-clipboard-list mr-2"></i>Request Assessment / SCSR
                 </h6>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('community.request_assessment_service') }}">
+                <form class="service-form" method="POST" action="{{ url_for('community.request_assessment_service') }}">
                     <div class="form-group">
                         <label for="application_id">Related Application <span class="text-danger">*</span></label>
                         <select class="form-control" id="application_id" name="application_id" required>
@@ -182,7 +291,7 @@
             </div>
         </div>
 
-        <div class="card shadow-sm">
+        <div class="card section-card">
             <div class="card-header">
                 <h6 class="m-0 font-weight-bold text-primary">
                     <i class="fas fa-history mr-2"></i>Your Assessment/SCSR Requests
@@ -203,10 +312,11 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <p class="text-muted mb-0">No assessment/SCSR requests submitted yet.</p>
+                    <div class="service-empty">No assessment/SCSR requests submitted yet.</div>
                 {% endif %}
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}

@@ -3,66 +3,211 @@
 
 {% block extra_css %}
 <style>
-    /* Header Gradient */
-    .page-header-gradient {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
-        color: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-surface: #ffffff;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .announcements-shell {
+        animation: announcementsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes announcementsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .announcements-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .announcements-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .announcements-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .last-updated {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 0.7rem 1rem;
+        color: #334155;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
     }
     
     /* Filter Card Styling */
     .filter-card {
-        border: none;
-        border-radius: 15px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-        transition: all 0.3s ease;
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
     }
-    
+
     .filter-card:hover {
-        box-shadow: 0 4px 25px rgba(0,0,0,0.12);
+        box-shadow: 0 12px 28px rgba(31, 42, 68, 0.1);
     }
-    
+
     .form-control, .form-select {
         border-radius: 8px;
-        border: 1.5px solid #e0e6ed;
+        border: 1px solid #d8deea;
         padding: 0.625rem 0.875rem;
         transition: all 0.2s ease;
     }
-    
+
     .form-control:focus, .form-select:focus {
-        border-color: #0032A0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 50, 160, 0.15);
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
     }
-    
+
     /* Announcement Cards */
     .announcement-card {
-        border: none;
-        border-radius: 15px;
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
         transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
         overflow: hidden;
     }
-    
+
     .announcement-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
     }
-    
+
+    .announcement-post {
+        cursor: pointer;
+    }
+
+    .announcement-post .post-title-link {
+        color: #1f2a44;
+        text-decoration: none;
+    }
+
+    .announcement-post .post-title-link:hover {
+        color: #1942a8;
+        text-decoration: none;
+    }
+
+    .announcement-excerpt {
+        color: #4b5563;
+        font-size: 0.98rem;
+        line-height: 1.75;
+        margin-bottom: 0.85rem;
+    }
+
+    .announcement-media-preview {
+        border-radius: 12px;
+        overflow: hidden;
+        margin: 0.7rem 0 0.3rem;
+        border: 1px solid #dbe5f7;
+        background: #f8fbff;
+        text-align: center;
+    }
+
+    .announcement-media-preview img {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 520px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto;
+        cursor: zoom-in;
+    }
+
+    .announcement-preview-caption {
+        margin-top: 0.45rem;
+        color: #64748b;
+        font-size: 0.84rem;
+    }
+
+    .announcement-preview-modal .modal-content {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+
+    .announcement-preview-modal .modal-body {
+        background: #0f172a;
+        padding: 0;
+        text-align: center;
+    }
+
+    .announcement-preview-modal img {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+        margin: 0 auto;
+        display: block;
+    }
+
+    .announcement-post-footer {
+        border-top: 1px solid #edf2fa;
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .post-read-hint {
+        font-size: 0.88rem;
+        color: #4f6c93;
+        font-weight: 600;
+    }
+
     .announcement-card.hidden { 
         display: none; 
     }
-    
+
     .card-header-custom {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border-bottom: 2px solid #e9ecef;
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
     }
-    
+
+    .results-toolbar {
+        background: #fff;
+        border: 1px solid var(--dash-border);
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+    }
+
     /* Author Avatar */
     .author-avatar {
         width: 42px;
         height: 42px;
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        background: linear-gradient(135deg, var(--dash-blue) 0%, #1942a8 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -72,7 +217,7 @@
         font-size: 14px;
         box-shadow: 0 2px 8px rgba(0, 50, 160, 0.3);
     }
-    
+
     /* Category Badges */
     .category-badge {
         font-size: 0.75rem;
@@ -82,46 +227,11 @@
         letter-spacing: 0.3px;
         text-transform: uppercase;
     }
-    
+
     /* Active Filter Pills */
-    .filter-pill {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
-        color: white;
-        border-radius: 20px;
-        padding: 0.4rem 0.9rem;
-        font-size: 0.85rem;
-        display: inline-flex;
-        align-items: center;
-        margin: 0.25rem;
-        box-shadow: 0 2px 8px rgba(0, 50, 160, 0.25);
-        animation: slideIn 0.3s ease;
-    }
-    
-    .filter-pill .remove-filter {
-        margin-left: 0.5rem;
-        cursor: pointer;
-        opacity: 0.8;
-        transition: opacity 0.2s;
-    }
-    
-    .filter-pill .remove-filter:hover {
-        opacity: 1;
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
     /* Buttons */
     .btn-gradient-primary {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        background: linear-gradient(135deg, var(--dash-blue) 0%, #1942a8 100%);
         border: none;
         color: white;
         font-weight: 600;
@@ -130,40 +240,42 @@
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(0, 50, 160, 0.3);
     }
-    
+
     .btn-gradient-primary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 50, 160, 0.4);
+        box-shadow: 0 6px 20px rgba(31, 111, 235, 0.35);
         color: white;
     }
-    
+
     .btn-outline-custom {
-        border: 2px solid #0032A0;
-        color: #0032A0;
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
         font-weight: 600;
         border-radius: 10px;
         transition: all 0.3s ease;
     }
-    
+
     .btn-outline-custom:hover {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        background: linear-gradient(135deg, var(--dash-blue) 0%, #1942a8 100%);
         color: white;
         border-color: transparent;
     }
-    
+
     /* Stats Badge */
     .stats-badge {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.72);
         backdrop-filter: blur(10px);
         border-radius: 10px;
         padding: 0.5rem 1rem;
-        color: white;
+        color: #234273;
+        border: 1px solid #dbe6ff;
+        font-weight: 700;
     }
-    
+
     /* Empty State */
     .empty-state {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 2px dashed #dee2e6;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        border: 2px dashed #d3ddf5;
         border-radius: 20px;
         padding: 4rem 2rem;
         text-align: center;
@@ -174,21 +286,21 @@
         color: #dee2e6;
         margin-bottom: 1.5rem;
     }
-    
+
     .no-announcements { 
         display: none; 
     }
-    
+
     .no-announcements.show { 
         display: block; 
     }
-    
+
     /* Content Preview */
     .content-preview {
-        color: #6c757d;
+        color: #4b5563;
         line-height: 1.7;
     }
-    
+
     /* Image Styling */
     .announcement-image {
         border-radius: 12px;
@@ -199,36 +311,64 @@
         width: auto;
         max-width: 100%;
     }
-    
+
     .announcement-image:hover {
-        transform: scale(1.02);
+        transform: none;
     }
-    
+
     /* Responsive */
-    @media (max-width: 768px) {
-        .page-header-gradient {
-            border-radius: 15px;
+    @media (max-width: 991.98px) {
+        .announcements-hero {
+            padding: 1.15rem;
         }
-        
-        .filter-card {
-            border-radius: 12px;
+
+        .announcements-hero h1 {
+            font-size: 1.55rem;
         }
-        
-        .announcement-card {
-            border-radius: 12px;
+
+        .stats-badge {
+            margin-top: 0.75rem;
+        }
+
+        .filter-card .card-body,
+        .announcement-card .card-body {
+            padding: 1rem !important;
+        }
+
+        .announcement-card .card-header {
+            padding: 1rem !important;
+        }
+
+        .results-toolbar {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.75rem;
+        }
+
+        .results-toolbar .btn {
+            width: 100%;
+        }
+
+        .announcement-post-footer {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .announcement-post-footer .btn {
+            width: 100%;
         }
     }
-    
+
     /* Loading Animation */
     .loading-spinner {
         animation: spin 1s linear infinite;
     }
-    
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
-    
+
     /* Refresh Button */
     .refresh-btn {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
@@ -236,12 +376,12 @@
         transition: all 0.3s ease;
         box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
     }
-    
+
     .refresh-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
     }
-    
+
     .refresh-btn.loading {
         pointer-events: none;
         opacity: 0.7;
@@ -250,16 +390,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid scroll-smooth py-4 px-5">
-    <!-- Page Header with Gradient -->
-    <div class="page-header-gradient py-4 px-4 mb-4">
+<div class="container-fluid announcements-shell py-4">
+    <div class="announcements-hero">
         <div class="row align-items-center">
-            <div class="col-lg-8">
-                <h2 class="mb-2 text-white font-weight-bold">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="font-weight-bold">
                     <i class="fas fa-bullhorn mr-2"></i>Announcements
-                </h2>
-                <p class="mb-0 text-white opacity-75">Stay updated with the latest news and information from MSWD</p>
-            </div>
+                </h1>
+                <p class="subtitle">Stay updated with the latest news and information from MSWD.</p>
+            </div>            
         </div>
     </div>
 
@@ -269,7 +408,7 @@
         <div class="card-body p-4">
             <div class="row align-items-end">
                 <!-- Search Box -->
-                <div class="col-lg-4 col-md-6 mb-3 mb-lg-0">
+                <div class="col-lg-10 col-md-9 mb-3 mb-md-0">
                     <label class="text-muted text-uppercase small font-weight-bold mb-2">
                         <i class="fas fa-search mr-1"></i>Search
                     </label>
@@ -278,60 +417,22 @@
                            class="form-control" 
                            placeholder="Search by title or content...">
                 </div>
-                
-                <!-- Category Filter -->
-                <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
-                    <label class="text-muted text-uppercase small font-weight-bold mb-2">
-                        <i class="fas fa-tag mr-1"></i>Category
-                    </label>
-                    <select id="categoryFilter" class="form-control form-select">
-                        <option value="">All Categories</option>
-                        {% for category in categories %}
-                        <option value="{{ category }}">{{ category }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <!-- Date Range Filter -->
-                <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
-                    <label class="text-muted text-uppercase small font-weight-bold mb-2">
-                        <i class="fas fa-calendar-alt mr-1"></i>Date Range
-                    </label>
-                    <select id="dateRangeFilter" class="form-control form-select">
-                        <option value="">All Time</option>
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                        <option value="3months">Last 3 Months</option>
-                    </select>
-                </div>
-                
-                <!-- Apply Button -->
-                <div class="col-lg-2 col-md-6">
-                    <button type="button" id="applyFiltersBtn" class="btn btn-gradient-primary btn-block">
-                        <i class="fas fa-filter mr-2"></i>Apply
+
+                <!-- Search Button -->
+                <div class="col-lg-2 col-md-3">
+                    <button type="button" id="searchBtn" class="btn btn-gradient-primary btn-block">
+                        <i class="fas fa-search mr-2"></i>Search
                     </button>
                 </div>
-            </div>
-            
-            <!-- Active Filters Display -->
-            <div class="d-none align-items-center justify-content-between pt-3 mt-3 border-top" id="filterStatus">
-                <div class="d-flex flex-wrap align-items-center">
-                    <span class="text-muted small font-weight-bold mr-3">Active Filters:</span>
-                    <div id="activeFilters"></div>
-                </div>
-                <button class="btn btn-sm btn-outline-custom ml-auto" id="clearAllBtn">
-                    <i class="fas fa-times mr-1"></i>Clear All
-                </button>
             </div>
         </div>
     </div>
 
     <!-- Results Summary -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="results-toolbar d-flex justify-content-between align-items-center mb-3">
         <div class="text-muted">
             Showing <strong class="text-primary" id="visibleCount">{{ announcements|length }}</strong> 
-            of <strong>{{ announcements|length }}</strong> announcements
+            of <strong id="totalCount">{{ announcements|length }}</strong> announcements
         </div>
         <div>
             <button class="btn btn-sm btn-outline-custom" onclick="refreshPage()">
@@ -345,9 +446,8 @@
     <div id="announcementsList">
         {% if announcements %}
             {% for announcement in announcements %}
-            <div class="card announcement-card mb-4" 
-                 data-category="{{ announcement.category or '' }}"
-                 data-date="{{ announcement.created_at.strftime('%Y-%m-%d') if announcement.created_at else '' }}"
+              <div class="card announcement-card announcement-post mb-4"
+                  data-url="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}"
                  data-title="{{ announcement.announcement_title|lower if announcement.announcement_title else '' }}"
                  data-content="{{ announcement.announcement_content|striptags|lower if announcement.announcement_content else '' }}">
                 
@@ -375,16 +475,19 @@
                         </span>
                     </div>
                     
-                    <h4 class="font-weight-bold text-dark mt-3 mb-0">
-                        {{ announcement.announcement_title or 'Untitled Announcement' }}
-                    </h4>
                 </div>
 
                 <!-- Card Body -->
                 <div class="card-body p-4">
+                    <h4 class="font-weight-bold mt-1 mb-2">
+                        <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" class="post-title-link">
+                            {{ announcement.announcement_title or 'Untitled Announcement' }}
+                        </a>
+                    </h4>
+
                     <!-- Program Link Badge -->
                     {% if announcement.linked_program %}
-                    <div class="alert alert-primary border-0 mb-3 shadow-sm" style="background: linear-gradient(135deg, rgba(0, 50, 160, 0.08) 0%, rgba(0, 34, 112, 0.08) 100%); border-left: 4px solid #0032A0 !important;">
+                    <div class="alert alert-primary border-0 mb-3 shadow-sm" style="background: linear-gradient(135deg, rgba(0, 50, 160, 0.08) 0%, rgba(0, 34, 112, 0.08) 100%); border-left: 4px solid #0032A0 !important;" onclick="event.stopPropagation();">
                         <div class="d-flex align-items-center">
                             <i class="fas fa-link text-primary mr-2"></i>
                             <span class="text-primary font-weight-bold mr-2">Linked Program:</span>
@@ -395,43 +498,29 @@
                     
                     <!-- Content Preview -->
                     <div class="mb-3">
-                        <div id="preview-{{ announcement.id }}">
-                            {% if announcement.announcement_content %}
-                                {% set content_length = announcement.announcement_content|length %}
-                                {% if content_length > 350 %}
-                                    <div class="content-preview">{{ announcement.announcement_content[:350]|safe }}...</div>
-                                    <button type="button" class="btn btn-link p-0 text-primary font-weight-bold mt-2" onclick="toggleContent({{ announcement.id }})">
-                                        <i class="fas fa-chevron-down mr-1"></i>Read More
-                                    </button>
-                                {% else %}
-                                    <div class="content-preview">{{ announcement.announcement_content|safe }}</div>
-                                {% endif %}
-                            {% else %}
-                                <div class="content-preview">No content available.</div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Full Content (Hidden by default) -->
-                        {% if announcement.announcement_content and announcement.announcement_content|length > 350 %}
-                        <div style="display:none;" id="full-{{ announcement.id }}">
-                            <div class="content-preview">{{ announcement.announcement_content|safe }}</div>
-                            <button type="button" class="btn btn-link p-0 text-primary font-weight-bold mt-2" onclick="toggleContent({{ announcement.id }})">
-                                <i class="fas fa-chevron-up mr-1"></i>Show Less
-                            </button>
-                        </div>
+                        {% if announcement.announcement_content %}
+                            <div class="announcement-excerpt">
+                                {{ announcement.announcement_content|striptags|truncate(360) }}
+                            </div>
+                        {% else %}
+                            <div class="announcement-excerpt">No content available.</div>
                         {% endif %}
                     </div>
 
-                    <!-- Images -->
+                    <!-- Image Preview -->
                     {% if announcement.images %}
-                    <div class="row mb-3 justify-content-center">
+                    <div class="row" onclick="event.stopPropagation();">
                         {% for image in announcement.images %}
-                        <div class="col-md-6 mb-3">
-                            <img src="/{{ image.image_path }}" 
-                                 alt="{{ image.caption or 'Announcement Image' }}"
-                                 class="img-fluid announcement-image">
+                        <div class="{{ 'col-12' if announcement.images|length == 1 else 'col-md-6' }} mb-3">
+                            <div class="announcement-media-preview px-2 py-2">
+                                <img src="/{{ image.image_path }}"
+                                     alt="{{ image.caption or 'Announcement Image' }}"
+                                     class="announcement-image announcement-preview-trigger"
+                                     data-preview-src="/{{ image.image_path }}"
+                                     data-preview-caption="{{ image.caption or 'Announcement Image' }}">
+                            </div>
                             {% if image.caption %}
-                            <p class="text-muted small mt-2 mb-0">
+                            <p class="announcement-preview-caption mb-0">
                                 <i class="fas fa-info-circle mr-1"></i>{{ image.caption }}
                             </p>
                             {% endif %}
@@ -440,19 +529,15 @@
                     </div>
                     {% endif %}
 
-                    <!-- Action Buttons -->
-                    <div class="pt-2 border-top">
+                    <div class="announcement-post-footer" onclick="event.stopPropagation();">
+                        <span class="post-read-hint">
+                            <i class="fas fa-book-reader mr-1"></i>Click post to read full details
+                        </span>
                         <div class="d-flex flex-wrap align-items-center">
                             <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
                                class="btn btn-gradient-primary mr-2 mb-2">
                                 <i class="fas fa-external-link-alt mr-2"></i>View Full Details
                             </a>
-                            {% if announcement.linked_program %}
-                            <a href="{{ url_for('community.program_detail', program_id=announcement.linked_program.id) }}" 
-                               class="btn btn-success mr-2 mb-2">
-                                <i class="fas fa-arrow-circle-right mr-2"></i>Apply to Program
-                            </a>
-                            {% endif %}
                             {% if announcement.attachment_url %}
                             <a href="{{ announcement.attachment_url }}" target="_blank" 
                                class="btn btn-outline-info mb-2">
@@ -470,9 +555,9 @@
                 <div class="empty-state">
                     <i class="fas fa-search empty-state-icon"></i>
                     <h4 class="text-dark font-weight-bold mb-3">No Announcements Found</h4>
-                    <p class="text-muted mb-4">We couldn't find any announcements matching your search criteria.</p>
+                    <p class="text-muted mb-4">We couldn't find any announcements matching your search keyword.</p>
                     <button class="btn btn-outline-custom" id="clearFiltersBtn">
-                        <i class="fas fa-times mr-2"></i>Clear All Filters
+                        <i class="fas fa-times mr-2"></i>Clear Search
                     </button>
                 </div>
             </div>
@@ -521,25 +606,31 @@
         {% endif %}
     </div>
 </div>
+
+<div class="modal fade announcement-preview-modal" id="announcementImagePreviewModal" tabindex="-1" role="dialog" aria-labelledby="announcementImagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="announcementImagePreviewModalLabel">
+                    <i class="fas fa-image mr-2 text-primary"></i>Image Preview
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img id="announcementPreviewImage" src="" alt="Announcement Preview">
+            </div>
+            <div class="modal-footer border-0 pt-2">
+                <small class="text-muted w-100" id="announcementPreviewCaption"></small>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Toggle announcement content
-function toggleContent(announcementId) {
-    const preview = document.getElementById(`preview-${announcementId}`);
-    const full = document.getElementById(`full-${announcementId}`);
-    if (preview && full) {
-        if (preview.style.display === 'none') {
-            preview.style.display = 'block';
-            full.style.display = 'none';
-        } else {
-            preview.style.display = 'none';
-            full.style.display = 'block';
-        }
-    }
-}
-
 // Refresh page function
 function refreshPage() {
     const refreshBtn = document.getElementById('refreshBtn');
@@ -551,20 +642,34 @@ function refreshPage() {
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt loading-spinner mr-2"></i>Checking...';
     }
     
-    setTimeout(() => {
+    setTimeout(function() {
         location.reload();
     }, 1000);
 }
 
-// Clear all filters
+function updateAnnouncementsUpdatedTime() {
+    const updatedEl = document.getElementById('lastUpdatedAnnouncements');
+    if (!updatedEl) {
+        return;
+    }
+
+    const now = new Date();
+    updatedEl.textContent = 'Updated ' + now.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+}
+
+// Clear search field and refresh the visible announcement list.
 function clearAllFilters() {
     const searchInput = document.getElementById('searchInput');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const dateRangeFilter = document.getElementById('dateRangeFilter');
-    
-    if (searchInput) searchInput.value = '';
-    if (categoryFilter) categoryFilter.value = '';
-    if (dateRangeFilter) dateRangeFilter.value = '';
+    if (searchInput) {
+        searchInput.value = '';
+    }
     
     if (window.applyFilters) {
         applyFilters();
@@ -572,18 +677,69 @@ function clearAllFilters() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    updateAnnouncementsUpdatedTime();
+    setInterval(updateAnnouncementsUpdatedTime, 60000);
+
     const searchInput = document.getElementById('searchInput');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const dateRangeFilter = document.getElementById('dateRangeFilter');
-    const applyBtn = document.getElementById('applyFiltersBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
+    const searchBtn = document.getElementById('searchBtn');
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
-    const filterStatus = document.getElementById('filterStatus');
-    const activeFiltersDiv = document.getElementById('activeFilters');
     const noResults = document.getElementById('noResults');
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = document.getElementById('totalCount');
-    const allCards = document.querySelectorAll('.announcement-card:not(.no-announcements)');
+    const allCards = document.querySelectorAll('.announcement-post[data-url]');
+    const previewImages = document.querySelectorAll('.announcement-preview-trigger');
+    const previewImageEl = document.getElementById('announcementPreviewImage');
+    const previewCaptionEl = document.getElementById('announcementPreviewCaption');
+
+    function isInteractiveTarget(targetElement) {
+        let node = targetElement;
+        while (node && node !== document.body) {
+            const tag = node.tagName;
+            if (tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'LABEL' || tag === 'IMG') {
+                return true;
+            }
+            if (node.classList && node.classList.contains('announcement-preview-trigger')) {
+                return true;
+            }
+            node = node.parentElement;
+        }
+        return false;
+    }
+
+    previewImages.forEach(function(image) {
+        image.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!previewImageEl) {
+                return;
+            }
+
+            const source = image.getAttribute('data-preview-src') || image.getAttribute('src');
+            const caption = image.getAttribute('data-preview-caption') || image.getAttribute('alt') || '';
+
+            previewImageEl.setAttribute('src', source);
+            previewImageEl.setAttribute('alt', caption || 'Announcement Preview');
+            if (previewCaptionEl) {
+                previewCaptionEl.textContent = caption;
+            }
+
+            $('#announcementImagePreviewModal').modal('show');
+        });
+    });
+
+    allCards.forEach(function(card) {
+        card.addEventListener('click', function(event) {
+            if (isInteractiveTarget(event.target)) {
+                return;
+            }
+
+            const detailUrl = card.getAttribute('data-url');
+            if (detailUrl) {
+                window.location.href = detailUrl;
+            }
+        });
+    });
     
     // Initialize
     if (noResults) {
@@ -595,46 +751,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (allCards.length > 0 && totalCount) {
         totalCount.textContent = allCards.length;
         
-        // Apply filters function
+        // Search function
         function applyFilters() {
-            const searchTerm = searchInput?.value.toLowerCase().trim() || '';
-            const selectedCategory = categoryFilter?.value || '';
-            const selectedDateRange = dateRangeFilter?.value || '';
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
             let visibleCards = 0;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
             
-            allCards.forEach(card => {
+            allCards.forEach(function(card) {
                 const cardTitle = card.dataset.title || '';
                 const cardContent = card.dataset.content || '';
-                const cardCategory = card.dataset.category || '';
-                const cardDate = new Date(card.dataset.date);
-                cardDate.setHours(0, 0, 0, 0);
                 let showCard = true;
                 
                 // Search filter
                 if (searchTerm && !cardTitle.includes(searchTerm) && !cardContent.includes(searchTerm)) {
                     showCard = false;
-                }
-                
-                // Category filter
-                if (selectedCategory && cardCategory !== selectedCategory) {
-                    showCard = false;
-                }
-                
-                // Date range filter
-                if (selectedDateRange) {
-                    const daysDiff = Math.floor((today - cardDate) / (1000 * 60 * 60 * 24));
-                    
-                    if (selectedDateRange === 'today' && daysDiff !== 0) {
-                        showCard = false;
-                    } else if (selectedDateRange === 'week' && daysDiff > 7) {
-                        showCard = false;
-                    } else if (selectedDateRange === 'month' && daysDiff > 30) {
-                        showCard = false;
-                    } else if (selectedDateRange === '3months' && daysDiff > 90) {
-                        showCard = false;
-                    }
                 }
                 
                 // Show/hide card with animation
@@ -661,80 +790,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     noResults.style.display = 'none';
                 }
             }
-            
-            // Update active filters display
-            updateActiveFilters(searchTerm, selectedCategory, selectedDateRange);
-        }
-        
-        // Update active filters display
-        function updateActiveFilters(searchTerm, category, dateRange) {
-            if (!activeFiltersDiv) return;
-            
-            activeFiltersDiv.innerHTML = '';
-            let hasFilters = false;
-            
-            if (searchTerm) {
-                hasFilters = true;
-                const pill = document.createElement('span');
-                pill.className = 'filter-pill';
-                pill.innerHTML = `<i class="fas fa-search mr-1"></i> "${searchTerm}" <span class="remove-filter" onclick="document.getElementById('searchInput').value=''; applyFilters();">×</span>`;
-                activeFiltersDiv.appendChild(pill);
-            }
-            
-            if (category) {
-                hasFilters = true;
-                const pill = document.createElement('span');
-                pill.className = 'filter-pill';
-                pill.innerHTML = `<i class="fas fa-tag mr-1"></i> ${category} <span class="remove-filter" onclick="document.getElementById('categoryFilter').value=''; applyFilters();">×</span>`;
-                activeFiltersDiv.appendChild(pill);
-            }
-            
-            if (dateRange) {
-                hasFilters = true;
-                const dateLabels = { 
-                    'today': 'Today', 
-                    'week': 'This Week', 
-                    'month': 'This Month',
-                    '3months': 'Last 3 Months'
-                };
-                const pill = document.createElement('span');
-                pill.className = 'filter-pill';
-                pill.innerHTML = `<i class="fas fa-calendar-alt mr-1"></i> ${dateLabels[dateRange]} <span class="remove-filter" onclick="document.getElementById('dateRangeFilter').value=''; applyFilters();">×</span>`;
-                activeFiltersDiv.appendChild(pill);
-            }
-            
-            // Show/hide filter status bar
-            if (filterStatus) {
-                if (hasFilters) {
-                    filterStatus.classList.remove('d-none');
-                    filterStatus.classList.add('d-flex');
-                } else {
-                    filterStatus.classList.add('d-none');
-                    filterStatus.classList.remove('d-flex');
-                }
-            }
         }
         
         // Event listeners
-        if (applyBtn) {
-            applyBtn.addEventListener('click', applyFilters);
-        }
-        
-        if (clearAllBtn) {
-            clearAllBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                clearAllFilters();
-            });
+        if (searchBtn) {
+            searchBtn.addEventListener('click', applyFilters);
         }
         
         if (clearFiltersBtn) {
-            clearFiltersBtn.addEventListener('click', () => {
+            clearFiltersBtn.addEventListener('click', function() {
                 clearAllFilters();
             });
         }
         
         if (searchInput) {
-            searchInput.addEventListener('keypress', (e) => { 
+            searchInput.addEventListener('keypress', function(e) { 
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     applyFilters(); 
@@ -745,9 +815,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Real-time search (debounced)
         let searchTimeout;
         if (searchInput) {
-            searchInput.addEventListener('input', () => {
+            searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
+                searchTimeout = setTimeout(function() {
                     applyFilters();
                 }, 500);
             });

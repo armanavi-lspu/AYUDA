@@ -3,152 +3,372 @@
 
 {% block extra_css %}
 <style>
-    /* Header Gradient */
-    .page-header-gradient {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
-        color: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .programs-list-shell {
+        animation: programsListFadeIn 0.45s ease-out;
+    }
+
+    @keyframes programsListFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .programs-list-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .programs-list-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .programs-list-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .programs-breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin: 0 0 0.7rem;
+    }
+
+    .programs-breadcrumb .breadcrumb-item a {
+        color: #5f7393;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .programs-breadcrumb .breadcrumb-item.active {
+        color: #264a80;
+        font-weight: 700;
+    }
+
+    .programs-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+        color: #94a3b8;
+    }
+
+    .programs-stat-card {
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.86);
+    }
+
+    .programs-stat-card .h2 {
+        color: #1e3a8a;
+        margin-bottom: 0;
+    }
+
+    .programs-stat-card small {
+        color: #4f5f7a;
+        letter-spacing: 0.04em;
+    }
+
+    .program-list-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.25s ease;
+        background: #fff;
+    }
+
+    .program-list-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .program-title {
+        color: #1f2a44;
+        margin-bottom: 0;
+        line-height: 1.35;
+    }
+
+    .category-pill {
+        background: #edf4ff;
+        border: 1px solid #cfe0ff;
+        color: #1f5ea8;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        letter-spacing: 0.02em;
+    }
+
+    .program-description {
+        color: #475569;
+        line-height: 1.7;
+        margin-bottom: 0.85rem;
+    }
+
+    .program-chips .badge {
+        margin: 0 0.35rem 0.35rem 0;
+        padding: 0.45rem 0.62rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+    }
+
+    .priority-note {
+        border: 1px solid #d8e7fb;
+        background: #f7fbff;
+        border-radius: 10px;
+        padding: 0.55rem 0.65rem;
+        color: #1f5ea8;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+
+    .program-meta {
+        border-top: 1px solid #edf2fa;
+        padding-top: 0.7rem;
+        margin-top: auto;
+    }
+
+    .program-meta small {
+        color: #6b7280;
+        display: block;
+        margin-bottom: 0.2rem;
+    }
+
+    .program-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        margin-top: 0.9rem;
+    }
+
+    .program-actions .btn-primary,
+    .program-actions .btn-secondary {
+        border-radius: 10px;
+        font-weight: 700;
+        padding: 0.42rem 0.85rem;
+    }
+
+    .program-actions .btn-outline-warning,
+    .program-actions .btn-outline-secondary,
+    .program-actions .btn-warning {
+        border-radius: 10px;
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .empty-programs {
+        border: 2px dashed #d3ddf5;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        padding: 2.5rem 1.5rem;
+        text-align: center;
+        color: #52637f;
+    }
+
+    .empty-programs i {
+        font-size: 2.2rem;
+        color: #9eb4d8;
+        margin-bottom: 0.65rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .programs-list-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .programs-list-hero {
+            padding: 1.15rem;
+        }
+
+        .programs-list-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .program-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .program-actions .btn {
+            width: 100%;
+        }
+
+        .program-actions .btn-outline-warning,
+        .program-actions .btn-outline-secondary,
+        .program-actions .btn-warning {
+            width: 100%;
+            height: auto;
+            padding: 0.5rem 0.7rem;
+        }
+
+        .program-shortcuts {
+            width: 100%;
+            display: flex;
+            gap: 0.5rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="page-header-gradient py-4 px-4 mb-4">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb bg-transparent p-0 mb-0">
-                    <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}" class="text-white-50">Programs</a></li>
-                    <li class="breadcrumb-item text-white active" aria-current="page">{{ category_name }}</li>
-                </ol>
-            </nav>
-            <h2 class="mb-2 text-white">
-                <i class="fas fa-folder-open mr-2"></i>{{ category_name }}
-            </h2>
-            <p class="mb-0 text-white opacity-75">Browse available {{ category }} programs</p>
-        </div>
-        <div class="col-lg-4 text-lg-right">
-            <div class="text-white">
-                <div style="font-size: 2rem; font-weight: bold;">{{ total_programs }}</div>
-                <div style="font-size: 0.9rem; opacity: 0.8;">Programs Available</div>
+<div class="container-fluid programs-list-shell py-4">
+    <div class="programs-list-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb programs-breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}">Programs</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ category_name }}</li>
+                    </ol>
+                </nav>
+                <h1><i class="fas fa-folder-open mr-2"></i>{{ category_name }}</h1>
+                <p class="subtitle">Browse available {{ category }} programs and check details before applying.</p>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Programs List -->
-<div class="row">
-    {% if programs %}
-        {% for program in programs %}
-        <div class="col-lg-6 col-md-12 mb-4">
-            <div class="card shadow h-100">
-                <div class="card-body">
-                    <h5 class="card-title font-weight-bold">{{ program.program_name }}</h5>
-                    <p class="card-text text-muted">{{ program.description }}</p>
-                    
-                    <div class="mb-2">
-                        {% set is_closed = program.end_date and program.end_date < today %}
-                        {% if is_closed %}
-                        <span class="badge badge-dark mr-1">
-                            <i class="fas fa-lock mr-1"></i>Closed
-                        </span>
-                        {% endif %}
-                        {% if program.beneficiary_limit %}
-                        {% set approved_count = (program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length) if program.applications else 0 %}
-                        {% set is_full = approved_count >= program.beneficiary_limit %}
-                        <span class="badge {% if is_full %}badge-danger{% else %}badge-warning{% endif %} mr-1">
-                            <i class="fas fa-user-friends mr-1"></i>
-                            {% if is_full %}FULL{% else %}{{ program.beneficiary_limit - approved_count }} slots left{% endif %}
-                        </span>
-                        {% endif %}
-                        {% if program.income_range %}
-                        <span class="badge badge-success mr-1">
-                            <i class="fas fa-money-bill-wave mr-1"></i>{{ program.income_range }}
-                        </span>
-                        {% endif %}
-                        {% if program.end_date and not is_closed %}
-                        {% set days_left = (program.end_date - today).days %}
-                        {% if days_left > 0 %}
-                        <span class="badge badge-info mr-1">
-                            <i class="fas fa-clock mr-1"></i>{{ days_left }} days left
-                        </span>
-                        {% elif days_left == 0 %}
-                        <span class="badge badge-warning mr-1">
-                            <i class="fas fa-exclamation-triangle mr-1"></i>Ends today!
-                        </span>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                    {% if program.priority_group %}
-                    <div class="mb-2">
-                        <small class="text-info">
-                            <i class="fas fa-bullseye mr-1"></i><strong>Priority:</strong> {{ program.priority_group }}
-                        </small>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="mb-3">
-                        {% if program.start_date or program.end_date %}
-                        <small class="text-muted d-block">
-                            <i class="fas fa-calendar-alt mr-1"></i>
-                            <strong>Duration:</strong>
-                            {% if program.start_date %}{{ program.start_date.strftime('%b %d, %Y') }}{% endif %}
-                            {% if program.start_date and program.end_date %} - {% endif %}
-                            {% if program.end_date %}{{ program.end_date.strftime('%b %d, %Y') }}{% endif %}
-                        </small>
-                        {% endif %}
-                        <small class="text-muted d-block">
-                            <i class="far fa-calendar-alt mr-1"></i>
-                            Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}
-                        </small>
-                    </div>
-                    
-                    {% if is_closed %}
-                    <button class="btn btn-secondary btn-sm" disabled>
-                        <i class="fas fa-lock mr-1"></i>Closed
-                    </button>
-                    {% else %}
-                    <a href="{{ url_for('community.program_detail', program_id=program.id) }}" 
-                       class="btn btn-primary btn-sm">
-                        <i class="fas fa-info-circle mr-1"></i>View Details
-                    </a>
-                    {% endif %}
-                    <button class="btn btn-outline-warning btn-sm ml-1 save-btn" 
-                            data-program-id="{{ program.id }}" 
-                            onclick="toggleSave(this, {{ program.id }})" title="Save Program">
-                        <i class="fas fa-bookmark"></i>
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm ml-1 hide-btn" 
-                            data-program-id="{{ program.id }}" 
-                            onclick="toggleHide(this, {{ program.id }})" title="Not Interested">
-                        <i class="fas fa-eye-slash"></i>
-                    </button>
+            <div class="col-lg-4 text-lg-right">
+                <div class="programs-stat-card d-inline-block">
+                    <div class="h2 font-weight-bold">{{ total_programs }}</div>
+                    <small class="text-uppercase font-weight-semibold">Programs Available</small>
                 </div>
             </div>
         </div>
-        {% endfor %}
-    {% else %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle mr-2"></i>
-                No programs available in this category at the moment.
-            </div>
-        </div>
-    {% endif %}
-</div>
+    </div>
 
-<style>
-.border-left-primary { border-left: 0.25rem solid #4e73df !important; }
-.border-left-success { border-left: 0.25rem solid #1cc88a !important; }
-.border-left-danger { border-left: 0.25rem solid #e74a3b !important; }
-.border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
-.text-gray-800 { color: #5a5c69 !important; }
-.text-gray-300 { color: #dddfeb !important; }
-.card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card:hover { transform: translateY(-5px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
-</style>
+    <div class="row">
+        {% if programs %}
+            {% for program in programs %}
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="card program-list-card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="program-title font-weight-bold mr-2">{{ program.program_name }}</h5>
+                            <span class="badge category-pill">{{ category }}</span>
+                        </div>
+
+                        <p class="program-description">{{ program.description or 'No description available.' }}</p>
+                        
+                        <div class="program-chips mb-2">
+                            {% set is_closed = program.end_date and program.end_date < today %}
+                            {% if is_closed %}
+                            <span class="badge badge-dark">
+                                <i class="fas fa-lock mr-1"></i>Closed
+                            </span>
+                            {% endif %}
+                            {% if program.beneficiary_limit %}
+                            {% set approved_count = (program.applications|selectattr('application_status', 'equalto', 'approved')|list|length + program.applications|selectattr('application_status', 'equalto', 'active')|list|length + program.applications|selectattr('application_status', 'equalto', 'completed')|list|length) if program.applications else 0 %}
+                            {% set is_full = approved_count >= program.beneficiary_limit %}
+                            <span class="badge {% if is_full %}badge-danger{% else %}badge-warning{% endif %}">
+                                <i class="fas fa-user-friends mr-1"></i>
+                                {% if is_full %}FULL{% else %}{{ program.beneficiary_limit - approved_count }} slots left{% endif %}
+                            </span>
+                            {% endif %}
+                            {% if program.income_range %}
+                            <span class="badge badge-success">
+                                <i class="fas fa-money-bill-wave mr-1"></i>{{ program.income_range }}
+                            </span>
+                            {% endif %}
+                            {% if program.end_date and not is_closed %}
+                            {% set days_left = (program.end_date - today).days %}
+                            {% if days_left > 0 %}
+                            <span class="badge badge-info">
+                                <i class="fas fa-clock mr-1"></i>{{ days_left }} days left
+                            </span>
+                            {% elif days_left == 0 %}
+                            <span class="badge badge-warning">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Ends today!
+                            </span>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+
+                        {% if program.priority_group %}
+                        <div class="priority-note">
+                            <i class="fas fa-bullseye mr-1"></i><strong>Priority:</strong> {{ program.priority_group }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="program-meta">
+                            {% if program.start_date or program.end_date %}
+                            <small>
+                                <i class="fas fa-calendar-alt mr-1"></i>
+                                <strong>Duration:</strong>
+                                {% if program.start_date %}{{ program.start_date.strftime('%b %d, %Y') }}{% endif %}
+                                {% if program.start_date and program.end_date %} - {% endif %}
+                                {% if program.end_date %}{{ program.end_date.strftime('%b %d, %Y') }}{% endif %}
+                            </small>
+                            {% endif %}
+                            <small>
+                                <i class="far fa-calendar-alt mr-1"></i>
+                                Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}
+                            </small>
+                        </div>
+                        
+                        <div class="program-actions">
+                            {% if is_closed %}
+                            <button class="btn btn-secondary btn-sm" disabled>
+                                <i class="fas fa-lock mr-1"></i>Closed
+                            </button>
+                            {% else %}
+                            <a href="{{ url_for('community.program_detail', program_id=program.id) }}" 
+                               class="btn btn-primary btn-sm">
+                                <i class="fas fa-info-circle mr-1"></i>View Details
+                            </a>
+                            {% endif %}
+
+                            <div class="program-shortcuts">
+                                <button class="btn btn-outline-warning btn-sm save-btn" 
+                                        data-program-id="{{ program.id }}" 
+                                        title="Save Program">
+                                    <i class="fas fa-bookmark"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm hide-btn" 
+                                        data-program-id="{{ program.id }}" 
+                                        title="Not Interested">
+                                    <i class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="empty-programs">
+                    <i class="fas fa-info-circle d-block"></i>
+                    <h5 class="font-weight-bold mb-2">No Programs Available</h5>
+                    <p class="mb-0">There are currently no programs available in this category.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
 
 <script>
 function toggleSave(btn, programId) {
@@ -183,5 +403,25 @@ function toggleHide(btn, programId) {
         }
     });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.save-btn[data-program-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const programId = parseInt(btn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleSave(btn, programId);
+            }
+        });
+    });
+
+    document.querySelectorAll('.hide-btn[data-program-id]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const programId = parseInt(btn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleHide(btn, programId);
+            }
+        });
+    });
+});
 </script>
 {% endblock %}

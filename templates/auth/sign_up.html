@@ -272,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const birthDateInput = document.getElementById('birthDate');
+    const emailInput = document.getElementById('email');
 
     function setupToggle(buttonId, inputId, iconId) {
         const button = document.getElementById(buttonId);
@@ -334,9 +335,13 @@ document.addEventListener('DOMContentLoaded', function() {
     confirmPasswordInput.addEventListener('input', validatePasswordMatch);
     passwordInput.addEventListener('input', validatePasswordMatch);
     birthDateInput.addEventListener('change', validateAge);
+    emailInput.addEventListener('blur', function() {
+        emailInput.value = emailInput.value.trim().toLowerCase();
+    });
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        emailInput.value = emailInput.value.trim().toLowerCase();
 
         const isAgeValid = validateAge();
         const isPasswordValid = validatePasswordMatch();

@@ -13,6 +13,7 @@ from app.models import User, Applications, Notifications, CommunityUsers, UserAc
 from app.extensions import db
 from app.utils import role_required
 from app.activity_logger import log_verification_request, log_user_modification
+from app.community.routes.profile import get_income_range_display
 
 @admin_bp.route('/community')
 @login_required

@@ -3,11 +3,86 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --workflow-slate: #1f2a44;
+        --workflow-muted: #667085;
+        --workflow-border: #e5e7eb;
+        --workflow-bg-soft: #f8fbff;
+        --workflow-blue: #1f6feb;
+        --workflow-cyan: #0ea5a6;
+    }
+
+    .workflow-page {
+        animation: workflowFadeIn 0.4s ease-out;
+    }
+
+    @keyframes workflowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .workflow-toolbar {
+        background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
+        border: 1px solid #dce8ff;
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+    }
+
+    .workflow-toolbar .breadcrumb {
+        background: transparent;
+        padding: 0;
+    }
+
+    .workflow-toolbar .breadcrumb-item,
+    .workflow-toolbar .breadcrumb-item a {
+        color: #34507f;
+        font-weight: 600;
+    }
+
+    .workflow-back-btn {
+        border-radius: 10px;
+        border-color: #c9d6ef;
+        color: #2c4f83;
+        font-weight: 600;
+        background: #ffffff;
+    }
+
+    .workflow-back-btn:hover {
+        color: #1f3f6f;
+        background: #f9fbff;
+    }
+
+    .workflow-hero-card {
+        border: 1px solid var(--workflow-border);
+        border-radius: 16px;
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.08);
+        overflow: hidden;
+    }
+
+    .workflow-hero-card .card-body {
+        background:
+            radial-gradient(circle at top right, rgba(31, 111, 235, 0.1), transparent 40%),
+            linear-gradient(135deg, #f8fbff 0%, #ffffff 70%);
+    }
+
+    .workflow-status-badge {
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        letter-spacing: 0.2px;
+    }
+
     .workflow-timeline {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 2rem 1rem;
+        padding: 1.5rem 1rem 1.25rem;
         position: relative;
     }
     
@@ -15,25 +90,27 @@
         content: '';
         position: absolute;
         top: 50%;
-        left: 0;
-        right: 0;
+        left: 12px;
+        right: 12px;
         height: 4px;
-        background: #e9ecef;
+        background: #d8e2f0;
         z-index: 0;
         transform: translateY(-50%);
+        border-radius: 999px;
     }
     
     .workflow-timeline::after {
         content: '';
         position: absolute;
         top: 50%;
-        left: 0;
+        left: 12px;
         width: var(--progress-width, 0%);
         height: 4px;
-        background: linear-gradient(to right, #28a745, #007bff, #20c997);
+        background: linear-gradient(to right, #0ea5a6, #1f6feb, #1f4da3);
         z-index: 1;
         transform: translateY(-50%);
         transition: width 0.3s ease;
+        border-radius: 999px;
     }
     
     .workflow-step {
@@ -56,8 +133,8 @@
         font-size: 1.2rem;
         margin-bottom: 0.75rem;
         transition: all 0.3s ease;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border: 3px solid #ffffff;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.17);
     }
     
     .step-completed {
@@ -66,19 +143,19 @@
     }
     
     .step-current {
-        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4da3 100%);
         color: white;
-        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 0 4px rgba(31, 111, 235, 0.22), 0 6px 14px rgba(15, 23, 42, 0.2);
         animation: pulse 2s infinite;
     }
     
     .step-pending {
-        background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        background: linear-gradient(135deg, #8f9cb3 0%, #6d7890 100%);
         color: white;
     }
     
     .step-review {
-        background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        background: linear-gradient(135deg, #ffd24a 0%, #f2ad28 100%);
         color: #212529;
     }
     
@@ -91,6 +168,7 @@
     .step-label {
         text-align: center;
         margin-top: 0.5rem;
+        max-width: 124px;
     }
     
     .step-label .small:first-child {
@@ -114,7 +192,7 @@
     
     .step-link:hover .step-indicator {
         transform: scale(1.1);
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 10px 20px rgba(14, 165, 166, 0.35);
     }
     
     .workflow-step.viewing {
@@ -122,74 +200,226 @@
     }
     
     .workflow-step.viewing .step-indicator {
-        border: 3px solid #ffc107;
-        box-shadow: inset 0 0 0 1px #ffc107, 0 0 8px rgba(255, 193, 7, 0.5);
+        border: 3px solid #ffd24a;
+        box-shadow: inset 0 0 0 1px #f2ad28, 0 0 10px rgba(255, 193, 7, 0.5);
     }
     
     .document-upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 10px;
+        border: 2px dashed #c8d6ee;
+        border-radius: 12px;
         padding: 2rem;
         text-align: center;
-        background-color: #f8f9fa;
+        background-color: #f8fbff;
         transition: all 0.3s ease;
         cursor: pointer;
     }
     
     .document-upload-area:hover {
-        border-color: #007bff;
-        background-color: #e7f3ff;
+        border-color: #1f6feb;
+        background-color: #eef5ff;
     }
     
     .document-upload-area.dragover {
-        border-color: #28a745;
-        background-color: #d4edda;
+        border-color: #0ea5a6;
+        background-color: #e8fffc;
     }
     
     .uploaded-document {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-left: 4px solid #007bff;
-        border-radius: 8px;
+        background: linear-gradient(135deg, #f8fbff 0%, #f1f6ff 100%);
+        border-left: 4px solid #1f6feb;
+        border-radius: 12px;
         padding: 1rem;
         margin-bottom: 1rem;
     }
     
     .step-content-card {
-        border: none;
-        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
-        border-radius: 15px;
+        border: 1px solid var(--workflow-border);
+        box-shadow: 0 16px 30px rgba(15, 34, 73, 0.09);
+        border-radius: 16px;
         overflow: hidden;
+    }
+
+    .step-content-card .card-header {
+        border-bottom: 0;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .step-content-card .card-header.bg-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4da3 100%) !important;
+    }
+
+    .step-content-card .card-header.bg-warning {
+        background: linear-gradient(135deg, #ffd24a 0%, #f2ad28 100%) !important;
+        color: #1f2a44 !important;
+    }
+
+    .step-content-card .card-header.bg-success {
+        background: linear-gradient(135deg, #16a34a 0%, #0ea5a6 100%) !important;
+    }
+
+    .step-content-card .card-header.bg-info {
+        background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%) !important;
+    }
+
+    .step-content-card .card-body {
+        background: #ffffff;
+    }
+
+    .workflow-page .card {
+        border-radius: 14px;
+    }
+
+    .workflow-page .alert {
+        border-radius: 12px;
+    }
+
+    .workflow-page .table thead th {
+        border-top: 0;
+        font-size: 0.8rem;
+        letter-spacing: 0.25px;
+        text-transform: uppercase;
+        color: #55617b;
+    }
+
+    .workflow-page .table td,
+    .workflow-page .table th {
+        vertical-align: middle;
     }
     
     .step-actions {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #f7faff 0%, #eef3ff 100%);
         padding: 1.5rem;
-        border-top: 1px solid #dee2e6;
+        border-top: 1px solid #dbe5f7;
+    }
+
+    .step-actions .badge {
+        border-radius: 999px;
+        padding: 0.5rem 0.85rem;
+        font-weight: 600;
     }
     
     .btn-next-step {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: linear-gradient(135deg, #16a34a 0%, #0ea5a6 100%);
         border: none;
-        border-radius: 25px;
+        border-radius: 10px;
         padding: 0.75rem 2rem;
         font-weight: 600;
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 10px 20px rgba(14, 165, 166, 0.26);
         transition: all 0.3s ease;
     }
     
     .btn-next-step:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 14px 22px rgba(14, 165, 166, 0.35);
+    }
+
+    #uploadModal .modal-content,
+    #documentViewerModal .modal-content,
+    #submitStepConfirmModal .modal-content,
+    #photoPreviewModal .modal-content,
+    #editCaptionModal .modal-content,
+    #replacePhotoModal .modal-content,
+    #deletePhotoConfirmModal .modal-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 24px 52px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    #uploadModal .modal-header,
+    #submitStepConfirmModal .modal-header {
+        border-bottom: 0;
+    }
+
+    #uploadModal .modal-footer,
+    #documentViewerModal .modal-footer,
+    #submitStepConfirmModal .modal-footer,
+    #photoPreviewModal .modal-footer,
+    #editCaptionModal .modal-footer,
+    #replacePhotoModal .modal-footer,
+    #deletePhotoConfirmModal .modal-footer {
+        border-top: 1px solid #ecf1fb;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 991.98px) {
+        .workflow-page {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .workflow-toolbar {
+            padding: 0.75rem;
+        }
+
+        .workflow-timeline {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            padding: 0.75rem 0.4rem 0.2rem;
+        }
+
+        .workflow-timeline::before,
+        .workflow-timeline::after {
+            display: none;
+        }
+
+        .workflow-step {
+            flex: 0 0 calc(50% - 0.8rem);
+            max-width: calc(50% - 0.8rem);
+        }
+
+        .step-indicator {
+            width: 54px;
+            height: 54px;
+            font-size: 1.05rem;
+        }
+
+        .step-label {
+            max-width: 100%;
+        }
+
+        .step-actions {
+            padding: 1rem;
+        }
+
+        .step-actions .d-flex {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 0.85rem;
+        }
+
+        .step-actions .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .workflow-step {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+
+        .workflow-back-btn {
+            width: 100%;
+            margin-top: 0.6rem;
+        }
+
+        .workflow-toolbar .d-flex {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid workflow-page">
     <!-- Header -->
     <div class="row">
         <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 workflow-toolbar">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="{{ url_for('community.applications') }}">Applications</a></li>
@@ -197,7 +427,7 @@
                     </ol>
                 </nav>
                 <div>
-                    <a href="{{ url_for('community.applications') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('community.applications') }}" class="btn btn-outline-secondary workflow-back-btn">
                         <i class="fas fa-arrow-left mr-1"></i>Back to Application
                     </a>
                 </div>
@@ -208,7 +438,7 @@
     <!-- Program Information Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm workflow-hero-card">
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
@@ -218,7 +448,7 @@
                             </div>
                             <div class="mb-0">
                                 <strong>Status:</strong> 
-                                <span class="badge badge-{% if application.application_status == 'pending' %}warning{% elif application.application_status == 'approved' %}success{% elif application.application_status == 'rejected' %}danger{% elif application.application_status == 'active' %}info{% elif application.application_status == 'completed' %}primary{% else %}secondary{% endif %}">
+                                <span class="badge workflow-status-badge badge-{% if application.application_status == 'pending' %}warning{% elif application.application_status == 'approved' %}success{% elif application.application_status == 'rejected' %}danger{% elif application.application_status == 'active' %}info{% elif application.application_status == 'completed' %}primary{% else %}secondary{% endif %}">
                                     {{ application.application_status|title }}
                                 </span>
                             </div>

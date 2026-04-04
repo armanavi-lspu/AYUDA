@@ -560,6 +560,12 @@ def cancel_application(application_id):
             id=application_id,
             user_id=current_user.id
         ).first_or_404()
+
+        # Enforce cancellation workflow for approved/active applications.
+        if application.application_status in ['approved', 'active']:
+            if not (application.cancellation_requested and application.cancellation_status == 'approved'):
+                flash('Please submit a cancellation request first and wait for admin approval before deleting this application.', 'warning')
+                return redirect(url_for('community.application_detail', application_id=application_id))
         
         program_name = application.program.program_name
         

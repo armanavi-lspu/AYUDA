@@ -2,6 +2,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, R
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
+from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 import secrets
 import string
@@ -101,7 +102,7 @@ def admin_management():
 @role_required('admin')
 def add_admin():
     """Add a new admin user"""
-    email = request.form.get('email', '').strip()
+    email = request.form.get('email', '').strip().lower()
     first_name = request.form.get('first_name', '').strip()
     middle_name = request.form.get('middle_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
@@ -112,7 +113,7 @@ def add_admin():
         return redirect(url_for('admin.admin_management'))
     
     # Check if email already exists
-    existing_user = User.query.filter_by(email=email).first()
+    existing_user = User.query.filter(func.lower(User.email) == email).first()
     if existing_user:
         flash(f'User with email {email} already exists.', 'danger')
         return redirect(url_for('admin.admin_management'))
@@ -158,6 +159,9 @@ def add_admin():
         log_admin_management(new_admin, 'create')
         db.session.commit()
         
+    except IntegrityError:
+        db.session.rollback()
+        flash(f'User with email {email} already exists.', 'danger')
     except Exception as e:
         db.session.rollback()
         flash(f'Error creating admin account: {str(e)}', 'danger')
@@ -179,7 +183,7 @@ def edit_admin(admin_id):
     first_name = request.form.get('first_name', '').strip()
     middle_name = request.form.get('middle_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
-    email = request.form.get('email', '').strip()
+    email = request.form.get('email', '').strip().lower()
     
     # Validation
     if not first_name or not last_name or not email:
@@ -187,7 +191,7 @@ def edit_admin(admin_id):
         return redirect(url_for('admin.admin_management'))
     
     # Check if email is taken by another user
-    existing_user = User.query.filter(User.email == email, User.id != admin_id).first()
+    existing_user = User.query.filter(func.lower(User.email) == email, User.id != admin_id).first()
     if existing_user:
         flash(f'Email {email} is already taken by another user.', 'danger')
         return redirect(url_for('admin.admin_management'))
@@ -208,6 +212,9 @@ def edit_admin(admin_id):
         log_admin_management(admin_user, 'update', {'old_email': old_email})
         db.session.commit()
         
+    except IntegrityError:
+        db.session.rollback()
+        flash(f'Email {email} is already taken by another user.', 'danger')
     except Exception as e:
         db.session.rollback()
         flash(f'Error updating admin account: {str(e)}', 'danger')

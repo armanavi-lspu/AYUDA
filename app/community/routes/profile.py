@@ -3,7 +3,7 @@ Community user profile and settings management routes.
 Handles viewing and updating user profile information and system preferences.
 """
 
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, make_response, session
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.extensions import db
@@ -21,7 +21,7 @@ from datetime import datetime
 import os
 import json
 from werkzeug.utils import secure_filename
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 
 # Income ranges for dropdown selection
 INCOME_RANGES = [
@@ -57,6 +57,136 @@ def get_income_range_display(income_value):
                 return income_range['display']
     
     return 'Not specified'
+
+
+DEFAULT_NOTIFICATION_SETTINGS = {
+    'email_notifications': True,
+    'application_updates': True,
+    'announcement_notifications': True,
+    'program_notifications': True,
+    'claim_reminders': True,
+}
+
+
+DEFAULT_PRIVACY_SETTINGS = {
+    'profile_visibility': True,
+    'activity_tracking': True,
+}
+
+
+def _ensure_user_settings_table():
+    """Create user settings table if it does not exist yet."""
+    with db.engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS community_user_settings (
+                user_id INTEGER PRIMARY KEY,
+                notification_settings TEXT,
+                privacy_settings TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+
+
+def _safe_json_dict(raw_value):
+    """Decode JSON safely and always return a dictionary."""
+    if not raw_value:
+        return {}
+
+    try:
+        parsed = json.loads(raw_value)
+        return parsed if isinstance(parsed, dict) else {}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+
+
+def _load_user_settings(user_id):
+    """Load notification and privacy settings for a user."""
+    _ensure_user_settings_table()
+
+    with db.engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                SELECT notification_settings, privacy_settings
+                FROM community_user_settings
+                WHERE user_id = :user_id
+            """),
+            {'user_id': user_id}
+        ).mappings().first()
+
+    notification_settings = dict(DEFAULT_NOTIFICATION_SETTINGS)
+    privacy_settings = dict(DEFAULT_PRIVACY_SETTINGS)
+
+    if row:
+        notification_settings.update({
+            key: bool(value)
+            for key, value in _safe_json_dict(row.get('notification_settings')).items()
+            if key in DEFAULT_NOTIFICATION_SETTINGS
+        })
+        privacy_settings.update({
+            key: bool(value)
+            for key, value in _safe_json_dict(row.get('privacy_settings')).items()
+            if key in DEFAULT_PRIVACY_SETTINGS
+        })
+
+    return notification_settings, privacy_settings
+
+
+def _save_user_settings(user_id, notification_settings=None, privacy_settings=None):
+    """Persist notification/privacy settings for a user."""
+    current_notifications, current_privacy = _load_user_settings(user_id)
+
+    if notification_settings is not None:
+        current_notifications.update(notification_settings)
+    if privacy_settings is not None:
+        current_privacy.update(privacy_settings)
+
+    payload_notifications = json.dumps(current_notifications)
+    payload_privacy = json.dumps(current_privacy)
+
+    with db.engine.begin() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM community_user_settings WHERE user_id = :user_id"),
+            {'user_id': user_id}
+        ).first()
+
+        if exists:
+            conn.execute(
+                text("""
+                    UPDATE community_user_settings
+                    SET notification_settings = :notification_settings,
+                        privacy_settings = :privacy_settings,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = :user_id
+                """),
+                {
+                    'user_id': user_id,
+                    'notification_settings': payload_notifications,
+                    'privacy_settings': payload_privacy,
+                }
+            )
+        else:
+            conn.execute(
+                text("""
+                    INSERT INTO community_user_settings (
+                        user_id,
+                        notification_settings,
+                        privacy_settings,
+                        updated_at
+                    ) VALUES (
+                        :user_id,
+                        :notification_settings,
+                        :privacy_settings,
+                        CURRENT_TIMESTAMP
+                    )
+                """),
+                {
+                    'user_id': user_id,
+                    'notification_settings': payload_notifications,
+                    'privacy_settings': payload_privacy,
+                }
+            )
+
+    return current_notifications, current_privacy
 
 
 @community_bp.route('/profile')
@@ -220,9 +350,13 @@ def settings():
         
         return redirect(url_for('community.settings'))
     
+    notification_settings, privacy_settings = _load_user_settings(current_user.id)
+
     return render_template('community/settings.html',
                          user=current_user,
-                         profile=community_profile)
+                         profile=community_profile,
+                         notification_settings=notification_settings,
+                         privacy_settings=privacy_settings)
 
 
 @community_bp.route('/settings/change-password', methods=['POST'])
@@ -270,11 +404,111 @@ def update_notification_settings():
     """Update notification preferences."""
     if current_user.role != 'community':
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    
-    # For now, we'll just acknowledge the settings
-    # In a full implementation, you'd store these preferences in the database
-    flash('Notification settings updated successfully!', 'success')
+
+    notification_settings = {
+        'email_notifications': request.form.get('email_notifications') == 'on',
+        'application_updates': request.form.get('application_updates') == 'on',
+        'announcement_notifications': request.form.get('announcement_notifications') == 'on',
+        'program_notifications': request.form.get('program_notifications') == 'on',
+        'claim_reminders': request.form.get('claim_reminders') == 'on',
+    }
+
+    try:
+        _save_user_settings(current_user.id, notification_settings=notification_settings)
+        flash('Notification settings updated successfully!', 'success')
+    except Exception as e:
+        flash(f'Error updating notification settings: {str(e)}', 'error')
+
     return redirect(url_for('community.settings'))
+
+
+@community_bp.route('/settings/privacy', methods=['POST'])
+@login_required
+def update_privacy_settings():
+    """Update privacy preferences."""
+    if current_user.role != 'community':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    privacy_settings = {
+        'profile_visibility': request.form.get('profile_visibility') == 'on',
+        'activity_tracking': request.form.get('activity_tracking') == 'on',
+    }
+
+    try:
+        _save_user_settings(current_user.id, privacy_settings=privacy_settings)
+        flash('Privacy settings updated successfully!', 'success')
+    except Exception as e:
+        flash(f'Error updating privacy settings: {str(e)}', 'error')
+
+    return redirect(url_for('community.settings'))
+
+
+@community_bp.route('/settings/export-data', methods=['GET'])
+@login_required
+def export_user_data():
+    """Export current user's profile and settings as a JSON file."""
+    if current_user.role != 'community':
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    notification_settings, privacy_settings = _load_user_settings(current_user.id)
+
+    profile_data = {}
+    if community_profile:
+        profile_data = {
+            'age': community_profile.age,
+            'gender': community_profile.gender,
+            'mobile_no': community_profile.mobile_no,
+            'birth_month': community_profile.birth_month,
+            'birth_day': community_profile.birth_day,
+            'birth_year': community_profile.birth_year,
+            'barangay': community_profile.barangay,
+            'sitio': community_profile.sitio,
+            'address': community_profile.address,
+            'municipality': community_profile.municipality,
+            'religion': community_profile.religion,
+            'place_of_birth': community_profile.place_of_birth,
+            'civil_status': community_profile.civil_status,
+            'highest_education_attainment': community_profile.highest_education_attainment,
+            'is_currently_employed': community_profile.is_currently_employed,
+            'occupation': community_profile.occupation,
+            'is_student': community_profile.is_student,
+            'is_solo_parent': community_profile.is_solo_parent,
+            'is_pwd': community_profile.is_pwd,
+            'disability_type': community_profile.disability_type,
+            'family_annual_income': str(community_profile.family_annual_income) if community_profile.family_annual_income is not None else None,
+            'income_category': community_profile.income_category,
+            'areas_of_concern': community_profile.get_areas_of_concern(),
+            'verification_status': {
+                'senior_citizen': community_profile.senior_citizen_verification,
+                'pwd': community_profile.pwd_verification,
+                'solo_parent': community_profile.solo_parent_verification,
+            }
+        }
+
+    export_payload = {
+        'exported_at_utc': datetime.utcnow().isoformat() + 'Z',
+        'user': {
+            'id': current_user.id,
+            'first_name': current_user.first_name,
+            'middle_name': current_user.middle_name,
+            'last_name': current_user.last_name,
+            'email': current_user.email,
+            'role': current_user.role,
+            'created_at': current_user.created_at.isoformat() if current_user.created_at else None,
+            'last_activity': current_user.last_activity.isoformat() if current_user.last_activity else None,
+        },
+        'profile': profile_data,
+        'settings': {
+            'notification': notification_settings,
+            'privacy': privacy_settings,
+        }
+    }
+
+    response = make_response(json.dumps(export_payload, indent=2))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename=ayuda_user_data_{current_user.id}.json'
+    return response
 
 
 @community_bp.route('/settings/delete-account', methods=['POST'])
@@ -547,6 +781,7 @@ def areas_of_concern():
         return redirect(url_for('home.index'))
     
     community_profile = CommunityUsers.query.filter_by(user_id=current_user.id).first()
+    next_page = request.args.get('next', '').strip()
     
     if not community_profile:
         flash('Please complete your profile first.', 'error')
@@ -561,15 +796,16 @@ def areas_of_concern():
                 flash('Please select exactly 2 areas of concern to proceed.', 'error')
                 return render_template('community/areas_of_concern.html',
                                      user=current_user,
-                                     profile=community_profile)
+                                     profile=community_profile,
+                                     next_page=next_page)
             
             community_profile.set_areas_of_concern(areas_of_concern)
             db.session.commit()
+            session.pop('skip_areas_of_concern', None)
             
             flash('Your areas of concern have been set successfully!', 'success')
             
             # If user came from signup (via redirect), go to dashboard
-            next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
             return redirect(url_for('community.dashboard'))
@@ -580,7 +816,30 @@ def areas_of_concern():
     
     return render_template('community/areas_of_concern.html',
                          user=current_user,
-                         profile=community_profile)
+                         profile=community_profile,
+                         next_page=next_page)
+
+
+@community_bp.route('/areas-of-concern/skip', methods=['POST'])
+@login_required
+def skip_areas_of_concern():
+    """Allow community users to skip areas selection for now."""
+    if current_user.role != 'community':
+        flash('Access denied. This page is for community users only.', 'error')
+        return redirect(url_for('home.index'))
+
+    session['skip_areas_of_concern'] = True
+
+    flash(
+        'You skipped areas of concern setup for now. You can update this later in Settings.',
+        'warning'
+    )
+
+    next_page = request.form.get('next', '').strip()
+    if next_page and next_page.startswith('/'):
+        return redirect(next_page)
+
+    return redirect(url_for('community.dashboard'))
 
 
 # ============== PROFILE PICTURE ROUTES ==============

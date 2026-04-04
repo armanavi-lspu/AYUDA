@@ -3,12 +3,79 @@
 
 {% block extra_css %}
 <style>
-    /* Header Gradient */
-    .page-header-gradient {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
-        color: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .applications-shell {
+        animation: applicationsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes applicationsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .applications-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .applications-hero h2 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .applications-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .apply-new-btn {
+        border-radius: 10px;
+        border: 1px solid #d1dbef;
+        background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
+        color: #1e3a8a;
+        font-weight: 700;
+        transition: all 0.25s ease;
+    }
+
+    .apply-new-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 18px rgba(31, 42, 68, 0.1);
+        color: #1e3a8a;
+    }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
     }
     
     .bg-gradient-primary { background: linear-gradient(135deg, #0032A0 0%, #002270 100%); }
@@ -18,42 +85,79 @@
     .bg-gradient-info { background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); }
     
     .stats-card { 
-        transition: all 0.3s ease; 
-        border: 1px solid rgba(0,0,0,.125);
+        transition: all 0.3s ease;
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 20px rgba(31, 42, 68, 0.07);
     }
     .stats-card:hover { 
-        transform: translateY(-5px); 
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; 
+        transform: translateY(-4px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.12) !important;
     }
     
     .application-card { 
-        transition: all 0.2s ease; 
-        border-left: 4px solid #e9ecef; 
+        transition: all 0.2s ease;
+        border-left: 4px solid #e9ecef;
+        border-radius: 14px;
     }
     .application-card:hover { 
-        transform: translateY(-2px); 
+        transform: translateY(-2px);
         border-left-color: #0032A0;
+        box-shadow: 0 14px 24px rgba(15, 34, 73, 0.12) !important;
+    }
+
+    .application-card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%) !important;
+        border-bottom: 1px solid var(--dash-border);
     }
     
     .status-icon { 
-        width: 50px; 
-        height: 50px; 
-        border-radius: 50%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin: 0 auto;
     }
     
     .empty-state { 
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 2px dashed #dee2e6;
-        border-radius: 12px;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        border: 2px dashed #d3ddf5;
+        border-radius: 16px;
         padding: 3rem 2rem;
     }
     
     .filter-btn { transition: all 0.2s ease; }
     .filter-btn:hover { transform: translateY(-1px); }
+
+    .filter-card .btn-group .btn {
+        border-radius: 8px;
+        margin-left: 0.25rem;
+    }
+
+    .filter-card .btn-group .btn:first-child {
+        margin-left: 0;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.15rem;
+        border: 1px solid #dbe5f7;
+        color: #204d88;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f5ea8 100%);
+        border-color: transparent;
+    }
+
+    .applications-modal .modal-content {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 24px 52px rgba(15, 23, 42, 0.22);
+    }
     
     .progress-sm { height: 8px; }
     
@@ -66,28 +170,51 @@
     
     .badge-lg { font-size: 0.875rem; padding: 0.5rem 0.75rem; }
     
-    @media (max-width: 768px) {
+    @media (max-width: 991.98px) {
+        .applications-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .applications-hero {
+            padding: 1.15rem;
+        }
+
+        .applications-hero h2 {
+            font-size: 1.55rem;
+        }
+
         .col-lg-4.text-right { text-align: left !important; margin-top: 1rem; }
         .btn-toolbar { justify-content: center; }
         .d-grid { display: block !important; }
         .d-grid .btn { margin-bottom: 0.5rem; width: 100%; }
+
+        .filter-card .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .filter-card .btn-group .btn {
+            margin-left: 0;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid applications-shell py-4">
     <!-- Header Section -->
-    <div class="page-header-gradient py-4 px-4 mb-4">
+    <div class="applications-hero">
         <div class="row align-items-center">
             <div class="col-lg-8">
-                <h2 class="mb-2 text-white font-weight-bold">
+                <h2 class="mb-2 font-weight-bold">
                     <i class="fas fa-file-alt mr-2"></i>My Applications
                 </h2>
-                <p class="mb-0 text-white opacity-75">Track the status of your program applications and submissions</p>
+                <p class="subtitle">Track the status of your program applications and submissions.</p>
             </div>
             <div class="col-lg-4 text-lg-right">
-                <a href="{{ url_for('community.programs') }}" class="btn btn-light font-weight-semibold">
+                <a href="{{ url_for('community.programs') }}" class="btn apply-new-btn font-weight-semibold">
                     <i class="fas fa-plus mr-2"></i>Apply for New Program
                 </a>
             </div>
@@ -194,7 +321,7 @@
     </div>
 
     <!-- Filter Section -->
-    <div class="card shadow-sm mb-4">
+    <div class="card section-card filter-card mb-4">
         <div class="card-body py-3">
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
                 <div class="mb-3 mb-lg-0">
@@ -237,9 +364,9 @@
     <!-- Applications List -->
     {% if applications %}
         {% for application in applications %}
-        <div class="card application-card shadow-sm mb-3">
+        <div class="card application-card section-card shadow-sm mb-3">
             <!-- Application Header -->
-            <div class="card-header bg-light py-3">
+            <div class="card-header application-card-header py-3">
                 <div class="row align-items-center">
                     <div class="col-md-8 mb-2 mb-md-0">
                         <h5 class="card-title mb-1 font-weight-bold text-dark">
@@ -362,7 +489,17 @@
                             </button>
                             {% endif %}
                             <!-- Cancel Button -->
-                            {% if application.application_status not in ['approved', 'active', 'completed'] %}
+                            {% if application.application_status == 'cancelled' and application.cancellation_status == 'approved' %}
+                            <button type="button" 
+                                    class="btn btn-danger btn-block btn-sm"
+                                    data-toggle="modal" 
+                                    data-target="#cancelApplicationModal"
+                                    data-app-id="{{ application.id }}"
+                                    data-app-name="{{ application.program.program_name if application.program else 'Unknown Program' }}"
+                                    title="Permanently delete this cancelled application">
+                                <i class="fas fa-trash mr-1"></i>Delete Application
+                            </button>
+                            {% elif application.application_status not in ['approved', 'active', 'completed'] %}
                             <button type="button" 
                                     class="btn btn-danger btn-block btn-sm"
                                     data-toggle="modal" 
@@ -519,7 +656,7 @@
             <!-- Help Section -->
             <div class="row justify-content-center mt-5">
                 <div class="col-lg-8">
-                    <div class="card border-primary">
+                    <div class="card section-card border-primary">
                         <div class="card-header bg-primary text-white">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-question-circle mr-2"></i>Need Assistance?
@@ -620,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Cancel Application Modal -->
-<div class="modal fade" id="cancelApplicationModal" tabindex="-1" role="dialog" aria-labelledby="cancelApplicationLabel" aria-hidden="true">
+<div class="modal fade applications-modal" id="cancelApplicationModal" tabindex="-1" role="dialog" aria-labelledby="cancelApplicationLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
@@ -656,6 +793,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-times mr-1"></i>No, Keep Application
                 </button>
                 <form method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-trash mr-1"></i>Yes, Cancel Application
                     </button>
@@ -666,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Request Cancellation Modal (for approved/active applications) -->
-<div class="modal fade" id="requestCancelModal" tabindex="-1" role="dialog" aria-labelledby="requestCancelLabel" aria-hidden="true">
+<div class="modal fade applications-modal" id="requestCancelModal" tabindex="-1" role="dialog" aria-labelledby="requestCancelLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content border-warning">
             <div class="modal-header bg-warning text-dark">
@@ -678,6 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </button>
             </div>
             <form method="POST" id="requestCancelForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="alert alert-info mb-3">
                         <i class="fas fa-info-circle mr-2"></i>
@@ -699,7 +838,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="alert alert-warning mb-0">
                         <small>
                             <i class="fas fa-exclamation-triangle mr-1"></i>
-                            <strong>Note:</strong> Once your cancellation is approved by an administrator, your application will be permanently cancelled and you will need to reapply if you change your mind.
+                            <strong>Note:</strong> Once your cancellation is approved by an administrator, you can permanently delete this application from your account.
                         </small>
                     </div>
                 </div>

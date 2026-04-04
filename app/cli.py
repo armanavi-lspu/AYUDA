@@ -10,6 +10,7 @@ from app.models import (User, Programs, Applications, CommunityUsers, AdminUsers
                        ApplicationDocumentUploads, CALDocuments,
                        Announcements, Notifications)
 from werkzeug.security import generate_password_hash
+from sqlalchemy import func
 
 
 @click.command()
@@ -21,7 +22,8 @@ def init_db():
     
     try:
         # Create admin user if not exists
-        admin_user = User.query.filter_by(email='MSWDMabitac@gmail.com').first()
+        admin_email = 'mswdmabitac@gmail.com'
+        admin_user = User.query.filter(func.lower(User.email) == admin_email).first()
         if not admin_user:
             # SECURITY: For production, use strong password from environment variable
             admin_password = os.environ.get('ADMIN_PASSWORD', 'MabitacMSWD_2025')
@@ -30,7 +32,7 @@ def init_db():
                 click.echo('Set ADMIN_PASSWORD environment variable for security.')
             
             admin_user = User(
-                email='MSWDMabitac@gmail.com',
+                email=admin_email,
                 password_hash=generate_password_hash(admin_password, method='pbkdf2:sha256'),
                 first_name='MSWD',
                 middle_name='',
@@ -48,12 +50,13 @@ def init_db():
             click.echo('✅ Admin user already exists')
 
         # Create sample community user if not exists (dev/testing only)
-        sample_user = User.query.filter_by(email='user1@test.com').first()
+        sample_email = 'user1@test.com'
+        sample_user = User.query.filter(func.lower(User.email) == sample_email).first()
         if not sample_user:
             # SECURITY: Sample user password - should only exist in dev environments
             sample_password = os.environ.get('SAMPLE_USER_PASSWORD', 'password123')
             sample_user = User(
-                email='user1@test.com',
+                email=sample_email,
                 password_hash=generate_password_hash(sample_password, method='pbkdf2:sha256'),
                 first_name='Juan',
                 middle_name='A',

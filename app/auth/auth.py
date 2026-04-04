@@ -6,6 +6,8 @@ from flask_login import login_user, login_required, logout_user, current_user
 from ..utils import redirect_user_by_role
 from ..user_activity_logger import log_login, log_logout
 from datetime import datetime, date
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
@@ -20,7 +22,7 @@ def login():
         return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if request.method == 'POST':
-        email = (request.form.get('email') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password') or ''
 
         # Server-side validation for both regular and AJAX requests
@@ -36,7 +38,7 @@ def login():
             flash('Password is required.', category='error')
             return render_template("auth/login.html", user=current_user)
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(func.lower(User.email) == email).first()
 
         if not user:
             if is_ajax_request():
@@ -78,20 +80,22 @@ def login():
 def sign_up():
     if request.method == 'POST':
         # Account Information
-        email = request.form.get('email')
-        password = request.form.get('password')
-        confirmPassword = request.form.get('confirmPassword')
+        email = (request.form.get('email') or '').strip().lower()
+        password = (request.form.get('password') or '')
+        confirmPassword = (request.form.get('confirmPassword') or '')
         
         # Personal Information
-        firstName = request.form.get('firstName')
-        lastName = request.form.get('lastName')
+        firstName = (request.form.get('firstName') or '').strip()
+        lastName = (request.form.get('lastName') or '').strip()
         birthDate = request.form.get('birthDate')  # YYYY-MM-DD format
         gender = request.form.get('gender')
 
         # Validation
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(func.lower(User.email) == email).first()
 
-        if user:
+        if not email:
+            flash('Email is required.', category='error')
+        elif user:
             flash('Email already exists.', category='error')
         elif len(email) < 4:
             flash('Email must be greater than 3 characters.', category='error')
@@ -149,6 +153,9 @@ def sign_up():
             except ValueError as ve:
                 db.session.rollback()
                 flash(f'Invalid date format: {str(ve)}', category='error')
+            except IntegrityError:
+                db.session.rollback()
+                flash('Email already exists.', category='error')
             except Exception as e:
                 db.session.rollback()
                 flash(f'An error occurred while creating your account: {str(e)}', category='error')

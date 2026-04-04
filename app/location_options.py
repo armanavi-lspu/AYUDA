@@ -113,6 +113,22 @@ MUNICIPALITY_BARANGAYS = {
         "San Miguel",
         "Sinagtala",
     ],
+    "Kalayaan": [
+        "Longos",
+        "San Antonio",
+        "San Juan",
+    ],
+    "Paete": [
+        "Ibaba del Sur",
+        "Maytoong",
+        "Ermita",
+        "Quinale",
+        "Ilaya del Sur",
+        "Ilaya del Norte",
+        "Bagumbayan",
+        "Bangkusay",
+        "Ibaba del Norte",
+    ],
 }
 
 

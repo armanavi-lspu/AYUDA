@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads
 from app.extensions import db
 from app.utils import role_required
 from app.activity_logger import log_activity
@@ -1489,24 +1489,33 @@ def delete_requirement_ajax(requirement_id):
     """Delete an existing requirement via AJAX"""
     try:
         requirement = Requirements.query.get_or_404(requirement_id)
-        
-        # Check if requirement is used in any programs
-        from app.models import ProgramRequirements
+
+        # Remove all dependent references first so deletion works even when linked.
         usage_count = ProgramRequirements.query.filter_by(requirement_id=requirement_id).count()
-        
-        if usage_count > 0:
-            return jsonify({
-                'success': False,
-                'message': f'Cannot delete requirement. It is used in {usage_count} program(s). Remove it from programs first.'
-            }), 400
-        
+        application_docs_count = ApplicationDocuments.query.filter_by(requirement_id=requirement_id).count()
+        upload_docs_count = ApplicationDocumentUploads.query.filter_by(requirement_id=requirement_id).count()
+
+        ProgramRequirements.query.filter_by(requirement_id=requirement_id).delete(synchronize_session=False)
+        ApplicationDocuments.query.filter_by(requirement_id=requirement_id).delete(synchronize_session=False)
+        ApplicationDocumentUploads.query.filter_by(requirement_id=requirement_id).delete(synchronize_session=False)
+
         requirement_name = requirement.requirement_name
         db.session.delete(requirement)
         db.session.commit()
-        
+
+        cleanup_summary = []
+        if usage_count:
+            cleanup_summary.append(f'unlinked from {usage_count} program(s)')
+        if application_docs_count:
+            cleanup_summary.append(f'removed {application_docs_count} application requirement record(s)')
+        if upload_docs_count:
+            cleanup_summary.append(f'removed {upload_docs_count} uploaded document record(s)')
+
+        summary_text = f' ({", ".join(cleanup_summary)})' if cleanup_summary else ''
+
         return jsonify({
             'success': True,
-            'message': f'Requirement "{requirement_name}" deleted successfully'
+            'message': f'Requirement "{requirement_name}" deleted successfully{summary_text}'
         })
         
     except Exception as e:

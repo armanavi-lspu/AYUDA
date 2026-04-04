@@ -3,27 +3,180 @@
 
 {% block extra_css %}
 <style>
-    .border-left-primary { border-left: 0.25rem solid #4e73df !important; }
-    .border-left-success { border-left: 0.25rem solid #1cc88a !important; }
-    .border-left-info { border-left: 0.25rem solid #36b9cc !important; }
-    .border-left-warning { border-left: 0.25rem solid #f6c23e !important; }
-    .text-gray-800 { color: #5a5c69 !important; }
-    .text-gray-300 { color: #dddfeb !important; }
-
-    /* Header Gradient */
-    .page-header-gradient {
-        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
-        color: white;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 50, 160, 0.3);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-surface: #ffffff;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+        --dash-soft: #f6f8fb;
     }
-    .stats-card { 
-        transition: all 0.3s ease; 
+
+    .dashboard-shell {
+        animation: dashboardFadeIn 0.45s ease-out;
+    }
+
+    @keyframes dashboardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .dashboard-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .dashboard-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+    }
+
+    .dashboard-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .last-updated {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 0.7rem 1rem;
+        color: #334155;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .quick-actions-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .quick-action-btn {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #d7dff2;
+        padding: 0.8rem 0.9rem;
+        color: #22304e;
+        font-weight: 700;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        transition: all 0.25s ease;
+        text-align: left;
+    }
+
+    .quick-action-btn i {
+        width: 20px;
+    }
+
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 18px rgba(20, 52, 105, 0.08);
+        border-color: #abc0ef;
+        color: #123268;
+        text-decoration: none;
+    }
+
+    .quick-action-empty {
+        border: 1px dashed #c9d5ef;
+        background: #f8fbff;
+        border-radius: 10px;
+        padding: 0.8rem;
+        color: #48658f;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.9rem;
+    }
+
+    .quick-actions-config-item {
+        border: 1px solid #e6ecfa;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        margin-bottom: 0.45rem;
+        background: #fbfcff;
+    }
+
+    .quick-actions-config-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .kpi-card {
+        border-radius: 14px;
+        border: none;
+        box-shadow: 0 8px 20px rgba(15, 34, 73, 0.08);
+        overflow: hidden;
+        transition: all 0.28s ease;
         cursor: pointer;
     }
-    .stats-card:hover { 
-        transform: translateY(-5px); 
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; 
+
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.14);
+    }
+
+    .kpi-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    .kpi-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.06);
+        color: #334155;
+    }
+
+    .border-left-primary { border-left: 0.3rem solid var(--dash-blue) !important; }
+    .border-left-success { border-left: 0.3rem solid #0ea565 !important; }
+    .border-left-info { border-left: 0.3rem solid var(--dash-cyan) !important; }
+    .border-left-warning { border-left: 0.3rem solid var(--dash-gold) !important; }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
     }
     
     .application-item {
@@ -74,6 +227,7 @@
         border: 2px dashed #dee2e6;
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         transition: all 0.3s ease;
+        border-radius: 12px;
     }
     .quick-action-card:hover {
         border-color: #4e73df;
@@ -145,23 +299,21 @@
         transform: scale(0.98);
     }
 
-    @media (max-width: 768px) {
-        .stats-card { margin-bottom: 1rem; }
+    @media (max-width: 991.98px) {
+        .dashboard-hero {
+            padding: 1.15rem;
+        }
+
+        .dashboard-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .quick-actions-panel {
+            padding: 0.85rem;
+        }
+
+        .kpi-card { margin-bottom: 0.75rem; }
         .application-item { margin-bottom: 1rem; }
-        .welcome-title { font-size: 1.5rem; }
-
-        .page-header-gradient {
-            border-radius: 12px;
-        }
-
-        .page-header-gradient h2 {
-            font-size: 1.35rem;
-            line-height: 1.3;
-        }
-
-        .page-header-gradient p {
-            font-size: 0.92rem;
-        }
 
         .alert .d-flex.align-items-center,
         .alert .d-flex.align-items-center.justify-content-between {
@@ -205,15 +357,65 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="page-header-gradient py-4 px-4 mb-4">
+<div class="container-fluid dashboard-shell py-4">
+    <div class="dashboard-hero">
         <div class="row align-items-center">
-            <div class="col-lg-8">
-                <h2 class="mb-2 text-white font-weight-bold">
-                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                </h2>
-                <p class="mb-0 text-white opacity-75">Welcome back, {{ current_user.first_name }}! Here's what's happening in your community</p>
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="font-weight-bold">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Community Dashboard
+                </h1>
+                <p class="subtitle">Welcome back, {{ current_user.first_name }}. Track applications, check schedules, and manage your next steps in one place.</p>
             </div>
+            <div class="col-lg-4 text-lg-right">
+                <span class="last-updated">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <span id="lastUpdatedTime">Updated {{ today.strftime('%b %d, %Y') if today else '' }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions-panel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </h6>
+            <div class="d-flex align-items-center">
+                <small class="text-muted mr-2">One-click community shortcuts</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="openQuickActionsEditor" data-toggle="modal" data-target="#editQuickActionsModal">
+                    <i class="fas fa-sliders-h mr-1"></i>Edit
+                </button>
+            </div>
+        </div>
+        <div class="row" id="quickActionsContainer">
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="browse_programs">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.programs') }}">
+                    <i class="fas fa-search mr-2"></i>Browse Programs
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="my_applications">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.applications') }}">
+                    <i class="fas fa-clipboard-list mr-2"></i>My Applications
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="view_schedule">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.schedule') }}">
+                    <i class="fas fa-calendar-day mr-2"></i>View Schedule
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="latest_updates">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.announcements') }}">
+                    <i class="fas fa-bullhorn mr-2"></i>Latest Updates
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="update_profile">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.edit_profile') }}">
+                    <i class="fas fa-user-edit mr-2"></i>Update Profile
+                </a>
+            </div>
+        </div>
+        <div id="quickActionsEmptyState" class="quick-action-empty d-none">
+            <i class="fas fa-info-circle mr-2"></i>No quick actions selected. Click <strong>Edit</strong> to choose what to show.
         </div>
     </div>
                     
@@ -286,99 +488,76 @@
     </div>
     {% endif %}
 
-    <!-- Bootstrap Statistics Cards with Enhanced Interactivity -->
+    <!-- KPI Cards -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-primary shadow stats-card h-100 py-2" 
+            <div class="card kpi-card border-left-warning h-100" 
                  data-toggle="tooltip" data-placement="top" title="Click to view pending applications"
                  onclick="location.href='{{ url_for('community.applications', status='pending') }}'">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Applications</div>
-                            <div class="row no-gutters align-items-center">
-                                <div class="col-auto">
-                                    <div class="h3 mb-0 mr-3 font-weight-bold text-warning" id="pendingCount">
-                                        {{ pending_applications }}
-                                    </div>
-                                </div>                                
-                            </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-warning">Pending Applications</div>
+                            <div class="kpi-value text-warning" data-count="{{ pending_applications }}">{{ pending_applications }}</div>
+                            <small class="text-muted">Awaiting review</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-warning"></i>
-                        </div>
+                        <span class="kpi-icon"><i class="fas fa-hourglass-half"></i></span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-success shadow stats-card h-100 py-2" 
+            <div class="card kpi-card border-left-success h-100" 
                  data-toggle="tooltip" data-placement="top" title="Click to view all applications"
                  onclick="location.href='{{ url_for('community.applications') }}'">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Applications</div>
-                            <div class="h3 mb-0 font-weight-bold text-success" id="totalCount"><strong>{{ total_applications }}</strong></div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-success">Total Applications</div>
+                            <div class="kpi-value text-success" data-count="{{ total_applications }}">{{ total_applications }}</div>
                             {% if total_applications > 0 %}
-                            <div class="mt-1">
-                                    {% set approved_count = (total_applications - pending_applications) %}
-                                    <span class="text-xs font-weight-light text-success"><strong>{{ approved_count }}</strong> completed </span>
-                            </div>
+                            {% set completed_count = (total_applications - pending_applications) %}
+                            <small class="text-muted">{{ completed_count }} completed</small>
+                            {% else %}
+                            <small class="text-muted">No submissions yet</small>
                             {% endif %}
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-file-alt fa-2x text-success"></i>
-                        </div>
+                        <span class="kpi-icon"><i class="fas fa-clipboard-list"></i></span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-info shadow stats-card h-100 py-2" 
+            <div class="card kpi-card border-left-info h-100" 
                  data-toggle="tooltip" data-placement="top" title="Click to browse programs"
                  onclick="location.href='{{ url_for('community.programs') }}'">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Available Programs</div>
-                            <div class="h3 mb-0 font-weight-bold text-info" id="programsCount"><strong>{{ available_programs }}</strong></div>
-                            <div class="mt-1">
-                                <a href="{{ url_for('community.programs') }}" class="text-xs font-weight-light text-info">
-                                    <i class="fas fa-arrow-up mr-1"></i>Ready to apply                                
-                            </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-info">Available Programs</div>
+                            <div class="kpi-value text-info" data-count="{{ available_programs }}">{{ available_programs }}</div>
+                            <small class="text-muted">Ready to apply</small>
                         </div>
-                        
-                        <div class="col-auto">
-                            <i class="fas fa-cogs fa-2x text-gray-300"></i>
-                        </div>
+                        <span class="kpi-icon"><i class="fas fa-folder-open"></i></span>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-warning shadow stats-card h-100 py-2" 
+            <div class="card kpi-card border-left-primary h-100" 
                  data-toggle="tooltip" data-placement="top" title="Click to view announcements"
                  onclick="location.href='{{ url_for('community.announcements') }}'">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">New Announcements</div>
-                            <div class="h3 mb-0 font-weight-bold text-danger" id="announcementsCount"><strong>{{ new_announcements }}</strong></div>
-                            {% if new_announcements > 0 %}
-                            <div class="mt-1">
-                                <a href="{{ url_for('community.announcements') }}" class="text-xs font-weight-light text-danger">
-                                    <i class="fas fa-bell mr-1"></i>New updates
-                                </a>
-                            </div>
-                            {% endif %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-primary">New Announcements</div>
+                            <div class="kpi-value text-primary" data-count="{{ new_announcements }}">{{ new_announcements }}</div>
+                            <small class="text-muted">Recent updates</small>
                         </div>
-                        <div class="col-auto">
-                            <i class="fas fa-bullhorn fa-2x text-gray-300"></i>
-                        </div>
+                        <span class="kpi-icon"><i class="fas fa-bullhorn"></i></span>
                     </div>
                 </div>
             </div>
@@ -410,8 +589,8 @@
     <div class="row mb-4">
         <!-- Recent Applications with Enhanced Bootstrap Card -->
         <div class="col-xl-6 col-lg-6">
-            <div class="card shadow mb-4 border-0">
-                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="h5 m-0 font-weight-bold text-dark">
                         <i class="fas fa-clipboard-list text-primary mr-2"></i>Recent Applications
                     </h6>
@@ -535,8 +714,8 @@
 
         <!-- Upcoming Events Section -->
         <div class="col-xl-6 col-lg-6">
-            <div class="card shadow mb-4 border-0">
-                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="h5 m-0 font-weight-bold text-dark">
                         <i class="fas fa-calendar-day text-info mr-2"></i>Upcoming Events
                     </h6>
@@ -620,8 +799,8 @@
     <div class="row mb-4">
         <!-- Recent Announcements with Enhanced Bootstrap Features -->
         <div class="col-xl-12 col-lg-12">
-            <div class="card shadow mb-4 border-0">
-                <div class="card-header bg-light py-3 d-flex flex-row align-items-center justify-content-between border-0">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                     <h6 class="h5 m-0 font-weight-bold text-dark">
                         <i class="fas fa-bullhorn text-warning mr-2"></i>Recent Announcements
                     </h6>
@@ -696,35 +875,220 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="editQuickActionsModal" tabindex="-1" role="dialog" aria-labelledby="editQuickActionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuickActionsModalLabel">
+                        <i class="fas fa-sliders-h mr-2"></i>Edit Quick Actions
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Choose which quick actions are visible on your dashboard.</p>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaBrowsePrograms" value="browse_programs">
+                            <label class="custom-control-label" for="qaBrowsePrograms">
+                                <i class="fas fa-search mr-2 text-primary"></i>Browse Programs
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaMyApplications" value="my_applications">
+                            <label class="custom-control-label" for="qaMyApplications">
+                                <i class="fas fa-clipboard-list mr-2 text-primary"></i>My Applications
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaViewSchedule" value="view_schedule">
+                            <label class="custom-control-label" for="qaViewSchedule">
+                                <i class="fas fa-calendar-day mr-2 text-primary"></i>View Schedule
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaLatestUpdates" value="latest_updates">
+                            <label class="custom-control-label" for="qaLatestUpdates">
+                                <i class="fas fa-bullhorn mr-2 text-primary"></i>Latest Updates
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaUpdateProfile" value="update_profile">
+                            <label class="custom-control-label" for="qaUpdateProfile">
+                                <i class="fas fa-user-edit mr-2 text-primary"></i>Update Profile
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="resetQuickActionsBtn">
+                        <i class="fas fa-undo mr-1"></i>Reset Defaults
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveQuickActionsBtn">
+                        <i class="fas fa-save mr-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const quickActionsStorageKey = 'community_dashboard_quick_actions';
+    const defaultQuickActions = [
+        'browse_programs',
+        'my_applications',
+        'view_schedule',
+        'latest_updates',
+        'update_profile'
+    ];
+
+    function formatUpdatedDateTime(dateObj) {
+        return 'Updated ' + dateObj.toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+
+    function updateLastUpdatedTime() {
+        const updatedTimeEl = document.getElementById('lastUpdatedTime');
+        if (!updatedTimeEl) {
+            return;
+        }
+        updatedTimeEl.textContent = formatUpdatedDateTime(new Date());
+    }
+
+    function getSavedQuickActions() {
+        try {
+            const raw = localStorage.getItem(quickActionsStorageKey);
+            if (!raw) {
+                return defaultQuickActions.slice();
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return defaultQuickActions.slice();
+            }
+
+            return parsed.filter(function(action) {
+                return defaultQuickActions.indexOf(action) !== -1;
+            });
+        } catch (error) {
+            return defaultQuickActions.slice();
+        }
+    }
+
+    function setSavedQuickActions(actions) {
+        localStorage.setItem(quickActionsStorageKey, JSON.stringify(actions));
+    }
+
+    function syncQuickActionCheckboxes(actions) {
+        document.querySelectorAll('.quick-action-toggle').forEach(function(toggle) {
+            toggle.checked = actions.includes(toggle.value);
+        });
+    }
+
+    function applyQuickActions(actions) {
+        let visibleCount = 0;
+
+        document.querySelectorAll('.quick-action-item[data-action-key]').forEach(function(item) {
+            const key = item.getAttribute('data-action-key');
+            const shouldShow = actions.includes(key);
+            item.classList.toggle('d-none', !shouldShow);
+            if (shouldShow) {
+                visibleCount += 1;
+            }
+        });
+
+        const emptyState = document.getElementById('quickActionsEmptyState');
+        if (emptyState) {
+            emptyState.classList.toggle('d-none', visibleCount > 0);
+        }
+    }
+
+    function getSelectedQuickActionsFromModal() {
+        return Array.from(document.querySelectorAll('.quick-action-toggle:checked')).map(function(input) {
+            return input.value;
+        });
+    }
+
+    updateLastUpdatedTime();
+    setInterval(updateLastUpdatedTime, 60000);
+
+    const initialActions = getSavedQuickActions();
+    applyQuickActions(initialActions);
+    syncQuickActionCheckboxes(initialActions);
+
+    $('#editQuickActionsModal').on('show.bs.modal', function() {
+        syncQuickActionCheckboxes(getSavedQuickActions());
+    });
+
+    const saveQuickActionsBtn = document.getElementById('saveQuickActionsBtn');
+    if (saveQuickActionsBtn) {
+        saveQuickActionsBtn.addEventListener('click', function() {
+            const selectedActions = getSelectedQuickActionsFromModal();
+            setSavedQuickActions(selectedActions);
+            applyQuickActions(selectedActions);
+            $('#editQuickActionsModal').modal('hide');
+        });
+    }
+
+    const resetQuickActionsBtn = document.getElementById('resetQuickActionsBtn');
+    if (resetQuickActionsBtn) {
+        resetQuickActionsBtn.addEventListener('click', function() {
+            setSavedQuickActions(defaultQuickActions);
+            syncQuickActionCheckboxes(defaultQuickActions);
+            applyQuickActions(defaultQuickActions);
+        });
+    }
+
     // Initialize Bootstrap tooltips
     $('[data-toggle="tooltip"]').tooltip();
     
-    // Animate statistics counters with enhanced effects
-    document.querySelectorAll('.h5').forEach(function(element) {
-        const countTo = parseInt(element.textContent);
+    // Animate KPI counters only
+    document.querySelectorAll('.kpi-value[data-count]').forEach(function(element) {
+        const countTo = parseInt(element.getAttribute('data-count'), 10);
         if (!isNaN(countTo) && countTo > 0) {
             let current = 0;
             const increment = Math.ceil(countTo / 25);
             const timer = setInterval(function() {
                 current += increment;
                 if (current >= countTo) {
-                    element.textContent = countTo;
+                    element.textContent = countTo.toLocaleString();
                     clearInterval(timer);
                 } else {
-                    element.textContent = current;
+                    element.textContent = current.toLocaleString();
                 }
             }, 40);
+        } else {
+            element.textContent = '0';
         }
     });
     
-    // Add ripple effect to stats cards (optional enhancement)
-    document.querySelectorAll('.stats-card').forEach(function(card) {
+    // Add ripple effect to KPI cards
+    document.querySelectorAll('.kpi-card').forEach(function(card) {
         card.addEventListener('click', function(e) {
             // Create ripple effect
             const ripple = document.createElement('span');
@@ -750,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.overflow = 'hidden';
             this.appendChild(ripple);
             
-            setTimeout(() => {
+            setTimeout(function() {
                 ripple.remove();
             }, 600);
         });

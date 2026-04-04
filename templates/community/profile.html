@@ -3,28 +3,60 @@
 
 {% block extra_css %}
 <style>
+    .profile-page {
+        animation: profileFadeIn 0.45s ease-out;
+    }
+
+    @keyframes profileFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .profile-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1f3f77 0%, #1f6feb 55%, #0ea5a6 100%);
         color: white;
         padding: 3rem 0;
         margin-bottom: 2rem;
-        border-radius: 0 0 20px 20px;
+        border-radius: 0 0 22px 22px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 16px 34px rgba(15, 34, 73, 0.24);
+    }
+
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 83% 18%, rgba(255, 255, 255, 0.25), transparent 42%);
+        pointer-events: none;
+    }
+
+    .profile-header .container {
+        position: relative;
+        z-index: 1;
     }
     
     .profile-avatar {
         width: 120px;
         height: 120px;
         border-radius: 50%;
-        background: white;
+        background: linear-gradient(180deg, #ffffff 0%, #f1f6ff 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 3rem;
-        color: #667eea;
-        border: 5px solid rgba(255, 255, 255, 0.3);
+        color: #1f5ea8;
+        border: 5px solid rgba(255, 255, 255, 0.4);
         margin: 0 auto 1rem;
         overflow: hidden;
         flex-shrink: 0;
+        box-shadow: 0 18px 30px rgba(8, 24, 54, 0.28);
     }
 
     .profile-avatar img {
@@ -33,32 +65,145 @@
         object-fit: cover;
         border-radius: 50%;
     }
+
+    .profile-name {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+
+    .profile-subtitle {
+        font-size: 1rem;
+        opacity: 0.92;
+    }
+
+    .profile-chip-row {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .profile-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.36);
+        color: #ffffff;
+        border-radius: 999px;
+        padding: 0.4rem 0.78rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        backdrop-filter: blur(8px);
+    }
+
+    .profile-header .btn-light {
+        border-radius: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #1f4e8b;
+        font-weight: 700;
+        box-shadow: 0 12px 20px rgba(8, 24, 54, 0.2);
+    }
+
+    .profile-header .btn-light:hover {
+        color: #163c6f;
+        transform: translateY(-1px);
+    }
+
+    .profile-page .progress {
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .profile-page .progress-bar {
+        font-size: 0.85rem;
+        letter-spacing: 0.2px;
+    }
+
+    .quick-glance-card {
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+        box-shadow: 0 10px 22px rgba(15, 34, 73, 0.08);
+        height: 100%;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .quick-glance-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.14);
+    }
+
+    .quick-glance-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+        margin-bottom: 0.6rem;
+        box-shadow: 0 8px 14px rgba(15, 34, 73, 0.16);
+    }
+
+    .quick-glance-icon.blue { background: linear-gradient(135deg, #1f6feb, #1f4f95); }
+    .quick-glance-icon.teal { background: linear-gradient(135deg, #0ea5a6, #0b7f80); }
+    .quick-glance-icon.green { background: linear-gradient(135deg, #16a34a, #0e9f6e); }
+    .quick-glance-icon.gold { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+    .quick-glance-label {
+        color: #5f6f88;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+        font-weight: 700;
+    }
+
+    .quick-glance-value {
+        color: #1f2a44;
+        font-size: 1.08rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
     
     .info-card {
-        border: none;
-        border-radius: 12px;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        transition: transform 0.3s ease;
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        box-shadow: 0 12px 24px rgba(15, 34, 73, 0.09);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        overflow: hidden;
+        background: #fff;
     }
     
     .info-card:hover {
-        transform: translateY(-5px);
+        transform: translateY(-3px);
+        box-shadow: 0 16px 30px rgba(15, 34, 73, 0.14);
+    }
+
+    .info-card .card-body {
+        background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
     }
     
     .info-label {
-        font-weight: 600;
-        color: #5a5c69;
-        font-size: 0.85rem;
+        font-weight: 700;
+        color: #60708b;
+        font-size: 0.78rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.25rem;
+        letter-spacing: 0.45px;
+        margin-bottom: 0.22rem;
     }
     
     .info-value {
         font-size: 1rem;
-        color: #3a3b45;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #e3e6f0;
+        color: #1f2a44;
+        font-weight: 600;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid #e6edf8;
+        background: #ffffff;
+        border-radius: 10px;
     }
     
     .info-value:last-child {
@@ -67,34 +212,96 @@
     
     .status-badge {
         display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
+        padding: 0.32rem 0.78rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
         font-weight: 600;
+        border: 1px solid transparent;
     }
     
     .status-yes {
-        background: #d4edda;
-        color: #155724;
+        background: #e8f9ef;
+        color: #0c6a3d;
+        border-color: #bfead2;
     }
     
     .status-no {
-        background: #f8d7da;
-        color: #721c24;
+        background: #fdecee;
+        color: #9f1d25;
+        border-color: #f7cad0;
     }
     
     .section-title {
-        font-size: 1.25rem;
+        font-size: 1.12rem;
         font-weight: 700;
-        color: #3a3b45;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #667eea;
+        color: #1f2a44;
+        margin-bottom: 1.15rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid #dde6f5;
+        letter-spacing: 0.2px;
+    }
+
+    .section-title i {
+        color: #1f6feb;
+    }
+
+    .profile-page .alert-warning {
+        border: 1px solid #f4d396;
+        background: linear-gradient(180deg, #fff8eb 0%, #fff4dd 100%);
+        color: #7a5718;
+    }
+
+    .profile-page .alert-info {
+        border-color: #cfe0fa;
+        background: linear-gradient(180deg, #f4f9ff 0%, #ecf4ff 100%);
+        color: #28456f;
+    }
+
+    .profile-page .btn-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        border-color: transparent;
+        box-shadow: 0 10px 18px rgba(31, 79, 149, 0.25);
+    }
+
+    .profile-page .btn-primary:hover {
+        transform: translateY(-1px);
+    }
+
+    .profile-page .modal-content {
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    .profile-page .modal-footer {
+        border-top: 1px solid #ecf1fb;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 767.98px) {
+        .profile-header {
+            padding: 2.4rem 0;
+        }
+
+        .profile-name {
+            font-size: 1.55rem;
+        }
+
+        .profile-avatar {
+            width: 104px;
+            height: 104px;
+        }
+
+        .quick-glance-value {
+            font-size: 0.98rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="profile-page">
 <!-- Profile Header -->
 <div class="profile-header">
     <div class="container">
@@ -106,10 +313,17 @@
                     <i class="fas fa-user"></i>
                 {% endif %}
             </div>
-            <h2 class="mb-2">{{ user.first_name }} {{ user.middle_name or '' }} {{ user.last_name }}</h2>
-            <p class="mb-3 text-white-50">
+            <h2 class="mb-2 profile-name">{{ user.first_name }} {{ user.middle_name or '' }} {{ user.last_name }}</h2>
+            <p class="mb-3 text-white-50 profile-subtitle">
                 <i class="fas fa-envelope mr-2"></i>{{ user.email }}
             </p>
+
+            <div class="profile-chip-row mb-3">
+                <span class="profile-chip"><i class="fas fa-id-badge"></i>User #{{ user.id }}</span>
+                <span class="profile-chip"><i class="fas fa-user-tag"></i>Community User</span>
+                <span class="profile-chip"><i class="fas fa-phone"></i>{{ profile.mobile_no if profile and profile.mobile_no else 'No mobile on file' }}</span>
+                <span class="profile-chip"><i class="fas fa-map-marker-alt"></i>{{ profile.barangay if profile and profile.barangay else 'No barangay set' }}</span>
+            </div>
             
             <!-- Profile Completion Progress -->
             {% if completion %}
@@ -166,6 +380,48 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Quick Glance -->
+    <div class="row mb-4">
+        <div class="col-md-6 col-xl-3 mb-3">
+            <div class="quick-glance-card card h-100">
+                <div class="card-body">
+                    <span class="quick-glance-icon blue"><i class="fas fa-check-circle"></i></span>
+                    <div class="quick-glance-label">Profile Completion</div>
+                    <div class="quick-glance-value">{{ completion.percentage if completion else 0 }}%</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3 mb-3">
+            <div class="quick-glance-card card h-100">
+                <div class="card-body">
+                    <span class="quick-glance-icon teal"><i class="fas fa-phone-alt"></i></span>
+                    <div class="quick-glance-label">Primary Contact</div>
+                    <div class="quick-glance-value">{{ profile.mobile_no if profile and profile.mobile_no else 'Not specified' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3 mb-3">
+            <div class="quick-glance-card card h-100">
+                <div class="card-body">
+                    <span class="quick-glance-icon green"><i class="fas fa-map-pin"></i></span>
+                    <div class="quick-glance-label">Location</div>
+                    <div class="quick-glance-value">{{ profile.barangay if profile and profile.barangay else 'Not specified' }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3 mb-3">
+            <div class="quick-glance-card card h-100">
+                <div class="card-body">
+                    <span class="quick-glance-icon gold"><i class="fas fa-shield-alt"></i></span>
+                    <div class="quick-glance-label">Special Statuses</div>
+                    <div class="quick-glance-value">
+                        {{ (1 if profile and profile.is_solo_parent else 0) + (1 if profile and profile.is_pwd else 0) + (1 if profile and profile.age and profile.age >= 60 else 0) }} tagged
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="row">
         <!-- Personal Information -->
@@ -451,6 +707,9 @@
                     </p>
                     
                     <div class="row">
+                        <div class="col-12 mb-2">
+                            <p class="text-muted small mb-0">Quickly check and submit verification requests for your eligible categories.</p>
+                        </div>
                         <!-- Senior Citizen Verification -->
                         {% if profile.age and profile.age >= 60 %}
                         <div class="col-md-4 mb-3">
@@ -656,6 +915,7 @@
             </a>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Verification Modals -->

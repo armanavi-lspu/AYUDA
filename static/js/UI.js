@@ -2,18 +2,24 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', function () {
+        function removeFlashMessage(message) {
+            if (message && message.parentNode) {
+                message.parentNode.removeChild(message);
+            }
+        }
+
         // Auto-dismiss and stagger removal after 5s
         setTimeout(() => {
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach((message, index) => {
                 setTimeout(() => {
-                    message.style.transition = 'opacity 300ms, transform 300ms';
-                    message.style.opacity = '0';
-                    message.style.transform = 'translateY(-20px)';
+                    // Keep full opacity for readability; use a slight lift before removal.
+                    message.style.transition = 'transform 200ms ease';
+                    message.style.transform = 'translateY(-10px)';
                     setTimeout(() => {
-                        if (message.parentNode) message.parentNode.removeChild(message);
-                    }, 300);
-                }, index * 200);
+                        removeFlashMessage(message);
+                    }, 200);
+                }, index * 120);
             });
         }, 5000);
 
@@ -36,12 +42,12 @@
             btn.addEventListener('click', () => {
                 const alert = btn.closest('.flash-message');
                 if (!alert) return;
-                alert.style.transition = 'opacity 300ms, transform 300ms';
-                alert.style.opacity = '0';
-                alert.style.transform = 'translateY(-20px)';
+                // Keep full opacity for readability; use a slight lift before removal.
+                alert.style.transition = 'transform 200ms ease';
+                alert.style.transform = 'translateY(-10px)';
                 setTimeout(() => {
-                    if (alert.parentNode) alert.parentNode.removeChild(alert);
-                }, 300);
+                    removeFlashMessage(alert);
+                }, 200);
             });
         });
     });
