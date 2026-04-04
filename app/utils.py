@@ -168,6 +168,8 @@ def calculate_profile_completion(user):
         'barangay': profile.barangay if profile else None,
         'address': profile.address if profile else None,
         'municipality': profile.municipality if profile else None,
+        'civil_status': profile.civil_status if profile else None,
+        'highest_education_attainment': profile.highest_education_attainment if profile else None,
         'occupation': profile.occupation if profile else None,
         'family_annual_income': profile.family_annual_income if profile else None,
     }
@@ -176,7 +178,6 @@ def calculate_profile_completion(user):
     optional_fields = {
         'birth_month': profile.birth_month if profile else None,
         'birth_day': profile.birth_day if profile else None,
-        'sitio': profile.sitio if profile else None,
         'is_currently_employed': profile.is_currently_employed if profile else None,
         'is_student': profile.is_student if profile else None,
     }
@@ -211,8 +212,10 @@ def calculate_profile_completion(user):
         'first_name': 'First Name', 'last_name': 'Last Name', 'email': 'Email Address',
         'age': 'Age', 'gender': 'Gender', 'mobile_no': 'Mobile Number',
         'birth_year': 'Birth Year', 'birth_month': 'Birth Month', 'birth_day': 'Birth Day',
-        'barangay': 'Barangay', 'sitio': 'Sitio', 'address': 'Complete Address',
+        'barangay': 'Barangay', 'address': 'Complete Address',
         'municipality': 'Municipality', 'occupation': 'Occupation',
+        'civil_status': 'Civil Status',
+        'highest_education_attainment': 'Highest Education Attainment',
         'family_annual_income': 'Family Annual Income',
         'is_currently_employed': 'Employment Status', 'is_student': 'Student Status'
     }

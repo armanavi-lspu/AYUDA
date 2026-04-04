@@ -1821,8 +1821,6 @@ def application_slip(application_id):
     address_parts = []
     if community_user.address:
         address_parts.append(community_user.address)
-    if community_user.sitio:
-        address_parts.append(community_user.sitio)
     if community_user.barangay:
         address_parts.append(f"Brgy. {community_user.barangay}")
     if community_user.municipality:

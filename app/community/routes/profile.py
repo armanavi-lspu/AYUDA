@@ -224,6 +224,9 @@ def edit_profile():
         try:
             municipality = request.form.get('municipality', '').strip()
             barangay = request.form.get('barangay', '').strip()
+            place_of_birth = request.form.get('place_of_birth', '').strip()
+            civil_status = request.form.get('civil_status', '').strip()
+            highest_education_attainment = request.form.get('highest_education_attainment', '').strip()
 
             if not municipality:
                 flash('Municipality is required.', 'error')
@@ -245,6 +248,14 @@ def edit_profile():
                     flash('Selected barangay does not belong to the chosen municipality.', 'error')
                     return redirect(url_for('community.edit_profile'))
 
+            if not civil_status:
+                flash('Civil status is required.', 'error')
+                return redirect(url_for('community.edit_profile'))
+
+            if not highest_education_attainment:
+                flash('Highest education attainment is required.', 'error')
+                return redirect(url_for('community.edit_profile'))
+
             # Update User table fields
             current_user.first_name = request.form.get('first_name', '').strip()
             current_user.middle_name = request.form.get('middle_name', '').strip()
@@ -263,9 +274,9 @@ def edit_profile():
                 community_profile.municipality = municipality
                 community_profile.address = request.form.get('address', '').strip()
                 community_profile.religion = request.form.get('religion', '').strip()
-                community_profile.place_of_birth = request.form.get('place_of_birth', '').strip()
-                community_profile.civil_status = request.form.get('civil_status', '').strip()
-                community_profile.highest_education_attainment = request.form.get('highest_education_attainment', '').strip()
+                community_profile.place_of_birth = place_of_birth
+                community_profile.civil_status = civil_status
+                community_profile.highest_education_attainment = highest_education_attainment
                 community_profile.occupation = request.form.get('occupation', '').strip()
                 community_profile.is_currently_employed = request.form.get('is_currently_employed') == 'on'
                 community_profile.is_student = request.form.get('is_student') == 'on'
