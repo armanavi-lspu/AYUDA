@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
 from ..models import User, CommunityUsers
 from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
@@ -16,16 +16,37 @@ def about():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    def is_ajax_request():
+        return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
+
+        # Server-side validation for both regular and AJAX requests
+        if not email:
+            if is_ajax_request():
+                return jsonify({'success': False, 'message': 'Email is required.', 'field': 'email'}), 400
+            flash('Email is required.', category='error')
+            return render_template("auth/login.html", user=current_user)
+
+        if not password:
+            if is_ajax_request():
+                return jsonify({'success': False, 'message': 'Password is required.', 'field': 'password'}), 400
+            flash('Password is required.', category='error')
+            return render_template("auth/login.html", user=current_user)
 
         user = User.query.filter_by(email=email).first()
 
         if not user:
+            if is_ajax_request():
+                return jsonify({'success': False, 'message': 'Email does not exist.', 'field': 'email'}), 401
             flash('Email does not exist.', category='error')
             return render_template("auth/login.html", user=current_user)
+
         if not check_password_hash(user.password_hash, password):
+            if is_ajax_request():
+                return jsonify({'success': False, 'message': 'Incorrect password. Please try again.', 'field': 'password'}), 401
             flash('Incorrect password, try again.', category='error')
             return render_template("auth/login.html", user=current_user)
 
@@ -36,6 +57,15 @@ def login():
         if user.role == 'community':
             log_login(user.id)
             db.session.commit()
+
+        if is_ajax_request():
+            if user.role == 'admin':
+                redirect_url = url_for('admin.dashboard')
+            elif user.role == 'community':
+                redirect_url = url_for('community.dashboard')
+            else:
+                redirect_url = url_for('views.home')
+            return jsonify({'success': True, 'redirect_url': redirect_url}), 200
         
         flash('Logged in successfully!', category='success')
 

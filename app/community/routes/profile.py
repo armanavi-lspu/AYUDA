@@ -8,6 +8,12 @@ from flask_login import login_required, current_user
 from app.community import community_bp
 from app.extensions import db
 from app.models import User, CommunityUsers, Notifications, UserActivityLog
+from app.location_options import (
+    MUNICIPALITY_BARANGAYS,
+    get_municipalities,
+    is_valid_barangay,
+    is_valid_municipality,
+)
 from app.utils import calculate_profile_completion
 from app.user_activity_logger import log_profile_edit
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -86,6 +92,29 @@ def edit_profile():
     
     if request.method == 'POST':
         try:
+            municipality = request.form.get('municipality', '').strip()
+            barangay = request.form.get('barangay', '').strip()
+
+            if not municipality:
+                flash('Municipality is required.', 'error')
+                return redirect(url_for('community.edit_profile'))
+
+            if not barangay:
+                flash('Barangay is required.', 'error')
+                return redirect(url_for('community.edit_profile'))
+
+            if municipality and not is_valid_municipality(municipality):
+                flash('Please select a valid municipality from the dropdown list.', 'error')
+                return redirect(url_for('community.edit_profile'))
+
+            if barangay:
+                if not municipality:
+                    flash('Please select a municipality before selecting a barangay.', 'error')
+                    return redirect(url_for('community.edit_profile'))
+                if not is_valid_barangay(municipality, barangay):
+                    flash('Selected barangay does not belong to the chosen municipality.', 'error')
+                    return redirect(url_for('community.edit_profile'))
+
             # Update User table fields
             current_user.first_name = request.form.get('first_name', '').strip()
             current_user.middle_name = request.form.get('middle_name', '').strip()
@@ -98,9 +127,10 @@ def edit_profile():
                 community_profile.birth_day = request.form.get('birth_day')
                 community_profile.birth_year = request.form.get('birth_year')
                 community_profile.gender = request.form.get('gender')
-                community_profile.barangay = request.form.get('barangay', '').strip()
-                community_profile.sitio = request.form.get('sitio', '').strip()
-                community_profile.municipality = request.form.get('municipality', 'Mabitac').strip()
+                community_profile.barangay = barangay
+                if 'sitio' in request.form:
+                    community_profile.sitio = request.form.get('sitio', '').strip()
+                community_profile.municipality = municipality
                 community_profile.address = request.form.get('address', '').strip()
                 community_profile.religion = request.form.get('religion', '').strip()
                 community_profile.place_of_birth = request.form.get('place_of_birth', '').strip()
@@ -148,6 +178,8 @@ def edit_profile():
     return render_template('community/edit_profile.html', 
                          user=current_user,
                          profile=community_profile,
+                         municipality_barangays=MUNICIPALITY_BARANGAYS,
+                         municipalities=get_municipalities(),
                          income_ranges=INCOME_RANGES,
                          missing_fields=completion_data.get('missing_fields', []))
 

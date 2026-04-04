@@ -26,6 +26,7 @@ def community():
     search = request.args.get('search', '').strip()
     status_filter = request.args.get('status', '').strip()
     barangay_filter = request.args.get('barangay', '').strip()
+    municipality_filter = request.args.get('municipality', '').strip()
     date_range = request.args.get('date_range', '').strip()
     
     # Get sort parameters
@@ -37,16 +38,19 @@ def community():
     
     # Apply search filter
     if search:
+        query = query.outerjoin(CommunityUsers, CommunityUsers.user_id == User.id)
         search_filter = or_(
-            User.first_name.contains(search),
-            User.last_name.contains(search),
-            User.email.contains(search)
+            User.first_name.ilike(f'%{search}%'),
+            User.last_name.ilike(f'%{search}%'),
+            User.email.ilike(f'%{search}%'),
+            CommunityUsers.mobile_no.ilike(f'%{search}%'),
+            CommunityUsers.barangay.ilike(f'%{search}%'),
+            CommunityUsers.municipality.ilike(f'%{search}%')
         )
         query = query.filter(search_filter)
     
     # Apply status filter (verification status)
     if status_filter:
-        query = query.join(User.community_profile)
         if status_filter == 'pwd_verified':
             query = query.filter(User.community_profile.has(pwd_verification='approved'))
         elif status_filter == 'senior_citizen_verified':
@@ -58,9 +62,11 @@ def community():
     
     # Apply barangay filter
     if barangay_filter:
-        query = query.join(User.community_profile).filter(
-            User.community_profile.has(barangay=barangay_filter)
-        )
+        query = query.filter(User.community_profile.has(barangay=barangay_filter))
+
+    # Apply municipality filter
+    if municipality_filter:
+        query = query.filter(User.community_profile.has(municipality=municipality_filter))
     
     # Apply date range filter
     if date_range:
@@ -122,6 +128,11 @@ def community():
         .filter(CommunityUsers.barangay.isnot(None))\
         .distinct().order_by(CommunityUsers.barangay).all()
     barangays = [b[0] for b in barangays if b[0]]
+
+    municipalities = db.session.query(CommunityUsers.municipality)\
+        .filter(CommunityUsers.municipality.isnot(None))\
+        .distinct().order_by(CommunityUsers.municipality).all()
+    municipalities = [m[0] for m in municipalities if m[0]]
     
     # Add application counts to each user
     for user in pagination.items:
@@ -144,6 +155,7 @@ def community():
         users_with_apps=users_with_apps,
         new_this_month=new_this_month,
         barangays=barangays,
+        municipalities=municipalities,
         sort_by=sort_by,
         sort_order=sort_order,
         user=current_user
@@ -402,6 +414,7 @@ def community_verify():
     verification_type = request.args.get('type', '').strip()
     status_filter = request.args.get('status', '').strip()
     barangay_filter = request.args.get('barangay', '').strip()
+    municipality_filter = request.args.get('municipality', '').strip()
     
     # Base query - users with verification requests
     query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
@@ -463,13 +476,17 @@ def community_verify():
             User.first_name.ilike(f'%{search}%'),
             User.last_name.ilike(f'%{search}%'),
             User.email.ilike(f'%{search}%'),
-            CommunityUsers.barangay.ilike(f'%{search}%')
+            CommunityUsers.barangay.ilike(f'%{search}%'),
+            CommunityUsers.municipality.ilike(f'%{search}%')
         )
         query = query.filter(search_filter)
     
     # Apply barangay filter
     if barangay_filter:
         query = query.filter(CommunityUsers.barangay == barangay_filter)
+
+    if municipality_filter:
+        query = query.filter(CommunityUsers.municipality == municipality_filter)
     
     # Order: Pending requests first, then by creation date (newest first)
     query = query.order_by(
@@ -508,6 +525,11 @@ def community_verify():
         .filter(CommunityUsers.barangay.isnot(None))\
         .distinct().order_by(CommunityUsers.barangay).all()
     barangays = [b[0] for b in barangays if b[0]]
+
+    municipalities = db.session.query(CommunityUsers.municipality)\
+        .filter(CommunityUsers.municipality.isnot(None))\
+        .distinct().order_by(CommunityUsers.municipality).all()
+    municipalities = [m[0] for m in municipalities if m[0]]
     
     return render_template(
         'admin/community_verify.html',
@@ -526,6 +548,7 @@ def community_verify():
         rejected_solo_parent=rejected_solo_parent,
         total_rejected=total_rejected,
         barangays=barangays,
+        municipalities=municipalities,
         user=current_user
     )
 

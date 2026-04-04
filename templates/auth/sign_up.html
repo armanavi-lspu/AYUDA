@@ -3,346 +3,353 @@
 
 {% block extra_css %}
 <style>
-    .signup-container {
-        max-width: 600px;
-        margin: 0 auto;
+    .signup-shell {
+        min-height: calc(100vh - 76px);
+        padding: 2.2rem 0 2.8rem;
+        background:
+            radial-gradient(circle at 6% 12%, rgba(38, 166, 154, 0.14), transparent 42%),
+            radial-gradient(circle at 90% 8%, rgba(242, 182, 50, 0.19), transparent 44%),
+            linear-gradient(180deg, #f4f9ff 0%, #ffffff 55%, #f8fcff 100%);
     }
 
-    .form-section {
-        background: #f8f9fc;
-        padding: 2rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
+    .signup-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 46px rgba(11, 44, 95, 0.14);
+    }
+
+    .signup-header {
+        background: linear-gradient(135deg, #0b2c5f 0%, #1f5ea8 64%, #26a69a 100%);
+        color: #ffffff;
+        padding: 1.6rem 1.4rem;
+    }
+
+    .signup-header h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.45rem, 2.7vw, 2rem);
+        margin-bottom: 0.4rem;
+    }
+
+    .signup-header p {
+        margin-bottom: 0;
+        opacity: 0.92;
+    }
+
+    .signup-body {
+        padding: 1.5rem;
+        background: #ffffff;
+    }
+
+    .section-title {
+        font-weight: 700;
+        color: #1f2a37;
+        margin-bottom: 0.85rem;
+    }
+
+    .section-panel {
+        border: 1px solid #dde8f7;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
     }
 
     .required-field::after {
         content: " *";
-        color: #e74a3b;
-    }
-
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
-    }
-
-    .bg-gradient-primary h2,
-    .bg-gradient-primary p {
-        color: white !important;
-    }
-
-    /* Form Control Validation */
-    .form-control:invalid,
-    .form-control.is-invalid {
-        border-color: #dc3545;
-    }
-
-    .form-control:valid,
-    .form-control.is-valid {
-        border-color: #28a745;
-    }
-
-    .invalid-feedback,
-    .valid-feedback {
-        display: none;
-        width: 100%;
-        margin-top: 0.25rem;
-        font-size: 80%;
-    }
-
-    .invalid-feedback {
         color: #dc3545;
     }
 
-    .valid-feedback {
-        color: #28a745;
+    .form-control,
+    .custom-select {
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1px solid #d4deeb;
     }
 
-    .was-validated .form-control:invalid ~ .invalid-feedback,
-    .form-control.is-invalid ~ .invalid-feedback {
-        display: block;
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: #1f5ea8;
+        box-shadow: 0 0 0 0.15rem rgba(31, 94, 168, 0.17);
     }
 
-    .was-validated .form-control:valid ~ .valid-feedback,
-    .form-control.is-valid ~ .valid-feedback {
-        display: block;
+    .input-group .btn {
+        border-color: #d4deeb;
     }
 
-    .date-input-wrapper {
-        position: relative;
+    .input-group .btn:focus {
+        box-shadow: none;
     }
 
-    .date-input-wrapper input[type="date"] {
-        padding-right: 40px;
+    .hint-text {
+        color: #64758a;
+        font-size: 0.85rem;
     }
 
-    .calendar-icon {
-        position: absolute;
-        right: 12px;
-        top: 38px;
-        pointer-events: none;
-        color: #667eea;
-        font-size: 1.2rem;
+    .btn-create {
+        border: none;
+        border-radius: 12px;
+        min-height: 48px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1f5ea8, #26a69a);
+        color: #ffffff;
+    }
+
+    .btn-create:hover {
+        color: #ffffff;
+        filter: brightness(1.05);
+    }
+
+    .auth-switch {
+        color: #607186;
+        margin-top: 0.9rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .signup-shell {
+            padding: 1.25rem 0 2rem;
+        }
+
+        .signup-body {
+            padding: 1.1rem;
+        }
+
+        .signup-header {
+            padding: 1.2rem 1rem;
+        }
+
+        .section-panel {
+            padding: 0.85rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="signup-container">
-        <div class="card shadow-lg border-0">
-            <!-- Header -->
-            <div class="card-header bg-gradient-primary text-white py-4">
-                <h2 class="text-left mb-2">
-                    <i class="fas fa-user-plus mr-2"></i>Create Your Account
-                </h2>
-                <p class="text-left mb-0">Join <strong> AYUDA </strong> Community Program</p>
-            </div>
+<section class="signup-shell">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-9">
+                <div class="card signup-card">
+                    <div class="signup-header">
+                        <h2><i class="fas fa-user-plus mr-2"></i>Create Your AYUDA Account</h2>
+                        <p>Register to apply for programs, receive updates, and track your assistance status.</p>
+                    </div>
 
-            <div class="card-body p-4">
-                <h5 class="mb-4"><i class="fas mr-2"></i> Please fill out the necessary information below</h5>
+                    <div class="signup-body">
+                        <form method="POST" id="signUpForm" novalidate>
+                            <h5 class="section-title">Personal Information</h5>
+                            <div class="section-panel">
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="firstName" class="required-field">First Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="firstName"
+                                            name="firstName"
+                                            placeholder="Juan"
+                                            pattern="[A-Za-z\s]+"
+                                            required
+                                        >
+                                        <div class="invalid-feedback">Please provide your first name (letters only).</div>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="lastName" class="required-field">Last Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="lastName"
+                                            name="lastName"
+                                            placeholder="Dela Cruz"
+                                            pattern="[A-Za-z\s]+"
+                                            required
+                                        >
+                                        <div class="invalid-feedback">Please provide your last name (letters only).</div>
+                                    </div>
+                                </div>
 
-                <!-- Sign Up Form -->
-                <form method="POST" id="signUpForm" novalidate>
-                    <div class="form-section">
-
-                        <div class="row">
-                            <!-- First Name -->
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="firstName" class="required-field">First Name</label>
-                                    <input type="text" class="form-control" id="firstName" 
-                                           name="firstName" placeholder="Juan" 
-                                           pattern="[A-Za-z\s]+" required>
-                                    <div class="invalid-feedback">
-                                        Please provide your first name (letters only).
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="birthDate" class="required-field">Birth Date</label>
+                                        <input type="date" class="form-control" id="birthDate" name="birthDate" required>
+                                        <div class="invalid-feedback" id="birthDateFeedback">Please select a valid birth date.</div>
+                                        <small class="hint-text">You must be at least 18 years old to register.</small>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="gender" class="required-field">Gender</label>
+                                        <select class="custom-select" id="gender" name="gender" required>
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                            <option value="Prefer not to say">Prefer not to say</option>
+                                        </select>
+                                        <div class="invalid-feedback">Please select your gender.</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Last Name -->
-                            <div class="col-md-6">
+                            <h5 class="section-title">Account Information</h5>
+                            <div class="section-panel">
                                 <div class="form-group">
-                                    <label for="lastName" class="required-field">Last Name</label>
-                                    <input type="text" class="form-control" id="lastName" 
-                                           name="lastName" placeholder="Dela Cruz" 
-                                           pattern="[A-Za-z\s]+" required>
-                                    <div class="invalid-feedback">
-                                        Please provide your last name (letters only).
+                                    <label for="email" class="required-field">Email Address</label>
+                                    <input
+                                        type="email"
+                                        class="form-control"
+                                        id="email"
+                                        name="email"
+                                        placeholder="juan.delacruz@gmail.com"
+                                        required
+                                    >
+                                    <div class="invalid-feedback">Please provide a valid email address.</div>
+                                    <small class="hint-text">This will be your account login email.</small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="password" class="required-field">Password</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="password"
+                                                class="form-control"
+                                                id="password"
+                                                name="password"
+                                                placeholder="Minimum 8 characters"
+                                                minlength="8"
+                                                required
+                                            >
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Toggle password visibility">
+                                                    <i class="fas fa-eye" id="passwordIcon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="invalid-feedback">Password must be at least 8 characters long.</div>
+                                    </div>
+
+                                    <div class="form-group col-md-6">
+                                        <label for="confirmPassword" class="required-field">Confirm Password</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="password"
+                                                class="form-control"
+                                                id="confirmPassword"
+                                                name="confirmPassword"
+                                                placeholder="Re-enter password"
+                                                required
+                                            >
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility">
+                                                    <i class="fas fa-eye" id="confirmPasswordIcon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="invalid-feedback">Passwords must match.</div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Birthdate with Calendar Picker -->
-                        <div class="form-group">
-                            <label for="birthDate" class="required-field">Birth Date</label>
-                            <div class="date-input-wrapper">
-                                <input type="date" class="form-control" id="birthDate" 
-                                       name="birthDate" required>
-                                <i class="fas calendar-icon"></i>
-                            </div>
-                            <div class="invalid-feedback" id="birthDateFeedback">
-                                Please select a valid birth date.
-                            </div>                            
-                        </div>
+                            <button type="submit" class="btn btn-create btn-block mt-2">
+                                <i class="fas fa-check mr-2"></i>Create Account
+                            </button>
 
-                        <!-- Gender -->
-                        <div class="form-group">
-                            <label for="gender" class="required-field">Gender</label>
-                            <select class="form-control" id="gender" name="gender" required>
-                                <option value="">Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                                <option value="Prefer not to say">Prefer not to say</option>
-                            </select>
-                            <div class="invalid-feedback">
-                                Please select your gender.
+                            <div class="text-center auth-switch">
+                                Already have an account?
+                                <a href="{{ url_for('auth.login') }}" class="font-weight-bold">Log in here</a>
                             </div>
-                        </div>
-
-                    <!-- Email and Password Section -->
-                    
-                        <!-- Email -->
-                        <div class="form-group">
-                            <label for="email" class="required-field">Email Address</label>
-                            <input type="email" class="form-control" id="email" name="email" 
-                                   placeholder="juan.delacruz@gmail.com" required>
-                            <div class="invalid-feedback">
-                                Please provide a valid email address.
-                            </div>
-                            <div class="valid-feedback">
-                                Email is valid!
-                            </div>
-                            <small class="form-text text-muted">We'll use this for account verification</small>
-                        </div>
-
-                        <!-- New Password -->
-                        <div class="form-group">
-                            <label for="password" class="required-field">New Password</label>
-                            <input type="password" class="form-control" id="password" 
-                                   name="password" placeholder="Min. 8 characters" 
-                                   minlength="8" required>
-                            <div class="invalid-feedback">
-                                Password must be at least 8 characters long.
-                            </div>
-                            <div class="valid-feedback">
-                                Strong password!
-                            </div>
-                        </div>
-
-                        <!-- Confirm Password -->
-                        <div class="form-group">
-                            <label for="confirmPassword" class="required-field">Confirm Password</label>
-                            <input type="password" class="form-control" id="confirmPassword" 
-                                   name="confirmPassword" placeholder="Re-enter password" required>
-                            <div class="invalid-feedback">
-                                Passwords must match.
-                            </div>
-                            <div class="valid-feedback">
-                                Passwords match!
-                            </div>
-                        </div>
+                        </form>
                     </div>
-
-                    <!-- Terms and Submit 
-                    <div class="form-group">
-                        <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" 
-                                   id="agreeTerms" name="agreeTerms" required>
-                            <label class="custom-control-label" for="agreeTerms">
-                                I agree to the <a href="/privacy" target="_blank">Terms and Conditions</a>
-                            </label>
-                            <div class="invalid-feedback">
-                                You must agree before submitting.
-                            </div>
-                        </div>
-                    </div>
-                    -->
-                    <!-- Submit Button -->
-                    <div class="d-flex justify-content-center mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-check mr-2"></i>Create Account
-                        </button>
-                    </div>
-
-                    <!-- Login Link -->
-                    <div class="text-center mt-3">
-                        <p>Already have an account? <a href="/auth/login">Login here</a></p>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</section>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
-        {% for category, message in messages %}
-        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
-            <div class="d-flex align-items-center">
-                {% if category == 'success' %}
-                <i class="fas fa-check-circle mr-2"></i>
-                {% elif category == 'error' %}
-                <i class="fas fa-exclamation-circle mr-2"></i>
-                {% elif category == 'warning' %}
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                {% else %}
-                <i class="fas fa-info-circle mr-2"></i>
-                {% endif %}
-                <span>{{ message }}</span>
-            </div>
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-{% endwith %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('signUpForm');
-    
-    // Real-time validation for password matching
-    document.getElementById('confirmPassword').addEventListener('input', function() {
-        const pwd1 = document.getElementById('password').value;
-        const pwd2 = this.value;
-        
-        if (pwd2 && pwd1 !== pwd2) {
-            this.setCustomValidity('Passwords must match');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const birthDateInput = document.getElementById('birthDate');
 
-    // Real-time validation for birth date (must be at least 18 years old)
-    document.getElementById('birthDate').addEventListener('change', function() {
-        validateAge();
-    });
+    function setupToggle(buttonId, inputId, iconId) {
+        const button = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+
+        if (!button || !input || !icon) {
+            return;
+        }
+
+        button.addEventListener('click', function() {
+            const nextType = input.type === 'password' ? 'text' : 'password';
+            input.type = nextType;
+            icon.classList.toggle('fa-eye', nextType === 'password');
+            icon.classList.toggle('fa-eye-slash', nextType !== 'password');
+        });
+    }
+
+    function validateAge() {
+        const rawValue = birthDateInput.value;
+
+        if (!rawValue) {
+            birthDateInput.setCustomValidity('');
+            return true;
+        }
+
+        const birthDate = new Date(rawValue);
+        const today = new Date();
+
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age -= 1;
+        }
+
+        if (age < 18) {
+            birthDateInput.setCustomValidity('You must be at least 18 years old');
+            document.getElementById('birthDateFeedback').textContent = 'You must be at least 18 years old';
+            return false;
+        }
+
+        birthDateInput.setCustomValidity('');
+        return true;
+    }
+
+    function validatePasswordMatch() {
+        if (confirmPasswordInput.value && passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('Passwords must match');
+            return false;
+        }
+
+        confirmPasswordInput.setCustomValidity('');
+        return true;
+    }
+
+    setupToggle('togglePassword', 'password', 'passwordIcon');
+    setupToggle('toggleConfirmPassword', 'confirmPassword', 'confirmPasswordIcon');
+
+    confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+    passwordInput.addEventListener('input', validatePasswordMatch);
+    birthDateInput.addEventListener('change', validateAge);
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        
-        // Validate password match
-        const pwd1 = document.getElementById('password');
-        const pwd2 = document.getElementById('confirmPassword');
-        
-        if (pwd1.value !== pwd2.value) {
-            pwd2.setCustomValidity('Passwords must match');
-            pwd2.classList.add('is-invalid');
-        } else {
-            pwd2.setCustomValidity('');
-        }
 
-        // Validate age
-        if (!validateAge()) {
-            return false;
-        }
-        
-        // Add was-validated class for Bootstrap styling
+        const isAgeValid = validateAge();
+        const isPasswordValid = validatePasswordMatch();
+
         form.classList.add('was-validated');
-        
-        if (form.checkValidity() === false) {
+
+        if (!isAgeValid || !isPasswordValid || form.checkValidity() === false) {
             e.stopPropagation();
-            return false;
+            return;
         }
-        
-        // Submit the form
-        this.submit();
+
+        form.submit();
     });
-
-    function validateAge() {
-        const birthDateInput = document.getElementById('birthDate').value;
-
-        if (!birthDateInput) {
-            return true;
-        }
-
-        const birthDate = new Date(birthDateInput);
-        const today = new Date();
-        
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const monthDiff = today.getMonth() - birthDate.getMonth();
-        
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        
-        const dateInput = document.getElementById('birthDate');
-        
-        if (age < 18) {
-            dateInput.setCustomValidity('You must be at least 18 years old');
-            dateInput.classList.add('is-invalid');
-            document.getElementById('birthDateFeedback').textContent = 'You must be at least 18 years old';
-            return false;
-        } else {
-            dateInput.setCustomValidity('');
-            dateInput.classList.remove('is-invalid');
-            return true;
-        }
-    }
 });
 </script>
 {% endblock %}

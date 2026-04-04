@@ -7,6 +7,12 @@
     .stats-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .coverage-note {
+        border-left: 4px solid #17a2b8;
+        background: #f3fbfd;
+        border-radius: 0.35rem;
+    }
     
     .stats-card:hover {
         transform: translateY(-2px);
@@ -98,7 +104,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="font-weight-bold mb-1">Community Users</h1>
-            <p class="text-muted mb-0">Manage registered community members</p>
+            <p class="text-muted mb-0">Manage registered residents across Laguna municipalities</p>
         </div>  
         <div class="d-flex gap-3">
             <a href="{{ url_for('admin.user_activity_logs') }}" class="btn btn-info">
@@ -107,6 +113,16 @@
             <a href="{{ url_for('admin.export_community_users') }}" class="btn btn-success">
                 <i class="fas fa-file-export mr-2"></i>Export to CSV
             </a>
+        </div>
+    </div>
+
+    <div class="coverage-note p-3 mb-4">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-map-marked-alt text-info mt-1 mr-2"></i>
+            <div>
+                <div class="font-weight-bold text-dark">Multi-Municipality Mode Enabled</div>
+                <small class="text-muted">Use Municipality and Barangay filters to manage users beyond Mabitac and support surrounding Laguna LGUs.</small>
+            </div>
         </div>
     </div>
 
@@ -196,13 +212,13 @@
         <div class="card-body">
             <form method="GET" action="{{ url_for('admin.community') }}">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-lg-4 col-md-6 mb-3">
                         <label class="small font-weight-bold">Search</label>
                         <input type="text" class="form-control" name="search" 
-                               placeholder="Name, email, mobile..." 
+                               placeholder="Name, email, mobile, barangay, municipality..." 
                                value="{{ request.args.get('search', '') }}">
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Status</label>
                         <select class="form-control" name="status">
                             <option value="">All Status</option>
@@ -212,7 +228,18 @@
                             <option value="solo_parent_verified" {% if request.args.get('status')=='solo_parent_verified' %}selected{% endif %}>Solo Parent Verified</option>
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="small font-weight-bold">Municipality</label>
+                        <select class="form-control" name="municipality">
+                            <option value="">All Municipalities</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}" {% if request.args.get('municipality')==municipality %}selected{% endif %}>
+                                {{ municipality }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Barangay</label>
                         <select class="form-control" name="barangay">
                             <option value="">All Barangays</option>
@@ -223,7 +250,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Date Range</label>
                         <select class="form-control" name="date_range">
                             <option value="">All Time</option>
@@ -233,10 +260,11 @@
                             <option value="year" {% if request.args.get('date_range')=='year' %}selected{% endif %}>This Year</option>
                         </select>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="small font-weight-bold">&nbsp;</label>
-                        <div class="d-flex">
-                            <button type="submit" class="btn btn-primary btn-block mr-2">
+                </div>
+                <div class="row">
+                    <div class="col-12 mb-2 text-md-right">
+                        <div class="d-inline-flex">
+                            <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fas fa-search mr-1"></i>Filter
                             </button>
                             <a href="{{ url_for('admin.community') }}" class="btn btn-secondary">
@@ -260,21 +288,21 @@
                 </button>
                 <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
                     <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
-                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='desc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='desc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
                         <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
                         {% if sort_by == 'date' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                     </a>
-                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='asc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='asc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
                         <i class="fas fa-arrow-up mr-2"></i>Oldest to Newest
                         {% if sort_by == 'date' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                     </a>
                     <div class="dropdown-divider"></div>
                     <h6 class="dropdown-header font-weight-bold">Sort by Name</h6>
-                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='asc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='asc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
                         <i class="fas fa-arrow-up mr-2"></i>A-Z
                         {% if sort_by == 'name' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                     </a>
-                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='desc', status=request.args.get('status', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='desc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
                         <i class="fas fa-arrow-down mr-2"></i>Z-A
                         {% if sort_by == 'name' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                     </a>
@@ -418,7 +446,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.prev_num, search=request.args.get('search', ''), employment=request.args.get('employment', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -428,7 +456,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.community', page=page_num, search=request.args.get('search', ''), employment=request.args.get('employment', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                                <a class="page-link" href="{{ url_for('admin.community', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -446,7 +474,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.next_num, search=request.args.get('search', ''), employment=request.args.get('employment', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

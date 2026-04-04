@@ -278,22 +278,35 @@
             </h5>
             
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 mb-3">
                     <label for="barangay" class="form-label {% if 'Barangay' in missing_fields %}missing-field-label{% endif %}">Barangay</label>
-                    <input type="text" class="form-control {% if 'Barangay' in missing_fields %}missing-field{% endif %}" id="barangay" name="barangay" 
-                           value="{{ profile.barangay or '' }}">
+                    {% set selected_municipality = profile.municipality if profile and profile.municipality else '' %}
+                    {% set selected_barangay = profile.barangay if profile and profile.barangay else '' %}
+                    <select class="form-control {% if 'Barangay' in missing_fields %}missing-field{% endif %}" id="barangay" name="barangay" required>
+                        <option value="">Select Barangay</option>
+                        {% if selected_municipality and municipality_barangays.get(selected_municipality) %}
+                            {% for barangay_option in municipality_barangays[selected_municipality] %}
+                            <option value="{{ barangay_option }}" {% if selected_barangay == barangay_option %}selected{% endif %}>{{ barangay_option }}</option>
+                            {% endfor %}
+                        {% endif %}
+                        {% if selected_barangay and (not selected_municipality or selected_barangay not in municipality_barangays.get(selected_municipality, [])) %}
+                        <option value="{{ selected_barangay }}" selected>{{ selected_barangay }} (Legacy)</option>
+                        {% endif %}
+                    </select>
+                    <small class="form-text text-muted">Select municipality first to load its barangays.</small>
                 </div>
-                
-                <div class="col-md-4 mb-3">
-                    <label for="sitio" class="form-label">Sitio</label>
-                    <input type="text" class="form-control" id="sitio" name="sitio" 
-                           value="{{ profile.sitio or '' }}">
-                </div>
-                
-                <div class="col-md-4 mb-3">
+
+                <div class="col-md-6 mb-3">
                     <label for="municipality" class="form-label {% if 'Municipality' in missing_fields %}missing-field-label{% endif %}">Municipality</label>
-                    <input type="text" class="form-control {% if 'Municipality' in missing_fields %}missing-field{% endif %}" id="municipality" name="municipality" 
-                           value="{{ profile.municipality or 'Mabitac' }}">
+                    <select class="form-control {% if 'Municipality' in missing_fields %}missing-field{% endif %}" id="municipality" name="municipality" required>
+                        <option value="">Select Municipality</option>
+                        {% for municipality_option in municipalities %}
+                        <option value="{{ municipality_option }}" {% if profile and profile.municipality == municipality_option %}selected{% endif %}>{{ municipality_option }}</option>
+                        {% endfor %}
+                        {% if profile and profile.municipality and profile.municipality not in municipalities %}
+                        <option value="{{ profile.municipality }}" selected>{{ profile.municipality }} (Legacy)</option>
+                        {% endif %}
+                    </select>
                 </div>
             </div>
             
@@ -577,6 +590,36 @@
     }
 
 $(document).ready(function() {
+    const municipalityBarangays = {{ municipality_barangays | tojson }};
+    const municipalitySelect = $('#municipality');
+    const barangaySelect = $('#barangay');
+    const initialBarangay = barangaySelect.val();
+
+    function renderBarangays(municipality, selectedBarangay) {
+        barangaySelect.empty();
+        barangaySelect.append(new Option('Select Barangay', ''));
+
+        if (!municipality || !municipalityBarangays[municipality]) {
+            return;
+        }
+
+        municipalityBarangays[municipality].forEach(function(brgy) {
+            const option = new Option(brgy, brgy);
+            if (selectedBarangay && selectedBarangay === brgy) {
+                option.selected = true;
+            }
+            barangaySelect.append(option);
+        });
+    }
+
+    if (municipalitySelect.val()) {
+        renderBarangays(municipalitySelect.val(), initialBarangay);
+    }
+
+    municipalitySelect.on('change', function() {
+        renderBarangays($(this).val(), '');
+    });
+
     // Show/hide disability type field based on PWD checkbox
     $('#is_pwd').change(function() {
         if ($(this).is(':checked')) {
@@ -607,6 +650,22 @@ $(document).ready(function() {
         if (!$('#family_annual_income').val().trim()) {
             alert('Family Annual Income is required. Please select an income range');
             isValid = false;
+        }
+
+        const selectedMunicipality = municipalitySelect.val();
+        const selectedBarangay = barangaySelect.val();
+
+        if (selectedBarangay && !selectedMunicipality) {
+            alert('Please select a municipality before selecting a barangay.');
+            isValid = false;
+        }
+
+        if (selectedMunicipality && selectedBarangay) {
+            const validBarangays = municipalityBarangays[selectedMunicipality] || [];
+            if (validBarangays.indexOf(selectedBarangay) === -1) {
+                alert('Selected barangay is not valid for the chosen municipality.');
+                isValid = false;
+            }
         }
         
         if (!isValid) {

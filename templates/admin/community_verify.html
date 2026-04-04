@@ -6,6 +6,12 @@
     .stats-card {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+
+    .coverage-note {
+        border-left: 4px solid #17a2b8;
+        background: #f3fbfd;
+        border-radius: 0.35rem;
+    }
     
     .stats-card:hover {
         transform: translateY(-2px);
@@ -114,7 +120,17 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="font-weight-bold mb-1">Verification Requests</h1>
-            <p class="text-muted mb-0">Review and process Senior Citizen, PWD, and Solo Parent verification requests</p>
+            <p class="text-muted mb-0">Review and process requests across Laguna municipalities</p>
+        </div>
+    </div>
+
+    <div class="coverage-note p-3 mb-4">
+        <div class="d-flex align-items-start">
+            <i class="fas fa-map-marked-alt text-info mt-1 mr-2"></i>
+            <div>
+                <div class="font-weight-bold text-dark">Laguna-Wide Verification Queue</div>
+                <small class="text-muted">Filter by municipality and barangay to process requests for each LGU service area.</small>
+            </div>
         </div>
     </div>
 
@@ -212,13 +228,13 @@
         <div class="card-body">
             <form method="GET" action="{{ url_for('admin.community_verify') }}">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-lg-4 col-md-6 mb-3">
                         <label class="small font-weight-bold">Search</label>
                         <input type="text" class="form-control" name="search" 
-                               placeholder="Name, email, barangay..." 
+                               placeholder="Name, email, barangay, municipality..." 
                                value="{{ request.args.get('search', '') }}">
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Verification Type</label>
                         <select class="form-control" name="type">
                             <option value="">All Types</option>
@@ -227,7 +243,7 @@
                             <option value="solo_parent" {% if request.args.get('type')=='solo_parent' %}selected{% endif %}>Solo Parent</option>
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Status</label>
                         <select class="form-control" name="status">
                             <option value="">All Status</option>
@@ -236,7 +252,18 @@
                             <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>Rejected</option>
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="small font-weight-bold">Municipality</label>
+                        <select class="form-control" name="municipality">
+                            <option value="">All Municipalities</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}" {% if request.args.get('municipality')==municipality %}selected{% endif %}>
+                                {{ municipality }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 mb-3">
                         <label class="small font-weight-bold">Barangay</label>
                         <select class="form-control" name="barangay">
                             <option value="">All Barangays</option>
@@ -247,10 +274,11 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="small font-weight-bold">&nbsp;</label>
-                        <div class="d-flex">
-                            <button type="submit" class="btn btn-primary btn-block mr-2">
+                </div>
+                <div class="row">
+                    <div class="col-12 mb-2 text-md-right">
+                        <div class="d-inline-flex">
+                            <button type="submit" class="btn btn-primary mr-2">
                                 <i class="fas fa-search mr-1"></i>Filter
                             </button>
                             <a href="{{ url_for('admin.community_verify') }}" class="btn btn-secondary">
@@ -429,7 +457,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.prev_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.prev_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', '')) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -439,7 +467,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.community_verify', page=page_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                                <a class="page-link" href="{{ url_for('admin.community_verify', page=page_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', '')) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -457,7 +485,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.next_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), barangay=request.args.get('barangay', '')) }}">
+                        <a class="page-link" href="{{ url_for('admin.community_verify', page=pagination.next_num, search=request.args.get('search', ''), type=request.args.get('type', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', '')) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>

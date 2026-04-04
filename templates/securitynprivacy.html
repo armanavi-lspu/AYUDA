@@ -3,131 +3,192 @@
 
 {% block styles %}
 <style>
-    body {
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    :root {
+        --ink: #1f2a37;
+        --laguna-navy: #10315f;
+        --laguna-blue: #255fa5;
+        --laguna-cyan: #1c8b86;
+        --laguna-gold: #f2b632;
+        --panel: #f5f9ff;
+    }
+
+    .privacy-shell {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 10% 14%, rgba(37, 95, 165, 0.14), transparent 40%),
+            radial-gradient(circle at 86% 18%, rgba(242, 182, 50, 0.14), transparent 40%),
+            linear-gradient(180deg, #ffffff 0%, #f7fbff 42%, #ffffff 100%);
     }
 
     .hero-section {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
-        color: white;
+        min-height: 72vh;
+        color: #ffffff;
         position: relative;
-        overflow: hidden;
+        display: flex;
+        align-items: center;
+        background:
+            linear-gradient(120deg, rgba(16, 49, 95, 0.94) 0%, rgba(37, 95, 165, 0.9) 58%, rgba(28, 139, 134, 0.82) 100%),
+            url('{{ url_for('static', filename='images/hero-bg.png') }}') center/cover no-repeat;
     }
-    
-    /* Hero background with fixed image */
-    .hero-section.has-bg {
-        background: 
-            linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), 
-            linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
+
+    .hero-section::before,
+    .hero-section::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
     }
 
     .hero-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        width: 220px;
+        height: 220px;
+        top: 70px;
+        right: -60px;
+        background: rgba(242, 182, 50, 0.2);
+    }
+
+    .hero-section::after {
+        width: 180px;
+        height: 180px;
+        left: -62px;
+        bottom: 42px;
+        background: rgba(255, 255, 255, 0.17);
+    }
+
+    .hero-body {
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-eyebrow {
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: #d8e9ff;
+    }
+
+    .hero-title {
+        font-size: clamp(2rem, 4vw, 3.3rem);
+        line-height: 1.15;
+        font-weight: 800;
+        margin: 0.8rem 0 1rem;
+    }
+
+    .hero-copy {
+        color: rgba(255, 255, 255, 0.9);
+        max-width: 680px;
+        line-height: 1.7;
+        font-size: 1.05rem;
+    }
+
+    .security-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        padding: 0.45rem 0.9rem;
+        margin: 0 0.45rem 0.6rem 0;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .section-wrap {
+        padding: 4.2rem 0;
+    }
+
+    .section-title {
+        color: var(--ink);
+        font-size: clamp(1.5rem, 3vw, 2.4rem);
+        font-weight: 800;
+        margin-bottom: 0.9rem;
+    }
+
+    .section-copy {
+        color: #4f5b6a;
+        max-width: 780px;
+        margin: 0 auto;
     }
 
     .security-card {
-        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        border: none;
-        border-radius: 20px;
-        padding: 2.5rem;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        transition: all 0.4s ease;
-        position: relative;
-        overflow: hidden;
         height: 100%;
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        position: relative;
+        background: #ffffff;
+        box-shadow: 0 12px 28px rgba(16, 49, 95, 0.09);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .security-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 35px rgba(16, 49, 95, 0.14);
     }
 
     .security-card::before {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--accent-color, #4f46e5), var(--accent-secondary, #7c3aed));
+        height: 6px;
+        background: linear-gradient(90deg, var(--tone-a), var(--tone-b));
     }
 
-    .security-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-    }
-
-    .security-card.data-protection { --accent-color: #4f46e5; --accent-secondary: #6366f1; }
-    .security-card.encryption { --accent-color: #059669; --accent-secondary: #10b981; }
-    .security-card.compliance { --accent-color: #dc2626; --accent-secondary: #ef4444; }
-    .security-card.access-control { --accent-color: #d97706; --accent-secondary: #f59e0b; }
+    .tone-password { --tone-a: #274d95; --tone-b: #3f73d2; }
+    .tone-access { --tone-a: #d28020; --tone-b: #f3b14f; }
+    .tone-audit { --tone-a: #9a2a37; --tone-b: #d44e59; }
+    .tone-input { --tone-a: #14738d; --tone-b: #28a2b8; }
 
     .security-icon {
-        width: 80px;
-        height: 80px;
-        border-radius: 20px;
-        display: flex;
+        width: 62px;
+        height: 62px;
+        border-radius: 14px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 1.5rem;
-        transition: transform 0.3s ease;
-        color: white;
-        font-size: 2rem;
+        color: #ffffff;
+        font-size: 1.45rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--tone-a), var(--tone-b));
     }
-
-    .security-card:hover .security-icon {
-        transform: rotate(5deg) scale(1.1);
-    }
-
-    .data-protection .security-icon { background: linear-gradient(135deg, #4f46e5, #6366f1); }
-    .encryption .security-icon { background: linear-gradient(135deg, #059669, #10b981); }
-    .compliance .security-icon { background: linear-gradient(135deg, #dc2626, #ef4444); }
-    .access-control .security-icon { background: linear-gradient(135deg, #d97706, #f59e0b); }
 
     .privacy-section {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        position: relative;
+        background: var(--panel);
+        border: 1px solid #d7e8fb;
+        border-radius: 16px;
+        padding: 1.25rem;
     }
 
     .privacy-principle {
-        background: white;
-        padding: 2rem;
-        border-radius: 15px;
-        border-left: 4px solid var(--principle-color, #4f46e5);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        margin-bottom: 1.5rem;
-        transition: transform 0.3s ease;
+        background: #ffffff;
+        border: 1px solid #e1edf9;
+        border-left: 4px solid var(--principle-color, #255fa5);
+        border-radius: 14px;
+        padding: 1.05rem;
+        margin-bottom: 0.85rem;
     }
-
-    .privacy-principle:hover {
-        transform: translateX(10px);
-    }
-
-    .privacy-principle:nth-child(1) { --principle-color: #4f46e5; }
-    .privacy-principle:nth-child(2) { --principle-color: #059669; }
-    .privacy-principle:nth-child(3) { --principle-color: #dc2626; }
-    .privacy-principle:nth-child(4) { --principle-color: #d97706; }
-    .privacy-principle:nth-child(5) { --principle-color: #7c3aed; }
 
     .animate-on-scroll {
         opacity: 0;
-        transform: translateY(30px);
-        transition: all 0.6s ease;
+        transform: translateY(22px);
+        transition: opacity 0.55s ease, transform 0.55s ease;
     }
-    
+
     .animate-on-scroll.animated {
         opacity: 1;
         transform: translateY(0);
     }
 
     .contact-section {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);
-        color: white;
-        border-radius: 30px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #124282 0%, #1c6aa8 50%, #1c8b86 100%);
+        color: #ffffff;
         position: relative;
         overflow: hidden;
     }
@@ -141,89 +202,186 @@
         height: 200%;
         background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
         border-radius: 50%;
-        animation: float 6s ease-in-out infinite;
-    }
-
-    @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-20px) rotate(3deg); }
     }
 
     .btn-outline-light-custom {
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        color: white;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 50px;
-        padding: 12px 30px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        padding: 0.7rem 1.35rem;
+        font-weight: 700;
         text-decoration: none;
+        transition: all 0.2s ease;
     }
 
     .btn-outline-light-custom:hover {
-        background: white;
-        color: #4f46e5;
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(255, 255, 255, 0.3);
+        background: #ffffff;
+        color: #124282;
+        text-decoration: none;
     }
 
-    .security-badge {
-        display: inline-flex;
-        align-items: center;
-        background: rgba(79, 70, 229, 0.1);
-        color: #4f46e5;
-        padding: 8px 16px;
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin: 5px;
-        border: 2px solid rgba(79, 70, 229, 0.2);
-    }
-
-    @media (max-width: 768px) {
-        .security-card {
-            margin-bottom: 2rem;
-        }
-        
-        .privacy-principle {
-            margin-bottom: 1rem;
+    @media (max-width: 991.98px) {
+        .hero-section {
+            min-height: auto;
+            padding: 4.5rem 0;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<section class="hero-section has-bg py-5 mb-5" 
-         style="background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.3)), url('{{ url_for('static', filename='images/hero-bg.png') }}');">
-    <div class="container position-relative">
-        <div class="row align-items-center">
-            <div class="col-lg-8">
-                <h1 class="display-4 font-weight-bold mb-3">Security & Privacy</h1>
-                <p class="lead mb-4">
-                    Your data security and privacy are our highest priorities. We implement comprehensive measures to protect your personal information and ensure complete confidentiality in all our services.
-                </p>
-                <div class="d-flex flex-wrap">
-                    <span class="security-badge me-2 mb-2">
-                        <i class="fas fa-shield-alt me-2"></i>256-bit Encryption
-                    </span>
-                    <span class="security-badge me-2 mb-2">
-                        <i class="fas fa-lock me-2"></i>HTTPS Secured
-                    </span>
-                    <span class="security-badge me-2 mb-2">
-                        <i class="fas fa-check-circle me-2"></i>ISO 27001 Compliant
-                    </span>
-                    <span class="security-badge me-2 mb-2">
-                        <i class="fas fa-user-shield me-2"></i>GDPR Ready
-                    </span>
+<div class="privacy-shell">
+    <section class="hero-section">
+        <div class="container hero-body">
+            <div class="row align-items-center">
+                <div class="col-lg-8 mb-4 mb-lg-0">
+                    <div class="hero-eyebrow">Security and Privacy Tab</div>
+                    <h1 class="hero-title">Security & Privacy in AYUDA</h1>
+                    <p class="hero-copy mb-4">
+                        AYUDA protects applicant records used in financial assistance workflows. The controls listed below are based on features currently implemented in the system.
+                    </p>
+                    <div>
+                        <span class="security-badge"><i class="fas fa-key mr-2"></i>Password Hashing</span>
+                        <span class="security-badge"><i class="fas fa-user-lock mr-2"></i>Role-Based Access</span>
+                        <span class="security-badge"><i class="fas fa-history mr-2"></i>Activity Logs</span>
+                        <span class="security-badge"><i class="fas fa-file-upload mr-2"></i>Upload Validation</span>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center">
+                    <i class="fas fa-shield-alt" style="font-size: 7rem; opacity: 0.35;"></i>
                 </div>
             </div>
-            <div class="col-lg-4 text-center">
-                <i class="fas fa-shield-alt" style="font-size: 8rem; opacity: 0.3;"></i>
+        </div>
+    </section>
+
+    <section class="section-wrap">
+        <div class="container">
+            <div class="text-center mb-5 animate-on-scroll">
+                <h2 class="section-title">Implemented Security Controls</h2>
+                <p class="section-copy">These controls are based on current application behavior and code-level implementation.</p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="security-card tone-password">
+                        <div class="p-4">
+                            <div class="security-icon">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <h4 class="font-weight-bold mb-2">Password Protection</h4>
+                            <p class="text-muted mb-0">User and admin passwords are hashed with PBKDF2 via Werkzeug instead of being stored in plain text.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="security-card tone-access">
+                        <div class="p-4">
+                            <div class="security-icon">
+                                <i class="fas fa-user-lock"></i>
+                            </div>
+                            <h4 class="font-weight-bold mb-2">Access Control</h4>
+                            <p class="text-muted mb-0">Protected routes require authenticated sessions, and role checks restrict admin-only operations.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="security-card tone-audit">
+                        <div class="p-4">
+                            <div class="security-icon">
+                                <i class="fas fa-clipboard-list"></i>
+                            </div>
+                            <h4 class="font-weight-bold mb-2">Audit and Traceability</h4>
+                            <p class="text-muted mb-0">The system logs key actions such as logins, profile updates, uploads, verification decisions, and status updates.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="security-card tone-input">
+                        <div class="p-4">
+                            <div class="security-icon">
+                                <i class="fas fa-file-upload"></i>
+                            </div>
+                            <h4 class="font-weight-bold mb-2">Input and Upload Safeguards</h4>
+                            <p class="text-muted mb-0">Uploads use sanitized filenames and extension checks, while forms include validation such as required fields and password rules.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
+
+    <section class="section-wrap pt-0">
+        <div class="container">
+            <div class="privacy-section animate-on-scroll mb-4">
+                <div class="text-center mb-4">
+                    <h2 class="section-title mb-2">Privacy Commitments</h2>
+                    <p class="section-copy mb-0">AYUDA uses personal data to support fair and timely financial assistance processing.</p>
+                </div>
+
+                <div class="privacy-principle" style="--principle-color:#255fa5;">
+                    <h6 class="font-weight-bold mb-1"><i class="fas fa-bullseye mr-2 text-primary"></i>Purpose Limitation</h6>
+                    <p class="text-muted mb-0">Personal data is collected to assess eligibility, process applications, track status, and generate financial assistance reports.</p>
+                </div>
+
+                <div class="privacy-principle" style="--principle-color:#1c8b86;">
+                    <h6 class="font-weight-bold mb-1"><i class="fas fa-database mr-2 text-success"></i>Data Minimization</h6>
+                    <p class="text-muted mb-0">The platform focuses on profile, eligibility, and application information required for decision support.</p>
+                </div>
+
+                <div class="privacy-principle" style="--principle-color:#b44855;">
+                    <h6 class="font-weight-bold mb-1"><i class="fas fa-eye mr-2 text-danger"></i>Transparent Processing</h6>
+                    <p class="text-muted mb-0">Applicants receive status updates, while administrators can review logs and decision history.</p>
+                </div>
+
+                <div class="privacy-principle" style="--principle-color:#d28020;">
+                    <h6 class="font-weight-bold mb-1"><i class="fas fa-user-check mr-2 text-warning"></i>Role-Limited Access</h6>
+                    <p class="text-muted mb-0">Sensitive operations are restricted through authentication and role checks for community and admin users.</p>
+                </div>
+
+                <div class="privacy-principle mb-0" style="--principle-color:#6f42c1;">
+                    <h6 class="font-weight-bold mb-1"><i class="fas fa-network-wired mr-2" style="color:#6f42c1;"></i>Deployment Responsibility</h6>
+                    <p class="text-muted mb-0">Server-level controls such as HTTPS and infrastructure hardening depend on the deployment environment managed by the implementing office.</p>
+                </div>
+            </div>
+
+            <div class="contact-section p-5 animate-on-scroll mb-2">
+                <div class="row align-items-center">
+                    <div class="col-lg-8 mb-3 mb-lg-0">
+                        <h3 class="font-weight-bold mb-2">Questions About Security or Privacy?</h3>
+                        <p class="mb-0" style="opacity:0.92;">For privacy concerns, data correction requests, or account issues, coordinate with your local MSWD office or system administrator.</p>
+                    </div>
+                    <div class="col-lg-4 text-lg-right">
+                        <a href="{{ url_for('auth.login') }}" class="btn-outline-light-custom">
+                            <i class="fas fa-lock mr-2"></i>Go to Secure Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animated');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+        observer.observe(el);
+    });
+});
+</script>
 
 {% endblock %}
