@@ -5,6 +5,12 @@ from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
 from ..utils import redirect_user_by_role
 from ..user_activity_logger import log_login, log_logout
+from ..location_options import (
+    MUNICIPALITY_BARANGAYS,
+    get_municipalities,
+    is_valid_barangay,
+    is_valid_municipality,
+)
 from datetime import datetime, date
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -111,9 +117,13 @@ def sign_up():
         elif not gender:
             flash('Please select your gender.', category='error')
         elif not municipality:
-            flash('Please enter your municipality.', category='error')
+            flash('Please select your municipality.', category='error')
         elif not barangay:
-            flash('Please enter your barangay.', category='error')
+            flash('Please select your barangay.', category='error')
+        elif not is_valid_municipality(municipality):
+            flash('Please select a valid municipality from the dropdown list.', category='error')
+        elif not is_valid_barangay(municipality, barangay):
+            flash('Selected barangay does not belong to the chosen municipality.', category='error')
         elif not address:
             flash('Please enter your address.', category='error')
         elif password != confirmPassword:
@@ -130,7 +140,12 @@ def sign_up():
                 # Check if user is at least 18 years old
                 if age < 18:
                     flash('You must be at least 18 years old to register.', category='error')
-                    return render_template("auth/sign_up.html", user=current_user)
+                    return render_template(
+                        "auth/sign_up.html",
+                        user=current_user,
+                        municipalities=get_municipalities(),
+                        municipality_barangays=MUNICIPALITY_BARANGAYS
+                    )
                 
                 # Create User account
                 new_user = User(
@@ -172,7 +187,12 @@ def sign_up():
                 db.session.rollback()
                 flash(f'An error occurred while creating your account: {str(e)}', category='error')
     
-    return render_template("auth/sign_up.html", user=current_user)
+    return render_template(
+        "auth/sign_up.html",
+        user=current_user,
+        municipalities=get_municipalities(),
+        municipality_barangays=MUNICIPALITY_BARANGAYS
+    )
 
 @auth_bp.route('/logout')
 @login_required

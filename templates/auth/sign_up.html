@@ -189,6 +189,49 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <h5 class="section-title">Location Information</h5>
+                            <div class="section-panel">
+                                {% set selected_municipality = request.form.get('municipality', '') %}
+                                {% set selected_barangay = request.form.get('barangay', '') %}
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="municipality" class="required-field">Municipality</label>
+                                        <select class="custom-select" id="municipality" name="municipality" required>
+                                            <option value="">Select Municipality</option>
+                                            {% for municipality_option in municipalities %}
+                                            <option value="{{ municipality_option }}" {% if selected_municipality == municipality_option %}selected{% endif %}>{{ municipality_option }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="invalid-feedback">Please select your municipality.</div>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="barangay" class="required-field">Barangay</label>
+                                        <select class="custom-select" id="barangay" name="barangay" required>
+                                            <option value="">Select Barangay</option>
+                                            {% if selected_municipality and municipality_barangays.get(selected_municipality) %}
+                                                {% for barangay_option in municipality_barangays[selected_municipality] %}
+                                                <option value="{{ barangay_option }}" {% if selected_barangay == barangay_option %}selected{% endif %}>{{ barangay_option }}</option>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </select>
+                                        <div class="invalid-feedback">Please select your barangay.</div>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="address" class="required-field">Address</label>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="address"
+                                        name="address"
+                                        value="{{ request.form.get('address', '') }}"
+                                        placeholder="House number, street, and sitio"
+                                        required
+                                    >
+                                    <div class="invalid-feedback">Please provide your address.</div>
+                                </div>
+                            </div>
 
                             <h5 class="section-title">Account Information</h5>
                             <div class="section-panel">
@@ -250,47 +293,7 @@
                                 </div>
                             </div>
 
-                            <h5 class="section-title">Location Information</h5>
-                            <div class="section-panel">
-                                <div class="form-row">
-                                    <div class="form-group col-md-6">
-                                        <label for="municipality" class="required-field">Municipality</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="municipality"
-                                            name="municipality"
-                                            placeholder="e.g., Mabitac"
-                                            required
-                                        >
-                                        <div class="invalid-feedback">Please provide your municipality.</div>
-                                    </div>
-                                    <div class="form-group col-md-6">
-                                        <label for="barangay" class="required-field">Barangay</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="barangay"
-                                            name="barangay"
-                                            placeholder="e.g., Pag-Asa"
-                                            required
-                                        >
-                                        <div class="invalid-feedback">Please provide your barangay.</div>
-                                    </div>
-                                </div>
-                                <div class="form-group mb-0">
-                                    <label for="address" class="required-field">Address</label>
-                                    <input
-                                        type="text"
-                                        class="form-control"
-                                        id="address"
-                                        name="address"
-                                        placeholder="House number, street, and sitio"
-                                        required
-                                    >
-                                    <div class="invalid-feedback">Please provide your address.</div>
-                                </div>
-                            </div>
+                            
 
                             <button type="submit" class="btn btn-create btn-block mt-2">
                                 <i class="fas fa-check mr-2"></i>Create Account
@@ -318,6 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const municipalityInput = document.getElementById('municipality');
     const barangayInput = document.getElementById('barangay');
     const addressInput = document.getElementById('address');
+    const municipalityBarangays = JSON.parse('{{ municipality_barangays | tojson | safe }}');
 
     function setupToggle(buttonId, inputId, iconId) {
         const button = document.getElementById(buttonId);
@@ -374,6 +378,26 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    function renderBarangays(municipality, selectedBarangay) {
+        barangayInput.innerHTML = '';
+        barangayInput.append(new Option('Select Barangay', ''));
+
+        if (!municipality || !municipalityBarangays[municipality]) {
+            barangayInput.disabled = true;
+            return;
+        }
+
+        municipalityBarangays[municipality].forEach(function(barangayName) {
+            const option = new Option(barangayName, barangayName);
+            if (selectedBarangay && selectedBarangay === barangayName) {
+                option.selected = true;
+            }
+            barangayInput.append(option);
+        });
+
+        barangayInput.disabled = false;
+    }
+
     setupToggle('togglePassword', 'password', 'passwordIcon');
     setupToggle('toggleConfirmPassword', 'confirmPassword', 'confirmPasswordIcon');
 
@@ -384,11 +408,15 @@ document.addEventListener('DOMContentLoaded', function() {
         emailInput.value = emailInput.value.trim().toLowerCase();
     });
 
+    renderBarangays(municipalityInput.value, barangayInput.value);
+
+    municipalityInput.addEventListener('change', function() {
+        renderBarangays(municipalityInput.value, '');
+    });
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         emailInput.value = emailInput.value.trim().toLowerCase();
-        municipalityInput.value = municipalityInput.value.trim();
-        barangayInput.value = barangayInput.value.trim();
         addressInput.value = addressInput.value.trim();
 
         const isAgeValid = validateAge();
