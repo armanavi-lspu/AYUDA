@@ -299,8 +299,19 @@ def edit_profile():
                 
                 # Calculate age from birth date
                 if community_profile.birth_year:
-                    current_year = datetime.now().year
-                    community_profile.age = current_year - int(community_profile.birth_year)
+                    try:
+                        birth_year = int(community_profile.birth_year)
+                        birth_month = int(community_profile.birth_month) if community_profile.birth_month else 1
+                        birth_day = int(community_profile.birth_day) if community_profile.birth_day else 1
+
+                        birth_date = datetime(birth_year, birth_month, birth_day).date()
+                        today = datetime.now().date()
+                        community_profile.age = today.year - birth_date.year - (
+                            (today.month, today.day) < (birth_date.month, birth_date.day)
+                        )
+                    except (TypeError, ValueError):
+                        # Keep current age if birth date components are invalid.
+                        pass
             
             # Log profile edit
             log_profile_edit()

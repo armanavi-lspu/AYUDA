@@ -219,6 +219,10 @@
                                                 <small class="text-muted">
                                                     <i class="fas fa-envelope mr-1"></i>{{ admin.email }}
                                                 </small>
+                                                <br>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-map-marker-alt mr-1"></i>{{ admin.municipality }}
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -424,6 +428,16 @@
                         <input type="text" class="form-control" name="last_name" 
                                placeholder="Doe" required>
                     </div>
+
+                    <div class="form-group">
+                        <label>Municipality <span class="text-danger">*</span></label>
+                        <select class="form-control" name="municipality" required>
+                            <option value="">Select Municipality</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}">{{ municipality }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
@@ -475,6 +489,19 @@
                         <label>Last Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" name="last_name" 
                                value="{{ admin.last_name }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Municipality <span class="text-danger">*</span></label>
+                        <select class="form-control" name="municipality" required>
+                            <option value="">Select Municipality</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}" {% if admin.admin_profile and admin.admin_profile.municipality == municipality %}selected{% endif %}>{{ municipality }}</option>
+                            {% endfor %}
+                            {% if admin.admin_profile and admin.admin_profile.municipality and admin.admin_profile.municipality not in municipalities %}
+                            <option value="{{ admin.admin_profile.municipality }}" selected>{{ admin.admin_profile.municipality }} (Legacy)</option>
+                            {% endif %}
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">

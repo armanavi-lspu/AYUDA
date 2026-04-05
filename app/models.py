@@ -625,6 +625,7 @@ class AdminUsers(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    municipality = db.Column(db.String(100), index=True)
     created_at = db.Column(db.DateTime, default=get_utc_now)
     
     def __repr__(self):

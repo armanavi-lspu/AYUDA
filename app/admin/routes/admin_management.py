@@ -13,6 +13,7 @@ from app.models import User, AdminUsers, Notifications, Applications, Programs, 
 from app.extensions import db
 from app.utils import role_required
 from app.activity_logger import log_admin_management
+from app.location_options import get_municipalities, is_valid_municipality
 
 @admin_bp.route('/admin_management')
 @login_required
@@ -34,7 +35,8 @@ def admin_management():
         search_filter = or_(
             User.first_name.contains(search),
             User.last_name.contains(search),
-            User.email.contains(search)
+            User.email.contains(search),
+            User.admin_profile.has(AdminUsers.municipality.ilike(f'%{search}%'))
         )
         query = query.filter(search_filter)
     
@@ -82,6 +84,7 @@ def admin_management():
         admin.programs_created = Programs.query.filter_by(user_id=admin.id).count()
         admin.announcements_created = Announcements.query.filter_by(author_id=admin.id).count()
         admin.applications_reviewed = Applications.query.filter_by(reviewed_by=admin.id).count()
+        admin.municipality = admin.admin_profile.municipality if admin.admin_profile and admin.admin_profile.municipality else 'Not set'
     
     # Get recent activity logs from database
     recent_activities = get_recent_admin_activities(limit=20)
@@ -94,6 +97,7 @@ def admin_management():
         active_admins=active_admins,
         new_this_month=new_this_month,
         recent_activities=recent_activities,
+        municipalities=get_municipalities(),
         user=current_user
     )
 
@@ -106,10 +110,15 @@ def add_admin():
     first_name = request.form.get('first_name', '').strip()
     middle_name = request.form.get('middle_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
+    municipality = request.form.get('municipality', '').strip()
     
     # Validation
-    if not email or not first_name or not last_name:
-        flash('Email, first name, and last name are required.', 'danger')
+    if not email or not first_name or not last_name or not municipality:
+        flash('Email, first name, last name, and municipality are required.', 'danger')
+        return redirect(url_for('admin.admin_management'))
+
+    if not is_valid_municipality(municipality):
+        flash('Please select a valid municipality.', 'danger')
         return redirect(url_for('admin.admin_management'))
     
     # Check if email already exists
@@ -138,6 +147,7 @@ def add_admin():
         # Create admin profile
         admin_profile = AdminUsers(
             user_id=new_admin.id,
+            municipality=municipality,
             created_at=datetime.utcnow()
         )
         db.session.add(admin_profile)
@@ -184,10 +194,15 @@ def edit_admin(admin_id):
     middle_name = request.form.get('middle_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
     email = request.form.get('email', '').strip().lower()
+    municipality = request.form.get('municipality', '').strip()
     
     # Validation
-    if not first_name or not last_name or not email:
-        flash('First name, last name, and email are required.', 'danger')
+    if not first_name or not last_name or not email or not municipality:
+        flash('First name, last name, email, and municipality are required.', 'danger')
+        return redirect(url_for('admin.admin_management'))
+
+    if not is_valid_municipality(municipality):
+        flash('Please select a valid municipality.', 'danger')
         return redirect(url_for('admin.admin_management'))
     
     # Check if email is taken by another user
@@ -203,6 +218,10 @@ def edit_admin(admin_id):
         admin_user.middle_name = middle_name
         admin_user.last_name = last_name
         admin_user.email = email
+
+        if not admin_user.admin_profile:
+            admin_user.admin_profile = AdminUsers(user_id=admin_user.id, created_at=datetime.utcnow())
+        admin_user.admin_profile.municipality = municipality
         
         db.session.commit()
         

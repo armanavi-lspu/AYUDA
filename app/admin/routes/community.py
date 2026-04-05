@@ -222,9 +222,9 @@ def reset_user_password(user_id):
         # Create notification for user
         notification = Notifications(
             user_id=user_id,
-            title='Password Reset',
-            message=f'Your password has been reset by an administrator. Your new temporary password has been sent to your registered email. Please change it after logging in.',
-            notification_type='system',
+            notif_title='Password Reset',
+            notif_message='Your password has been reset by an administrator. Your new temporary password has been sent to your registered email. Please change it after logging in.',
+            related_type='profile',
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
@@ -257,11 +257,12 @@ def toggle_user_status(user_id):
             # For now, we'll just create a notification
             notification = Notifications(
                 user_id=user_id,
-                title='Account Restricted',
-                message='Your account has been restricted by an administrator. Please contact support for more information.',
-                notification_type='system',
+                notif_title='Account Restricted',
+                notif_message='Your account has been restricted by an administrator. Please contact support for more information.',
+                related_type='profile',
                 created_at=datetime.utcnow()
             )
+            db.session.add(notification)
             db.session.commit()
             
             flash(f'Account disabled for {community_user.first_name} {community_user.last_name}.', 'warning')
@@ -272,11 +273,12 @@ def toggle_user_status(user_id):
         else:
             notification = Notifications(
                 user_id=user_id,
-                title='Account Restored',
-                message='Your account has been restored by an administrator. You can now access all features.',
-                notification_type='system',
+                notif_title='Account Restored',
+                notif_message='Your account has been restored by an administrator. You can now access all features.',
+                related_type='profile',
                 created_at=datetime.utcnow()
             )
+            db.session.add(notification)
             db.session.commit()
             
             flash(f'Account enabled for {community_user.first_name} {community_user.last_name}.', 'success')

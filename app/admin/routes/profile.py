@@ -7,9 +7,10 @@ import os
 import json
 
 from app.admin import admin_bp
-from app.models import User, AdminActivityLog, Applications, Programs, Announcements
+from app.models import User, AdminUsers, AdminActivityLog, Applications, Programs, Announcements
 from app.extensions import db
 from app.utils import role_required
+from app.location_options import get_municipalities, is_valid_municipality
 
 PROFILE_UPLOAD_FOLDER = 'static/uploads/profile_pics'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -24,6 +25,11 @@ def allowed_file(filename):
 @role_required('admin')
 def admin_profile():
     """Display admin profile & settings page."""
+    if not current_user.admin_profile:
+        current_user.admin_profile = AdminUsers(user_id=current_user.id, created_at=datetime.utcnow())
+        db.session.add(current_user)
+        db.session.commit()
+
     # Stats for this admin
     programs_created = Programs.query.filter_by(user_id=current_user.id).count()
     announcements_created = Announcements.query.filter_by(author_id=current_user.id).count()
@@ -40,7 +46,8 @@ def admin_profile():
         programs_created=programs_created,
         announcements_created=announcements_created,
         applications_reviewed=applications_reviewed,
-        recent_logs=recent_logs
+        recent_logs=recent_logs,
+        municipalities=get_municipalities()
     )
 
 
@@ -52,14 +59,23 @@ def update_admin_profile():
     first_name = request.form.get('first_name', '').strip()
     middle_name = request.form.get('middle_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
+    municipality = request.form.get('municipality', '').strip()
 
-    if not first_name or not last_name:
-        flash('First name and last name are required.', 'danger')
+    if not first_name or not last_name or not municipality:
+        flash('First name, last name, and municipality are required.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
+    if not is_valid_municipality(municipality):
+        flash('Please select a valid municipality.', 'danger')
         return redirect(url_for('admin.admin_profile'))
 
     current_user.first_name = first_name
     current_user.middle_name = middle_name
     current_user.last_name = last_name
+
+    if not current_user.admin_profile:
+        current_user.admin_profile = AdminUsers(user_id=current_user.id, created_at=datetime.utcnow())
+    current_user.admin_profile.municipality = municipality
 
     db.session.commit()
     flash('Profile updated successfully.', 'success')
