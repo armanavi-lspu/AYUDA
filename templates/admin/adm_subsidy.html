@@ -582,6 +582,17 @@
                                         >
                                             <i class="fas fa-eye mr-1"></i>View
                                         </button>
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-success quick-complete-request-btn ml-1 {% if req.status_key != 'approved' %}disabled{% endif %}"
+                                            data-complete-url="{{ url_for('admin.complete_subsidy_request', request_id=req.id) }}"
+                                            data-requester-name="{{ req.requester_name|e }}"
+                                            data-category-name="{{ req.category_name|e }}"
+                                            {% if req.status_key != 'approved' %}disabled{% endif %}
+                                            title="{% if req.status_key == 'approved' %}Complete and add to subsidy list{% else %}Available when status is Approved{% endif %}"
+                                        >
+                                            <i class="fas fa-check"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -811,9 +822,9 @@
 
                     <form id="subsidyRequestCompleteForm" method="POST" class="mt-2">
                         <button type="submit" id="completeSubsidyRequestBtn" class="btn btn-success btn-sm" disabled>
-                            <i class="fas fa-check-circle mr-1"></i>Complete Application
+                            <i class="fas fa-check-circle mr-1"></i>Complete and Add to Subsidy List
                         </button>
-                        <small class="text-muted d-block mt-1">This button is enabled only when the current status is Approved.</small>
+                        <small class="text-muted d-block mt-1">Enabled only when status is Approved. Completing adds the user to the subsidy list.</small>
                     </form>
                 </div>
 
@@ -917,6 +928,8 @@
         </div>
     </div>
 </div>
+
+<form id="quickCompleteSubsidyRequestForm" method="POST" class="d-none"></form>
 
 <script>
 // Set minimum date to today
@@ -1166,6 +1179,27 @@ document.addEventListener('DOMContentLoaded', function() {
         syncCompleteButtonState(data.statusKey || 'pending');
     });
 
+    $(document).on('click', '.quick-complete-request-btn', function() {
+        if (this.disabled || this.classList.contains('disabled')) {
+            return;
+        }
+
+        const data = this.dataset;
+        const completeUrl = data.completeUrl || '#';
+        const requesterName = data.requesterName || 'this user';
+        const categoryName = data.categoryName || 'this subsidy category';
+
+        openSubsidyActionConfirmModal({
+            title: 'Confirm Subsidy Completion',
+            message: `Mark ${requesterName} as completed for ${categoryName}? This will add the user to the subsidy list.`,
+            confirmLabel: 'Yes, Complete and Add',
+            confirmBtnClass: 'btn-success',
+            onConfirm: function() {
+                $('#quickCompleteSubsidyRequestForm').attr('action', completeUrl).trigger('submit');
+            }
+        });
+    });
+
     $(document).on('change', '.subsidy-doc-checkbox', function() {
         const reqId = this.value;
         toggleCopySpecs(reqId, this.checked);
@@ -1238,7 +1272,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         openSubsidyActionConfirmModal({
             title: 'Complete Subsidy Application',
-            message: 'Mark this subsidy application as completed?',
+            message: 'Mark this subsidy application as completed and add the user to the subsidy list?',
             confirmLabel: 'Yes, Mark as Completed',
             confirmBtnClass: 'btn-success',
             onConfirm: function() {

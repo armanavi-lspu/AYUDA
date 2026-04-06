@@ -257,29 +257,89 @@ def _senior_subsidy_membership_filter():
         )
     )
 
+
+def _normalize_subsidy_category_key(raw_value):
+    """Normalize subsidy category values from request details."""
+    value = str(raw_value or '').strip().lower().replace('-', '_')
+    value = value.replace('(', '').replace(')', '')
+    value = '_'.join(value.split())
+    alias_map = {
+        'pwd': 'pwd',
+        'persons_with_disability': 'pwd',
+        'persons_with_disability_pwd': 'pwd',
+        'senior': 'senior',
+        'senior_citizen': 'senior',
+        'senior_citizens': 'senior',
+        'solo_parent': 'solo_parent',
+        'solo_parents': 'solo_parent'
+    }
+    return alias_map.get(value, '')
+
+
+def _is_subsidy_list_active(details):
+    """Return True if details indicate active list inclusion."""
+    status_value = str(details.get('status', '')).lower()
+    if status_value != 'completed':
+        return False
+    if details.get('removed_from_subsidy_list') is True:
+        return False
+    if details.get('subsidy_list_active') is False:
+        return False
+    return True
+
+
+def _get_subsidy_member_user_ids(category_key):
+    """Get user IDs included in a subsidy list from completed subsidy requests."""
+    normalized_category = _normalize_subsidy_category_key(category_key)
+    if not normalized_category:
+        return set()
+
+    logs = UserActivityLog.query.filter(
+        UserActivityLog.action == 'request_subsidy',
+        UserActivityLog.entity_type == 'subsidy'
+    ).all()
+
+    member_user_ids = set()
+    for log in logs:
+        details = _safe_subsidy_details(log)
+        log_category = _normalize_subsidy_category_key(details.get('category') or details.get('category_name'))
+        if log_category != normalized_category:
+            continue
+        if _is_subsidy_list_active(details):
+            member_user_ids.add(log.user_id)
+
+    return member_user_ids
+
+
+def _is_user_verified_for_subsidy_category(community_user, category_key):
+    """Verify whether a user can be included in a subsidy category."""
+    if not community_user:
+        return False
+
+    normalized_category = _normalize_subsidy_category_key(category_key)
+    if normalized_category == 'pwd':
+        return community_user.pwd_verification == 'approved'
+    if normalized_category == 'senior':
+        return bool(community_user.age and community_user.age >= 60) or community_user.senior_citizen_verification == 'approved'
+    if normalized_category == 'solo_parent':
+        return community_user.solo_parent_verification == 'approved'
+    return False
+
 @admin_bp.route('/subsidy', endpoint='adm_subsidy')
 @login_required
 @role_required('admin')
 def subsidy_index():
     """Display subsidy categories with statistics"""
-    
-    # Get PWD count
-    pwd_count = CommunityUsers.query.filter_by(is_pwd=True).count()
-    
-    # Get Senior Citizen count (active subsidy members, excluding removed)
-    senior_count = CommunityUsers.query.filter(_senior_subsidy_membership_filter()).count()
-    
-    # Get Solo Parent count
-    solo_parent_count = CommunityUsers.query.filter_by(is_solo_parent=True).count()
-    
-    # Total beneficiaries (unique, as one person could be in multiple categories)
-    total_beneficiaries = CommunityUsers.query.filter(
-        or_(
-            CommunityUsers.is_pwd == True,
-            _senior_subsidy_membership_filter(),
-            CommunityUsers.is_solo_parent == True
-        )
-    ).count()
+
+    # Subsidy list counts are based on completed subsidy requests marked active.
+    pwd_user_ids = _get_subsidy_member_user_ids('pwd')
+    senior_user_ids = _get_subsidy_member_user_ids('senior')
+    solo_parent_user_ids = _get_subsidy_member_user_ids('solo_parent')
+
+    pwd_count = len(pwd_user_ids)
+    senior_count = len(senior_user_ids)
+    solo_parent_count = len(solo_parent_user_ids)
+    total_beneficiaries = len(pwd_user_ids.union(senior_user_ids).union(solo_parent_user_ids))
 
     document_requirements_catalog = Requirements.query.filter_by(requirement_type='document').order_by(
         Requirements.requirement_name.asc()
@@ -528,19 +588,34 @@ def complete_subsidy_request(request_id):
         flash('Only approved subsidy requests can be marked as completed.', 'warning')
         return redirect(url_for('admin.adm_subsidy'))
 
+    category_key = _normalize_subsidy_category_key(details.get('category') or details.get('category_name'))
+    if not category_key:
+        flash('Subsidy request category is invalid and cannot be completed.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    community_user = CommunityUsers.query.filter_by(user_id=request_log.user_id).first()
+    if not _is_user_verified_for_subsidy_category(community_user, category_key):
+        flash('User is not verified for this subsidy category yet.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
     category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+    details['category'] = category_key
     details['status'] = 'completed'
     details['completed_at'] = datetime.utcnow().isoformat()
     details['completed_by'] = current_user.id
+    details['subsidy_list_active'] = True
+    details['removed_from_subsidy_list'] = False
+    details['subsidy_list_added_at'] = datetime.utcnow().isoformat()
+    details['subsidy_list_added_by'] = current_user.id
 
     request_log.details = json.dumps(details)
-    request_log.description = f'Completed subsidy request for {category_name}.'
+    request_log.description = f'Completed subsidy request for {category_name} and added to subsidy list.'
 
     notif = Notifications(
         user_id=request_log.user_id,
         notif_title=f'Subsidy Application Completed: {category_name}',
         notif_message=(
-            f'Your subsidy application for {category_name} has been marked as completed. '
+            f'Your subsidy application for {category_name} has been marked as completed and you were added to the subsidy list. '
             f'Please monitor your account for any additional announcements.'
         ),
         related_type='subsidy'
@@ -549,7 +624,7 @@ def complete_subsidy_request(request_id):
     db.session.add(notif)
     db.session.commit()
 
-    flash('Subsidy request marked as completed.', 'success')
+    flash('Subsidy request marked as completed and beneficiary was added to the subsidy list.', 'success')
     return redirect(url_for('admin.adm_subsidy'))
 
 
@@ -562,29 +637,34 @@ def subsidy_list(category):
     per_page = 15
     search = request.args.get('search', '').strip()
     barangay_filter = request.args.get('barangay', '').strip()
+
+    category = _normalize_subsidy_category_key(category)
+    if not category:
+        flash('Invalid subsidy category.', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
     
     # Base query with user join
     query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+
+    member_user_ids = _get_subsidy_member_user_ids(category)
+    if member_user_ids:
+        query = query.filter(CommunityUsers.user_id.in_(list(member_user_ids)))
+    else:
+        query = query.filter(CommunityUsers.user_id == -1)
     
     # Filter by category
     if category == 'pwd':
-        query = query.filter(CommunityUsers.is_pwd == True)
         category_name = 'Persons with Disability (PWD)'
         category_icon = 'fa-wheelchair'
         category_color = 'primary'
     elif category == 'senior':
-        query = query.filter(_senior_subsidy_membership_filter())
         category_name = 'Senior Citizens'
         category_icon = 'fa-user-clock'
         category_color = 'success'
     elif category == 'solo_parent':
-        query = query.filter(CommunityUsers.is_solo_parent == True)
         category_name = 'Solo Parents'
         category_icon = 'fa-user-friends'
         category_color = 'warning'
-    else:
-        flash('Invalid subsidy category.', 'danger')
-        return redirect(url_for('admin.adm_subsidy'))
     
     # Apply search filter
     if search:
@@ -633,7 +713,7 @@ def subsidy_list(category):
 @role_required('admin')
 def remove_subsidy_beneficiary():
     """Remove a community user from a subsidy beneficiary category."""
-    category = (request.form.get('category') or '').strip()
+    category = _normalize_subsidy_category_key(request.form.get('category'))
     community_user_id = request.form.get('community_user_id', type=int)
     return_url = (request.form.get('return_url') or '').strip()
 
@@ -652,24 +732,31 @@ def remove_subsidy_beneficiary():
         flash('Beneficiary record not found.', 'danger')
         return redirect(url_for('admin.subsidy_list', category=category))
 
-    changed = False
+    subsidy_logs = UserActivityLog.query.filter(
+        UserActivityLog.user_id == community_user.user_id,
+        UserActivityLog.action == 'request_subsidy',
+        UserActivityLog.entity_type == 'subsidy'
+    ).all()
 
-    if category == 'pwd':
-        if community_user.is_pwd:
-            community_user.is_pwd = False
-            changed = True
-    elif category == 'senior':
-        if community_user.age >= 60 and community_user.senior_citizen_verification != 'removed':
-            community_user.senior_citizen_verification = 'removed'
-            community_user.senior_citizen_verified_at = None
-            community_user.senior_citizen_verified_by = None
-            changed = True
-    elif category == 'solo_parent':
-        if community_user.is_solo_parent:
-            community_user.is_solo_parent = False
-            changed = True
+    updated_logs = 0
+    for log in subsidy_logs:
+        details = _safe_subsidy_details(log)
+        log_category = _normalize_subsidy_category_key(details.get('category') or details.get('category_name'))
+        if log_category != category:
+            continue
+        if not _is_subsidy_list_active(details):
+            continue
 
-    if not changed:
+        details['subsidy_list_active'] = False
+        details['removed_from_subsidy_list'] = True
+        details['removed_from_subsidy_list_at'] = datetime.utcnow().isoformat()
+        details['removed_from_subsidy_list_by'] = current_user.id
+
+        log.details = json.dumps(details)
+        log.description = f"Removed subsidy list membership for {category_labels[category]}"
+        updated_logs += 1
+
+    if updated_logs == 0:
         flash(f'No changes applied. User is not currently in the {category_labels[category]} subsidy list.', 'warning')
         return redirect(url_for('admin.subsidy_list', category=category))
 
@@ -686,7 +773,8 @@ def remove_subsidy_beneficiary():
             'category_label': category_labels[category],
             'community_user_id': community_user.id,
             'user_id': community_user.user_id,
-            'user_name': user_name
+            'user_name': user_name,
+            'updated_request_logs': updated_logs
         }
     )
 
@@ -2521,16 +2609,13 @@ def schedule_subsidy_payout():
         if payout_datetime <= datetime.now():
             return subsidy_error('Payout date must be in the future', 400)
             
-        # Get beneficiaries for selected categories
+        # Get beneficiaries for selected category from active subsidy list membership.
+        member_user_ids = _get_subsidy_member_user_ids(selected_category)
+        if not member_user_ids:
+            return subsidy_error(f'No beneficiaries found for selected category: {category_label}', 400)
+
         query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id).filter(User.role == 'community')
-        
-        # Filter by single category.
-        if selected_category == 'pwd':
-            query = query.filter(CommunityUsers.is_pwd == True)
-        elif selected_category == 'senior':
-            query = query.filter(_senior_subsidy_membership_filter())
-        elif selected_category == 'solo_parent':
-            query = query.filter(CommunityUsers.is_solo_parent == True)
+        query = query.filter(CommunityUsers.user_id.in_(list(member_user_ids)))
             
         query = query.order_by(User.last_name, User.first_name)
             
@@ -2708,7 +2793,7 @@ def create_subsidy_announcement():
 def search_eligible_users():
     """Search for users eligible for a specific subsidy category who aren't already in the list"""
     query = request.args.get('query', '').strip()
-    category = request.args.get('category', '').strip()
+    category = _normalize_subsidy_category_key(request.args.get('category'))
     
     if not query or len(query) < 2:
         return jsonify({'users': []})
@@ -2726,41 +2811,35 @@ def search_eligible_users():
         )
         base_query = base_query.filter(search_filter)
         
-        # Get users already in the current category list
-        existing_users_query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+        existing_user_ids = _get_subsidy_member_user_ids(category)
         
         if category == 'pwd':
-            # For PWD: search verified PWD users not already in the list
+            # For PWD: search verified users not already in subsidy list
             eligible_query = base_query.filter(
-                CommunityUsers.pwd_verification == 'approved',
-                CommunityUsers.is_pwd == False  # Not already marked as PWD in main profile
+                CommunityUsers.pwd_verification == 'approved'
             )
-            existing_users_query = existing_users_query.filter(CommunityUsers.is_pwd == True)
             verification_field = 'pwd_verification'
             
         elif category == 'senior':
-            # For Senior Citizens: search users 60+ who aren't verified as senior yet
+            # For Senior Citizens: search age-qualified or verified users not already in list
             eligible_query = base_query.filter(
-                CommunityUsers.age >= 60,
-                CommunityUsers.senior_citizen_verification == 'removed'
+                or_(
+                    CommunityUsers.age >= 60,
+                    CommunityUsers.senior_citizen_verification == 'approved'
+                )
             )
-            existing_users_query = existing_users_query.filter(_senior_subsidy_membership_filter())
             verification_field = 'senior_citizen_verification'
             
         elif category == 'solo_parent':
-            # For Solo Parents: search verified solo parents not already in the list
+            # For Solo Parents: search verified users not already in subsidy list
             eligible_query = base_query.filter(
-                CommunityUsers.solo_parent_verification == 'approved',
-                CommunityUsers.is_solo_parent == False  # Not already marked as solo parent
+                CommunityUsers.solo_parent_verification == 'approved'
             )
-            existing_users_query = existing_users_query.filter(CommunityUsers.is_solo_parent == True)
             verification_field = 'solo_parent_verification'
             
         else:
             return jsonify({'users': []})
-        
-        # Get existing user IDs to exclude
-        existing_user_ids = [u.user_id for u in existing_users_query.all()]
+
         if existing_user_ids:
             eligible_query = eligible_query.filter(~CommunityUsers.user_id.in_(existing_user_ids))
         
@@ -2794,9 +2873,9 @@ def search_eligible_users():
 @login_required
 @role_required('admin')
 def notify_subsidy_eligibility():
-    """Notify a user about their subsidy eligibility and add them to the category"""
+    """Notify a user about subsidy eligibility without auto-adding to subsidy list."""
     user_id = request.form.get('user_id')
-    category = request.form.get('category')
+    category = _normalize_subsidy_category_key(request.form.get('category'))
     category_name = request.form.get('category_name')
     
     if not all([user_id, category, category_name]):
@@ -2810,47 +2889,22 @@ def notify_subsidy_eligibility():
         
         community_user = user.community_profile
         
-        # Update the appropriate category flag
-        updated = False
-        notification_message = ""
-        required_documents = []
-        
-        if category == 'pwd':
-            if community_user.pwd_verification == 'approved' and not community_user.is_pwd:
-                community_user.is_pwd = True
-                updated = True
-                notification_message = f"You have been added to the Persons with Disability (PWD) subsidy program. You are now eligible for PWD benefits and assistance programs."
-                required_documents = ["Valid PWD ID", "Medical Certificate", "Barangay Certification"]
-                
-        elif category == 'senior':
-            if community_user.age >= 60:
-                # Mark as senior citizen
-                community_user.senior_citizen_verification = 'approved'
-                updated = True
-                notification_message = f"You have been added to the Senior Citizens subsidy program. You are now eligible for senior citizen benefits and assistance programs."
-                required_documents = ["Valid Senior Citizen ID", "Birth Certificate", "Barangay Certification"]
-                
-        elif category == 'solo_parent':
-            if community_user.solo_parent_verification == 'approved' and not community_user.is_solo_parent:
-                community_user.is_solo_parent = True
-                updated = True
-                notification_message = f"You have been added to the Solo Parents subsidy program. You are now eligible for solo parent benefits and assistance programs."
-                required_documents = ["Solo Parent ID", "Child's Birth Certificate", "Barangay Certification"]
-        
-        if not updated:
-            return jsonify({'success': False, 'message': 'User is not eligible for this subsidy category or already added'})
-        
-        # Create notification for the user
-        from app.models import Notifications
+        if not _is_user_verified_for_subsidy_category(community_user, category):
+            return jsonify({'success': False, 'message': 'User is not verified for this subsidy category yet.'})
+
+        if user.id in _get_subsidy_member_user_ids(category):
+            return jsonify({'success': False, 'message': 'User is already included in this subsidy list.'})
+
         notification = Notifications(
             user_id=user.id,
-            notification_title=f"Subsidy Eligibility Notification - {category_name}",
-            notification_content=f"{notification_message}\n\nRequired documents to submit:\n" + 
-                               "\n".join([f"• {doc}" for doc in required_documents]) +
-                               f"\n\nPlease prepare these documents and visit the barangay office to complete your registration. You will receive further instructions on how to claim your benefits.",
-            notification_type="subsidy_eligibility",
-            is_read=False,
-            created_at=datetime.now()
+            notif_title=f'Subsidy Eligibility Notice - {category_name}',
+            notif_message=(
+                f'You are verified and eligible to apply for {category_name}. '
+                f'Please submit your subsidy application in Other Services. '
+                f'You will be added to the subsidy list only after your application is reviewed and marked completed by the admin.'
+            ),
+            related_type='subsidy',
+            created_at=datetime.utcnow()
         )
         
         db.session.add(notification)
@@ -2858,7 +2912,7 @@ def notify_subsidy_eligibility():
         
         return jsonify({
             'success': True, 
-            'message': f'{user.first_name} {user.last_name} has been successfully added to {category_name} and notified about their eligibility.'
+            'message': f'{user.first_name} {user.last_name} was notified about subsidy eligibility. They still need to complete the subsidy application workflow.'
         })
         
     except Exception as e:

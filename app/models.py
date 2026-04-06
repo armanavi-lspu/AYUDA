@@ -2,13 +2,45 @@ from app.extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
 from sqlalchemy.sql import func
+from sqlalchemy.orm import validates
 import secrets
 import string
+import re
 
 
 def get_utc_now():
     """Get current UTC time as timezone-aware datetime"""
     return datetime.now(timezone.utc)
+
+
+def _normalize_person_name(raw_value):
+    """Normalize personal names to a readable per-word capitalized format."""
+    text = ' '.join(str(raw_value or '').strip().split())
+    if not text:
+        return ''
+
+    words = []
+    for word in text.split(' '):
+        segments = re.split(r"([-'])", word)
+        normalized_segments = []
+        for segment in segments:
+            if segment in {"-", "'"}:
+                normalized_segments.append(segment)
+                continue
+
+            if not segment:
+                normalized_segments.append(segment)
+                continue
+
+            if segment.isupper() and len(segment) <= 4:
+                normalized_segments.append(segment)
+                continue
+
+            normalized_segments.append(segment[0].upper() + segment[1:].lower())
+
+        words.append(''.join(normalized_segments))
+
+    return ' '.join(words)
 
 
 class JsonSerializableMixin:
@@ -49,6 +81,13 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return f'<User {self.email}>'
+
+    @validates('first_name', 'middle_name', 'last_name')
+    def _normalize_name_fields(self, key, value):
+        normalized = _normalize_person_name(value)
+        if key == 'middle_name' and not normalized:
+            return None
+        return normalized
 
 class Programs(db.Model):
     __tablename__ = 'programs'
