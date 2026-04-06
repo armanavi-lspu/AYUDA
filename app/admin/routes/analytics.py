@@ -895,7 +895,35 @@ def analytics_analysis():
         'data': [row.count for row in applicants_by_barangay_raw]
     }
 
-    # 4. Community users by municipality
+    # 4. Community users by municipality (always include all registered municipalities)
+    registered_municipalities = [
+        'Mabitac',
+        'Siniloan',
+        'Pakil',
+        'Pangil',
+        'Famy',
+        'Paete',
+        'Sta Maria',
+        'Kalayaan',
+    ]
+
+    municipality_aliases = {
+        'mabitac': 'Mabitac',
+        'siniloan': 'Siniloan',
+        'pakil': 'Pakil',
+        'pangil': 'Pangil',
+        'famy': 'Famy',
+        'paete': 'Paete',
+        'sta maria': 'Sta Maria',
+        'sta. maria': 'Sta Maria',
+        'santa maria': 'Sta Maria',
+        'kalayaan': 'Kalayaan',
+    }
+
+    def _normalize_municipality_name(raw_name):
+        normalized_key = str(raw_name or '').strip().lower()
+        return municipality_aliases.get(normalized_key)
+
     municipality_expr = func.coalesce(
         func.nullif(func.trim(CommunityUsers.municipality), ''),
         'Not Specified'
@@ -903,11 +931,17 @@ def analytics_analysis():
     users_by_municipality_raw = db.session.query(
         municipality_expr.label('municipality'),
         func.count(CommunityUsers.id).label('count')
-    ).group_by(municipality_expr).order_by(func.count(CommunityUsers.id).desc()).all()
+    ).group_by(municipality_expr).all()
+
+    users_by_municipality_counts = {name: 0 for name in registered_municipalities}
+    for row in users_by_municipality_raw:
+        normalized_name = _normalize_municipality_name(row.municipality)
+        if normalized_name:
+            users_by_municipality_counts[normalized_name] += int(row.count or 0)
 
     users_by_municipality = {
-        'labels': [row.municipality for row in users_by_municipality_raw],
-        'data': [row.count for row in users_by_municipality_raw]
+        'labels': registered_municipalities,
+        'data': [users_by_municipality_counts[name] for name in registered_municipalities]
     }
     
     # Summary statistics
@@ -915,13 +949,15 @@ def analytics_analysis():
     total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar()
     total_programs = Programs.query.count()
     total_community_users = CommunityUsers.query.count()
-    municipalities_represented = db.session.query(
-        func.count(func.distinct(func.nullif(func.trim(CommunityUsers.municipality), '')))
-    ).scalar() or 0
+    municipalities_represented = sum(1 for count in users_by_municipality_counts.values() if count > 0)
 
-    top_municipality = users_by_municipality_raw[0] if users_by_municipality_raw else None
-    top_municipality_name = top_municipality.municipality if top_municipality else 'No municipality data'
-    top_municipality_user_count = top_municipality.count if top_municipality else 0
+    top_municipality_name = 'No registered users yet'
+    top_municipality_user_count = 0
+    if users_by_municipality_counts:
+        top_municipality_name, top_municipality_user_count = max(
+            users_by_municipality_counts.items(),
+            key=lambda item: item[1]
+        )
     
     # Application status breakdown
     status_breakdown = db.session.query(
