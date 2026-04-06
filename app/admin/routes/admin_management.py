@@ -11,7 +11,7 @@ import io
 from app.admin import admin_bp
 from app.models import User, AdminUsers, Notifications, Applications, Programs, Announcements, AdminActivityLog, UserActivityLog
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.activity_logger import log_admin_management
 from app.location_options import get_municipalities, is_valid_municipality
 
@@ -163,7 +163,11 @@ def add_admin():
         
         db.session.commit()
         
-        flash(f'Admin account created successfully for {first_name} {last_name}. Credentials sent via email.', 'success')
+        flash(
+            f'Admin account created successfully for {first_name} {last_name}. '
+            f'Temporary password/reset code: {temp_password}',
+            'success'
+        )
         
         # Log activity
         log_admin_management(new_admin, 'create')
@@ -247,28 +251,39 @@ def reset_admin_password(admin_id):
     """Reset an admin's password"""
     admin_user = User.query.filter_by(id=admin_id, role='admin').first_or_404()
     
-    # Generate random password
-    new_password = ''.join(secrets.choice(string.digits) for _ in range(8))
+    # Generate temporary reset code
+    reset_code = ''.join(secrets.choice(string.digits) for _ in range(8))
     
     try:
-        admin_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+        admin_user.password_hash = generate_password_hash(reset_code, method='pbkdf2:sha256')
         
-        # Create notification
+        # Send reset code to the target admin via in-app notification.
         notification = Notifications(
             user_id=admin_id,
             notif_title='Password Reset',
-            notif_message=f'Your password has been reset. Your new temporary password has been sent to your registered email. Please change it after logging in.',
+            notif_message=(
+                f'Your password has been reset by an administrator. '
+                f'Your temporary password/reset code is: {reset_code}. '
+                f'Use this code to log in. It is strongly recommended that you change your password immediately.'
+            ),
+            related_type='admin_alert',
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
+
+        # Log reset activity as part of the same transaction.
+        log_admin_management(admin_user, 'reset_password', {
+            'reset_code_delivery': 'notification_and_flash',
+            'reset_code_length': len(reset_code)
+        })
         
         db.session.commit()
         
-        flash(f'Password reset successfully for {admin_user.first_name} {admin_user.last_name}. Credentials sent via email.', 'success')
-        
-        # Log activity
-        log_admin_management(admin_user, 'reset_password')
-        db.session.commit()
+        flash(
+            f'Password reset successfully for {admin_user.first_name} {admin_user.last_name}. '
+            f'New temporary password/reset code: {reset_code}',
+            'success'
+        )
         
     except Exception as e:
         db.session.rollback()
@@ -467,7 +482,7 @@ def export_activity_logs():
     
     for a in activities:
         writer.writerow([
-            a.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            manila_strftime(a.created_at, '%Y-%m-%d %H:%M:%S', ''),
             a.admin_name,
             a.action,
             a.action_type,
@@ -478,7 +493,7 @@ def export_activity_logs():
         ])
     
     output.seek(0)
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    timestamp = manila_strftime(datetime.utcnow(), '%Y%m%d_%H%M%S', '')
     return Response(
         output.getvalue(),
         mimetype='text/csv',
@@ -584,7 +599,7 @@ def export_user_activity_logs():
     
     for a in activities:
         writer.writerow([
-            a.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            manila_strftime(a.created_at, '%Y-%m-%d %H:%M:%S', ''),
             a.user_name,
             a.action,
             a.action_type,
@@ -595,7 +610,7 @@ def export_user_activity_logs():
         ])
     
     output.seek(0)
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    timestamp = manila_strftime(datetime.utcnow(), '%Y%m%d_%H%M%S', '')
     return Response(
         output.getvalue(),
         mimetype='text/csv',

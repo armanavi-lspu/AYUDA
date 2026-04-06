@@ -27,16 +27,6 @@
         background: #5a6268;
         transform: translateX(-3px);
     }
-    .share-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
-    }
-    .share-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-    }
     .announcement-image {
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -55,6 +45,15 @@
         font-size: 1.1rem;
         line-height: 1.7;
         color: #495057;
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .content-text a {
+        color: #1d4ed8;
+        font-weight: 600;
+        text-decoration: underline;
+        word-break: break-all;
     }
     .announcement-images-section {
         display: flex;
@@ -77,6 +76,55 @@
         .announcement-image-item {
             flex: 0 1 calc(50% - 1rem);
         }
+    }
+
+    .announcement-image-single {
+        max-width: 620px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .announcement-detail-carousel {
+        border: 1px solid #d9e3f8;
+        border-radius: 14px;
+        background: #f8fbff;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .announcement-detail-carousel .carousel-item {
+        padding: 0.95rem 0.75rem 0.5rem;
+        text-align: center;
+    }
+
+    .announcement-detail-carousel .carousel-control-prev,
+    .announcement-detail-carousel .carousel-control-next {
+        width: 44px;
+        opacity: 1;
+    }
+
+    .announcement-detail-control-icon {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(12, 28, 57, 0.7);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(6, 24, 54, 0.32);
+    }
+
+    .announcement-detail-control-icon i {
+        font-size: 0.85rem;
+    }
+
+    .announcement-detail-carousel-meta {
+        text-align: center;
+        color: #5f6f8a;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0 0 0.75rem;
     }
     
     /* Image Preview Modal Styles */
@@ -172,9 +220,31 @@
         border-radius: 20px;
         font-size: 0.9rem;
     }
+
+    .image-preview-download {
+        position: absolute;
+        top: -36px;
+        left: 0;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        background: rgba(17, 24, 39, 0.65);
+        border-radius: 999px;
+        padding: 0.38rem 0.78rem;
+        font-size: 0.86rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .image-preview-download:hover {
+        color: #fff;
+        background: rgba(29, 78, 216, 0.84);
+        border-color: rgba(255, 255, 255, 0.78);
+        text-decoration: none;
+    }
     
     @media print {
-        .back-btn, .share-buttons, .navbar, .sidebar, .no-print {
+        .back-btn, .navbar, .sidebar, .no-print {
             display: none !important;
         }
         .card { box-shadow: none !important; border: 1px solid #ddd; }
@@ -214,7 +284,7 @@
                                 </h6>
                                 <small class="text-muted">
                                     <i class="fas fa-calendar-alt mr-1"></i>
-                                    Published {{ announcement.created_at.strftime('%B %d, %Y at %I:%M %p') if announcement.created_at else 'Recently' }}
+                                    Published {{ announcement.created_at|manila('%B %d, %Y at %I:%M %p', 'Recently') }}
                                 </small>
                             </div>
                         </div>
@@ -277,50 +347,66 @@
                     
                     <!-- Main Content -->
                     <div class="content-text mb-4">
-                        {{ announcement.announcement_content|safe if announcement.announcement_content else 'No content available.' }}
+                        {{- announcement.announcement_content|urlize|safe if announcement.announcement_content else 'No content available.' -}}
                     </div>
 
                     <!-- Images Section -->
                     {% if announcement.images %}
-                    <div class="announcement-images-section">
-                        {% for image in announcement.images %}
-                        <div class="announcement-image-item">
-                            <img src="/{{ image.image_path }}" 
-                                 alt="{{ image.caption or 'Announcement Image' }}"
-                                 class="img-fluid announcement-image"
-                                 onclick="openImagePreview('{{ loop.index0 }}')">
-                            {% if image.caption %}
-                            <div class="text-center mt-3">
-                                <small class="text-muted font-italic">{{ image.caption }}</small>
+                        {% if announcement.images|length == 1 %}
+                            {% set single_image = announcement.images[0] %}
+                            <div class="announcement-image-single">
+                                <img src="/{{ single_image.image_path }}"
+                                     alt="{{ single_image.caption or 'Announcement Image' }}"
+                                     class="img-fluid announcement-image"
+                                     onclick="openImagePreview('0')">
+                                {% if single_image.caption %}
+                                <div class="text-center mt-3">
+                                    <small class="text-muted font-italic">{{ single_image.caption }}</small>
+                                </div>
+                                {% endif %}
                             </div>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
+                        {% else %}
+                            <div id="communityAnnouncementDetailCarousel" class="carousel slide announcement-detail-carousel" data-interval="false">
+                                <div class="carousel-inner">
+                                    {% for image in announcement.images %}
+                                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                        <img src="/{{ image.image_path }}"
+                                             alt="{{ image.caption or 'Announcement Image' }}"
+                                             class="img-fluid announcement-image"
+                                             onclick="openImagePreview('{{ loop.index0 }}')">
+                                        {% if image.caption %}
+                                        <div class="text-center mt-3">
+                                            <small class="text-muted font-italic">{{ image.caption }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <a class="carousel-control-prev" href="#communityAnnouncementDetailCarousel" role="button" data-slide="prev" aria-label="Previous image">
+                                    <span class="announcement-detail-control-icon" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
+                                </a>
+                                <a class="carousel-control-next" href="#communityAnnouncementDetailCarousel" role="button" data-slide="next" aria-label="Next image">
+                                    <span class="announcement-detail-control-icon" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                                </a>
+
+                                <div class="announcement-detail-carousel-meta">{{ announcement.images|length }} images</div>
+                            </div>
+                        {% endif %}
                     {% endif %}
                 </div>
 
                 <!-- Footer Actions -->
                 <div class="card-footer bg-light border-0 p-4">
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center">
+                    <div class="d-flex flex-column flex-md-row justify-content-start align-items-center">
                         <!-- Update Information -->
                         <div class="mb-3 mb-md-0">
                             {% if announcement.updated_at and announcement.updated_at != announcement.created_at %}
                             <small class="text-muted">
                                 <i class="fas fa-edit mr-1"></i>
-                                Last updated: {{ announcement.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                Last updated: {{ announcement.updated_at|manila('%B %d, %Y at %I:%M %p') }}
                             </small>
                             {% endif %}
-                        </div>
-                        
-                        <!-- Share Buttons -->
-                        <div class="share-buttons d-flex">
-                            <button class="btn share-btn text-white mr-2 btn-sm" onclick="copyToClipboard()">
-                                <i class="fas fa-link mr-1"></i>Copy Link
-                            </button>
-                            <button class="btn share-btn text-white btn-sm" onclick="printAnnouncement()">
-                                <i class="fas fa-print mr-1"></i>Print
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -332,6 +418,14 @@
 <!-- Image Preview Modal -->
 <div id="imagePreviewModal" class="image-preview-modal">
     <div class="image-preview-content">
+        <a id="downloadPreviewImage"
+           class="image-preview-download"
+           href="#"
+           download="announcement-image"
+           target="_blank"
+           rel="noopener noreferrer">
+            <i class="fas fa-download mr-1"></i>Download
+        </a>
         <button class="image-preview-close" onclick="closeImagePreview()">&times;</button>
         {% if announcement.images %}
             {% if announcement.images|length > 1 %}
@@ -366,6 +460,26 @@
 <script>
     let currentImageIndex = 0;
 
+    function getDownloadFilenameFromSrc(src) {
+        if (!src) {
+            return 'announcement-image';
+        }
+
+        const cleanSrc = src.split('?')[0];
+        const segments = cleanSrc.split('/');
+        return segments[segments.length - 1] || 'announcement-image';
+    }
+
+    function updateDownloadButton(src) {
+        const downloadBtn = document.getElementById('downloadPreviewImage');
+        if (!downloadBtn) {
+            return;
+        }
+
+        downloadBtn.href = src || '#';
+        downloadBtn.download = getDownloadFilenameFromSrc(src);
+    }
+
     function openImagePreview(index) {
         if (announcementImages.length === 0) return;
         
@@ -377,6 +491,7 @@
         
         previewImage.src = announcementImages[currentImageIndex].src;
         previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        updateDownloadButton(announcementImages[currentImageIndex].src);
         
         if (imageCounter) {
             imageCounter.textContent = currentImageIndex + 1;
@@ -411,6 +526,7 @@
         
         previewImage.src = announcementImages[currentImageIndex].src;
         previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        updateDownloadButton(announcementImages[currentImageIndex].src);
         
         if (imageCounter) {
             imageCounter.textContent = currentImageIndex + 1;
@@ -440,30 +556,6 @@
             if (announcementImages.length > 1) nextImage();
         }
     });
-
-    function copyToClipboard() {
-        navigator.clipboard.writeText(window.location.href).then(function() {
-            const btn = event.target.closest('.share-btn');
-            const originalHTML = btn.innerHTML;
-            
-            // Success feedback
-            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
-            btn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-            
-            // Reset after 2 seconds
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            }, 2000);
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            alert('Failed to copy link to clipboard');
-        });
-    }
-
-    function printAnnouncement() {
-        window.print();
-    }
 
     // Initialize tooltips if using Bootstrap JS
     $(document).ready(function(){

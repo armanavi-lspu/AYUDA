@@ -271,7 +271,7 @@
             <div class="col-lg-4 text-lg-right">
                 <span class="last-updated">
                     <i class="fas fa-calendar-alt mr-2"></i>
-                    Updated {{ current_date.strftime('%b %d, %Y %I:%M %p') if current_date else '' }}
+                    Updated {{ current_date|manila('%b %d, %Y %I:%M %p', '') }}
                 </span>
             </div>
         </div>
@@ -452,7 +452,7 @@
                                                 {{ (application.application_status or 'pending')|replace('_', ' ')|title }}
                                             </span>
                                         </td>
-                                        <td>{{ application.application_date.strftime('%b %d, %Y') if application.application_date else 'N/A' }}</td>
+                                        <td>{{ application.application_date|manila('%b %d, %Y', 'N/A') }}</td>
                                         <td class="text-right pr-4">
                                             <a href="{{ url_for('admin.view_application', application_id=application.id) }}" class="btn btn-sm btn-outline-primary">
                                                 <i class="fas fa-eye mr-1"></i>View
@@ -623,7 +623,7 @@
 // Add this debug check FIRST
 console.log('Chart.js loaded:', typeof Chart !== 'undefined');
 
-document.addEventListener('DOMContentLoaded', function() {
+function initializeAdminDashboard() {
     console.log('DOM Content Loaded');
 
     const quickActionStorageKey = 'admin-dashboard-quick-actions:{{ user.id if user else "default" }}';
@@ -929,8 +929,69 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (error) {
         console.error('Error creating age chart:', error);
     }
+}
 
-});
+window.initializeAdminDashboard = initializeAdminDashboard;
+document.addEventListener('DOMContentLoaded', initializeAdminDashboard);
+
+let dashboardRealtimeReloadTimer = null;
+let adminDashboardRefreshInFlight = false;
+
+async function softRefreshAdminDashboard() {
+    if (adminDashboardRefreshInFlight) {
+        return;
+    }
+
+    adminDashboardRefreshInFlight = true;
+
+    try {
+        const response = await fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const nextDoc = parser.parseFromString(html, 'text/html');
+        const nextShell = nextDoc.querySelector('.dashboard-shell');
+        const currentShell = document.querySelector('.dashboard-shell');
+
+        if (!nextShell || !currentShell) {
+            throw new Error('Dashboard shell not found for soft refresh');
+        }
+
+        currentShell.replaceWith(nextShell);
+        initializeAdminDashboard();
+
+        if (window.showRealtimeToast) {
+            window.showRealtimeToast('Dashboard refreshed with latest updates');
+        }
+    } catch (error) {
+        console.error('Soft dashboard refresh failed:', error);
+    } finally {
+        adminDashboardRefreshInFlight = false;
+    }
+}
+
+if (!window.adminDashboardRealtimeBound) {
+    document.addEventListener('ayuda:admin-dashboard-update', function() {
+        if (document.hidden) {
+            return;
+        }
+
+        if (dashboardRealtimeReloadTimer) {
+            clearTimeout(dashboardRealtimeReloadTimer);
+        }
+
+        dashboardRealtimeReloadTimer = setTimeout(function() {
+            softRefreshAdminDashboard();
+        }, 1200);
+    });
+
+    window.adminDashboardRealtimeBound = true;
+}
 </script>
 
 {% endblock %}

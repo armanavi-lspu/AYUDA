@@ -8,7 +8,7 @@ from flask_wtf.csrf import CSRFError
 load_dotenv()
 
 from config import Config
-from app.extensions import db, migrate, csrf
+from app.extensions import db, migrate, csrf, socketio
 
 def create_app():
     root_path = Path(__file__).parent.parent
@@ -22,11 +22,15 @@ def create_app():
     # Set timezone in app config
     import pytz
     app.config['TZ'] = pytz.timezone(app.config.get('TIMEZONE', 'Asia/Manila'))
+
+    from app.utils import manila_strftime
+    app.jinja_env.filters['manila'] = manila_strftime
     
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    socketio.init_app(app)
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
@@ -80,5 +84,9 @@ def create_app():
             ).count()
             return {'admin_unread_count': count}
         return {'admin_unread_count': 0}
+
+    # Register Socket.IO handlers and SQLAlchemy realtime hooks.
+    from . import socketio_events  # noqa: F401
+    from . import realtime_hooks  # noqa: F401
 
     return app

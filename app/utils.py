@@ -5,6 +5,44 @@ import datetime
 import pytz
 
 
+def get_app_timezone():
+    """Return configured app timezone, defaulting to Asia/Manila."""
+    return current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
+
+
+def to_manila_datetime(value):
+    """Normalize datetime values to Manila timezone for consistent display."""
+    if value is None or isinstance(value, str):
+        return value
+
+    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+        return value
+
+    tz = get_app_timezone()
+    if value.tzinfo is None:
+        value = pytz.utc.localize(value)
+
+    return value.astimezone(tz)
+
+
+def manila_strftime(value, fmt='%b %d, %Y %I:%M %p', default='N/A'):
+    """Format datetime/date values using Manila timezone."""
+    if value is None:
+        return default
+
+    if isinstance(value, str):
+        return value
+
+    converted = to_manila_datetime(value)
+    if converted is None:
+        return default
+
+    try:
+        return converted.strftime(fmt)
+    except Exception:
+        return default
+
+
 def _parse_priority_group_tokens(priority_group):
     """Split a program priority_group string into normalized tokens."""
     if not priority_group:
@@ -101,17 +139,8 @@ def format_date(timestamp):
         return timestamp
     
     try:
-        # Get the configured timezone
-        tz = current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
-        
-        # Convert UTC timestamp to local timezone
-        # If timestamp is naive (no timezone info), assume it's UTC
-        if timestamp.tzinfo is None:
-            timestamp_utc = pytz.utc.localize(timestamp)
-        else:
-            timestamp_utc = timestamp
-        
-        timestamp_local = timestamp_utc.astimezone(tz)
+        tz = get_app_timezone()
+        timestamp_local = to_manila_datetime(timestamp)
         
         # Get current time in local timezone
         now_local = datetime.datetime.now(tz)

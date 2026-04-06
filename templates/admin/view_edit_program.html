@@ -3,16 +3,295 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+    }
+
+    .edit-program-shell {
+        animation: editProgramFadeIn 0.45s ease-out;
+    }
+
+    @keyframes editProgramFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .edit-program-breadcrumb {
+        margin-bottom: 0.85rem;
+    }
+
+    .edit-program-breadcrumb .breadcrumb {
+        background: #fff;
+        border: 1px solid var(--dash-border);
+        border-radius: 10px;
+        margin-bottom: 0;
+        padding: 0.5rem 0.85rem;
+    }
+
+    .edit-program-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.15rem 1.3rem;
+        margin-bottom: 1rem;
+    }
+
+    .edit-program-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        font-size: 1.58rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .edit-program-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .edit-hero-notes {
+        margin-top: 0.78rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .edit-hero-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        padding: 0.33rem 0.66rem;
+        border-radius: 999px;
+        border: 1px solid #d7e5ff;
+        background: rgba(255, 255, 255, 0.9);
+        color: #315285;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .edit-hero-note i {
+        color: #1f6feb;
+    }
+
+    .program-tab-nav {
+        margin-bottom: 0.95rem;
+        border-bottom: 0;
+        gap: 0.55rem;
+    }
+
+    .program-tab-nav .nav-item {
+        margin-bottom: 0;
+    }
+
+    .program-tab-nav .nav-link {
+        border: 1px solid #d4def4;
+        border-radius: 11px;
+        background: #ffffff;
+        color: #37527f;
+        font-weight: 600;
+        padding: 0.58rem 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .program-tab-nav .nav-link:hover {
+        background: #f2f7ff;
+        color: #224a87;
+    }
+
+    .program-tab-nav .nav-link.active {
+        border-color: #9ed5f5;
+        background: linear-gradient(180deg, #f0f9ff 0%, #e6f4ff 100%);
+        color: #1d4ed8;
+        box-shadow: 0 8px 18px rgba(31, 111, 235, 0.14);
+    }
+
+    .program-content-shell {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 10px 28px rgba(31, 42, 68, 0.08);
+        padding: 0.95rem;
+        margin-bottom: 0.95rem;
+    }
+
+    .program-overview-banner {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.18), transparent 42%),
+            linear-gradient(135deg, #1f6feb 0%, #1942a8 100%) !important;
+        border: 0 !important;
+        border-radius: 14px;
+        box-shadow: 0 10px 25px rgba(25, 66, 168, 0.28);
+    }
+
+    .program-overview-banner .card-body {
+        padding: 1.1rem 1.2rem;
+    }
+
+    .program-surface-card {
+        border: 1px solid #dbe5f7;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(22, 41, 76, 0.07);
+        overflow: hidden;
+    }
+
+    .program-surface-card > .card-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .program-surface-card > .card-header.bg-info,
+    .program-surface-card > .card-header.bg-primary,
+    .program-surface-card > .card-header.bg-dark {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%) !important;
+        color: #fff !important;
+    }
+
+    .program-surface-card > .card-header.bg-success {
+        background: linear-gradient(135deg, #0f9b8e 0%, #157f7c 100%) !important;
+        color: #fff !important;
+    }
+
+    .program-surface-card > .card-header.bg-warning {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+        color: #fff !important;
+    }
+
+    .program-surface-card > .card-header .btn-light {
+        border-radius: 9px;
+        font-weight: 600;
+        color: #244875;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .program-surface-card > .card-header .btn-outline-light {
+        border-radius: 9px;
+        font-weight: 600;
+        border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .program-surface-card > .card-body {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
+
+    .sub-surface-card {
+        border: 1px solid #d6e3fa;
+        border-radius: 11px;
+        box-shadow: 0 6px 18px rgba(20, 46, 92, 0.08);
+    }
+
+    .sub-surface-card .card-header.bg-light {
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%) !important;
+        border-bottom: 1px solid #d7e3f8;
+    }
+
+    .sub-surface-card .card-header h6 {
+        color: #1f4b99 !important;
+        font-weight: 700;
+    }
+
+    .sub-surface-card .card-header small {
+        color: #516689 !important;
+        font-weight: 500;
+    }
+
+    .sub-surface-card .card-header .btn {
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    #edit .form-group > label {
+        color: #2b3d5f;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    #edit .form-control,
+    #edit .custom-file-label,
+    #edit .custom-select,
+    #edit .copy-type-select,
+    #edit .copy-count-input {
+        border-radius: 10px;
+        border-color: #d7dfef;
+        min-height: 42px;
+        box-shadow: none;
+    }
+
+    #edit textarea.form-control {
+        min-height: 108px;
+    }
+
+    #edit .form-control:focus,
+    #edit .custom-select:focus,
+    #edit .custom-file-input:focus ~ .custom-file-label {
+        border-color: #5b9bff;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    #edit .custom-control-label {
+        color: #344f78;
+    }
+
+    #edit .alert {
+        border-radius: 11px;
+        border-width: 1px;
+        font-size: 0.92rem;
+    }
+
+    .edit-form-actions {
+        border: 1px solid #dbe5f7;
+        border-radius: 12px;
+        box-shadow: 0 8px 22px rgba(22, 41, 76, 0.08);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .edit-form-actions .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.5rem 0.95rem;
+    }
+
+    .edit-form-actions .btn-warning {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        border: none;
+        color: #fff;
+    }
+
+    .stat-box {
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #dce8ff;
+        border-radius: 10px;
+    }
+
+    .stat-box small {
+        display: block;
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+
     .requirement-item {
         padding: 8px;
         border: 1px solid #e3e6f0;
-        border-radius: 4px;
+        border-radius: 10px;
         margin-bottom: 8px;
-        transition: background-color 0.2s;
+        transition: all 0.2s;
+        background: #fff;
     }
     
     .requirement-item:hover {
-        background-color: #f8f9fc;
+        background-color: #f7fbff;
+        border-color: #c8daf7;
     }
     
     .requirement-item label {
@@ -23,6 +302,34 @@
     .requirements-list {
         overflow-y: auto;
         padding: 10px;
+        border: 1px solid #e8eefb;
+        border-radius: 10px;
+        background: #fbfdff;
+    }
+
+    .requirements-search-wrap {
+        margin-bottom: 0.75rem;
+    }
+
+    .requirements-search-wrap .input-group-text {
+        border-radius: 10px 0 0 10px;
+        background: #f4f8ff;
+        border-color: #d5e1f6;
+        color: #40649b;
+    }
+
+    .requirements-search-wrap .form-control {
+        border-radius: 0 10px 10px 0;
+    }
+
+    .requirement-search-no-match {
+        border: 1px dashed #c9d9f7;
+        border-radius: 10px;
+        background: #f8fbff;
+        color: #4f6282;
+        text-align: center;
+        padding: 0.7rem;
+        margin-top: 0.5rem;
     }
     
     .req-checkbox:checked ~ .custom-control-label {
@@ -144,31 +451,50 @@
     .ranked-row:hover {
         background-color: #f8f9fc;
     }
+
+    @media (max-width: 991.98px) {
+        .edit-program-hero {
+            padding: 1rem;
+        }
+
+        .program-content-shell {
+            padding: 0.7rem;
+        }
+
+        .program-tab-nav .nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.92rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_programs') }}">Programs</a></li>
-                    <li class="breadcrumb-item active">{{ program.program_name }}</li>
-                </ol>
-            </nav>
-        </div>
-        <div>
-            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left mr-2"></i>Back to Programs
-            </a>
+<div class="container-fluid edit-program-shell">
+    <nav aria-label="breadcrumb" class="edit-program-breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_programs') }}">Programs</a></li>
+            <li class="breadcrumb-item active">{{ program.program_name }}</li>
+        </ol>
+    </nav>
+
+    <div class="edit-program-hero">
+        <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap: 0.75rem;">
+            <div>
+                <h1><i class="fas fa-edit mr-2"></i>View and Edit Program</h1>
+                <p class="subtitle">Review details and update this program in one page without switching screens.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Programs
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Tabs Navigation -->
-    <ul class="nav nav-tabs mb-4" id="programTabs" role="tablist">
+    <ul class="nav nav-tabs program-tab-nav" id="programTabs" role="tablist">
         <li class="nav-item">
             <a class="nav-link active" id="view-tab" data-toggle="tab" href="#view" role="tab">
                 <i class="fas fa-eye mr-2"></i>View Details
@@ -182,11 +508,11 @@
     </ul>
 
     <!-- Tab Content -->
-    <div class="tab-content" id="programTabsContent">
+    <div class="tab-content program-content-shell" id="programTabsContent">
         <!-- View Tab -->
         <div class="tab-pane fade show active" id="view" role="tabpanel">
             <!-- Program Header with Stats -->
-            <div class="card shadow mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+            <div class="card shadow mb-4 program-overview-banner">
                 <div class="card-body text-white">
                     <div class="row align-items-center">
                         <div class="col-lg-8">
@@ -200,12 +526,12 @@
                             <div class="d-flex flex-column text-right">
                                 {% if program.date %}
                                 <small class="opacity-75 mb-1">
-                                    Created: {{ program.date.strftime('%B %d, %Y at %I:%M %p') }}
+                                    Created: {{ program.date|manila('%B %d, %Y at %I:%M %p') }}
                                 </small>
                                 {% endif %}
                                 {% if program.updated_at %}
                                 <small class="opacity-75">
-                                    <em>Last edited: {{ program.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</em>
+                                    <em>Last edited: {{ program.updated_at|manila('%B %d, %Y at %I:%M %p') }}</em>
                                 </small>
                                 {% endif %}
                             </div>
@@ -214,23 +540,10 @@
                 </div>
             </div>
 
-            <style>
-                .stat-box {
-                    padding: 12px;
-                    background: rgba(255,255,255,0.15);
-                    border-radius: 8px;
-                }
-                .stat-box small {
-                    display: block;
-                    font-size: 0.85rem;
-                    opacity: 0.9;
-                }
-            </style>
-
             <div class="row">
                 <div class="col-lg-8">
                     <!-- Program Info Card -->
-                    <div class="card shadow mb-4">
+                    <div class="card shadow mb-4 program-surface-card">
                         <div class="card-header py-3 bg-info text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Information</h6>
                             <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editProgramInfoSection'); return false;">
@@ -271,13 +584,13 @@
                                         {% if program.start_date %}
                                         <div class="col-md-6">
                                             <p class="mb-0"><strong>Start Date:</strong></p>
-                                            <p class="mb-0">{{ program.start_date.strftime('%B %d, %Y') }}</p>
+                                            <p class="mb-0">{{ program.start_date|manila('%B %d, %Y') }}</p>
                                         </div>
                                         {% endif %}
                                         {% if program.end_date %}
                                         <div class="col-md-6">
                                             <p class="mb-0"><strong>End Date / Deadline:</strong></p>
-                                            <p class="mb-0">{{ program.end_date.strftime('%B %d, %Y') }}</p>
+                                            <p class="mb-0">{{ program.end_date|manila('%B %d, %Y') }}</p>
                                             {% set days_remaining = (program.end_date - today).days if program.end_date > today else 0 %}
                                             {% if days_remaining > 0 %}
                                             <small class="text-success"><i class="fas fa-check-circle"></i> {{ days_remaining }} days remaining</small>
@@ -368,7 +681,7 @@
                     </div>
                     
                     <!-- Requirements Card -->
-                    <div class="card shadow mb-4">
+                    <div class="card shadow mb-4 program-surface-card">
                         <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold">Program Requirements</h6>
                             <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editRequirementsSection'); return false;">
@@ -439,7 +752,7 @@
                     </div>
                     
                     <!-- Workflow Steps Card (View Mode) -->
-                    <div class="card shadow mb-4">
+                    <div class="card shadow mb-4 program-surface-card">
                         <div class="card-header py-3 bg-dark text-white d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Workflow Steps</h6>
                             <button type="button" class="btn btn-sm btn-light" onclick="goToEditSection('editWorkflowSection'); return false;">
@@ -458,7 +771,7 @@
                 <div class="col-lg-4">
                     <div class="view-sidebar-stats">
                         <!-- Program Statistics Card -->
-                        <div class="card shadow mb-4">
+                        <div class="card shadow mb-4 program-surface-card">
                             <div class="card-header py-3 bg-success text-white">
                                 <h6 class="m-0 font-weight-bold">
                                     <i class="fas fa-chart-bar mr-2"></i>Program Statistics
@@ -510,7 +823,7 @@
                         </div>
                         
                         {% if program.beneficiary_limit %}
-                        <div class="card shadow mb-4">
+                        <div class="card shadow mb-4 program-surface-card">
                             <div class="card-header py-2 bg-warning text-white">
                                 <h6 class="m-0 font-weight-bold">Beneficiary Limit</h6>
                             </div>
@@ -548,7 +861,7 @@
                         </div>
                         {% endif %}
                         
-                        <div class="card shadow">
+                        <div class="card shadow program-surface-card">
                             <div class="card-header py-2 bg-warning text-white">
                                 <h6 class="m-0 font-weight-bold">Quick Actions</h6>
                             </div>
@@ -574,11 +887,11 @@
 
         <!-- Edit Tab -->
         <div class="tab-pane fade" id="edit" role="tabpanel">
-            <form method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
+            <form id="editForm" method="POST" action="{{ url_for('admin.edit_program', id=program.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <!-- 1. Program Information Card -->
-                <div class="card shadow mb-4" id="editProgramInfoSection">
+                <div class="card shadow mb-4 program-surface-card" id="editProgramInfoSection">
                     <div class="card-header py-3 bg-warning text-white">
                         <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle mr-2"></i>Program Information</h6>
                     </div>
@@ -621,7 +934,7 @@
                                 <div class="form-group">
                                     <label>Program Start Date</label>
                                     <input type="date" class="form-control" name="start_date" id="editStartDate"
-                                           value="{{ program.start_date.strftime('%Y-%m-%d') if program.start_date else '' }}">
+                                           value="{{ program.start_date|manila('%Y-%m-%d', '') }}">
                                     <small class="form-text text-muted">
                                         <i class="fas fa-info-circle"></i> When the program begins accepting applications
                                     </small>
@@ -631,7 +944,7 @@
                                 <div class="form-group">
                                     <label>Program End Date / Deadline</label>
                                     <input type="date" class="form-control" name="end_date" id="editEndDate"
-                                           value="{{ program.end_date.strftime('%Y-%m-%d') if program.end_date else '' }}">
+                                           value="{{ program.end_date|manila('%Y-%m-%d', '') }}">
                                     <small class="form-text text-muted">
                                         <i class="fas fa-info-circle"></i> Last day for application/document submission
                                     </small>
@@ -841,7 +1154,7 @@
                 </div>
                 
                 <!-- 2. Requirements Card -->
-                <div class="card shadow mb-4" id="editRequirementsSection">
+                <div class="card shadow mb-4 program-surface-card" id="editRequirementsSection">
                     <div class="card-header py-3 bg-primary text-white">
                         <div class="d-flex justify-content-between align-items-center">
                             <h6 class="m-0 font-weight-bold"><i class="fas fa-clipboard-check mr-2"></i>Program Requirements</h6>
@@ -854,7 +1167,7 @@
                         <!-- Requirements Section -->
                         <div class="form-group">
                             <!-- Document Requirements Section -->
-                            <div class="card mb-3">
+                            <div class="card mb-3 sub-surface-card">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="mb-0 text-primary">
@@ -886,6 +1199,15 @@
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="requirements-search-wrap">
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            </div>
+                                            <input type="text" class="form-control" id="editDocumentReqSearch" placeholder="Search document requirements..." autocomplete="off">
                                         </div>
                                     </div>
                                     
@@ -954,11 +1276,14 @@
                                             {% endif %}
                                         {% endif %}
                                     </div>
+                                    <div id="editDocumentReqNoMatch" class="requirement-search-no-match d-none">
+                                        <i class="fas fa-search mr-1"></i>No matching document requirements found.
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- Qualification Requirements Section -->
-                            <div class="card">
+                            <div class="card sub-surface-card">
                                 <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
                                     <div>
                                         <h6 class="mb-0 text-success">
@@ -990,6 +1315,15 @@
                                                     <i class="fas fa-plus"></i> Add Requirement
                                                 </button>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="requirements-search-wrap">
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            </div>
+                                            <input type="text" class="form-control" id="editQualificationReqSearch" placeholder="Search qualification requirements..." autocomplete="off">
                                         </div>
                                     </div>
                                     
@@ -1026,6 +1360,9 @@
                                             {% endif %}
                                         {% endif %}
                                     </div>
+                                    <div id="editQualificationReqNoMatch" class="requirement-search-no-match d-none">
+                                        <i class="fas fa-search mr-1"></i>No matching qualification requirements found.
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1033,19 +1370,14 @@
                 </div>
                 
                 <!-- 3. Workflow Steps Card -->
-                <div class="card shadow mb-4" id="editWorkflowSection">
+                <div class="card shadow mb-4 program-surface-card" id="editWorkflowSection">
                     <div class="card-header py-3 bg-dark text-white">
                         <h6 class="m-0 font-weight-bold"><i class="fas fa-tasks mr-2"></i>Application Workflow Steps</h6>
                     </div>
                     <div class="card-body">
                         <!-- Workflow Steps Section (Edit Mode) -->
                         <div class="form-group" id="workflowSection">
-                            <div class="alert alert-info">
-                                <i class="fas fa-info-circle mr-2"></i>
-                                Define the steps applicants must complete. Steps marked as "Pre-Approval" must be completed before application approval.
-                            </div>
-                            
-                            <div class="card">
+                            <div class="card sub-surface-card">
                                 <div class="card-header bg-light py-2">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
@@ -1060,23 +1392,20 @@
                                                     <i class="fas fa-file-import mr-1"></i>Load Template
                                                 </button>
                                                 <div class="dropdown-menu dropdown-menu-right">
-                                                    <a class="dropdown-item" href="#" onclick="console.log('Standard workflow template clicked'); applyWorkflowTemplate('default'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('default'); return false;">
                                                         <i class="fas fa-clipboard-list mr-2"></i>Standard Workflow
                                                     </a>
-                                                    <a class="dropdown-item" href="#" onclick="console.log('Online upload template clicked'); applyWorkflowTemplate('online_upload'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('online_upload'); return false;">
                                                         <i class="fas fa-cloud-upload-alt mr-2"></i>Online Upload Workflow
                                                     </a>
                                                     <div class="dropdown-divider"></div>
-                                                    <a class="dropdown-item" href="#" onclick="console.log('ESA template clicked'); applyWorkflowTemplate('ESA'); return false;">
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('ESA'); return false;">
                                                         <i class="fas fa-home mr-2"></i>ESA Workflow
                                                     </a>
                                                 </div>
                                             </div>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="console.log('Add workflow step clicked'); addWorkflowStep(); return false;">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWorkflowStep(); return false;">
                                                 <i class="fas fa-plus"></i> Add Step
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-success ml-1" onclick="console.log('Test template clicked'); applyWorkflowTemplate('default'); return false;">
-                                                <i class="fas fa-file-import"></i> Test Template
                                             </button>
                                         </div>
                                     </div>
@@ -1095,7 +1424,7 @@
                 </div>
                 
                 <!-- Form Actions -->
-                <div class="card shadow">
+                <div class="card shadow edit-form-actions">
                     <div class="card-body">
                         <div class="text-right">
                             <button type="button" class="btn btn-secondary" onclick="$('#view-tab').tab('show')">
@@ -1675,6 +2004,47 @@
     // Get template data safely
     const programData = JSON.parse(document.getElementById('program-data').textContent);
     console.log('Program data loaded:', programData);
+    const programTabStorageKey = `ayuda_program_tab_${programData.program_id}`;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabsContainer = document.getElementById('programTabs');
+        if (!tabsContainer) {
+            return;
+        }
+
+        const savedTab = sessionStorage.getItem(programTabStorageKey);
+
+        if (typeof $ !== 'undefined' && typeof $.fn.tab === 'function') {
+            $('#programTabs a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+                const href = $(e.target).attr('href');
+                if (href) {
+                    sessionStorage.setItem(programTabStorageKey, href);
+                }
+            });
+
+            if (savedTab && document.querySelector(`#programTabs a[href="${savedTab}"]`)) {
+                $(`#programTabs a[href="${savedTab}"]`).tab('show');
+            }
+            return;
+        }
+
+        const tabLinks = tabsContainer.querySelectorAll('a[data-toggle="tab"]');
+        tabLinks.forEach(function(link) {
+            link.addEventListener('click', function() {
+                const href = this.getAttribute('href');
+                if (href) {
+                    sessionStorage.setItem(programTabStorageKey, href);
+                }
+            });
+        });
+
+        if (savedTab) {
+            const targetLink = tabsContainer.querySelector(`a[href="${savedTab}"]`);
+            if (targetLink) {
+                targetLink.click();
+            }
+        }
+    });
     
     // Make functions globally accessible
 
@@ -1781,6 +2151,37 @@
             document.getElementById('editNewQualName').focus();
         }
     }
+
+    function filterEditRequirementList(listId, noMatchId, query) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+
+        const normalizedQuery = String(query || '').trim().toLowerCase();
+        const items = Array.from(list.querySelectorAll('.requirement-item'));
+        let visibleCount = 0;
+
+        items.forEach((item) => {
+            const content = item.textContent.toLowerCase();
+            const isVisible = !normalizedQuery || content.includes(normalizedQuery);
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) {
+                visibleCount += 1;
+            }
+        });
+
+        const noMatch = document.getElementById(noMatchId);
+        if (noMatch) {
+            noMatch.classList.toggle('d-none', visibleCount !== 0 || !items.length);
+        }
+    }
+
+    function applyEditRequirementSearchFilters() {
+        const docInput = document.getElementById('editDocumentReqSearch');
+        const qualInput = document.getElementById('editQualificationReqSearch');
+
+        filterEditRequirementList('editDocumentReqsList', 'editDocumentReqNoMatch', docInput ? docInput.value : '');
+        filterEditRequirementList('editQualificationReqsList', 'editQualificationReqNoMatch', qualInput ? qualInput.value : '');
+    }
     
     function addNewRequirementEdit(type, button) {
         const nameField = type === 'document' ? 'editNewDocName' : 'editNewQualName';
@@ -1882,6 +2283,7 @@
                 `;
                 
                 list.appendChild(reqItem);
+                applyEditRequirementSearchFilters();
 
                 const newlyAddedCheckbox = reqItem.querySelector('input.req-checkbox');
                 if (newlyAddedCheckbox) {
@@ -1912,9 +2314,17 @@
     }
     
     function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('ayudaToastStackContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'ayudaToastStackContainer';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; width: min(92vw, 400px); pointer-events: none;';
+            document.body.appendChild(toastContainer);
+        }
+
         const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 250px;';
+        toast.className = `alert alert-${type} alert-dismissible fade show mb-0 toast-animate-in`;
+        toast.style.cssText = 'width: 400px; max-width: calc(100vw - 1rem); box-shadow: 0 8px 20px rgba(0,0,0,0.18); pointer-events: auto;';
         
         const iconMap = {
             'success': 'fas fa-check-circle',
@@ -1929,8 +2339,12 @@
                 <span>&times;</span>
             </button>
         `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('toast-animate-in');
+            toast.classList.add('toast-animate-out');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
     
     document.querySelectorAll('.custom-file-input').forEach(input => {
@@ -2172,6 +2586,19 @@
         initializeProgramFormChangeDetection();
         initializeRequirementCopySpecsState();
         renderViewWorkflowSteps();
+
+        const editDocumentReqSearch = document.getElementById('editDocumentReqSearch');
+        const editQualificationReqSearch = document.getElementById('editQualificationReqSearch');
+
+        if (editDocumentReqSearch) {
+            editDocumentReqSearch.addEventListener('input', applyEditRequirementSearchFilters);
+        }
+
+        if (editQualificationReqSearch) {
+            editQualificationReqSearch.addEventListener('input', applyEditRequirementSearchFilters);
+        }
+
+        applyEditRequirementSearchFilters();
     });
     
     window.addWorkflowStepImpl = function() {
@@ -2209,6 +2636,7 @@
         // Update workflow step in main array
         const step = workflowSteps.find(s => s.id === stepId);
         if (step) {
+            hideWorkflowTooltips();
             step[field] = value;
             markAsChanged('workflow');
             updateWorkflowStepsJson();
@@ -2320,7 +2748,7 @@
                                 <input type="checkbox" class="custom-control-input" id="preApproval${step.id}" 
                                        ${step.is_pre_approval ? 'checked' : ''} 
                                        onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
-                                <label class="custom-control-label small" for="preApproval${step.id}">Pre-Approval</label>
+                                <label class="custom-control-label small" for="preApproval${step.id}" data-toggle="tooltip" data-placement="top" title="Use Pre-Approval for steps that must be completed before an application can be approved.">Pre-Approval <i class="fas fa-info-circle text-muted ml-1"></i></label>
                             </div>
                         </div>
                         <div class="col-md-2">
@@ -2328,7 +2756,7 @@
                                 <input type="checkbox" class="custom-control-input" id="reqVerify${step.id}" 
                                        ${step.requires_verification ? 'checked' : ''} 
                                        onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
-                                <label class="custom-control-label small" for="reqVerify${step.id}">Admin Verify</label>
+                                <label class="custom-control-label small" for="reqVerify${step.id}" data-toggle="tooltip" data-placement="top" title="Enable Admin Verify when this step needs manual confirmation by an admin before applicants can proceed.">Admin Verify <i class="fas fa-info-circle text-muted ml-1"></i></label>
                             </div>
                         </div>
                         <div class="col-md-2 text-right">
@@ -2343,8 +2771,33 @@
                 </div>
             </div>
         `).join('');
+
+        initializeWorkflowTooltips();
         
         updateWorkflowStepsJson();
+    }
+
+    function initializeWorkflowTooltips() {
+        if (typeof $ === 'undefined' || typeof $.fn.tooltip !== 'function') {
+            return;
+        }
+
+        const $tooltipTargets = $('#workflowStepsList [data-toggle="tooltip"]');
+        $tooltipTargets.tooltip('dispose');
+        $tooltipTargets.tooltip({
+            container: 'body',
+            trigger: 'hover'
+        });
+    }
+
+    function hideWorkflowTooltips() {
+        if (typeof $ === 'undefined' || typeof $.fn.tooltip !== 'function') {
+            return;
+        }
+
+        $('#workflowStepsList [data-toggle="tooltip"]').tooltip('hide');
+        $('#stepProcessContent [data-toggle="tooltip"]').tooltip('hide');
+        $('.tooltip').remove();
     }
     
     function toggleStepDetails(stepId) {
@@ -2485,14 +2938,14 @@
                 <div class="col-md-4">
                     <div class="custom-control custom-checkbox">
                         <input type="checkbox" class="custom-control-input" id="modalPreApproval" ${step.is_pre_approval ? 'checked' : ''}>
-                        <label class="custom-control-label font-weight-bold" for="modalPreApproval">Pre-Approval Step</label>
+                        <label class="custom-control-label font-weight-bold" for="modalPreApproval" data-toggle="tooltip" data-placement="top" title="Use this when the step must be completed before application approval.">Pre-Approval Step <i class="fas fa-info-circle text-muted ml-1"></i></label>
                         <small class="form-text text-muted">Must be completed before application approval</small>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="custom-control custom-checkbox">
                         <input type="checkbox" class="custom-control-input" id="modalRequiresVerification" ${step.requires_verification ? 'checked' : ''}>
-                        <label class="custom-control-label font-weight-bold" for="modalRequiresVerification">Requires Admin Verification</label>
+                        <label class="custom-control-label font-weight-bold" for="modalRequiresVerification" data-toggle="tooltip" data-placement="top" title="Enable this when admin review is required to verify the step result before moving forward.">Requires Admin Verification <i class="fas fa-info-circle text-muted ml-1"></i></label>
                         <small class="form-text text-muted">Admin must manually verify this step</small>
                     </div>
                 </div>
@@ -2503,6 +2956,24 @@
         
         document.getElementById('stepProcessContent').innerHTML = modalContent;
         updateStepProcessContent();
+
+        if (typeof $ !== 'undefined' && typeof $.fn.tooltip === 'function') {
+            $('#stepProcessContent [data-toggle="tooltip"]').tooltip('dispose');
+            $('#stepProcessContent [data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                trigger: 'hover'
+            });
+        }
+
+        const modalPreApprovalCheckbox = document.getElementById('modalPreApproval');
+        if (modalPreApprovalCheckbox) {
+            modalPreApprovalCheckbox.addEventListener('change', hideWorkflowTooltips);
+        }
+
+        const modalAdminVerifyCheckbox = document.getElementById('modalRequiresVerification');
+        if (modalAdminVerifyCheckbox) {
+            modalAdminVerifyCheckbox.addEventListener('change', hideWorkflowTooltips);
+        }
         
         // Load existing configuration after content is updated
         setTimeout(() => {
@@ -2969,8 +3440,6 @@
     
     // Make function globally accessible
     window.applyWorkflowTemplateImpl = function(templateType) {
-        console.log('Applying template:', templateType);
-        alert('Template clicked: ' + templateType); // Debug alert
         
         if (workflowSteps.length > 0) {
             if (!confirm('This will replace all current workflow steps. Are you sure?')) {
@@ -3011,7 +3480,6 @@
         };
         
         const templateSteps = templates[templateType] || templates['default'];
-        console.log('Template steps:', templateSteps);
         
         // Create new workflow steps with unique IDs
         workflowSteps = templateSteps.map((step, index) => ({
@@ -3027,7 +3495,6 @@
             step_config: null
         }));
         
-        console.log('New workflow steps:', workflowSteps);
         renderWorkflowSteps();
         showToast(`Applied ${templateType.replace('_', ' ')} workflow template`, 'success');
     }
@@ -3384,3 +3851,4 @@
     
 </script>
 {% endblock %}
+

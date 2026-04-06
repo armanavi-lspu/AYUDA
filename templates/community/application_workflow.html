@@ -415,6 +415,7 @@
 {% endblock %}
 
 {% block content %}
+<div id="communityWorkflowPageRoot">
 <div class="container-fluid workflow-page">
     <!-- Header -->
     <div class="row">
@@ -457,11 +458,11 @@
                             <div class="row">
                                 <div class="col-6 mb-2">
                                     <div class="text-muted small">Date of Application</div>
-                                    <strong>{{ application.application_date.strftime('%B %d, %Y') if application.application_date else 'N/A' }}</strong>
+                                    <strong>{{ application.application_date|manila('%B %d, %Y', 'N/A') }}</strong>
                                 </div>
                                 <div class="col-6 mb-2">
                                     <div class="text-muted small">Last Updated</div>
-                                    <strong>{{ application.updated_at.strftime('%B %d, %Y') if application.updated_at else application.application_date.strftime('%B %d, %Y') if application.application_date else 'N/A' }}</strong>
+                                    <strong>{{ application.updated_at|manila('%B %d, %Y') if application.updated_at else application.application_date|manila('%B %d, %Y') if application.application_date else 'N/A' }}</strong>
                                 </div>
                             </div>
                         </div>
@@ -807,7 +808,7 @@
                                             <span class="badge badge-light text-muted"><i class="fas fa-minus-circle mr-1"></i>Not Submitted</span>
                                             {% endif %}
                                             {% if item.verified_at %}
-                                            <div class="small text-muted mt-1">Updated {{ item.verified_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                                            <div class="small text-muted mt-1">Updated {{ item.verified_at|manila('%b %d, %Y %I:%M %p') }}</div>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -902,7 +903,7 @@
                                             
                                             <div class="mb-3">
                                                 <small class="text-muted d-block">
-                                                    <i class="fas fa-calendar mr-1"></i>Uploaded {{ existing_upload.uploaded_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                                    <i class="fas fa-calendar mr-1"></i>Uploaded {{ existing_upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
                                                 </small>
                                             </div>
                                             
@@ -957,7 +958,7 @@
                                             <i class="fas fa-file mr-2"></i>
                                             <strong>{{ existing_upload.original_filename }}</strong>
                                             <small class="text-muted ml-2">
-                                                Uploaded {{ existing_upload.uploaded_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                                Uploaded {{ existing_upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
                                             </small>
                                         </div>
                                         <div>
@@ -1100,7 +1101,7 @@
                                     </div>
                                     <div>
                                         <strong>Application Submitted</strong>
-                                        <div class="text-muted small">{{ application.application_date.strftime('%B %d, %Y at %I:%M %p') if application.application_date else 'N/A' }}</div>
+                                        <div class="text-muted small">{{ application.application_date|manila('%B %d, %Y at %I:%M %p', 'N/A') }}</div>
                                     </div>
                                 </div>
                                 {% if current_step_status and current_step_status.step_status in ['approved', 'completed'] %}
@@ -1112,7 +1113,7 @@
                                     </div>
                                     <div>
                                         <strong>Application Approved</strong>
-                                        <div class="text-muted small">{{ current_step_status.reviewed_at.strftime('%B %d, %Y at %I:%M %p') if current_step_status.reviewed_at else 'N/A' }}</div>
+                                        <div class="text-muted small">{{ current_step_status.reviewed_at|manila('%B %d, %Y at %I:%M %p', 'N/A') }}</div>
                                     </div>
                                 </div>
                                 {% elif current_step_status and current_step_status.step_status == 'rejected' %}
@@ -1124,7 +1125,7 @@
                                     </div>
                                     <div>
                                         <strong>Application Declined</strong>
-                                        <div class="text-muted small">{{ current_step_status.reviewed_at.strftime('%B %d, %Y at %I:%M %p') if current_step_status.reviewed_at else 'N/A' }}</div>
+                                        <div class="text-muted small">{{ current_step_status.reviewed_at|manila('%B %d, %Y at %I:%M %p', 'N/A') }}</div>
                                     </div>
                                 </div>
                                 {% else %}
@@ -1172,7 +1173,7 @@
                                                     <i class="fas fa-calendar fa-fw text-success mt-1 mr-2"></i>
                                                     <div>
                                                         <div class="text-muted small font-weight-bold text-uppercase">Date</div>
-                                                        <div class="font-weight-bold">{{ application.claim_date.strftime('%A, %B %d, %Y') }}</div>
+                                                        <div class="font-weight-bold">{{ application.claim_date|manila('%A, %B %d, %Y') }}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1413,12 +1414,12 @@
                                 </tr>
                                 <tr>
                                     <td class="font-weight-bold">Submitted:</td>
-                                    <td>{{ application.application_date.strftime('%B %d, %Y') if application.application_date else 'N/A' }}</td>
+                                    <td>{{ application.application_date|manila('%B %d, %Y', 'N/A') }}</td>
                                 </tr>
                                 {% if application.review_date %}
                                 <tr>
                                     <td class="font-weight-bold">Reviewed:</td>
-                                    <td>{{ application.review_date.strftime('%B %d, %Y') if application.review_date else 'N/A' }}</td>
+                                    <td>{{ application.review_date|manila('%B %d, %Y', 'N/A') }}</td>
                                 </tr>
                                 {% endif %}
                             </table>
@@ -1704,10 +1705,71 @@
     </div>
 </div>
 
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+const COMMUNITY_WORKFLOW_APPLICATION_ID = {{ application.id }};
+let communityWorkflowRealtimeRefreshTimer = null;
+let communityWorkflowRefreshInProgress = false;
+
+function refreshCommunityWorkflowPage(options = {}) {
+    if (communityWorkflowRefreshInProgress) {
+        return;
+    }
+
+    const root = document.getElementById('communityWorkflowPageRoot');
+    if (!root) {
+        window.location.reload();
+        return;
+    }
+
+    communityWorkflowRefreshInProgress = true;
+
+    if (window.jQuery) {
+        $('.modal.show').modal('hide');
+    }
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('padding-right');
+
+    fetch(`${window.location.pathname}${window.location.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh workflow view (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('communityWorkflowPageRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated workflow content not found');
+            }
+
+            root.replaceWith(nextRoot);
+
+            if (options.toastMessage && typeof showRealtimeToast === 'function') {
+                showRealtimeToast(options.toastMessage);
+            }
+        })
+        .catch(error => {
+            console.error('Community workflow soft refresh failed:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            communityWorkflowRefreshInProgress = false;
+        });
+}
+
 function uploadDocument(requirementId) {
     document.getElementById('requirementId').value = requirementId;
     // Clear previous file and preview
@@ -2045,7 +2107,7 @@ function confirmSubmitStep() {
             `;
             document.querySelector('.container-fluid').prepend(successAlert);
             
-            setTimeout(() => location.reload(), 2000);
+            setTimeout(() => refreshCommunityWorkflowPage(), 1200);
         } else {
             // Reset button state
             submitBtn.disabled = false;
@@ -2103,7 +2165,7 @@ if (uploadFormEl) {
     .then(data => {
         if (data.success) {
             $('#uploadModal').modal('hide');
-            location.reload();
+            refreshCommunityWorkflowPage();
         } else {
             const errorMsg = data.message || 'Unknown error occurred';
             alert('Upload failed:\n' + errorMsg);
@@ -2465,5 +2527,27 @@ function toggleReviewView() {
         }
     }
 }
+
+document.addEventListener('ayuda:application-workflow-update', function(event) {
+    if (document.hidden) {
+        return;
+    }
+
+    const payload = event && event.detail ? event.detail : {};
+    if (Number(payload.application_id) !== Number(COMMUNITY_WORKFLOW_APPLICATION_ID)) {
+        return;
+    }
+
+    if (communityWorkflowRealtimeRefreshTimer) {
+        clearTimeout(communityWorkflowRealtimeRefreshTimer);
+    }
+
+    communityWorkflowRealtimeRefreshTimer = setTimeout(function() {
+        const reason = payload.reason ? payload.reason.replace(/_/g, ' ') : 'workflow changes';
+        refreshCommunityWorkflowPage({
+            toastMessage: `Workflow updated in realtime (${reason}).`
+        });
+    }, 800);
+});
 </script>
 {% endblock %}

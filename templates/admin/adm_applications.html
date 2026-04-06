@@ -3,145 +3,361 @@
 
 {% block extra_css %}
 <style>
-    .stats-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
     }
-    
-    .stats-card:hover {
+
+    .applications-shell {
+        animation: applicationsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes applicationsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .applications-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .applications-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .applications-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.1rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
         transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
     }
-    
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.25s ease;
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border-color: transparent;
+        transform: translateY(-1px);
+    }
+
+    .applications-stats-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+    }
+
+    .applications-stats-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .applications-stats-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-primary { background: linear-gradient(135deg, #1f6feb, #1942a8); }
+    .icon-warning { background: linear-gradient(135deg, #d89f1d, #b77908); box-shadow: 0 6px 14px rgba(216, 159, 29, 0.28); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); box-shadow: 0 6px 14px rgba(8, 145, 178, 0.28); }
+    .icon-completed { background: linear-gradient(135deg, #6f42c1, #5a32a3); box-shadow: 0 6px 14px rgba(111, 66, 193, 0.28); }
+
+    .applications-filter-card,
+    .applications-list-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    /* Keep sort dropdown fully visible above the card/table area. */
+    .applications-list-card {
+        overflow: visible;
+    }
+
+    .applications-list-card .card-header {
+        position: relative;
+        z-index: 3;
+        overflow: visible;
+    }
+
+    .applications-list-card .dropdown-menu.sort-menu {
+        z-index: 1060;
+        background: #fff;
+    }
+
+    .applications-filter-card .card-header,
+    .applications-list-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .applications-filter-card .form-control {
+        border-radius: 10px;
+        border-color: #d7e1f3;
+    }
+
+    .applications-filter-card .form-control:focus {
+        border-color: #6da2f1;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.16);
+    }
+
     .status-badge {
         font-size: 0.75rem;
         padding: 0.35rem 0.75rem;
         font-weight: 600;
     }
-    
+
+    .table thead.thead-light th {
+        background: #f8fafc;
+        border-top: none;
+        color: #334155;
+        font-weight: 700;
+    }
+
     .application-row {
         transition: all 0.2s ease;
     }
-    
+
     .application-row:hover {
-        background-color: #f8f9fc;
-        transform: translateX(3px);
-    }
-    
-    .progress-sm {
-        height: 8px;
-    }
-    
-    /* Progress bar animation */
-    .progress-bar {
-        transition: width 0.6s ease;
-    }
-    
-    /* Progress color indicators */
-    .progress-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 4px;
-    }
-    .progress-indicator.complete { background-color: #28a745; }
-    .progress-indicator.high { background-color: #17a2b8; }
-    .progress-indicator.medium { background-color: #ffc107; }
-    .progress-indicator.low { background-color: #dc3545; }
-
-    /* Sort dropdown styling */
-    .dropdown-menu {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        border-radius: 0.35rem;
-    }
-
-    .dropdown-item {
-        padding: 0.65rem 1.5rem;
-        transition: all 0.2s ease;
-    }
-
-    .dropdown-item:hover {
-        background-color: #f0f4ff;
-        color: #004085;
-    }
-
-    .dropdown-header {
-        padding: 0.65rem 1.5rem;
-        font-size: 0.85rem;
-        color: #6c757d;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        background-color: #f8faff;
+        transform: translateX(2px);
     }
 
     #sortDropdown:hover {
         background-color: #e7f1ff;
         color: #004085;
     }
+
+    .sort-menu {
+        min-width: 250px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border-radius: 0.35rem;
+    }
+
+    .sort-menu .dropdown-header {
+        padding: 0.62rem 1rem;
+        font-size: 0.78rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+
+    .sort-menu .dropdown-item {
+        padding: 0.65rem 1rem;
+        transition: all 0.2s ease;
+        color: #334155;
+    }
+
+    .sort-menu .dropdown-item:hover {
+        background-color: #f0f4ff;
+        color: #004085;
+    }
+
+    .sort-menu .dropdown-item.active {
+        background-color: #e7f1ff;
+        color: #0f3f85;
+        font-weight: 700;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    @media (max-width: 767.98px) {
+        .applications-hero {
+            padding: 1.1rem;
+        }
+
+        .applications-hero .btn {
+            width: 100%;
+            margin-top: 0.55rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div id="adminApplicationsPageRoot">
+<div class="container-fluid applications-shell">
     <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h1 class="font-weight-bold mb-2">Applications Management</h1>
-            <p class="text-muted mb-0">Review and manage community program applications</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('admin.export_applications', status=request.args.get('status', ''), program=request.args.get('program', '')) }}" 
-               class="btn btn-success">
-                <i class="fas fa-file-export mr-2"></i>Export to CSV
-            </a>
-            <button type="button" class="btn btn-info ml-2" data-toggle="modal" data-target="#beneficiariesModal"
-               title="Generate list of approved beneficiaries">
-                <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
-            </button>
+    <div class="applications-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Applications Management</h1>
+                <p class="subtitle">Review and manage community program applications with a consistent workflow view.</p>
+            </div>
+            <div class="d-flex flex-column flex-sm-row mt-2 mt-md-0">
+                <a href="{{ url_for('admin.export_applications', status=request.args.get('status', ''), program=request.args.get('program', '')) }}" 
+                   class="btn btn-soft-info mb-2 mb-sm-0 mr-sm-2">
+                    <i class="fas fa-file-export mr-2"></i>Export to CSV
+                </a>
+                <button type="button" class="btn btn-gradient-primary" data-toggle="modal" data-target="#beneficiariesModal"
+                   title="Generate list of approved beneficiaries">
+                    <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row mb-5">
-        <div class="col-lg col-md-6 mb-4">
-            <div class="card border-left-primary shadow stats-card h-100">
-                <div class="card-body py-4">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-2">Total</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_apps }}</div>
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card applications-stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Total Applications</div>
+                            <div class="stat-value">{{ total_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-primary"><i class="fas fa-clipboard-list"></i></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg col-md-6 mb-4">
-            <div class="card border-left-warning shadow stats-card h-100">
-                <div class="card-body py-4">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-2">Pending</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ pending_apps }}</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card applications-stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Pending</div>
+                            <div class="stat-value">{{ pending_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-warning"><i class="fas fa-hourglass-half"></i></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg col-md-6 mb-4">
-            <div class="card border-left-info shadow stats-card h-100">
-                <div class="card-body py-4">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-2">Active</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_apps }}</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card applications-stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Active</div>
+                            <div class="stat-value">{{ active_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-spinner"></i></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg col-md-6 mb-4">
-            <div class="card border-left-secondary shadow stats-card h-100" style="border-left-color: #6f42c1 !important;">
-                <div class="card-body py-4">
-                    <div class="text-xs font-weight-bold text-uppercase mb-2" style="color: #6f42c1;">Completed</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ completed_apps }}</div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card applications-stats-card h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Completed</div>
+                            <div class="stat-value">{{ completed_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-completed"><i class="fas fa-check-double"></i></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Filters -->
-    <div class="card shadow mb-5">
-        <div class="card-header py-4">
+    <div class="card applications-filter-card mb-4">
+        <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">
                 <i class="fas fa-filter mr-2"></i>Filter Applications
             </h6>
@@ -152,7 +368,7 @@
                     <div class="col-md-3 mb-3">
                         <label class="small font-weight-bold">Search Applicant</label>
                         <input type="text" class="form-control" name="search" 
-                               placeholder="Name or email..." 
+                               placeholder="Applicant name, email, or ID..." 
                                value="{{ request.args.get('search', '') }}">
                     </div>
                     <div class="col-md-2 mb-3">
@@ -177,16 +393,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="small font-weight-bold">Date Range</label>
-                        <select class="form-control" name="date_range">
-                            <option value="">All Time</option>
-                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
-                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
-                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label class="small font-weight-bold">&nbsp;</label>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-grow-1">
@@ -203,42 +410,42 @@
     </div>
 
     <!-- Applications Table -->
-    <div class="card shadow">
-        <div class="card-header py-4 d-flex justify-content-between align-items-center">
+    <div class="card applications-list-card">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap">
             <h6 class="m-0 font-weight-bold text-primary">Applications List</h6>
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
                 <!-- Sort Dropdown -->
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Sort applications">
-                        <i class="fas fa-sort-amount-down mr-2"></i>Sort
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-sort mr-1"></i>Sort
                     </button>
-                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
-                        <h6 class="dropdown-header font-weight-bold">Sort by Severity</h6>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
-                            <i class="fas fa-arrow-down mr-2"></i>Highest Severity First
-                            {% if sort_by == 'severity' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
-                        </a>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
-                            <i class="fas fa-arrow-up mr-2"></i>Lowest Severity First
-                            {% if sort_by == 'severity' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
-                        </a>
-                        <div class="dropdown-divider"></div>
+                    <div class="dropdown-menu dropdown-menu-right sort-menu" aria-labelledby="sortDropdown">
                         <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
                             <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
                             {% if sort_by == 'date' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                         </a>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='date', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
                             <i class="fas fa-arrow-up mr-2"></i>Oldest to Newest
                             {% if sort_by == 'date' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                         </a>
                         <div class="dropdown-divider"></div>
+                        <h6 class="dropdown-header font-weight-bold">Sort by Severity</h6>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
+                            <i class="fas fa-arrow-down mr-2"></i>Highest Severity First
+                            {% if sort_by == 'severity' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='severity', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
+                            <i class="fas fa-arrow-up mr-2"></i>Lowest Severity First
+                            {% if sort_by == 'severity' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                        </a>
+                        <div class="dropdown-divider"></div>
                         <h6 class="dropdown-header font-weight-bold">Sort by Applicant Name</h6>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='asc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
                             <i class="fas fa-arrow-up mr-2"></i>A-Z
                             {% if sort_by == 'name' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                         </a>
-                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <a class="dropdown-item" href="{{ url_for('admin.applications', sort_by='name', sort_order='desc', status=request.args.get('status', ''), program=request.args.get('program', ''), search=request.args.get('search', '')) }}">
                             <i class="fas fa-arrow-down mr-2"></i>Z-A
                             {% if sort_by == 'name' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
                         </a>
@@ -284,8 +491,7 @@
                             <th>Program</th>
                             <th>Case Severity</th>
                             <th>Status</th>
-                            <th>Qualifications</th>
-                            <th>Progress</th>
+                            <th>STEP</th>
                             <th>Application Date</th>
                             <th>Review Date</th>
                             <th class="text-center">Actions</th>
@@ -298,6 +504,7 @@
                                 <td>
                                     <input type="checkbox" class="app-checkbox" value="{{ app.id }}" 
                                            data-status="{{ app.application_status }}"
+                                           data-qualification-status="{% if app.meets_all_qualifications == None %}no_requirements{% elif app.meets_all_qualifications %}qualified{% elif app.met_qualifications == 0 %}not_qualified{% else %}partially_qualified{% endif %}"
                                            onchange="updateBulkActions()">
                                 </td>
                                 <td class="font-weight-bold">#{{ app.id }}</td>
@@ -335,50 +542,24 @@
                                     {% elif app.application_status == 'completed' %}
                                         <span class="badge status-badge" style="background-color: #6f42c1; color: white;">Completed</span>
                                         {% if app.claim_date %}
-                                        <br><small class="text-muted"><i class="fas fa-calendar-check"></i> {{ app.claim_date.strftime('%b %d') }}</small>
+                                        <br><small class="text-muted"><i class="fas fa-calendar-check"></i> {{ app.claim_date|manila('%b %d') }}</small>
                                         {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if app.meets_all_qualifications == None %}
-                                        <span class="badge badge-secondary" title="No qualifications required">
-                                            <i class="fas fa-minus"></i> N/A
-                                        </span>
-                                    {% elif app.meets_all_qualifications %}
-                                        <span class="badge badge-success" title="Meets all {{ app.total_qualifications }} qualification(s)">
-                                            <i class="fas fa-check-circle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
-                                        </span>
-                                    {% elif app.met_qualifications == 0 %}
-                                        <span class="badge badge-danger" title="Does not meet qualifications ({{ app.met_qualifications }} of {{ app.total_qualifications }})">
-                                            <i class="fas fa-times-circle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
-                                        </span>
-                                    {% else %}
-                                        <span class="badge badge-warning" title="Partially meets qualifications ({{ app.met_qualifications }} of {{ app.total_qualifications }})">
-                                            <i class="fas fa-exclamation-triangle"></i> {{ app.met_qualifications }}/{{ app.total_qualifications }}
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="progress flex-grow-1 progress-sm mr-2" style="height: 10px;">
-                                            <div class="progress-bar 
-                                                {% if app.completion_percentage == 100 %}bg-success
-                                                {% elif app.completion_percentage >= 50 %}bg-info
-                                                {% else %}bg-warning{% endif %}" 
-                                                 style="width: {{ app.completion_percentage }}%"></div>
-                                        </div>
-                                        {% if app.completion_percentage == 100 %}
-                                        <span class="badge badge-success badge-pill"><i class="fas fa-check"></i></span>
-                                        {% else %}
-                                        <small class="text-muted">{{ app.completion_percentage }}%</small>
+                                    <div class="font-weight-bold">
+                                        {% if app.current_step_order %}
+                                            <span class="text-muted">{{ app.current_step_order }}.</span>
                                         {% endif %}
+                                        {{ app.current_step_label }}
                                     </div>
+                                    <small class="text-muted text-capitalize">{{ app.current_step_status|replace('_', ' ') }}</small>
                                 </td>
                                 <td>
-                                    <small>{{ app.application_date.strftime('%Y-%m-%d %H:%M') if app.application_date else 'N/A' }}</small>
+                                    <small>{{ app.application_date|manila('%Y-%m-%d %H:%M', 'N/A') }}</small>
                                 </td>
                                 <td>
-                                    <small>{{ app.review_date.strftime('%Y-%m-%d %H:%M') if app.review_date else '-' }}</small>
+                                    <small>{{ app.review_date|manila('%Y-%m-%d %H:%M', '-') }}</small>
                                 </td>
                                 <td class="text-center">
                                     <a href="{{ url_for('admin.view_application', application_id=app.id) }}" 
@@ -390,7 +571,7 @@
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-5">
+                                <td colspan="10" class="text-center text-muted py-5">
                                     <i class="fas fa-inbox fa-3x mb-3"></i>
                                     <p>No applications found</p>
                                 </td>
@@ -406,7 +587,7 @@
                 <ul class="pagination justify-content-center">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), sort_by=sort_by, sort_order=sort_order) }}">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                     </li>
@@ -416,7 +597,7 @@
                         {% if page_num %}
                             {% if page_num != pagination.page %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.applications', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
+                                <a class="page-link" href="{{ url_for('admin.applications', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), sort_by=sort_by, sort_order=sort_order) }}">
                                     {{ page_num }}
                                 </a>
                             </li>
@@ -434,7 +615,7 @@
                     
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), date_range=request.args.get('date_range', ''), sort_by=sort_by, sort_order=sort_order) }}">
+                        <a class="page-link" href="{{ url_for('admin.applications', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), program=request.args.get('program', ''), sort_by=sort_by, sort_order=sort_order) }}">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                     </li>
@@ -526,6 +707,7 @@
         </div>
     </div>
 </div>
+</div>
 
 <script>
 function toggleSelectAll(checkbox) {
@@ -587,23 +769,14 @@ function bulkUpdateStatus(newStatus) {
         const currentStatus = cb.dataset.status;
         const applicantName = row.querySelector('td:nth-child(3) .font-weight-bold').textContent.trim();
         const programName = row.querySelector('td:nth-child(4) .badge').textContent.trim();
-        const qualBadge = row.querySelector('td:nth-child(6) .badge');
-        
-        let qualificationStatus = 'unknown';
-        if (qualBadge) {
-            if (qualBadge.classList.contains('badge-success')) {
-                qualificationStatus = 'qualified';
-                qualifiedCount++;
-            } else if (qualBadge.classList.contains('badge-danger')) {
-                qualificationStatus = 'not_qualified';
-                notQualifiedCount++;
-            } else if (qualBadge.classList.contains('badge-warning')) {
-                qualificationStatus = 'partially_qualified';
-                notQualifiedCount++;
-            } else if (qualBadge.classList.contains('badge-secondary')) {
-                qualificationStatus = 'no_requirements';
-                unknownCount++;
-            }
+        const qualificationStatus = cb.dataset.qualificationStatus || 'unknown';
+
+        if (qualificationStatus === 'qualified') {
+            qualifiedCount++;
+        } else if (qualificationStatus === 'not_qualified' || qualificationStatus === 'partially_qualified') {
+            notQualifiedCount++;
+        } else if (qualificationStatus === 'no_requirements') {
+            unknownCount++;
         }
         
         selectedApps.push({
@@ -891,7 +1064,7 @@ function confirmScheduleNotification() {
     if (location) {
         fullMessage += `\n\nLocation: ${location}`;
     }
-    fullMessage += `\n\nScheduled Date: ${new Date(schedule).toLocaleString()}`;
+    fullMessage += `\n\nScheduled Date: ${new Date(schedule).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}`;
     
     // Show loading
     const overlay = document.createElement('div');
@@ -1098,7 +1271,7 @@ function showUndoToast(message, approvedCount, rejectedCount) {
     if (!toastContainer) {
         toastContainer = document.createElement('div');
         toastContainer.id = 'undoToastContainer';
-        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+        toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; width: min(92vw, 400px); pointer-events: none;';
         document.body.appendChild(toastContainer);
     }
     
@@ -1107,8 +1280,8 @@ function showUndoToast(message, approvedCount, rejectedCount) {
     const toastId = 'undoToast_' + Date.now();
     const toast = document.createElement('div');
     toast.id = toastId;
-    toast.className = 'alert ' + toastClass + ' alert-dismissible fade show';
-    toast.style.cssText = 'min-width: 350px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+    toast.className = 'alert ' + toastClass + ' alert-dismissible fade show mb-0 toast-animate-in';
+    toast.style.cssText = 'width: 400px; max-width: calc(100vw - 1rem); box-shadow: 0 8px 20px rgba(0,0,0,0.22); pointer-events: auto;';
     
     let detailHtml = '';
     if (rejectedCount > 0) {
@@ -1127,7 +1300,7 @@ function showUndoToast(message, approvedCount, rejectedCount) {
             <button type="button" class="btn btn-sm btn-warning mr-2" onclick="performUndo()">
                 <i class="fas fa-undo mr-1"></i>Undo
             </button>
-            <small class="text-muted">Auto-dismissing in <span id="undoCountdown">5</span>s</small>
+            <small class="text-muted">Auto-dismissing in <span class="undo-countdown">5</span>s</small>
         </div>
         <button type="button" class="close" data-dismiss="alert">
             <span>&times;</span>
@@ -1138,7 +1311,7 @@ function showUndoToast(message, approvedCount, rejectedCount) {
     
     // Countdown timer
     let countdown = 5;
-    const countdownEl = document.getElementById('undoCountdown');
+    const countdownEl = toast.querySelector('.undo-countdown');
     const countdownInterval = setInterval(() => {
         countdown--;
         if (countdownEl) {
@@ -1146,9 +1319,13 @@ function showUndoToast(message, approvedCount, rejectedCount) {
         }
         if (countdown <= 0) {
             clearInterval(countdownInterval);
-            $(toast).alert('close');
+            toast.classList.remove('toast-animate-in');
+            toast.classList.add('toast-animate-out');
             setTimeout(() => {
-                location.reload();
+                $(toast).alert('close');
+                setTimeout(() => {
+                    location.reload();
+                }, 300);
             }, 300);
         }
     }, 1000);
@@ -1159,6 +1336,7 @@ function showUndoToast(message, approvedCount, rejectedCount) {
     // Handle manual close
     $(toast).on('closed.bs.alert', function () {
         clearInterval(countdownInterval);
+        toast.classList.remove('toast-animate-in', 'toast-animate-out');
         if (!window.undoPerformed) {
             location.reload();
         }
@@ -1204,6 +1382,93 @@ function performUndo() {
         alert('Error: ' + error.message);
         window.undoPerformed = false;
     });
+}
+
+let adminApplicationsRealtimeRefreshTimer = null;
+let adminApplicationsRefreshInFlight = false;
+
+function queueAdminApplicationsRefresh(message, delayMs = 900) {
+    if (adminApplicationsRealtimeRefreshTimer) {
+        clearTimeout(adminApplicationsRealtimeRefreshTimer);
+    }
+
+    adminApplicationsRealtimeRefreshTimer = setTimeout(function() {
+        refreshAdminApplicationsPage(message);
+    }, delayMs);
+}
+
+function refreshAdminApplicationsPage(message) {
+    if (adminApplicationsRefreshInFlight) {
+        return;
+    }
+
+    const root = document.getElementById('adminApplicationsPageRoot');
+    if (!root) {
+        window.location.reload();
+        return;
+    }
+
+    adminApplicationsRefreshInFlight = true;
+
+    fetch(`${window.location.pathname}${window.location.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh applications page (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('adminApplicationsPageRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated admin applications content not found');
+            }
+
+            root.replaceWith(nextRoot);
+
+            if (typeof showRealtimeToast === 'function') {
+                showRealtimeToast(message || 'Applications list refreshed with latest updates.');
+            }
+        })
+        .catch(error => {
+            console.error('Admin applications soft refresh failed:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            adminApplicationsRefreshInFlight = false;
+        });
+}
+
+if (!window.adminApplicationsRealtimeBound) {
+    document.addEventListener('ayuda:admin-dashboard-update', function(event) {
+        if (document.hidden) {
+            return;
+        }
+
+        const detail = event && event.detail ? event.detail : {};
+        if (detail.reason && detail.reason !== 'applications') {
+            return;
+        }
+
+        queueAdminApplicationsRefresh('Applications list refreshed from live updates.');
+    });
+
+    document.addEventListener('ayuda:application-workflow-update', function() {
+        if (document.hidden) {
+            return;
+        }
+
+        queueAdminApplicationsRefresh('Applications list updated after workflow changes.');
+    });
+
+    window.adminApplicationsRealtimeBound = true;
 }
 </script>
 

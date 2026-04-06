@@ -369,7 +369,7 @@
             <div class="col-lg-4 text-lg-right">
                 <span class="last-updated">
                     <i class="fas fa-calendar-alt mr-2"></i>
-                    <span id="lastUpdatedTime">Updated {{ today.strftime('%b %d, %Y') if today else '' }} --:--</span>
+                    <span id="lastUpdatedTime">Updated {{ today|manila('%b %d, %Y %I:%M %p', '') }}</span>
                 </span>
             </div>
         </div>
@@ -648,7 +648,7 @@
                                             <small class="text-muted font-weight-bold">Submitted:</small>
                                             <div class="font-weight-semibold">
                                                 {% if application.application_date %}
-                                                    {{ application.application_date.strftime('%b %d, %Y') }}
+                                                    {{ application.application_date|manila('%b %d, %Y') }}
                                                 {% else %}
                                                     Not available
                                                 {% endif %}
@@ -732,8 +732,8 @@
                             <div class="d-flex align-items-start">
                                 <!-- Date Badge -->
                                 <div class="event-date-badge mr-3">
-                                    <div class="day">{{ event.date.strftime('%d') }}</div>
-                                    <div class="month">{{ event.date.strftime('%b') }}</div>
+                                    <div class="day">{{ event.date|manila('%d') }}</div>
+                                    <div class="month">{{ event.date|manila('%b') }}</div>
                                 </div>
                                 
                                 <!-- Event Details -->
@@ -849,7 +849,7 @@
                                                     {% elif days_ago < 7 %}
                                                         {{ days_ago }} days ago
                                                     {% else %}
-                                                        {{ announcement.created_at.strftime('%b %d') }}
+                                                        {{ announcement.created_at|manila('%b %d') }}
                                                     {% endif %}
                                                 {% else %}
                                                     Recently
@@ -951,7 +951,7 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function initializeCommunityDashboard() {
     const quickActionsStorageKey = 'community_dashboard_quick_actions';
     const defaultQuickActions = [
         'browse_programs',
@@ -968,7 +968,8 @@ document.addEventListener('DOMContentLoaded', function() {
             year: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true
+            hour12: true,
+            timeZone: 'Asia/Manila'
         });
     }
 
@@ -1035,7 +1036,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     updateLastUpdatedTime();
-    setInterval(updateLastUpdatedTime, 60000);
+    if (window.communityLastUpdatedIntervalId) {
+        clearInterval(window.communityLastUpdatedIntervalId);
+    }
+    window.communityLastUpdatedIntervalId = setInterval(updateLastUpdatedTime, 60000);
 
     const initialActions = getSavedQuickActions();
     applyQuickActions(initialActions);
@@ -1122,13 +1126,78 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Auto-refresh data every 5 minutes (optional)
     {% if pending_applications > 0 %}
-    setTimeout(function() {
-        location.reload();
+    if (window.communityPendingReloadTimeoutId) {
+        clearTimeout(window.communityPendingReloadTimeoutId);
+    }
+    window.communityPendingReloadTimeoutId = setTimeout(function() {
+        softRefreshCommunityDashboard();
     }, 300000); // 5 minutes
     {% endif %}
     
     // Dismissal is handled by a regular form POST for guaranteed persistence.
-});
+}
+
+window.initializeCommunityDashboard = initializeCommunityDashboard;
+document.addEventListener('DOMContentLoaded', initializeCommunityDashboard);
+
+let communityDashboardReloadTimer = null;
+let communityDashboardRefreshInFlight = false;
+
+async function softRefreshCommunityDashboard() {
+    if (communityDashboardRefreshInFlight) {
+        return;
+    }
+
+    communityDashboardRefreshInFlight = true;
+
+    try {
+        const response = await fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const nextDoc = parser.parseFromString(html, 'text/html');
+        const nextShell = nextDoc.querySelector('.dashboard-shell');
+        const currentShell = document.querySelector('.dashboard-shell');
+
+        if (!nextShell || !currentShell) {
+            throw new Error('Dashboard shell not found for soft refresh');
+        }
+
+        currentShell.replaceWith(nextShell);
+        initializeCommunityDashboard();
+
+        if (window.showRealtimeToast) {
+            window.showRealtimeToast('Dashboard refreshed with latest updates');
+        }
+    } catch (error) {
+        console.error('Soft dashboard refresh failed:', error);
+    } finally {
+        communityDashboardRefreshInFlight = false;
+    }
+}
+
+if (!window.communityDashboardRealtimeBound) {
+    document.addEventListener('ayuda:community-dashboard-update', function() {
+        if (document.hidden) {
+            return;
+        }
+
+        if (communityDashboardReloadTimer) {
+            clearTimeout(communityDashboardReloadTimer);
+        }
+
+        communityDashboardReloadTimer = setTimeout(function() {
+            softRefreshCommunityDashboard();
+        }, 1200);
+    });
+
+    window.communityDashboardRealtimeBound = true;
+}
 
 // Add CSS for ripple animation
 const style = document.createElement('style');

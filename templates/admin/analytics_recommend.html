@@ -3,65 +3,188 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .analytics-shell {
+        animation: analyticsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes analyticsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .analytics-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .analytics-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .analytics-nav-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        padding: 0.55rem;
+        margin-bottom: 1.2rem;
+    }
+
     .analytics-nav {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 2rem;
+        gap: 0.55rem;
     }
+
     .analytics-nav .nav-link {
-        color: rgba(255, 255, 255, 0.8);
-        font-weight: 500;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    .analytics-nav .nav-link:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.1);
-    }
-    .analytics-nav .nav-link.active {
-        color: white;
-        background: rgba(255, 255, 255, 0.2);
-    }
-    .parameter-card {
-        border: 2px solid #e3e6f0;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-    }
-    .parameter-card:hover {
-        border-color: #4e73df;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    }
-    .score-badge {
-        background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
+        color: #2a4b79;
         font-weight: 600;
+        padding: 0.62rem 1.1rem;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
     }
-    .recommendation-item {
+
+    .analytics-nav .nav-link:hover {
+        color: #1942a8;
+        background: #f4f8ff;
+        border-color: #dbe7fd;
+    }
+
+    .analytics-nav .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 6px 16px rgba(31, 111, 235, 0.28);
+    }
+
+    .analytics-panel-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .analytics-panel-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%) !important;
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273 !important;
+    }
+
+    .analytics-panel-card .card-body {
+        padding: 1.15rem;
+    }
+
+    .form-control,
+    .custom-select {
+        border-radius: 8px;
+        border: 1px solid #d8deea;
         transition: all 0.2s ease;
-        border-left: 4px solid #e3e6f0;
     }
+
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+        background: #fff;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .parameter-card {
+        border: 0;
+        transition: all 0.3s ease;
+    }
+
+    .score-badge {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        color: #fff;
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.84rem;
+        letter-spacing: 0.2px;
+    }
+
+    .recommendation-item {
+        cursor: pointer;
+        transition: all 0.25s ease;
+        border: 1px solid var(--dash-border) !important;
+        border-left: 4px solid #dbe5fa !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06);
+    }
+
     .recommendation-item:hover {
-        border-left-color: #1cc88a;
-        background-color: #f8f9fc;
+        border-left-color: var(--dash-blue) !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.13);
     }
+
     .ml-badge {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        padding: 0.3rem 0.72rem;
         border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 600;
-    }
-    .recommendation-item {
-        cursor: pointer;
-    }
-    .recommendation-item:hover {
-        border-left-color: #1cc88a;
-        background-color: #f8f9fc;
     }
     /* Detail modal styles */
     .detail-section {
@@ -114,7 +237,7 @@
     .total-score-display {
         text-align: center;
         padding: 1rem;
-        background: linear-gradient(135deg, #1cc88a 0%, #17a673 100%);
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
         border-radius: 10px;
         color: white;
         margin-bottom: 1rem;
@@ -127,23 +250,40 @@
         font-size: 0.85rem;
         opacity: 0.9;
     }
+
+    @media (max-width: 991.98px) {
+        .analytics-hero {
+            padding: 1.15rem;
+        }
+
+        .analytics-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .analytics-nav .nav-link,
+        .btn-gradient-primary,
+        .btn-outline-custom {
+            width: 100%;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h2 font-weight-bold mb-2">
-                <i class="fas fa-users text-dark mr-2"></i>Beneficiary Recommendation System</h1>
-            <p class="text-muted mb-0">Generate prioritized beneficiary lists using AI-powered analysis</p>
+<div class="container-fluid analytics-shell py-4">
+    <div class="analytics-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-9 mb-2 mb-lg-0">
+                <h1 class="h2 font-weight-bold mb-0">
+                    <i class="fas fa-users mr-2"></i>Beneficiary Recommendation
+                </h1>
+                <p class="subtitle">Generate prioritized beneficiary lists using data-driven scoring.</p>
+            </div>
         </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="analytics-nav">
-        <ul class="nav nav-pills">
+    <div class="analytics-nav-panel">
+        <ul class="nav nav-pills analytics-nav mb-0">
             <li class="nav-item">
                 <a class="nav-link" href="{{ url_for('admin.analytics_analysis') }}">
                     <i class="fas fa-chart-line mr-2"></i>Analysis
@@ -160,8 +300,8 @@
     <div class="row">
         <!-- Left Column: Parameter Selection -->
         <div class="col-lg-4 mb-4">
-            <div class="card shadow parameter-card">
-                <div class="card-header bg-primary text-white">
+            <div class="card analytics-panel-card parameter-card">
+                <div class="card-header py-3 px-4">
                     <h6 class="m-0 font-weight-bold d-flex align-items-center">
                         <i class="fas fa-sliders-h mr-2"></i>
                         Selection Parameters
@@ -277,7 +417,7 @@
                         </div>
 
                         <!-- Generate Button -->
-                        <button type="submit" class="btn btn-primary btn-block" id="generateBtn">
+                        <button type="submit" class="btn btn-gradient-primary btn-block" id="generateBtn">
                             <i class="fas fa-magic mr-2"></i>Generate Recommendations
                         </button>
                     </form>
@@ -287,12 +427,12 @@
 
         <!-- Right Column: Results -->
         <div class="col-lg-8 mb-4">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <div class="card analytics-panel-card">
+                <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-list-ol mr-2"></i>Recommended Beneficiaries
                     </h6>
-                    <button class="btn btn-light btn-sm" id="exportBtn" style="display: none;">
+                    <button class="btn btn-outline-custom btn-sm" id="exportBtn" style="display: none;">
                         <i class="fas fa-download mr-2"></i>Export List
                     </button>
                 </div>
@@ -572,7 +712,15 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
 function displayResults(data) {
     // Update result count
     document.getElementById('resultCount').textContent = data.count;
-    document.getElementById('resultTimestamp').textContent = new Date().toLocaleString();
+    document.getElementById('resultTimestamp').textContent = new Date().toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila'
+    });
     
     // Build results HTML
     const resultsList = document.getElementById('resultsList');

@@ -3,14 +3,61 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --subsidy-slate: #1f2a44;
+        --subsidy-border: #e5e7eb;
+        --subsidy-muted: #667085;
+    }
+
+    .subsidy-list-shell {
+        animation: subsidyFadeIn 0.42s ease-out;
+    }
+
+    @keyframes subsidyFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .subsidy-breadcrumb .breadcrumb {
+        background: #fff;
+        border: 1px solid var(--subsidy-border);
+        border-radius: 10px;
+        margin-bottom: 0;
+        padding: 0.45rem 0.8rem;
+    }
+
+    .subsidy-main-card {
+        border: 1px solid #dbe5f7;
+        border-radius: 12px;
+        box-shadow: 0 8px 22px rgba(22, 41, 76, 0.08);
+        overflow: hidden;
+    }
+
+    .subsidy-main-card > .card-header {
+        background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+        border-bottom: 1px solid #d6e3fa;
+    }
+
+    .subsidy-main-card > .card-body,
+    .subsidy-main-card > .card-footer {
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
+
     .beneficiary-card {
         transition: all 0.2s ease;
         border-left: 4px solid #dee2e6;
+        background: #fff;
     }
-    
     .beneficiary-card:hover {
         border-left-color: var(--category-color, #4e73df);
-        background-color: #f8f9fc;
+        background-color: #f7fbff;
+        box-shadow: inset 0 0 0 1px #dbe6ff;
     }
     
     .beneficiary-card.border-left-primary { --category-color: #4e73df; }
@@ -39,8 +86,10 @@
     }
     
     .filter-card {
-        border: none;
+        border: 1px solid #dbe5f7;
         border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(22, 41, 76, 0.07);
+        overflow: hidden;
     }
     
     .category-header {
@@ -48,18 +97,60 @@
         padding: 1.5rem 2rem;
         color: white;
         margin-bottom: 1.5rem;
+        box-shadow: 0 12px 24px rgba(25, 66, 168, 0.25);
     }
     
     .category-header.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
     .category-header.bg-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
     .category-header.bg-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important; color: white !important; }
+
+    .category-header .header-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.55rem;
+        padding: 0.32rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 0.79rem;
+        font-weight: 600;
+    }
+
+    .btn-action {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    .user-item {
+        cursor: pointer;
+        border: 1px solid #e6edf9;
+        margin-bottom: 0.45rem;
+        border-radius: 9px !important;
+    }
+
+    .user-item:hover {
+        background: #f6faff;
+        border-color: #cfdffb;
+    }
+
+    .user-item.active {
+        background: #eaf3ff;
+        border-color: #8eb7fb;
+    }
+
+    @media (max-width: 767.98px) {
+        .category-header {
+            padding: 1.1rem 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid subsidy-list-shell">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav aria-label="breadcrumb" class="mb-3 subsidy-breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_subsidy') }}">Subsidy</a></li>
@@ -83,6 +174,7 @@
                     Registered solo parents eligible for special assistance programs
                     {% endif %}
                 </p>
+                <span class="header-note"><i class="fas fa-info-circle"></i>Use filters and quick-add to manage eligibility faster</span>
             </div>
             <div class="col-md-4 text-md-right">
                 <div class="h1 font-weight-bold mb-0">{{ pagination.total }}</div>
@@ -116,7 +208,7 @@
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <button type="submit" class="btn btn-{{ category_color }} btn-block">
+                        <button type="submit" class="btn btn-{{ category_color }} btn-block btn-action">
                             <i class="fas fa-filter mr-1"></i>Filter
                         </button>
                     </div>
@@ -126,16 +218,16 @@
     </div>
 
     <!-- Beneficiaries List -->
-    <div class="card shadow">
+    <div class="card subsidy-main-card">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-{{ category_color }}">
                 <i class="fas fa-users mr-2"></i>Beneficiary List
             </h6>
             <div class="d-flex align-items-center">
-                <button type="button" class="btn btn-sm btn-success mr-2" 
-                        data-toggle="modal" data-target="#addEligibleUserModal">
-                    <i class="fas fa-plus mr-1"></i>Add Eligible User
-                </button>
+                <a href="{{ url_for('admin.adm_subsidy', open_schedule=1, preselect_category=category) }}"
+                   class="btn btn-sm btn-primary mr-2 btn-action">
+                    <i class="fas fa-calendar-plus mr-1"></i>Schedule Payout
+                </a>
                 <span class="badge badge-{{ category_color }}">
                     Showing {{ beneficiaries|length }} of {{ pagination.total }}
                 </span>
@@ -193,9 +285,16 @@
                                 </div>
                                 <div class="text-right">
                                     <a href="{{ url_for('admin.view_community_user', user_id=beneficiary.user.id) }}" 
-                                       class="btn btn-sm btn-outline-{{ category_color }}">
+                                       class="btn btn-sm btn-outline-{{ category_color }} btn-action">
                                         <i class="fas fa-eye mr-1"></i>View Profile
                                     </a>
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-danger btn-action mt-2 open-remove-beneficiary-modal"
+                                            data-community-user-id="{{ beneficiary.id }}"
+                                            data-user-name="{{ (beneficiary.user.first_name ~ ' ' ~ beneficiary.user.last_name)|trim|e }}"
+                                            data-category-name="{{ category_name|e }}">
+                                        <i class="fas fa-user-times mr-1"></i>Remove
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -269,6 +368,12 @@
     </div>
 </div>
 
+<form id="removeBeneficiaryForm" method="POST" action="{{ url_for('admin.remove_subsidy_beneficiary') }}" class="d-none">
+    <input type="hidden" name="category" value="{{ category }}">
+    <input type="hidden" name="community_user_id" id="removeCommunityUserId">
+    <input type="hidden" name="return_url" id="removeReturnUrl">
+</form>
+
 <!-- Add Eligible User Modal -->
 <div class="modal fade" id="addEligibleUserModal" tabindex="-1" role="dialog" aria-labelledby="addEligibleUserModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
@@ -334,6 +439,62 @@
         </div>
     </div>
 </div>
+
+<!-- Remove Beneficiary Confirmation Modal (Step 1) -->
+<div class="modal fade" id="removeBeneficiaryConfirmModal" tabindex="-1" role="dialog" aria-labelledby="removeBeneficiaryConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="removeBeneficiaryConfirmModalLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Removal
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    You are about to remove <strong id="removeBeneficiaryName">this beneficiary</strong> from
+                    <strong id="removeBeneficiaryCategory">this category</strong>.
+                </p>
+                <p class="mb-0 text-muted">This action updates the active subsidy list.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="proceedToDeleteTypeBtn">
+                    Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remove Beneficiary Confirmation Modal (Step 2) -->
+<div class="modal fade" id="removeBeneficiaryTypeModal" tabindex="-1" role="dialog" aria-labelledby="removeBeneficiaryTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="removeBeneficiaryTypeModalLabel">
+                    <i class="fas fa-trash-alt mr-2"></i>Type Delete to Proceed
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">For safety, type <strong>Delete</strong> to confirm beneficiary removal.</p>
+                <input type="text" class="form-control" id="deleteKeywordInput" placeholder="Type Delete">
+                <small class="text-muted d-block mt-2">Matching is case-sensitive.</small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmRemoveBeneficiaryBtn" disabled>
+                    <i class="fas fa-user-times mr-1"></i>Remove Beneficiary
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -341,11 +502,23 @@
 $(document).ready(function() {
     let selectedUserId = null;
     let searchTimeout = null;
+    let pendingRemoval = null;
+
+    function getToastStackContainer() {
+        let container = document.getElementById('ayudaToastStackContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'ayudaToastStackContainer';
+            container.style.cssText = 'position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; width: min(92vw, 400px); pointer-events: none;';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
     
     // Helper functions for showing messages
     function showSuccessMessage(message) {
         const alertHtml = `
-            <div class="alert alert-success alert-dismissible fade show position-fixed" style="top: 80px; right: 20px; z-index: 9999; min-width: 300px;">
+            <div class="alert alert-success alert-dismissible fade show mb-0 toast-animate-in" style="width: 400px; max-width: calc(100vw - 1rem); box-shadow: 0 8px 20px rgba(0,0,0,0.18); pointer-events: auto;">
                 <i class="fas fa-check-circle mr-2"></i>
                 ${message}
                 <button type="button" class="close" data-dismiss="alert">
@@ -353,17 +526,22 @@ $(document).ready(function() {
                 </button>
             </div>
         `;
-        $('body').append(alertHtml);
+        const $toast = $(alertHtml);
+        $(getToastStackContainer()).append($toast);
         
         // Auto dismiss after 5 seconds
         setTimeout(function() {
-            $('.alert-success').fadeOut();
+            $toast[0].classList.remove('toast-animate-in');
+            $toast[0].classList.add('toast-animate-out');
+            setTimeout(() => {
+                $toast.alert('close');
+            }, 300);
         }, 5000);
     }
     
     function showErrorMessage(message) {
         const alertHtml = `
-            <div class="alert alert-danger alert-dismissible fade show position-fixed" style="top: 80px; right: 20px; z-index: 9999; min-width: 300px;">
+            <div class="alert alert-danger alert-dismissible fade show mb-0 toast-animate-in" style="width: 400px; max-width: calc(100vw - 1rem); box-shadow: 0 8px 20px rgba(0,0,0,0.18); pointer-events: auto;">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 ${message}
                 <button type="button" class="close" data-dismiss="alert">
@@ -371,13 +549,75 @@ $(document).ready(function() {
                 </button>
             </div>
         `;
-        $('body').append(alertHtml);
+        const $toast = $(alertHtml);
+        $(getToastStackContainer()).append($toast);
         
         // Auto dismiss after 5 seconds
         setTimeout(function() {
-            $('.alert-danger').fadeOut();
+            $toast[0].classList.remove('toast-animate-in');
+            $toast[0].classList.add('toast-animate-out');
+            setTimeout(() => {
+                $toast.alert('close');
+            }, 300);
         }, 5000);
     }
+
+    function resetRemoveFlow() {
+        pendingRemoval = null;
+        $('#removeCommunityUserId').val('');
+        $('#deleteKeywordInput').val('');
+        $('#confirmRemoveBeneficiaryBtn').prop('disabled', true).html('<i class="fas fa-user-times mr-1"></i>Remove Beneficiary');
+    }
+
+    $(document).on('click', '.open-remove-beneficiary-modal', function() {
+        pendingRemoval = {
+            communityUserId: $(this).data('community-user-id'),
+            userName: $(this).data('user-name') || 'this beneficiary',
+            categoryName: $(this).data('category-name') || '{{ category_name }}'
+        };
+
+        $('#removeBeneficiaryName').text(pendingRemoval.userName);
+        $('#removeBeneficiaryCategory').text(pendingRemoval.categoryName);
+        $('#removeBeneficiaryConfirmModal').modal('show');
+    });
+
+    $('#proceedToDeleteTypeBtn').on('click', function() {
+        $('#removeBeneficiaryConfirmModal').modal('hide');
+        setTimeout(function() {
+            $('#removeBeneficiaryTypeModal').modal('show');
+        }, 220);
+    });
+
+    $('#deleteKeywordInput').on('input', function() {
+        const canDelete = $(this).val().trim() === 'Delete';
+        $('#confirmRemoveBeneficiaryBtn').prop('disabled', !canDelete);
+    });
+
+    $('#confirmRemoveBeneficiaryBtn').on('click', function() {
+        if (!pendingRemoval || !pendingRemoval.communityUserId) {
+            return;
+        }
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Removing...');
+
+        $('#removeCommunityUserId').val(pendingRemoval.communityUserId);
+        $('#removeReturnUrl').val(window.location.pathname + window.location.search);
+
+        $('#removeBeneficiaryForm').trigger('submit');
+    });
+
+    $('#removeBeneficiaryConfirmModal').on('hidden.bs.modal', function() {
+        // Keep state only if moving to step 2.
+        if (!$('#removeBeneficiaryTypeModal').hasClass('show')) {
+            $('#deleteKeywordInput').val('');
+            $('#confirmRemoveBeneficiaryBtn').prop('disabled', true).html('<i class="fas fa-user-times mr-1"></i>Remove Beneficiary');
+        }
+    });
+
+    $('#removeBeneficiaryTypeModal').on('hidden.bs.modal', function() {
+        resetRemoveFlow();
+    });
     
     // Search functionality
     $('#userSearch').on('input', function() {
@@ -516,7 +756,7 @@ $(document).ready(function() {
         
         // Highlight selected user
         $('.user-item').removeClass('active');
-        $(`.user-item[data-user-id="${userId}"]`).addClass('active');
+        $(`.user-item[data-user-id="${selectedUserId}"]`).addClass('active');
     }
     
     // Notify user button

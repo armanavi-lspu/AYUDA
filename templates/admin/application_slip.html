@@ -251,16 +251,16 @@
                     </div>
                     <div class="info-row">
                         <div class="info-label">Applied:</div>
-                        <div class="info-value">{{ application.application_date.strftime('%b %d, %Y') }}</div>
+                        <div class="info-value">{{ application.application_date|manila('%b %d, %Y') }}</div>
                     </div>
                     <div class="info-row">
                         <div class="info-label">Approved:</div>
-                        <div class="info-value">{{ application.review_date.strftime('%b %d, %Y') if application.review_date else 'N/A' }}</div>
+                        <div class="info-value">{{ application.review_date|manila('%b %d, %Y', 'N/A') }}</div>
                     </div>
                     {% if application.submission_deadline %}
                     <div class="info-row">
                         <div class="info-label">Deadline:</div>
-                        <div class="info-value"><strong>{{ application.submission_deadline.strftime('%b %d, %Y') }}</strong></div>
+                        <div class="info-value"><strong>{{ application.submission_deadline|manila('%b %d, %Y') }}</strong></div>
                     </div>
                     {% endif %}
                 </div>
@@ -291,7 +291,7 @@
                 <div class="verification-code-box">
                     <h4>VERIFICATION CODE</h4>
                     <div class="verification-code">{{ application.verification_code }}</div>
-                    <p style="margin: 1mm 0 0 0; font-size: 6pt;">{{ application.code_generated_at.strftime('%b %d, %Y') if application.code_generated_at else 'N/A' }}</p>
+                    <p style="margin: 1mm 0 0 0; font-size: 6pt;">{{ application.code_generated_at|manila('%b %d, %Y', 'N/A') }}</p>
                 </div>
                 
                 <!-- Instructions -->
@@ -303,7 +303,7 @@
                         <li>Always keep a photocopy of this slip</li>
                         <li>Bring this slip when claiming your financial assistance</li>
                         
-                        {% if application.submission_deadline %}<li>Submit before {{ application.submission_deadline.strftime('%b %d, %Y') }}</li>{% endif %}
+                        {% if application.submission_deadline %}<li>Submit before {{ application.submission_deadline|manila('%b %d, %Y') }}</li>{% endif %}
                     </ol>
                 </div>
             </div>
@@ -328,3 +328,4 @@
     // window.onload = function() { window.print(); }
 </script>
 {% endblock %}
+

@@ -30,6 +30,94 @@ SEVERITY_RUBRIC_FACTORS = (
 )
 
 
+def _default_rubric_factors():
+    """Return a mutable copy of default severity rubric factors."""
+    return [dict(factor) for factor in SEVERITY_RUBRIC_FACTORS]
+
+
+def _normalize_rubric_weights(factors):
+    """Normalize rubric factor weights so total weight equals 1.0."""
+    total_weight = sum(float(factor.get('weight', 0) or 0) for factor in factors)
+    if total_weight <= 0:
+        return False
+
+    for factor in factors:
+        factor['weight'] = float(factor.get('weight', 0) or 0) / total_weight
+    return True
+
+
+def _load_assessment_rubric(assessment):
+    """Load rubric factors and score values from stored assessment JSON.
+
+    Supports legacy format:
+        {"urgency": 3, ...}
+    And enriched format:
+        {
+          "scores": {"urgency": 3, ...},
+          "labels": {"urgency": "...", ...},
+          "weights": {"urgency": 0.30, ...}
+        }
+    """
+    factors = _default_rubric_factors()
+    scores = {factor['key']: 3 for factor in factors}
+
+    if not assessment.severity_factors:
+        return factors, scores
+
+    try:
+        payload = json.loads(assessment.severity_factors)
+    except (TypeError, ValueError):
+        return factors, scores
+
+    if not isinstance(payload, dict):
+        return factors, scores
+
+    # Legacy: top-level key -> score.
+    if 'scores' not in payload and 'labels' not in payload and 'weights' not in payload:
+        for factor in factors:
+            key = factor['key']
+            value = payload.get(key)
+            if isinstance(value, int) and 1 <= value <= 5:
+                scores[key] = value
+        return factors, scores
+
+    payload_scores = payload.get('scores', {})
+    payload_labels = payload.get('labels', {})
+    payload_weights = payload.get('weights', {})
+
+    for factor in factors:
+        key = factor['key']
+
+        label_value = payload_labels.get(key)
+        if isinstance(label_value, str) and label_value.strip():
+            factor['label'] = label_value.strip()
+
+        weight_value = payload_weights.get(key)
+        try:
+            parsed_weight = float(weight_value)
+            if parsed_weight > 0:
+                factor['weight'] = parsed_weight
+        except (TypeError, ValueError):
+            pass
+
+        score_value = payload_scores.get(key)
+        if isinstance(score_value, int) and 1 <= score_value <= 5:
+            scores[key] = score_value
+
+    _normalize_rubric_weights(factors)
+    return factors, scores
+
+
+def _serialize_assessment_rubric(factors, scores):
+    """Serialize rubric factors/scores for persistence in severity_factors."""
+    payload = {
+        'scores': {factor['key']: int(scores.get(factor['key'], 3)) for factor in factors},
+        'labels': {factor['key']: factor['label'] for factor in factors},
+        'weights': {factor['key']: round(float(factor['weight']), 6) for factor in factors},
+    }
+    return json.dumps(payload)
+
+
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -61,6 +149,14 @@ def assessments_index():
     assessment_type = request.args.get('type', '')
     status_filter = request.args.get('status', '')
     severity_filter = request.args.get('severity', '').strip()
+    sort_by = request.args.get('sort_by', 'date').strip().lower()
+    sort_order = request.args.get('sort_order', '').strip().lower()
+
+    if sort_by not in ('date', 'alphabetical'):
+        sort_by = 'date'
+
+    if sort_order not in ('asc', 'desc'):
+        sort_order = 'desc' if sort_by == 'date' else 'asc'
 
     query = Assessment.query
 
@@ -82,9 +178,35 @@ def assessments_index():
     if severity_filter:
         query = query.filter(Assessment.case_severity == severity_filter)
 
-    assessments = query.order_by(desc(Assessment.created_at)).paginate(
+    if sort_by == 'alphabetical':
+        if sort_order == 'desc':
+            query = query.order_by(func.lower(Assessment.title).desc())
+        else:
+            query = query.order_by(func.lower(Assessment.title).asc())
+    else:
+        if sort_order == 'asc':
+            query = query.order_by(
+                Assessment.scheduled_date.is_(None),
+                Assessment.scheduled_date.asc(),
+                Assessment.created_at.asc(),
+            )
+        else:
+            query = query.order_by(
+                Assessment.scheduled_date.is_(None),
+                Assessment.scheduled_date.desc(),
+                desc(Assessment.created_at),
+            )
+
+    assessments = query.paginate(
         page=page, per_page=per_page, error_out=False
     )
+
+    has_active_filters = any([
+        bool(search_query),
+        bool(assessment_type),
+        bool(status_filter),
+        bool(severity_filter),
+    ])
 
     # Statistics for summary cards
     total_assessments = Assessment.query.count()
@@ -111,6 +233,9 @@ def assessments_index():
         assessment_type=assessment_type,
         status_filter=status_filter,
         severity_filter=severity_filter,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        has_active_filters=has_active_filters,
         user=current_user,
     )
 
@@ -203,23 +328,12 @@ def view_assessment(assessment_id):
     """View a single assessment with its documents"""
     assessment = Assessment.query.get_or_404(assessment_id)
 
-    severity_factors_data = {factor['key']: 3 for factor in SEVERITY_RUBRIC_FACTORS}
-    if assessment.severity_factors:
-        try:
-            stored_factors = json.loads(assessment.severity_factors)
-            if isinstance(stored_factors, dict):
-                for factor in SEVERITY_RUBRIC_FACTORS:
-                    key = factor['key']
-                    value = stored_factors.get(key)
-                    if isinstance(value, int) and 1 <= value <= 5:
-                        severity_factors_data[key] = value
-        except (ValueError, TypeError):
-            pass
+    severity_rubric_factors, severity_factors_data = _load_assessment_rubric(assessment)
 
     return render_template(
         'admin/view_assessment.html',
         assessment=assessment,
-        severity_rubric_factors=SEVERITY_RUBRIC_FACTORS,
+        severity_rubric_factors=severity_rubric_factors,
         severity_factors_data=severity_factors_data,
         user=current_user,
     )
@@ -244,11 +358,53 @@ def update_assessment(assessment_id):
     severity_score_value = request.form.get('severity_score', '').strip()
     severity_justification = request.form.get('severity_justification', '').strip()
     severity_override = request.form.get('severity_override') == '1'
+    severity_form_submitted = request.form.get('case_severity') is not None
+
+    stored_rubric_factors, _ = _load_assessment_rubric(assessment)
+    stored_rubric_map = {factor['key']: factor for factor in stored_rubric_factors}
+
+    rubric_factors = _default_rubric_factors()
+    rubric_errors = []
+
+    if severity_form_submitted:
+        editable_rubric_factors = []
+        for factor in rubric_factors:
+            key = factor['key']
+            stored_factor = stored_rubric_map.get(key, factor)
+
+            label_value = request.form.get(
+                f'severity_factor_label_{key}',
+                stored_factor.get('label', factor['label'])
+            )
+            label_value = (label_value or '').strip()
+            if not label_value:
+                rubric_errors.append(f'{factor["label"]}: factor label is required.')
+                label_value = stored_factor.get('label', factor['label'])
+
+            weight_default_percent = float(stored_factor.get('weight', factor['weight'])) * 100
+            weight_raw_value = request.form.get(f'severity_factor_weight_{key}', str(weight_default_percent))
+            try:
+                weight_percent = float((weight_raw_value or '').strip())
+                if weight_percent <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                rubric_errors.append(f'{label_value}: weight must be greater than 0.')
+                weight_percent = weight_default_percent if weight_default_percent > 0 else factor['weight'] * 100
+
+            editable_rubric_factors.append({
+                'key': key,
+                'label': label_value,
+                'weight': weight_percent,
+            })
+
+        if editable_rubric_factors:
+            if not _normalize_rubric_weights(editable_rubric_factors):
+                rubric_errors.append('Rubric weights must total more than 0.')
+            rubric_factors = editable_rubric_factors
 
     rubric_scores = {}
     rubric_submitted = False
-    rubric_errors = []
-    for factor in SEVERITY_RUBRIC_FACTORS:
+    for factor in rubric_factors:
         key = factor['key']
         raw_value = request.form.get(f'severity_factor_{key}', '').strip()
         if raw_value:
@@ -263,7 +419,7 @@ def update_assessment(assessment_id):
             except ValueError:
                 rubric_errors.append(f"{factor['label']} must be a valid number.")
 
-    if case_severity and case_severity not in Assessment.SEVERITY_LEVELS:
+    if severity_form_submitted and case_severity and case_severity not in Assessment.SEVERITY_LEVELS:
         flash('Invalid case severity level.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
@@ -271,17 +427,17 @@ def update_assessment(assessment_id):
         flash(rubric_errors[0], 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if case_severity and case_severity != 'unrated' and len(rubric_scores) not in (0, len(SEVERITY_RUBRIC_FACTORS)):
+    if severity_form_submitted and case_severity and case_severity != 'unrated' and len(rubric_scores) not in (0, len(rubric_factors)):
         flash('All severity rubric factors must be scored from 1 to 5.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
     severity_score = None
-    if rubric_submitted and len(rubric_scores) == len(SEVERITY_RUBRIC_FACTORS):
+    if severity_form_submitted and rubric_submitted and len(rubric_scores) == len(rubric_factors):
         weighted_score_sum = 0
-        for factor in SEVERITY_RUBRIC_FACTORS:
+        for factor in rubric_factors:
             weighted_score_sum += rubric_scores[factor['key']] * factor['weight']
         severity_score = round((weighted_score_sum / 5) * 100)
-    elif severity_score_value:
+    elif severity_form_submitted and severity_score_value:
         try:
             severity_score = int(severity_score_value)
         except ValueError:
@@ -294,17 +450,17 @@ def update_assessment(assessment_id):
 
     suggested_severity = suggest_severity_level(severity_score) if severity_score is not None else 'unrated'
 
-    if not severity_override and severity_score is not None:
+    if severity_form_submitted and not severity_override and severity_score is not None:
         case_severity = suggested_severity
-    elif severity_override and severity_score is not None and case_severity in ('', 'unrated'):
+    elif severity_form_submitted and severity_override and severity_score is not None and case_severity in ('', 'unrated'):
         flash('Select a manual severity level when override is enabled.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if case_severity in ('high', 'critical') and not severity_justification:
+    if severity_form_submitted and case_severity in ('high', 'critical') and not severity_justification:
         flash('Justification is required for high or critical severity.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if case_severity and case_severity != 'unrated' and severity_score is None:
+    if severity_form_submitted and case_severity and case_severity != 'unrated' and severity_score is None:
         flash('Severity score could not be computed. Please complete all rubric factors.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
@@ -331,13 +487,13 @@ def update_assessment(assessment_id):
     if recommendations is not None:
         assessment.recommendations = recommendations
 
-    if case_severity:
+    if severity_form_submitted and case_severity:
         old_level = assessment.case_severity
         old_score = assessment.severity_score
 
         assessment.case_severity = case_severity
         assessment.severity_score = severity_score if case_severity != 'unrated' else None
-        assessment.severity_factors = json.dumps(rubric_scores) if (case_severity != 'unrated' and rubric_scores) else None
+        assessment.severity_factors = _serialize_assessment_rubric(rubric_factors, rubric_scores)
         assessment.severity_justification = severity_justification or None
         assessment.severity_updated_by = current_user.id
         assessment.severity_updated_at = datetime.utcnow()
@@ -355,6 +511,8 @@ def update_assessment(assessment_id):
                 'old_score': old_score,
                 'new_score': severity_score,
                 'rubric_scores': rubric_scores,
+                'rubric_labels': {factor['key']: factor['label'] for factor in rubric_factors},
+                'rubric_weights': {factor['key']: factor['weight'] for factor in rubric_factors},
                 'suggested_severity': suggested_severity,
                 'severity_override': severity_override,
             }

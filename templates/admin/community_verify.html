@@ -3,124 +3,375 @@
 
 {% block extra_css %}
 <style>
-    .stats-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .verify-shell {
+        animation: verifyFadeIn 0.45s ease-out;
+    }
+
+    @keyframes verifyFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .verify-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .verify-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .verify-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
     }
 
     .coverage-note {
-        border-left: 4px solid #17a2b8;
-        background: #f3fbfd;
-        border-radius: 0.35rem;
+        border: 1px solid #d7e8fb;
+        border-left: 4px solid #0ea5a6;
+        background: linear-gradient(180deg, #f6fcff 0%, #eef8ff 100%);
+        border-radius: 12px;
     }
-    
-    .stats-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+
+    .stats-mini-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
     }
-    
+
+    .stats-mini-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .stats-mini-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-warning { background: linear-gradient(135deg, #d89f1d, #b77908); }
+    .icon-success { background: linear-gradient(135deg, #159947, #0f7e37); }
+    .icon-danger { background: linear-gradient(135deg, #e74a3b, #c92a1c); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); }
+
+    .verify-filter-card,
+    .verify-list-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .verify-filter-card .card-header,
+    .verify-list-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .verify-filter-card .form-control {
+        border-radius: 9px;
+        border: 1px solid #d8deea;
+        padding: 0.6rem 0.85rem;
+    }
+
+    .verify-filter-card .form-control:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.14);
+    }
+
+    .filter-label {
+        color: #4f6285;
+        font-size: 0.78rem;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 0.38rem;
+    }
+
+    .verification-users-table thead th {
+        border-top: none;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .verification-users-table td {
+        vertical-align: middle;
+    }
+
     .verification-badge {
-        font-size: 0.75rem;
-        padding: 0.35rem 0.65rem;
-        border-radius: 0.25rem;
+        font-size: 0.74rem;
+        padding: 0.34rem 0.64rem;
+        border-radius: 999px;
+        font-weight: 700;
     }
-    
+
     .verification-card {
         transition: all 0.2s ease;
-        border-left: 4px solid #dee2e6;
+        border-left: 4px solid #dbe5fa;
     }
-    
+
     .verification-card:hover {
-        border-left-color: #4e73df;
-        background-color: #f8f9fc;
+        border-left-color: #1f6feb;
+        background-color: #f8fbff;
     }
-    
-    .verification-card.pending {
-        border-left-color: #f6c23e;
-    }
-    
-    .verification-card.approved {
-        border-left-color: #1cc88a;
-    }
-    
-    .verification-card.rejected {
-        border-left-color: #e74a3b;
-    }
-    
+
     .user-avatar {
-        width: 50px;
-        height: 50px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
         object-fit: cover;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 1.2rem;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.05rem;
+        box-shadow: 0 4px 12px rgba(31, 111, 235, 0.28);
     }
-    
-    .verification-type-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
-    
-    .icon-senior {
-        background-color: #e3e6f0;
-        color: #5a5c69;
-    }
-    
-    .icon-pwd {
-        background-color: #d4edda;
-        color: #155724;
-    }
-    
-    .icon-solo-parent {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-    
-    .document-preview {
-        max-width: 100%;
-        max-height: 200px;
-        object-fit: contain;
-        border-radius: 0.35rem;
-        border: 1px solid #e3e6f0;
-    }
-    
-    .filter-tab {
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
         border: none;
-        background: transparent;
-        padding: 0.5rem 1rem;
-        font-weight: 500;
-        color: #858796;
-        border-bottom: 2px solid transparent;
-        transition: all 0.2s ease;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.05rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
     }
-    
-    .filter-tab:hover {
-        color: #4e73df;
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
     }
-    
-    .filter-tab.active {
-        color: #4e73df;
-        border-bottom-color: #4e73df;
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border-color: transparent;
+    }
+
+    .btn-soft-success {
+        background: rgba(21, 153, 71, 0.12);
+        color: #0f7e37;
+        border: 1px solid rgba(15, 126, 55, 0.22);
+    }
+
+    .btn-soft-success:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    .verify-modal .modal-dialog {
+        max-width: 600px;
+    }
+
+    .verify-modal .modal-content {
+        border: 1px solid #dbe6ff;
+        border-radius: 14px;
+        box-shadow: 0 24px 50px rgba(15, 34, 73, 0.2);
+        overflow: hidden;
+    }
+
+    .verify-modal .modal-header {
+        border-bottom: 1px solid transparent;
+        padding: 1rem 1.2rem;
+    }
+
+    .verify-modal .modal-title {
+        font-weight: 700;
+        letter-spacing: 0.1px;
+    }
+
+    .verify-modal .modal-body {
+        padding: 1.2rem 1.25rem;
+    }
+
+    .verify-modal .modal-footer {
+        border-top: 1px solid #e8eefb;
+        background: #fbfdff;
+        padding: 0.85rem 1.1rem;
+    }
+
+    .modal-header-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+    }
+
+    .modal-header-success {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        color: #fff;
+    }
+
+    .modal-header-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        color: #fff;
+    }
+
+    .modal-info-card {
+        border-radius: 10px;
+        border: 1px solid rgba(14, 116, 144, 0.25);
+        background: rgba(8, 145, 178, 0.08);
+        color: #0e5f74;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-context-block {
+        border: 1px solid #d9e5fa;
+        background: linear-gradient(180deg, #fcfdff 0%, #f5f9ff 100%);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .btn-gradient-success {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-success:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-danger:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-doc-link {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    @media (max-width: 991.98px) {
+        .verify-hero {
+            padding: 1.1rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="font-weight-bold mb-1">Verification Requests</h1>
-            <p class="text-muted mb-0">Review and process requests across Laguna municipalities</p>
+<div class="container-fluid verify-shell">
+    <div class="verify-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Verification Requests</h1>
+                <p class="subtitle">Review and process requests across Laguna municipalities.</p>
+            </div>
         </div>
     </div>
 
@@ -137,20 +388,18 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-warning shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Pending Requests
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_pending }}</div>
+                            <div class="stat-label">Pending Requests</div>
+                            <div class="stat-value">{{ total_pending }}</div>
                             <small class="text-muted">
                                 SC: {{ pending_senior }} | PWD: {{ pending_pwd }} | SP: {{ pending_solo_parent }}
                             </small>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-warning"><i class="fas fa-clock"></i></span>
                         </div>
                     </div>
                 </div>
@@ -158,20 +407,18 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-success shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Approved
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_approved }}</div>
+                            <div class="stat-label">Approved</div>
+                            <div class="stat-value">{{ total_approved }}</div>
                             <small class="text-muted">
                                 SC: {{ approved_senior }} | PWD: {{ approved_pwd }} | SP: {{ approved_solo_parent }}
                             </small>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-success"><i class="fas fa-check-circle"></i></span>
                         </div>
                     </div>
                 </div>
@@ -179,20 +426,18 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-danger shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                Rejected
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_rejected }}</div>
+                            <div class="stat-label">Rejected</div>
+                            <div class="stat-value">{{ total_rejected }}</div>
                             <small class="text-muted">
                                 SC: {{ rejected_senior }} | PWD: {{ rejected_pwd }} | SP: {{ rejected_solo_parent }}
                             </small>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-danger"><i class="fas fa-times-circle"></i></span>
                         </div>
                     </div>
                 </div>
@@ -200,17 +445,15 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-info shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Total Processed
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_approved + total_rejected }}</div>
+                            <div class="stat-label">Total Processed</div>
+                            <div class="stat-value">{{ total_approved + total_rejected }}</div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-tasks fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-tasks"></i></span>
                         </div>
                     </div>
                 </div>
@@ -219,7 +462,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="card shadow mb-4">
+    <div class="card verify-filter-card mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">
                 <i class="fas fa-filter mr-2"></i>Filter Verification Requests
@@ -229,13 +472,13 @@
             <form method="GET" action="{{ url_for('admin.community_verify') }}">
                 <div class="row">
                     <div class="col-lg-4 col-md-6 mb-3">
-                        <label class="small font-weight-bold">Search</label>
+                        <label class="filter-label">Search</label>
                         <input type="text" class="form-control" name="search" 
                                placeholder="Name, email, barangay, municipality..." 
                                value="{{ request.args.get('search', '') }}">
                     </div>
                     <div class="col-lg-2 col-md-6 mb-3">
-                        <label class="small font-weight-bold">Verification Type</label>
+                        <label class="filter-label">Verification Type</label>
                         <select class="form-control" name="type">
                             <option value="">All Types</option>
                             <option value="senior_citizen" {% if request.args.get('type')=='senior_citizen' %}selected{% endif %}>Senior Citizen</option>
@@ -244,7 +487,7 @@
                         </select>
                     </div>
                     <div class="col-lg-2 col-md-6 mb-3">
-                        <label class="small font-weight-bold">Status</label>
+                        <label class="filter-label">Status</label>
                         <select class="form-control" name="status">
                             <option value="">All Status</option>
                             <option value="pending" {% if request.args.get('status')=='pending' %}selected{% endif %}>Pending</option>
@@ -253,7 +496,7 @@
                         </select>
                     </div>
                     <div class="col-lg-2 col-md-6 mb-3">
-                        <label class="small font-weight-bold">Municipality</label>
+                        <label class="filter-label">Municipality</label>
                         <select class="form-control" name="municipality">
                             <option value="">All Municipalities</option>
                             {% for municipality in municipalities %}
@@ -264,7 +507,7 @@
                         </select>
                     </div>
                     <div class="col-lg-2 col-md-6 mb-3">
-                        <label class="small font-weight-bold">Barangay</label>
+                        <label class="filter-label">Barangay</label>
                         <select class="form-control" name="barangay">
                             <option value="">All Barangays</option>
                             {% for barangay in barangays %}
@@ -278,10 +521,10 @@
                 <div class="row">
                     <div class="col-12 mb-2 text-md-right">
                         <div class="d-inline-flex">
-                            <button type="submit" class="btn btn-primary mr-2">
+                            <button type="submit" class="btn btn-gradient-primary mr-2">
                                 <i class="fas fa-search mr-1"></i>Filter
                             </button>
-                            <a href="{{ url_for('admin.community_verify') }}" class="btn btn-secondary">
+                            <a href="{{ url_for('admin.community_verify') }}" class="btn btn-outline-custom">
                                 <i class="fas fa-redo"></i>
                             </a>
                         </div>
@@ -292,7 +535,7 @@
     </div>
 
     <!-- Verification Requests Table -->
-    <div class="card shadow">
+    <div class="card verify-list-card">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">
                 <i class="fas fa-user-check mr-2"></i>Verification Requests
@@ -300,8 +543,8 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="thead-light">
+                <table class="table table-hover verification-users-table">
+                    <thead>
                         <tr>
                             <th>#</th>
                             <th>User</th>
@@ -406,12 +649,12 @@
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('admin.view_community_user', user_id=user_info.id) }}" 
-                                           class="btn btn-info" title="View User Profile">
+                                           class="btn btn-soft-info" title="View User Profile">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <!-- Process Verification Buttons -->
                                         {% if profile.senior_citizen_verification == 'pending' %}
-                                        <button type="button" class="btn btn-success" 
+                                        <button type="button" class="btn btn-soft-success" 
                                                 data-toggle="modal" 
                                                 data-target="#approveModal{{ profile.id }}_senior"
                                                 title="Approve Senior Citizen">
@@ -419,7 +662,7 @@
                                         </button>
                                         {% endif %}
                                         {% if profile.pwd_verification == 'pending' %}
-                                        <button type="button" class="btn btn-success" 
+                                        <button type="button" class="btn btn-soft-success" 
                                                 data-toggle="modal" 
                                                 data-target="#approveModal{{ profile.id }}_pwd"
                                                 title="Approve PWD">
@@ -427,7 +670,7 @@
                                         </button>
                                         {% endif %}
                                         {% if profile.solo_parent_verification == 'pending' %}
-                                        <button type="button" class="btn btn-success" 
+                                        <button type="button" class="btn btn-soft-success" 
                                                 data-toggle="modal" 
                                                 data-target="#approveModal{{ profile.id }}_solo"
                                                 title="Approve Solo Parent">
@@ -503,11 +746,11 @@
 
 <!-- Senior Citizen Approval Modal -->
 {% if profile.senior_citizen_verification == 'pending' %}
-<div class="modal fade" id="approveModal{{ profile.id }}_senior" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_senior" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='senior_citizen') }}">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header modal-header-primary">
                     <h5 class="modal-title">
                         <i class="fas fa-user-check mr-2"></i>Senior Citizen Verification
                     </h5>
@@ -516,17 +759,22 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p>Process verification for:</p>
-                    <p class="font-weight-bold">
-                        {{ user_info.first_name }} {{ user_info.last_name }}<br>
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Review the uploaded document and process this verification request.
+                    </div>
+
+                    <p class="mb-2">Process verification for:</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ user_info.first_name }} {{ user_info.last_name }}</p>
                         <small class="text-muted">Age: {{ profile.age }} years old</small>
-                    </p>
+                    </div>
                     
                     {% if profile.senior_citizen_document_path %}
                     <div class="mb-3">
                         <label class="small font-weight-bold">Uploaded Document:</label>
                         <div>
-                            <a href="{{ profile.senior_citizen_document_path }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ profile.senior_citizen_document_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-doc-link">
                                 <i class="fas fa-file-image mr-1"></i>View Document
                             </a>
                         </div>
@@ -544,11 +792,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
                         <i class="fas fa-times mr-1"></i>Reject
                     </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
                         <i class="fas fa-check mr-1"></i>Approve
                     </button>
                 </div>
@@ -560,11 +808,11 @@
 
 <!-- PWD Approval Modal -->
 {% if profile.pwd_verification == 'pending' %}
-<div class="modal fade" id="approveModal{{ profile.id }}_pwd" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_pwd" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='pwd') }}">
-                <div class="modal-header bg-success text-white">
+                <div class="modal-header modal-header-success">
                     <h5 class="modal-title">
                         <i class="fas fa-wheelchair mr-2"></i>PWD Verification
                     </h5>
@@ -573,19 +821,24 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p>Process verification for:</p>
-                    <p class="font-weight-bold">
-                        {{ user_info.first_name }} {{ user_info.last_name }}<br>
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Confirm document authenticity before approving the request.
+                    </div>
+
+                    <p class="mb-2">Process verification for:</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ user_info.first_name }} {{ user_info.last_name }}</p>
                         {% if profile.disability_type %}
                         <small class="text-muted">Disability Type: {{ profile.disability_type }}</small>
                         {% endif %}
-                    </p>
+                    </div>
                     
                     {% if profile.pwd_document_path %}
                     <div class="mb-3">
                         <label class="small font-weight-bold">Uploaded Document:</label>
                         <div>
-                            <a href="{{ profile.pwd_document_path }}" target="_blank" class="btn btn-sm btn-outline-success">
+                            <a href="{{ profile.pwd_document_path }}" target="_blank" class="btn btn-sm btn-outline-success btn-doc-link">
                                 <i class="fas fa-file-image mr-1"></i>View Document
                             </a>
                         </div>
@@ -603,11 +856,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
                         <i class="fas fa-times mr-1"></i>Reject
                     </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
                         <i class="fas fa-check mr-1"></i>Approve
                     </button>
                 </div>
@@ -619,29 +872,34 @@
 
 <!-- Solo Parent Approval Modal -->
 {% if profile.solo_parent_verification == 'pending' %}
-<div class="modal fade" id="approveModal{{ profile.id }}_solo" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_solo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='solo_parent') }}">
-                <div class="modal-header bg-warning text-dark">
+                <div class="modal-header modal-header-warning">
                     <h5 class="modal-title">
                         <i class="fas fa-child mr-2"></i>Solo Parent Verification
                     </h5>
-                    <button type="button" class="close" data-dismiss="modal">
+                    <button type="button" class="close text-white" data-dismiss="modal">
                         <span>&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p>Process verification for:</p>
-                    <p class="font-weight-bold">
-                        {{ user_info.first_name }} {{ user_info.last_name }}
-                    </p>
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Validate supporting details before approving this request.
+                    </div>
+
+                    <p class="mb-2">Process verification for:</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-0">{{ user_info.first_name }} {{ user_info.last_name }}</p>
+                    </div>
                     
                     {% if profile.solo_parent_document_path %}
                     <div class="mb-3">
                         <label class="small font-weight-bold">Uploaded Document:</label>
                         <div>
-                            <a href="{{ profile.solo_parent_document_path }}" target="_blank" class="btn btn-sm btn-outline-warning">
+                            <a href="{{ profile.solo_parent_document_path }}" target="_blank" class="btn btn-sm btn-outline-warning btn-doc-link">
                                 <i class="fas fa-file-image mr-1"></i>View Document
                             </a>
                         </div>
@@ -659,11 +917,11 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
                         <i class="fas fa-times mr-1"></i>Reject
                     </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
                         <i class="fas fa-check mr-1"></i>Approve
                     </button>
                 </div>

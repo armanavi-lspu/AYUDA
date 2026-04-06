@@ -78,7 +78,7 @@ def _load_user_requests(user_id):
     return subsidy_requests, assessment_requests
 
 
-def _notify_admins(title, message, related_id=None, related_type='profile'):
+def _notify_admins(title, message, related_id=None, related_type=None):
     # Local import avoids circular import issues.
     from app.community.routes.notifications import create_notification
 
@@ -88,13 +88,22 @@ def _notify_admins(title, message, related_id=None, related_type='profile'):
             user_id=admin.id,
             title=title,
             message=message,
-            related_id=related_id if related_id is not None else current_user.id,
+            related_id=related_id,
             related_type=related_type
         )
 
 
+def _get_user_subsidy_request(request_id):
+    return UserActivityLog.query.filter(
+        UserActivityLog.id == request_id,
+        UserActivityLog.user_id == current_user.id,
+        UserActivityLog.action == 'request_subsidy',
+        UserActivityLog.entity_type == 'subsidy'
+    ).first()
+
+
 def _has_open_subsidy_request(subsidy_requests, category):
-    open_statuses = {'pending', 'submitted', 'under_review'}
+    open_statuses = {'pending', 'submitted', 'under_review', 'documents_required', 'processing', 'approved'}
     for req in subsidy_requests:
         req_category = req['details'].get('category')
         req_status = str(req.get('status', '')).lower()
@@ -169,11 +178,68 @@ def apply_subsidy():
 
     _notify_admins(
         title='New Subsidy Request',
-        message=f'{current_user.first_name} {current_user.last_name} requested subsidy support for {selected["name"]}.'
+        message=f'{current_user.first_name} {current_user.last_name} requested subsidy support for {selected["name"]}.',
+        related_type='subsidy'
     )
 
     db.session.commit()
     flash(f'Your subsidy request for {selected["name"]} has been submitted.', 'success')
+    return redirect(url_for('community.other_services'))
+
+
+@community_bp.route('/other_services/subsidy/request/<int:request_id>/cancel', methods=['POST'])
+@login_required
+@role_required('community')
+def cancel_subsidy_request(request_id):
+    request_log = _get_user_subsidy_request(request_id)
+    if not request_log:
+        flash('Subsidy request not found.', 'danger')
+        return redirect(url_for('community.other_services'))
+
+    details = _safe_details(request_log.details)
+    current_status = str(details.get('status', 'pending')).lower()
+
+    if current_status == 'cancelled':
+        flash('This subsidy request is already cancelled.', 'info')
+        return redirect(url_for('community.other_services'))
+
+    category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+    details['status'] = 'cancelled'
+    details['cancelled_at'] = datetime.utcnow().isoformat()
+    request_log.details = json.dumps(details)
+    request_log.description = f'Cancelled subsidy request for {category_name}'
+
+    _notify_admins(
+        title='Subsidy Request Cancelled',
+        message=f'{current_user.first_name} {current_user.last_name} cancelled subsidy request for {category_name}.',
+        related_type='subsidy'
+    )
+
+    db.session.commit()
+    flash('Your subsidy request was cancelled.', 'success')
+    return redirect(url_for('community.other_services'))
+
+
+@community_bp.route('/other_services/subsidy/request/<int:request_id>/delete', methods=['POST'])
+@login_required
+@role_required('community')
+def delete_subsidy_request(request_id):
+    request_log = _get_user_subsidy_request(request_id)
+    if not request_log:
+        flash('Subsidy request not found.', 'danger')
+        return redirect(url_for('community.other_services'))
+
+    details = _safe_details(request_log.details)
+    current_status = str(details.get('status', 'pending')).lower()
+    active_statuses = {'pending', 'submitted', 'under_review', 'documents_required', 'processing', 'approved'}
+    if current_status in active_statuses:
+        flash('Please cancel the request before deleting it.', 'warning')
+        return redirect(url_for('community.other_services'))
+
+    db.session.delete(request_log)
+    db.session.commit()
+
+    flash('Subsidy request deleted from your history.', 'success')
     return redirect(url_for('community.other_services'))
 
 

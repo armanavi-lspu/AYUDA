@@ -1,7 +1,7 @@
 from flask import jsonify, request, render_template
 from flask_login import login_required, current_user
 from app.admin import admin_bp
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.models import Notifications
 from app.extensions import db
 from sqlalchemy import desc
@@ -28,7 +28,7 @@ def get_notifications():
             'message': n.notif_message,
             'is_read': n.is_read,
             'url': n.get_admin_url(),
-            'created_at': n.created_at.strftime('%b %d, %Y %I:%M %p') if n.created_at else '',
+            'created_at': manila_strftime(n.created_at, '%b %d, %Y %I:%M %p', ''),
             'icon': _get_icon(n.notif_title),
             'icon_type': _get_icon_type(n.notif_title),
         })

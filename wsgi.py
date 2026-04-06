@@ -12,10 +12,13 @@ load_dotenv()
 os.environ.setdefault('FLASK_ENV', 'production')
 
 from app import create_app
+from app.extensions import socketio
 
 app = create_app()
 
 if __name__ == '__main__':
     # This should not be used directly in production
     # Use Gunicorn or other WSGI server instead
-    app.run()
+    host = os.environ.get('HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host=host, port=port, use_reloader=False)

@@ -1,9 +1,9 @@
 from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import desc, asc, or_, func
+from sqlalchemy import asc, desc, or_, func
 from app.admin import admin_bp
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
@@ -116,18 +116,15 @@ def applications():
     status_filter = request.args.get('status', '').strip()
     program_filter = request.args.get('program', '').strip()
     search = request.args.get('search', '').strip()
-    date_range = request.args.get('date_range', '').strip()
-    sort_by = request.args.get('sort_by', 'severity').strip().lower()
+    sort_by = request.args.get('sort_by', 'date').strip().lower()
     sort_order = request.args.get('sort_order', '').strip().lower()
 
     if sort_by not in ('severity', 'date', 'name'):
-        sort_by = 'severity'
+        sort_by = 'date'
 
     if sort_order not in ('asc', 'desc'):
         if sort_by == 'name':
             sort_order = 'asc'
-        elif sort_by == 'date':
-            sort_order = 'desc'
         else:
             sort_order = 'desc'
     
@@ -147,14 +144,21 @@ def applications():
     if search:
         query = query.join(User, Applications.user_id == User.id)
         user_joined = True
+
+        search_term = f'%{search}%'
+        applicant_name_filter = or_(
+            User.first_name.ilike(search_term),
+            User.last_name.ilike(search_term),
+            (User.first_name + ' ' + User.last_name).ilike(search_term)
+        )
+
         # Check if search term is numeric (for ID search)
         try:
             search_id = int(search)
             query = query.filter(
                 or_(
-                    User.first_name.contains(search),
-                    User.last_name.contains(search),
-                    User.email.contains(search),
+                    applicant_name_filter,
+                    User.email.ilike(search_term),
                     User.id == search_id,
                     Applications.id == search_id
                 )
@@ -163,26 +167,12 @@ def applications():
             # Not a number, search by text only
             query = query.filter(
                 or_(
-                    User.first_name.contains(search),
-                    User.last_name.contains(search),
-                    User.email.contains(search)
+                    applicant_name_filter,
+                    User.email.ilike(search_term)
                 )
             )
-    
-    # Apply date range filter
-    if date_range:
-        today = datetime.utcnow()
-        if date_range == 'today':
-            start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
-            query = query.filter(Applications.application_date >= start_date)
-        elif date_range == 'week':
-            start_date = today - timedelta(days=7)
-            query = query.filter(Applications.application_date >= start_date)
-        elif date_range == 'month':
-            start_date = today - timedelta(days=30)
-            query = query.filter(Applications.application_date >= start_date)
-    
-    # Apply sorting
+
+    # Apply sorting (default: application date, newest first).
     if sort_by == 'name':
         if not user_joined:
             query = query.join(User, Applications.user_id == User.id)
@@ -207,9 +197,72 @@ def applications():
     
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Build workflow metadata for current/active step display in table.
+    application_ids = [app.id for app in pagination.items]
+    program_ids = {app.program_id for app in pagination.items}
+
+    steps_by_program = {}
+    status_by_application = {}
+
+    if program_ids:
+        program_steps = ProgramWorkflowSteps.query.filter(
+            ProgramWorkflowSteps.program_id.in_(program_ids)
+        ).order_by(
+            ProgramWorkflowSteps.program_id,
+            ProgramWorkflowSteps.step_order
+        ).all()
+
+        for step in program_steps:
+            steps_by_program.setdefault(step.program_id, []).append(step)
+
+    if application_ids:
+        workflow_rows = db.session.query(
+            ApplicationWorkflowStatus.application_id,
+            ApplicationWorkflowStatus.workflow_step_id,
+            ApplicationWorkflowStatus.step_status
+        ).filter(
+            ApplicationWorkflowStatus.application_id.in_(application_ids)
+        ).all()
+
+        for row in workflow_rows:
+            status_by_application.setdefault(row.application_id, {})[row.workflow_step_id] = row.step_status
     
     # Check qualification requirements for each application
     for app in pagination.items:
+        app_steps = steps_by_program.get(app.program_id, [])
+        app_step_status = status_by_application.get(app.id, {})
+        active_step_statuses = {'not_started', 'in_progress', 'pending_review', 'rejected'}
+
+        app.current_step_label = 'No workflow step'
+        app.current_step_status = 'not_started'
+        app.current_step_order = None
+
+        if app_steps:
+            selected_step = None
+            for step in app_steps:
+                current_status = app_step_status.get(step.id, 'not_started')
+                if current_status in active_step_statuses:
+                    selected_step = step
+                    app.current_step_status = current_status
+                    break
+
+            if selected_step is None:
+                selected_step = app_steps[-1]
+                app.current_step_status = 'completed'
+
+            app.current_step_label = selected_step.step_name
+            app.current_step_order = selected_step.step_order
+        elif app.application_status == 'completed':
+            app.current_step_label = 'Completed'
+            app.current_step_status = 'completed'
+        elif app.application_status == 'rejected':
+            app.current_step_label = 'Rejected'
+            app.current_step_status = 'rejected'
+        elif app.application_status in ('approved', 'active'):
+            app.current_step_label = 'In progress'
+            app.current_step_status = 'in_progress'
+
         highest_severity_assessment = Assessment.query.filter(
             Assessment.application_id == app.id,
             Assessment.case_severity != 'unrated'
@@ -382,6 +435,23 @@ def view_application(application_id):
         }
         
         if requirement.requirement_type == 'document':
+            raw_copy_specs = prog_req.get_copy_specifications() if prog_req else []
+            copy_specs = []
+            for copy_spec in raw_copy_specs if isinstance(raw_copy_specs, list) else []:
+                if not isinstance(copy_spec, dict):
+                    continue
+                copy_type = str(copy_spec.get('type', 'original')).strip().lower() or 'original'
+                try:
+                    copy_count = max(1, int(copy_spec.get('count', 1)))
+                except (TypeError, ValueError):
+                    copy_count = 1
+                copy_specs.append({'type': copy_type, 'count': copy_count})
+
+            if not copy_specs:
+                copy_specs = [{'type': 'original', 'count': 1}]
+
+            req_info['copy_specs'] = copy_specs
+
             # Document requirements - include verification fields
             if app_doc is None:
                 doc_info = {
@@ -488,9 +558,9 @@ def view_application(application_id):
                             'location': a.location,
                             'findings': a.findings,
                             'recommendations': a.recommendations,
-                            'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
+                            'scheduled_date': manila_strftime(a.scheduled_date, '%b %d, %Y', None),
                             'scheduled_time': a.scheduled_time,
-                            'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
+                            'completed_at': manila_strftime(a.completed_at, '%b %d, %Y', None),
                             'conducted_by': a.conductor.first_name + ' ' + a.conductor.last_name if a.conductor else 'N/A',
                             'conductor_email': a.conductor.email if a.conductor else 'N/A',
                             'document_count': len(a.documents),
@@ -501,7 +571,7 @@ def view_application(application_id):
                                 'file_type': d.file_type,
                                 'file_size': d.file_size,
                                 'description': d.description,
-                                'uploaded_at': d.uploaded_at.strftime('%b %d, %Y %I:%M %p') if d.uploaded_at else None
+                                'uploaded_at': manila_strftime(d.uploaded_at, '%b %d, %Y %I:%M %p', None)
                             } for d in a.documents]
                         }
                         assessments_list.append(assessment_dict)
@@ -560,8 +630,8 @@ def view_application(application_id):
     
     # Calculate date values for deadline picker
     today = datetime.utcnow()
-    min_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
-    default_deadline = (today + timedelta(days=30)).strftime('%Y-%m-%d')
+    min_date = manila_strftime(today + timedelta(days=1), '%Y-%m-%d', '')
+    default_deadline = manila_strftime(today + timedelta(days=30), '%Y-%m-%d', '')
     
     # Get workflow status for this application
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
@@ -682,7 +752,10 @@ def update_application_status(application_id):
         
         # Create notification for applicant
         if new_status == 'approved':
-            deadline_text = f" Please submit all required documents by {application.submission_deadline.strftime('%B %d, %Y')} to complete your application." if application.submission_deadline else ""
+            deadline_text = (
+                f" Please submit all required documents by {manila_strftime(application.submission_deadline, '%B %d, %Y', 'N/A')} to complete your application."
+                if application.submission_deadline else ""
+            )
             notif_message = f'Your application for {application.program.program_name} has been approved! You can now download your application slip and submit the required documents at the MSWD Office.{deadline_text}'
         else:
             status_messages = {
@@ -1457,8 +1530,8 @@ def export_applications():
             app.applicant.email,
             app.program.program_name,
             app.application_status,
-            app.application_date.strftime('%Y-%m-%d %H:%M:%S') if app.application_date else '',
-            app.review_date.strftime('%Y-%m-%d %H:%M:%S') if app.review_date else '',
+            manila_strftime(app.application_date, '%Y-%m-%d %H:%M:%S', ''),
+            manila_strftime(app.review_date, '%Y-%m-%d %H:%M:%S', ''),
             reviewer_name,
             f"{app.completion_percentage}%",
             app.remarks or ''
@@ -1472,7 +1545,7 @@ def export_applications():
         output,
         mimetype='text/csv',
         headers={
-            'Content-Disposition': f'attachment; filename=applications_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+            'Content-Disposition': f'attachment; filename=applications_{manila_strftime(datetime.utcnow(), "%Y%m%d_%H%M%S", "")}.csv'
         }
     )
 
@@ -1533,7 +1606,7 @@ def schedule_claim(application_id):
             notif_message = (
                 f'📅 Release Date Scheduled!\n\n'
                 f'Your financial assistance for {application.program.program_name} has been scheduled for release:\n\n'
-                f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
+                f'📅 Date: {manila_strftime(claim_date, "%A, %B %d, %Y", "N/A")}\n'
                 f'🕐 Time: {claim_time}\n'
                 f'📍 Location: {claim_location}\n'
             )
@@ -1542,7 +1615,7 @@ def schedule_claim(application_id):
             notif_message = (
                 f'🎉 Great news! Your application for {application.program.program_name} is now COMPLETED!\n\n'
                 f'Your financial assistance release has been scheduled:\n\n'
-                f'📅 Date: {claim_date.strftime("%A, %B %d, %Y")}\n'
+                f'📅 Date: {manila_strftime(claim_date, "%A, %B %d, %Y", "N/A")}\n'
                 f'🕐 Time: {claim_time}\n'
                 f'📍 Location: {claim_location}\n'
             )
@@ -1589,7 +1662,7 @@ def remove_schedule(application_id):
     
     try:
         # Store the old schedule info for the notification
-        old_claim_date = application.claim_date.strftime('%A, %B %d, %Y') if application.claim_date else 'Not set'
+        old_claim_date = manila_strftime(application.claim_date, '%A, %B %d, %Y', 'Not set')
         old_claim_time = application.claim_time or 'Not set'
         
         # Clear the schedule details
@@ -1651,7 +1724,7 @@ def send_approval_notification(application_id):
         notif_message = (
             f'🎉 Congratulations! Your application for {application.program.program_name} has been APPROVED!\n\n'
             f'📋 Application ID: #{application.id}\n'
-            f'📅 Application Date: {application.application_date.strftime("%B %d, %Y") if application.application_date else "N/A"}\n\n'
+            f'📅 Application Date: {manila_strftime(application.application_date, "%B %d, %Y", "N/A")}\n\n'
             f'✅ Next Steps:\n'
             f'1. Visit the MSWD Office to get your Application Slip/Stub\n'
             f'2. Bring a valid ID when claiming your stub\n'
@@ -1702,14 +1775,14 @@ def update_claim_status(application_id):
         if new_status == 'claimed':
             notif_message = (
                 f'Congratulations! Your financial assistance for {application.program.program_name} '
-                f'has been successfully claimed on {datetime.now().strftime("%B %d, %Y")}.\n\n'
+                f'has been successfully claimed on {manila_strftime(datetime.utcnow(), "%B %d, %Y", "")}.\n\n'
                 f'Thank you for availing our services. We hope this assistance helps with your needs.'
             )
             notif_title = 'Assistance Successfully Claimed'
         elif new_status == 'missed':
             notif_message = (
                 f'You missed your scheduled claim date for {application.program.program_name} '
-                f'on {application.claim_date.strftime("%B %d, %Y") if application.claim_date else "the scheduled date"}.\n\n'
+                f'on {manila_strftime(application.claim_date, "%B %d, %Y", "the scheduled date")}.\n\n'
                 f'Please contact the MSWD office to reschedule your claim appointment.'
             )
             notif_title = 'Missed Claim Appointment'
@@ -2335,7 +2408,7 @@ def generate_beneficiaries_list():
         draw.rectangle([30, padding + 40, img_width - 30, y_offset], outline='#dee2e6', width=2)
         
         # Add footer with generation date
-        footer_text = f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+        footer_text = f"Generated on: {manila_strftime(datetime.utcnow(), '%B %d, %Y at %I:%M %p', '')}"
         footer_bbox = draw.textbbox((0, 0), footer_text, font=cell_font)
         footer_width = footer_bbox[2] - footer_bbox[0]
         draw.text(((img_width - footer_width) / 2, y_offset + 20), footer_text, fill='gray', font=cell_font)
@@ -2346,7 +2419,7 @@ def generate_beneficiaries_list():
         img_io.seek(0)
         
         # Generate filename with timestamp
-        filename = f"beneficiaries_list_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        filename = f"beneficiaries_list_{manila_strftime(datetime.utcnow(), '%Y%m%d_%H%M%S', '')}.jpg"
         
         # Log activity
         log_beneficiaries_list_generated(len(approved_applications))
@@ -2607,7 +2680,7 @@ def approve_workflow_approval_step(application_id):
         # Create notification for applicant
         deadline_text = ''
         if application.submission_deadline:
-            deadline_text = f" Please complete the next steps by {application.submission_deadline.strftime('%B %d, %Y')}."
+            deadline_text = f" Please complete the next steps by {manila_strftime(application.submission_deadline, '%B %d, %Y', 'N/A')}."
         
         notification = Notifications(
             user_id=application.user_id,

@@ -5,7 +5,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram, ProgramWorkflowSteps, ApplicationWorkflowStatus
 from app.extensions import db
-from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility
+from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility, manila_strftime
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
 from sqlalchemy import desc, func, or_
 from werkzeug.utils import secure_filename
@@ -271,7 +271,7 @@ def get_application_restriction(user_id, program_id=None):
                         'program_name': app.program.program_name if app.program else 'your previous program',
                         'reference_date': reference_date,
                         'lock_until': lock_until,
-                        'message': f'You can apply again after {lock_until.strftime("%B %d, %Y")} due to the 3-month cooldown after completion or scheduled release.'
+                        'message': f'You can apply again after {manila_strftime(lock_until, "%B %d, %Y", "N/A")} due to the 3-month cooldown after completion or scheduled release.'
                     }
 
     return {
@@ -686,7 +686,7 @@ def search_programs():
             'name': p.program_name,
             'description': p.description[:150] if p.description else '',
             'type': p.program_type,
-            'date': p.date.strftime('%B %d, %Y') if p.date else None
+            'date': manila_strftime(p.date, '%B %d, %Y', None)
         } for p in results],
         'count': len(results)
     })

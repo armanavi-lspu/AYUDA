@@ -581,7 +581,7 @@
                 <div class="text-white">
                     <div style="font-size: 0.9rem; opacity: 0.8;">Today</div>
                     <div style="font-size: 1.5rem; font-weight: bold;">
-                        {{ current_date.strftime('%B %d, %Y') }}
+                        {{ current_date|manila('%B %d, %Y') }}
                     </div>
                 </div>
             </div>
@@ -672,8 +672,8 @@
                                 <!-- Date Box -->
                                 <div class="col-auto">
                                     <div class="event-date-box">
-                                        <div class="event-date-day">{{ event.date.strftime('%d') }}</div>
-                                        <div class="event-date-month">{{ event.date.strftime('%b %Y') }}</div>
+                                        <div class="event-date-day">{{ event.date|manila('%d') }}</div>
+                                        <div class="event-date-month">{{ event.date|manila('%b %Y') }}</div>
                                     </div>
                                 </div>
                                 
@@ -814,8 +814,8 @@
                                     <div class="row align-items-center">
                                         <div class="col-auto">
                                             <div class="event-date-box" style="background: #6c757d;">
-                                                <div class="event-date-day">{{ event.date.strftime('%d') }}</div>
-                                                <div class="event-date-month">{{ event.date.strftime('%b %Y') }}</div>
+                                                <div class="event-date-day">{{ event.date|manila('%d') }}</div>
+                                                <div class="event-date-month">{{ event.date|manila('%b %Y') }}</div>
                                             </div>
                                         </div>
                                         <div class="col">
@@ -864,7 +864,7 @@ const SCHEDULE_EVENTS = [
     title: {{ e.title | tojson }},
     program: {{ e.program | tojson }},
     application_id: {{ e.application_id }},
-    date: {{ e.date.strftime('%Y-%m-%d') | tojson }},
+    date: {{ e.date|manila('%Y-%m-%d') | tojson }},
     description: {{ e.description | tojson }},
     claim_time: {{ (e.claim_time or '') | tojson }},
     claim_location: {{ (e.claim_location or '') | tojson }},
@@ -957,7 +957,7 @@ function openCalPopup(dateKey) {
     if (!events.length) return;
 
     const [y, m, d] = dateKey.split('-');
-    const label = new Date(y, m-1, d).toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+    const label = new Date(y, m-1, d).toLocaleDateString('en-US', {weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone: 'Asia/Manila'});
     document.getElementById('calPopupDate').textContent = label;
 
     document.getElementById('calPopupEvents').innerHTML = events.map(ev => {
@@ -990,3 +990,4 @@ $(document).ready(function() {
 });
 </script>
 {% endblock %}
+

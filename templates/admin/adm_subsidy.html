@@ -3,6 +3,91 @@
 
 {% block extra_css %}
 <style>
+    .subsidy-shell {
+        animation: subsidyShellIn 0.45s ease-out;
+    }
+
+    @keyframes subsidyShellIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .subsidy-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.18), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 62%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .subsidy-hero h1 {
+        color: #1f2a44;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .subsidy-hero .subtitle {
+        color: #667085;
+        margin-bottom: 0;
+    }
+
+    .subsidy-hero .btn {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .subsidy-hero .hero-layout {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .subsidy-hero .hero-actions {
+        margin-left: auto;
+        min-width: 300px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .subsidy-hero .hero-actions .btn {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 767.98px) {
+        .subsidy-hero .hero-layout {
+            justify-content: center;
+        }
+
+        .subsidy-hero .hero-actions {
+            margin-left: 0;
+            min-width: auto;
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    .btn:not(:disabled):not(.disabled) {
+        cursor: pointer !important;
+    }
+
+    .btn:disabled,
+    .btn.disabled {
+        cursor: not-allowed !important;
+    }
+
     .subsidy-card {
         transition: all 0.3s ease;
         cursor: pointer;
@@ -193,21 +278,150 @@
         transform: translateY(-1px);
         box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
     }
+
+    .recent-requests-card {
+        border: 1px solid #dbe5f7;
+        border-radius: 12px;
+        box-shadow: 0 8px 22px rgba(22, 41, 76, 0.08);
+    }
+
+    .recent-requests-card .card-header {
+        background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+        border-bottom: 1px solid #dbe5f7;
+    }
+
+    .recent-request-table th {
+        border-top: none;
+        color: #334155;
+        font-weight: 700;
+        background: #f8fafc;
+        white-space: nowrap;
+    }
+
+    .recent-request-table td {
+        vertical-align: middle;
+    }
+
+    .request-status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .request-status.pending {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .request-status.submitted,
+    .request-status.under-review,
+    .request-status.documents-required,
+    .request-status.processing {
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .request-status.approved,
+    .request-status.completed {
+        background: #ecfdf3;
+        color: #166534;
+    }
+
+    .request-status.rejected,
+    .request-status.cancelled {
+        background: #fef2f2;
+        color: #b91c1c;
+    }
+
+    .request-status.default {
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    .subsidy-doc-checklist {
+        border: 1px solid #d9e6fb;
+        border-radius: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 0.75rem;
+        background: #fafdff;
+    }
+
+    .subsidy-doc-item {
+        border: 1px solid #dfe7f7;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 0.65rem 0.75rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .subsidy-doc-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .subsidy-copy-specs {
+        border-left: 3px solid #9ec5fe;
+        padding-left: 0.65rem;
+        margin-top: 0.5rem;
+    }
+
+    .subsidy-status-actions {
+        border: 1px solid #d7e5fa;
+        border-radius: 10px;
+        background: #f8fbff;
+        padding: 0.75rem;
+    }
+
+    .requirements-search-wrap {
+        margin-bottom: 0.75rem;
+    }
+
+    .requirements-search-wrap .input-group-text {
+        border-radius: 10px 0 0 10px;
+        background: #f4f8ff;
+        border-color: #d5e1f6;
+        color: #40649b;
+    }
+
+    .requirements-search-wrap .form-control {
+        border-radius: 0 10px 10px 0;
+    }
+
+    .requirement-search-no-match {
+        border: 1px dashed #c9d9f7;
+        border-radius: 10px;
+        background: #f8fbff;
+        color: #4f6282;
+        text-align: center;
+        padding: 0.65rem;
+        margin-top: 0.5rem;
+        font-size: 0.86rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid subsidy-shell">
     <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="font-weight-bold mb-1">Subsidy Management</h1>
-            <p class="text-muted mb-0">Manage PWD, Senior Citizen, and Solo Parent subsidies</p>
-        </div>
-        <div>
-            <button type="button" class="btn btn-primary btn-lg" data-toggle="modal" data-target="#schedulePayoutModal">
-                <i class="fas fa-calendar-check mr-2"></i>Schedule Payout
-            </button>
+    <div class="subsidy-hero">
+        <div class="hero-layout">
+            <div>
+                <h1><i class="fas fa-hand-holding-heart mr-2"></i>Subsidy Management</h1>
+                <p class="subtitle">Manage PWD, Senior Citizen, and Solo Parent subsidy beneficiaries and payout schedules.</p>
+            </div>
+            <div class="hero-actions">
+                <a href="/admin/subsidy/scheduled-lists" class="btn btn-outline-primary">
+                    <i class="fas fa-folder-open mr-2"></i>Saved Lists
+                </a>
+                <button type="button" class="btn btn-primary schedule-payout-trigger" data-toggle="modal" data-target="#schedulePayoutModal">
+                    <i class="fas fa-calendar-check mr-2"></i>Schedule Payout
+                </button>
+            </div>
         </div>
     </div>
 
@@ -253,7 +467,7 @@
                     <div class="subsidy-count">{{ pwd_count }}</div>
                     <div class="subsidy-label">Persons with Disability</div>
                     <p class="text-muted mt-3 mb-0">
-                        Registered PWD individuals eligible for subsidy programs and special assistance.
+                        Registered PWD individuals eligible for subsidy program.
                     </p>
                     <a href="{{ url_for('admin.subsidy_list', category='pwd') }}" class="btn view-btn">
                         <i class="fas fa-list mr-2"></i>View List
@@ -272,7 +486,7 @@
                     <div class="subsidy-count">{{ senior_count }}</div>
                     <div class="subsidy-label">Senior Citizens</div>
                     <p class="text-muted mt-3 mb-0">
-                        Residents aged 60 and above who are eligible for senior citizen benefits and subsidies.
+                        Residents aged 60 and above who are eligible for senior citizen subsidy.
                     </p>
                     <a href="{{ url_for('admin.subsidy_list', category='senior') }}" class="btn view-btn">
                         <i class="fas fa-list mr-2"></i>View List
@@ -301,51 +515,86 @@
         </div>
     </div>
 
-    <!-- Quick Info Section -->
+    <!-- Recent Subsidy Applications -->
     <div class="row mt-4">
         <div class="col-12">
-            <div class="card shadow">
+            <div class="card recent-requests-card">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-info-circle mr-2"></i>About Subsidy Programs
+                        <i class="fas fa-history mr-2"></i>Recent Subsidy Applications
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="mr-3">
-                                    <span class="badge badge-primary p-2"><i class="fas fa-wheelchair"></i></span>
-                                </div>
-                                <div>
-                                    <h6 class="font-weight-bold mb-1">PWD Benefits</h6>
-                                    <small class="text-muted">Includes medical assistance, educational support, and livelihood programs for persons with disabilities.</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="mr-3">
-                                    <span class="badge badge-success p-2"><i class="fas fa-user-clock"></i></span>
-                                </div>
-                                <div>
-                                    <h6 class="font-weight-bold mb-1">Senior Citizen Benefits</h6>
-                                    <small class="text-muted">Covers social pension, medical assistance, and priority services for residents 60 years and above.</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <div class="d-flex align-items-start">
-                                <div class="mr-3">
-                                    <span class="badge badge-warning p-2"><i class="fas fa-user-friends"></i></span>
-                                </div>
-                                <div>
-                                    <h6 class="font-weight-bold mb-1">Solo Parent Benefits</h6>
-                                    <small class="text-muted">Includes flexible work schedules, educational assistance, and livelihood support for solo parents.</small>
-                                </div>
-                            </div>
-                        </div>
+                    {% if recent_subsidy_requests %}
+                    <div class="table-responsive">
+                        <table class="table recent-request-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Submitted</th>
+                                    <th>Requester</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Summary</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in recent_subsidy_requests %}
+                                {% set status_class = req.status|lower|replace(' ', '-') %}
+                                {% if status_class not in ['pending', 'submitted', 'under-review', 'documents-required', 'processing', 'approved', 'completed', 'rejected', 'cancelled'] %}
+                                    {% set status_class = 'default' %}
+                                {% endif %}
+                                {% set req_docs = req.required_documents if req.required_documents is iterable and req.required_documents is not string else [] %}
+                                {% set req_doc_specs = req.required_documents_specs if req.required_documents_specs is iterable and req.required_documents_specs is not string else [] %}
+                                <tr>
+                                    <td>
+                                        <small class="text-muted">{{ req.created_at|manila('%b %d, %Y') }}</small><br>
+                                        <small class="text-muted">{{ req.created_at|manila('%I:%M %p') }}</small>
+                                    </td>
+                                    <td class="font-weight-bold">{{ req.requester_name }}</td>
+                                    <td>{{ req.category_name }}</td>
+                                    <td><span class="request-status {{ status_class }}">{{ req.status }}</span></td>
+                                    <td>
+                                        <small class="text-muted">{{ req.description }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-primary open-request-view-modal"
+                                            data-toggle="modal"
+                                            data-target="#subsidyRequestViewModal"
+                                            data-request-id="{{ req.id }}"
+                                            data-requester-name="{{ req.requester_name|e }}"
+                                            data-requester-email="{{ req.requester_email|e }}"
+                                            data-category-name="{{ req.category_name|e }}"
+                                            data-status="{{ req.status|e }}"
+                                            data-status-key="{{ req.status_key|e }}"
+                                            data-submitted="{{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                            data-summary="{{ req.description|e }}"
+                                            data-instructions="{{ req.admin_instructions|e }}"
+                                            data-required-docs="{{ req_docs|join('||')|e }}"
+                                            data-required-docs-specs="{{ req_doc_specs|tojson|forceescape }}"
+                                            data-office-note="{{ req.office_submission_note|e }}"
+                                            data-profile-url="{{ url_for('admin.view_community_user', user_id=req.user_id) }}"
+                                            data-respond-url="{{ url_for('admin.respond_subsidy_request', request_id=req.id) }}"
+                                            data-status-url="{{ url_for('admin.update_subsidy_request_status', request_id=req.id) }}"
+                                            data-complete-url="{{ url_for('admin.complete_subsidy_request', request_id=req.id) }}"
+                                        >
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-3 d-block"></i>
+                        <p class="mb-1">No subsidy applications yet.</p>
+                        <small>Recent user subsidy requests will appear here once submitted.</small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -354,7 +603,7 @@
 
 <!-- Schedule Payout Modal -->
 <div class="modal fade" id="schedulePayoutModal" tabindex="-1" role="dialog" aria-labelledby="schedulePayoutModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content">
             <form id="schedulePayoutForm" action="{{ url_for('admin.schedule_subsidy_payout') }}" method="POST">
                 <div class="modal-header bg-primary text-white">
@@ -384,33 +633,13 @@
                     </div>
                     <div class="form-group">
                         <label for="payoutCategories" class="font-weight-bold">Beneficiary Categories <span class="text-danger">*</span></label>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" id="includePWD" name="categories" value="pwd" checked>
-                                    <label class="custom-control-label" for="includePWD">
-                                        <i class="fas fa-wheelchair mr-2 text-primary"></i>PWD ({{ pwd_count }})
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" id="includeSenior" name="categories" value="senior" checked>
-                                    <label class="custom-control-label" for="includeSenior">
-                                        <i class="fas fa-user-clock mr-2 text-success"></i>Senior Citizens ({{ senior_count }})
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="custom-control custom-checkbox">
-                                    <input type="checkbox" class="custom-control-input" id="includeSoloParent" name="categories" value="solo_parent" checked>
-                                    <label class="custom-control-label" for="includeSoloParent">
-                                        <i class="fas fa-user-friends mr-2 text-warning"></i>Solo Parents ({{ solo_parent_count }})
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <small class="text-muted">Select which categories will receive the subsidy payout</small>
+                        <select class="form-control" id="payoutCategory" name="categories" required>
+                            <option value="" selected disabled>Select one category</option>
+                            <option value="pwd">PWD ({{ pwd_count }})</option>
+                            <option value="senior">Senior Citizens ({{ senior_count }})</option>
+                            <option value="solo_parent">Solo Parents ({{ solo_parent_count }})</option>
+                        </select>
+                        <small class="text-muted">Choose one beneficiary category for this payout schedule</small>
                     </div>
                     <div class="form-group">
                         <label for="payoutLocation" class="font-weight-bold">Payout Location <span class="text-danger">*</span></label>
@@ -423,12 +652,12 @@
                     </div>
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle mr-2"></i>
-                        <strong>After scheduling:</strong> You'll have the option to create an announcement with the list of beneficiaries.
+                        <strong>After scheduling:</strong> You will be redirected to the scheduled beneficiaries list where you can save the list and create an announcement.
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary schedule-payout-submit">
                         <i class="fas fa-calendar-plus mr-2"></i>Schedule Payout
                     </button>
                 </div>
@@ -479,7 +708,7 @@
 
 <!-- Announcement Creation Modal -->
 <div class="modal fade" id="createAnnouncementModal" tabindex="-1" role="dialog" aria-labelledby="createAnnouncementModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content">
             <form id="createAnnouncementForm" action="{{ url_for('admin.create_subsidy_announcement') }}" method="POST">
                 <input type="hidden" id="payoutId" name="payout_id">
@@ -519,20 +748,529 @@
     </div>
 </div>
 
+<!-- Subsidy Request View/Respond Modal -->
+<div class="modal fade" id="subsidyRequestViewModal" tabindex="-1" role="dialog" aria-labelledby="subsidyRequestViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="subsidyRequestViewModalLabel">
+                    <i class="fas fa-file-signature mr-2"></i>Subsidy Request Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-2">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Requester</small>
+                        <strong id="requestModalRequester">-</strong>
+                        <div class="small text-muted" id="requestModalEmail"></div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Category</small>
+                        <strong id="requestModalCategory">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Current Status</small>
+                        <span id="requestModalStatus" class="request-status default">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Submitted</small>
+                        <span id="requestModalSubmitted">-</span>
+                    </div>
+                    <div class="col-12 mb-2">
+                        <small class="text-muted d-block">Summary</small>
+                        <span id="requestModalSummary">-</span>
+                    </div>
+                </div>
+
+                <div class="subsidy-status-actions mb-3">
+                    <form id="subsidyRequestStatusForm" method="POST">
+                        <div class="form-row align-items-end">
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <label for="requestModalStatusSelect" class="font-weight-bold mb-1">Update Status</label>
+                                <select id="requestModalStatusSelect" name="status" class="form-control form-control-sm">
+                                    <option value="pending">Pending</option>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="under_review">Under Review</option>
+                                    <option value="documents_required">Documents Required</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2 mb-md-0">
+                                <button type="submit" class="btn btn-outline-primary btn-sm btn-block">
+                                    <i class="fas fa-sync-alt mr-1"></i>Update Status
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <form id="subsidyRequestCompleteForm" method="POST" class="mt-2">
+                        <button type="submit" id="completeSubsidyRequestBtn" class="btn btn-success btn-sm" disabled>
+                            <i class="fas fa-check-circle mr-1"></i>Complete Application
+                        </button>
+                        <small class="text-muted d-block mt-1">This button is enabled only when the current status is Approved.</small>
+                    </form>
+                </div>
+
+                <hr>
+
+                <form id="subsidyRequestResponseForm" method="POST">
+                    <div class="form-group">
+                        <label for="requestInstructions" class="font-weight-bold">Instructions for User <span class="text-danger">*</span></label>
+                        <textarea id="requestInstructions" name="instructions" class="form-control" rows="4" required placeholder="Explain what the user needs to do next."></textarea>
+                    </div>
+
+                    <div class="form-group mb-1">
+                        <label class="font-weight-bold">Required Documents Checklist <span class="text-danger">*</span></label>
+                        <div class="requirements-search-wrap">
+                            <div class="input-group input-group-sm">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                </div>
+                                <input type="text" class="form-control" id="subsidyDocRequirementSearch" placeholder="Search required documents..." autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="subsidy-doc-checklist" id="subsidyDocumentChecklist">
+                            {% if document_requirements_catalog %}
+                                {% for req_doc in document_requirements_catalog %}
+                                <div class="subsidy-doc-item" data-requirement-id="{{ req_doc.id }}" data-requirement-name="{{ req_doc.requirement_name|e }}">
+                                    <div class="custom-control custom-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            class="custom-control-input subsidy-doc-checkbox"
+                                            id="subsidyDoc{{ req_doc.id }}"
+                                            name="document_requirement_ids"
+                                            value="{{ req_doc.id }}"
+                                        >
+                                        <label class="custom-control-label" for="subsidyDoc{{ req_doc.id }}">
+                                            <strong>{{ req_doc.requirement_name }}</strong>
+                                            {% if req_doc.description %}
+                                                <br><small class="text-muted">{{ req_doc.description }}</small>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+
+                                    <div class="subsidy-copy-specs copy-specs-container" id="copySpecsContainer{{ req_doc.id }}" style="display:none;">
+                                        <small class="text-muted d-block mb-2">Specify copy type and number of copies.</small>
+                                        <div class="copy-specs-list" data-requirement-id="{{ req_doc.id }}"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary add-copy-spec-btn mt-1" data-requirement-id="{{ req_doc.id }}">
+                                            <i class="fas fa-plus mr-1"></i>Add Another Copy Type
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted mb-0">No document requirements available. Add requirements in Program Requirements first.</p>
+                            {% endif %}
+                        </div>
+                        <div id="subsidyDocSearchNoMatch" class="requirement-search-no-match d-none">
+                            <i class="fas fa-search mr-1"></i>No matching required documents found.
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        Include only office instructions. Documents must be submitted within the week.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <a id="requestModalOpenProfile" href="#" class="btn btn-outline-secondary">
+                    <i class="fas fa-user mr-1"></i>Open User Profile
+                </a>
+                <div>
+                    <button type="button" class="btn btn-light" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-info" form="subsidyRequestResponseForm">
+                        <i class="fas fa-paper-plane mr-1"></i>Send to User
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subsidy Action Confirmation Modal -->
+<div class="modal fade" id="subsidyActionConfirmModal" tabindex="-1" role="dialog" aria-labelledby="subsidyActionConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="subsidyActionConfirmModalLabel">
+                    <i class="fas fa-question-circle mr-2"></i><span id="subsidyConfirmModalTitle">Confirm Action</span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="subsidyConfirmModalMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="subsidyConfirmModalBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Set minimum date to today
-document.getElementById('payoutDate').min = new Date().toISOString().split('T')[0];
+const payoutDateInput = document.getElementById('payoutDate');
+if (payoutDateInput) {
+    payoutDateInput.min = new Date().toISOString().split('T')[0];
+}
 
 // Handle form submission and show announcement modal
-$(document).ready(function() {
-    $('#schedulePayoutForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Get selected categories
-        let selectedCategories = [];
-        $('input[name="categories"]:checked').each(function() {
-            selectedCategories.push($(this).val());
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.jQuery) {
+        return;
+    }
+
+    const $ = window.jQuery;
+    const validSubsidyCategories = ['pwd', 'senior', 'solo_parent'];
+
+    function applyScheduleModalQueryParams() {
+        const params = new URLSearchParams(window.location.search);
+        const requestedCategory = (params.get('preselect_category') || '').trim();
+        const shouldOpenSchedule = params.get('open_schedule') === '1';
+
+        if (requestedCategory && validSubsidyCategories.includes(requestedCategory)) {
+            $('#payoutCategory').val(requestedCategory).trigger('change');
+        }
+
+        if (shouldOpenSchedule) {
+            $('#schedulePayoutModal').modal('show');
+        }
+
+        if (params.has('open_schedule') || params.has('preselect_category')) {
+            params.delete('open_schedule');
+            params.delete('preselect_category');
+            const cleanQuery = params.toString();
+            const cleanUrl = cleanQuery ? `${window.location.pathname}?${cleanQuery}` : window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }
+
+    applyScheduleModalQueryParams();
+
+    function copyTypeLabel(copyType) {
+        const labels = {
+            original: 'Original',
+            photocopy: 'Photocopy',
+            certified_true_copy: 'Certified True Copy'
+        };
+        return labels[copyType] || 'Original';
+    }
+
+    function buildCopySpecRow(requirementId, copyType = 'original', copyCount = 1) {
+        return `
+            <div class="row align-items-end mb-2 copy-spec-row">
+                <div class="col-md-7 mb-2 mb-md-0">
+                    <label class="small font-weight-bold">Copy Type</label>
+                    <select class="form-control form-control-sm" name="copy_type_${requirementId}[]">
+                        <option value="original" ${copyType === 'original' ? 'selected' : ''}>${copyTypeLabel('original')}</option>
+                        <option value="photocopy" ${copyType === 'photocopy' ? 'selected' : ''}>${copyTypeLabel('photocopy')}</option>
+                        <option value="certified_true_copy" ${copyType === 'certified_true_copy' ? 'selected' : ''}>${copyTypeLabel('certified_true_copy')}</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-2 mb-md-0">
+                    <label class="small font-weight-bold">Copies</label>
+                    <input type="number" class="form-control form-control-sm" name="copy_count_${requirementId}[]" min="1" max="10" value="${Number(copyCount) || 1}">
+                </div>
+                <div class="col-md-2 text-md-right">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-copy-spec-btn" title="Remove copy row">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    function ensureAtLeastOneCopyRow(requirementId) {
+        const listEl = $(`#copySpecsContainer${requirementId} .copy-specs-list`);
+        if (!listEl.length) {
+            return;
+        }
+        if (!listEl.children('.copy-spec-row').length) {
+            listEl.append(buildCopySpecRow(requirementId));
+        }
+    }
+
+    function toggleCopySpecs(requirementId, isChecked) {
+        const container = $(`#copySpecsContainer${requirementId}`);
+        if (!container.length) {
+            return;
+        }
+
+        if (isChecked) {
+            container.show();
+            ensureAtLeastOneCopyRow(requirementId);
+        } else {
+            container.hide();
+        }
+    }
+
+    function resetDocumentChecklist() {
+        $('.subsidy-doc-checkbox').each(function() {
+            this.checked = false;
         });
+        $('.copy-specs-container').hide();
+        $('.copy-specs-list').each(function() {
+            const requirementId = $(this).data('requirement-id');
+            $(this).empty().append(buildCopySpecRow(requirementId));
+        });
+
+        const searchInput = document.getElementById('subsidyDocRequirementSearch');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        filterSubsidyDocumentChecklist('');
+    }
+
+    function filterSubsidyDocumentChecklist(query) {
+        const normalizedQuery = String(query || '').trim().toLowerCase();
+        const items = Array.from(document.querySelectorAll('#subsidyDocumentChecklist .subsidy-doc-item'));
+
+        let visibleCount = 0;
+        items.forEach((item) => {
+            const textValue = item.textContent.toLowerCase();
+            const isVisible = !normalizedQuery || textValue.includes(normalizedQuery);
+            item.style.display = isVisible ? '' : 'none';
+            if (isVisible) {
+                visibleCount += 1;
+            }
+        });
+
+        const noMatch = document.getElementById('subsidyDocSearchNoMatch');
+        if (noMatch) {
+            noMatch.classList.toggle('d-none', visibleCount !== 0 || !items.length);
+        }
+    }
+
+    function populateDocumentChecklist(data) {
+        resetDocumentChecklist();
+
+        let specs = [];
+        if (data.requiredDocsSpecs) {
+            try {
+                specs = JSON.parse(data.requiredDocsSpecs);
+            } catch (error) {
+                specs = [];
+            }
+        }
+
+        const nameToIdMap = {};
+        $('.subsidy-doc-item').each(function() {
+            const reqId = String($(this).data('requirement-id'));
+            const reqName = String($(this).data('requirement-name') || '').trim().toLowerCase();
+            if (reqName) {
+                nameToIdMap[reqName] = reqId;
+            }
+        });
+
+        if (!Array.isArray(specs) || !specs.length) {
+            const fallbackDocs = (data.requiredDocs || '').split('||').map((item) => item.trim()).filter(Boolean);
+            specs = fallbackDocs.map((docName) => ({
+                name: docName,
+                requirement_id: nameToIdMap[docName.toLowerCase()] || null,
+                copy_specs: [{ type: 'original', count: 1 }]
+            }));
+        }
+
+        specs.forEach((spec) => {
+            const specName = String(spec.name || '').trim();
+            const directId = spec.requirement_id !== null && spec.requirement_id !== undefined ? String(spec.requirement_id) : '';
+            const resolvedId = directId || nameToIdMap[specName.toLowerCase()] || '';
+            if (!resolvedId) {
+                return;
+            }
+
+            const checkbox = $(`#subsidyDoc${resolvedId}`);
+            if (!checkbox.length) {
+                return;
+            }
+
+            checkbox.prop('checked', true);
+            toggleCopySpecs(resolvedId, true);
+
+            const listEl = $(`#copySpecsContainer${resolvedId} .copy-specs-list`);
+            listEl.empty();
+
+            const copySpecs = Array.isArray(spec.copy_specs) && spec.copy_specs.length
+                ? spec.copy_specs
+                : [{ type: 'original', count: 1 }];
+
+            copySpecs.forEach((copySpec) => {
+                const safeType = ['original', 'photocopy', 'certified_true_copy'].includes(copySpec.type)
+                    ? copySpec.type
+                    : 'original';
+                const safeCount = Number(copySpec.count) > 0 ? Number(copySpec.count) : 1;
+                listEl.append(buildCopySpecRow(resolvedId, safeType, safeCount));
+            });
+        });
+
+        const searchInput = document.getElementById('subsidyDocRequirementSearch');
+        filterSubsidyDocumentChecklist(searchInput ? searchInput.value : '');
+    }
+
+    function syncCompleteButtonState(currentStatusKey) {
+        const isApproved = String(currentStatusKey || '').toLowerCase() === 'approved';
+        $('#completeSubsidyRequestBtn').prop('disabled', !isApproved);
+    }
+
+    let pendingSubsidyConfirmAction = null;
+
+    function openSubsidyActionConfirmModal(config) {
+        const options = config || {};
+        const confirmBtn = $('#subsidyConfirmModalBtn');
+
+        $('#subsidyConfirmModalTitle').text(options.title || 'Confirm Action');
+        $('#subsidyConfirmModalMessage').text(options.message || 'Are you sure you want to proceed?');
+
+        confirmBtn.removeClass('btn-primary btn-success btn-warning btn-danger')
+            .addClass(options.confirmBtnClass || 'btn-primary')
+            .text(options.confirmLabel || 'Confirm');
+
+        pendingSubsidyConfirmAction = typeof options.onConfirm === 'function' ? options.onConfirm : null;
+        $('#subsidyActionConfirmModal').modal('show');
+    }
+
+    $(document).on('click', '.open-request-view-modal', function() {
+        const data = this.dataset;
+        const statusClass = (data.status || '').toLowerCase().replace(/\s+/g, '-');
+
+        $('#requestModalRequester').text(data.requesterName || '-');
+        $('#requestModalEmail').text(data.requesterEmail || '');
+        $('#requestModalCategory').text(data.categoryName || '-');
+        $('#requestModalSubmitted').text(data.submitted || '-');
+        $('#requestModalSummary').text(data.summary || '-');
+
+        const statusEl = $('#requestModalStatus');
+        statusEl.removeClass('pending submitted under-review documents-required processing approved completed rejected cancelled default');
+        statusEl.addClass(statusClass || 'default');
+        statusEl.text(data.status || '-');
+
+        $('#subsidyRequestStatusForm').attr('action', data.statusUrl || '#');
+        $('#subsidyRequestCompleteForm').attr('action', data.completeUrl || '#');
+        $('#subsidyRequestResponseForm').attr('action', data.respondUrl || '#');
+        $('#requestModalOpenProfile').attr('href', data.profileUrl || '#');
+        $('#requestModalStatusSelect').val(data.statusKey || 'pending');
+
+        $('#requestInstructions').val(data.instructions || '');
+        populateDocumentChecklist(data);
+        syncCompleteButtonState(data.statusKey || 'pending');
+    });
+
+    $(document).on('change', '.subsidy-doc-checkbox', function() {
+        const reqId = this.value;
+        toggleCopySpecs(reqId, this.checked);
+    });
+
+    $(document).on('click', '.add-copy-spec-btn', function() {
+        const reqId = String($(this).data('requirement-id'));
+        const listEl = $(`#copySpecsContainer${reqId} .copy-specs-list`);
+        listEl.append(buildCopySpecRow(reqId));
+    });
+
+    $(document).on('click', '.remove-copy-spec-btn', function() {
+        const row = $(this).closest('.copy-spec-row');
+        const listEl = row.parent();
+        if (listEl.children('.copy-spec-row').length <= 1) {
+            return;
+        }
+        row.remove();
+    });
+
+    const subsidyDocRequirementSearch = document.getElementById('subsidyDocRequirementSearch');
+    if (subsidyDocRequirementSearch) {
+        subsidyDocRequirementSearch.addEventListener('input', function() {
+            filterSubsidyDocumentChecklist(this.value);
+        });
+    }
+
+    $('#subsidyRequestResponseForm').on('submit', function(e) {
+        if (!$('.subsidy-doc-checkbox:checked').length) {
+            e.preventDefault();
+            alert('Please select at least one required document.');
+        }
+    });
+
+    $('#subsidyRequestStatusForm').on('submit', function(e) {
+        if ($(this).data('confirmed') === true) {
+            $(this).removeData('confirmed');
+            return;
+        }
+
+        e.preventDefault();
+        const form = this;
+        const selectedStatusLabel = $('#requestModalStatusSelect option:selected').text() || 'selected status';
+
+        openSubsidyActionConfirmModal({
+            title: 'Update Subsidy Status',
+            message: `Update subsidy application status to ${selectedStatusLabel}?`,
+            confirmLabel: 'Yes, Update Status',
+            confirmBtnClass: 'btn-primary',
+            onConfirm: function() {
+                $(form).data('confirmed', true);
+                form.submit();
+            }
+        });
+    });
+
+    $('#subsidyRequestCompleteForm').on('submit', function(e) {
+        if ($('#completeSubsidyRequestBtn').prop('disabled')) {
+            e.preventDefault();
+            return;
+        }
+
+        if ($(this).data('confirmed') === true) {
+            $(this).removeData('confirmed');
+            return;
+        }
+
+        e.preventDefault();
+        const form = this;
+
+        openSubsidyActionConfirmModal({
+            title: 'Complete Subsidy Application',
+            message: 'Mark this subsidy application as completed?',
+            confirmLabel: 'Yes, Mark as Completed',
+            confirmBtnClass: 'btn-success',
+            onConfirm: function() {
+                $(form).data('confirmed', true);
+                form.submit();
+            }
+        });
+    });
+
+    $('#subsidyConfirmModalBtn').on('click', function() {
+        const action = pendingSubsidyConfirmAction;
+        pendingSubsidyConfirmAction = null;
+        $('#subsidyActionConfirmModal').modal('hide');
+        if (typeof action === 'function') {
+            action();
+        }
+    });
+
+    $('#subsidyActionConfirmModal').on('hidden.bs.modal', function() {
+        pendingSubsidyConfirmAction = null;
+    });
+
+    $(document).on('submit', '#schedulePayoutForm', function(e) {
+        e.preventDefault();
+
+        const payoutDateValue = $('#payoutDate').val();
+        const payoutTimeValue = $('#payoutTime').val();
+        const payoutLocationValue = $('#payoutLocation').val();
+        
+        // Get selected category
+        const selectedCategory = $('#payoutCategory').val();
+        const selectedCategories = selectedCategory ? [selectedCategory] : [];
         
         if (selectedCategories.length === 0) {
             alert('Please select at least one beneficiary category.');
@@ -549,63 +1287,19 @@ $(document).ready(function() {
             url: $(this).attr('action'),
             method: 'POST',
             data: $(this).serialize(),
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             success: function(response) {
                 if (response.success) {
-                    // Hide schedule modal
-                    $('#schedulePayoutModal').modal('hide');
-                    
-                    // Reset form
-                    $('#schedulePayoutForm')[0].reset();
-                    
-                    // Store response data for later use
-                    window.payoutResponseData = response;
-                    
-                    // Populate success modal with payout details
-                    const payoutDate = new Date($('#payoutDate').val() + ' ' + $('#payoutTime').val());
-                    const formattedDate = payoutDate.toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                    });
-                    const formattedTime = payoutDate.toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    });
-                    
-                    const successDetails = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong><i class="fas fa-calendar mr-2 text-primary"></i>Date:</strong></p>
-                                <p class="text-muted">${formattedDate}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong><i class="fas fa-clock mr-2 text-primary"></i>Time:</strong></p>
-                                <p class="text-muted">${formattedTime}</p>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong><i class="fas fa-map-marker-alt mr-2 text-primary"></i>Location:</strong></p>
-                                <p class="text-muted">${$('#payoutLocation').val()}</p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-2"><strong><i class="fas fa-users mr-2 text-primary"></i>Beneficiaries:</strong></p>
-                                <p class="text-muted">${response.total_beneficiaries} people</p>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-12">
-                                <p class="mb-2"><strong><i class="fas fa-clipboard-list mr-2 text-primary"></i>Payout ID:</strong></p>
-                                <p class="text-muted font-monospace">${response.payout_id}</p>
-                            </div>
-                        </div>
-                    `;
-                    
-                    $('#payoutSuccessDetails').html(successDetails);
-                    
-                    // Show success confirmation modal
-                    $('#payoutSuccessModal').modal('show');
+                    const redirectUrl = response.redirect_url;
+                    if (redirectUrl) {
+                        window.location.href = redirectUrl;
+                        return;
+                    }
+
+                    window.location.href = "{{ url_for('admin.adm_subsidy') }}";
                 } else {
                     alert('Error: ' + response.message);
                 }
@@ -622,6 +1316,12 @@ $(document).ready(function() {
                 submitBtn.html(originalText).prop('disabled', false);
             }
         });
+    });
+
+    // Force JS-handled submit from the modal action button.
+    $(document).on('click', '#schedulePayoutForm .schedule-payout-submit', function(e) {
+        e.preventDefault();
+        $('#schedulePayoutForm').trigger('submit');
     });
     
     // Handle "Create Announcement" button click from success modal
@@ -657,20 +1357,22 @@ $(document).ready(function() {
         }, 3000);
     });
     
-    // Update total beneficiaries when categories change
-    $('input[name="categories"]').on('change', function() {
-        let total = 0;
-        if ($('#includePWD').is(':checked')) total += {{ pwd_count }};
-        if ($('#includeSenior').is(':checked')) total += {{ senior_count }};
-        if ($('#includeSoloParent').is(':checked')) total += {{ solo_parent_count }};
-        
-        // Note: This is an approximation since some people might belong to multiple categories
-        const noteText = total > 0 ? `Estimated ${total} beneficiaries (may be less if individuals belong to multiple categories)` : 'No categories selected';
-        
+    // Update total beneficiaries when category changes
+    $('#payoutCategory').on('change', function() {
+        const selected = $(this).val();
+        const categoryCounts = {
+            pwd: Number('{{ pwd_count|int }}'),
+            senior: Number('{{ senior_count|int }}'),
+            solo_parent: Number('{{ solo_parent_count|int }}')
+        };
+
+        const total = categoryCounts[selected] || 0;
+        const noteText = selected ? `Estimated ${total} beneficiaries for selected category` : 'No category selected';
+
         // Update or create info text
         let infoElement = $('#categoryInfo');
         if (infoElement.length === 0) {
-            $('input[name="categories"]').closest('.form-group').append(`<small id="categoryInfo" class="text-info"></small>`);
+            $('#payoutCategory').closest('.form-group').append(`<small id="categoryInfo" class="text-info"></small>`);
             infoElement = $('#categoryInfo');
         }
         infoElement.text(noteText);
@@ -680,7 +1382,7 @@ $(document).ready(function() {
     $('#schedulePayoutModal').on('hidden.bs.modal', function() {
         $(this).find('form')[0].reset();
         $('#categoryInfo').remove();
-        $('.alert').remove();
+        $(this).find('.alert').remove();
     });
     
     $('#payoutSuccessModal').on('hidden.bs.modal', function() {
@@ -692,7 +1394,17 @@ $(document).ready(function() {
     $('#createAnnouncementModal').on('hidden.bs.modal', function() {
         $(this).find('form')[0].reset();
         $('#beneficiaryPreview').html('<small class="text-muted">Beneficiary list will appear here after scheduling payout...</small>');
-        $('.alert').remove();
+        $(this).find('.alert').remove();
+    });
+
+    $('#subsidyRequestViewModal').on('hidden.bs.modal', function() {
+        $('#subsidyRequestStatusForm')[0].reset();
+        $('#subsidyRequestStatusForm').removeData('confirmed');
+        $('#subsidyRequestCompleteForm')[0].reset();
+        $('#subsidyRequestCompleteForm').removeData('confirmed');
+        $('#subsidyRequestResponseForm')[0].reset();
+        resetDocumentChecklist();
+        syncCompleteButtonState('');
     });
 });
 </script>

@@ -241,6 +241,54 @@ class AnnouncementImages(db.Model):
     def __repr__(self):
         return f'<AnnouncementImage {self.id}>'
 
+
+class SubsidyPayout(db.Model):
+    """Store scheduled subsidy payouts and beneficiary snapshots."""
+    __tablename__ = 'subsidy_payouts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    payout_id = db.Column(db.String(50), nullable=False, unique=True, index=True)
+    payout_datetime = db.Column(db.DateTime, nullable=False, index=True)
+    payout_location = db.Column(db.String(255), nullable=False)
+    payout_notes = db.Column(db.Text)
+    category_key = db.Column(db.String(50), nullable=False, index=True)
+    category_label = db.Column(db.String(100), nullable=False)
+    beneficiary_count = db.Column(db.Integer, nullable=False, default=0)
+    beneficiary_snapshot = db.Column(db.Text, nullable=False)
+    beneficiary_list_text = db.Column(db.Text)
+    beneficiary_list_html = db.Column(db.Text)
+    suggested_title = db.Column(db.String(255))
+    suggested_content = db.Column(db.Text)
+    status = db.Column(db.String(20), nullable=False, default='draft', index=True)  # draft, saved, announced
+    saved_in_system = db.Column(db.Boolean, nullable=False, default=False)
+    saved_at = db.Column(db.DateTime)
+    announcement_id = db.Column(db.Integer, db.ForeignKey('announcements.id'), nullable=True)
+    scheduled_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
+
+    scheduler = db.relationship('User', backref='scheduled_subsidy_payouts', foreign_keys=[scheduled_by])
+    announcement = db.relationship('Announcements', backref='linked_subsidy_payouts', foreign_keys=[announcement_id])
+
+    @property
+    def snapshot_data(self):
+        """Return beneficiary snapshot JSON as a Python list."""
+        if self.beneficiary_snapshot:
+            try:
+                import json
+                return json.loads(self.beneficiary_snapshot)
+            except Exception:
+                return []
+        return []
+
+    def set_snapshot_data(self, snapshot_rows):
+        """Store beneficiary snapshot as JSON text."""
+        import json
+        self.beneficiary_snapshot = json.dumps(snapshot_rows or [])
+
+    def __repr__(self):
+        return f'<SubsidyPayout {self.payout_id}>'
+
 class Applications(db.Model):
     __tablename__ = 'applications'
     
@@ -488,6 +536,8 @@ class Notifications(db.Model):
             return f'/community/announcements/{self.related_id}' if self.related_id else '/community/announcements'
         elif self.related_type == 'program':
             return f'/community/programs/{self.related_id}' if self.related_id else '/community/programs'
+        elif self.related_type == 'subsidy':
+            return '/community/other_services'
         elif self.related_type == 'schedule':
             return '/community/schedule'
         elif self.related_type == 'profile':
@@ -510,6 +560,10 @@ class Notifications(db.Model):
             return f'/admin/programs'
         elif self.related_type == 'assessment':
             return f'/admin/assessments/{self.related_id}' if self.related_id else '/admin/assessments'
+        elif self.related_type == 'subsidy':
+            return '/admin/subsidy'
+        elif self.related_type == 'profile':
+            return f'/admin/community/view/{self.related_id}' if self.related_id else '/admin/community'
         elif self.related_type == 'admin_alert':
             return '/admin/applications'
         else:

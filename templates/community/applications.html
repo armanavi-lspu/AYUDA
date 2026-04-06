@@ -203,7 +203,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid applications-shell py-4">
+<div class="container-fluid applications-shell py-4" id="communityApplicationsPageRoot">
     <!-- Header Section -->
     <div class="applications-hero">
         <div class="row align-items-center">
@@ -430,8 +430,8 @@
                             <div class="col-sm-6 mb-3 mb-sm-0">
                                 <small class="text-muted font-weight-bold text-uppercase">Application Date</small>
                                 {% if application.application_date %}
-                                <div class="text-dark font-weight-semibold">{{ application.application_date.strftime('%B %d, %Y') }}</div>
-                                <small class="text-muted">{{ application.application_date.strftime('%I:%M %p') }}</small>
+                                <div class="text-dark font-weight-semibold">{{ application.application_date|manila('%B %d, %Y') }}</div>
+                                <small class="text-muted">{{ application.application_date|manila('%I:%M %p') }}</small>
                                 {% else %}
                                 <div class="text-muted">Not available</div>
                                 {% endif %}
@@ -439,8 +439,8 @@
                             {% if application.review_date %}
                             <div class="col-sm-6">
                                 <small class="text-muted font-weight-bold text-uppercase">Review Date</small>
-                                <div class="text-dark font-weight-semibold">{{ application.review_date.strftime('%B %d, %Y') }}</div>
-                                <small class="text-muted">{{ application.review_date.strftime('%I:%M %p') }}</small>
+                                <div class="text-dark font-weight-semibold">{{ application.review_date|manila('%B %d, %Y') }}</div>
+                                <small class="text-muted">{{ application.review_date|manila('%I:%M %p') }}</small>
                             </div>
                             {% endif %}
                         </div>
@@ -472,7 +472,7 @@
                             {% if application.application_status == 'active' %}
                                 {% if application.code_used_at %}
                                 <button class="btn btn-success btn-block mb-2" disabled
-                                        title="Documents verified on {{ application.code_used_at.strftime('%b %d, %Y') }}">
+                                        title="Documents verified on {{ application.code_used_at|manila('%b %d, %Y') }}">
                                     <i class="fas fa-check-circle mr-2"></i>Documents Verified
                                 </button>
                                 {% endif %}
@@ -515,7 +515,7 @@
                                     <i class="fas fa-clock mr-1"></i>Cancellation Pending
                                 </button>
                                 <small class="text-muted d-block text-center mt-1" style="font-size: 0.75rem;">
-                                    Requested {{ application.cancellation_requested_at.strftime('%b %d') if application.cancellation_requested_at else '' }}
+                                    Requested {{ application.cancellation_requested_at|manila('%b %d', '') }}
                                 </small>
                                 {% else %}
                                 <button type="button" 
@@ -700,6 +700,69 @@
 
 {% block extra_js %}
 <script>
+const COMMUNITY_APPLICATIONS_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+let communityApplicationsRealtimeTimer = null;
+let communityApplicationsRefreshInFlight = false;
+
+function queueCommunityApplicationsRefresh(message, delayMs = 900) {
+    if (communityApplicationsRealtimeTimer) {
+        clearTimeout(communityApplicationsRealtimeTimer);
+    }
+
+    communityApplicationsRealtimeTimer = setTimeout(function() {
+        refreshCommunityApplicationsPage(message);
+    }, delayMs);
+}
+
+function refreshCommunityApplicationsPage(message) {
+    if (communityApplicationsRefreshInFlight) {
+        return;
+    }
+
+    const root = document.getElementById('communityApplicationsPageRoot');
+    if (!root) {
+        window.location.reload();
+        return;
+    }
+
+    communityApplicationsRefreshInFlight = true;
+
+    fetch(`${window.location.pathname}${window.location.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh applications page (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('communityApplicationsPageRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated community applications content not found');
+            }
+
+            root.replaceWith(nextRoot);
+
+            if (typeof showRealtimeToast === 'function') {
+                showRealtimeToast(message || 'Applications list refreshed with latest updates.');
+            }
+        })
+        .catch(error => {
+            console.error('Community applications soft refresh failed:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            communityApplicationsRefreshInFlight = false;
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Animate count numbers on page load using vanilla JS
     document.querySelectorAll('.h4').forEach(function(element) {
@@ -752,6 +815,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap tooltips if available
     if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
         $('[data-toggle="tooltip"]').tooltip();
+    }
+
+    if (!window.communityApplicationsRealtimeBound) {
+        document.addEventListener('ayuda:application-workflow-update', function(event) {
+            if (document.hidden) {
+                return;
+            }
+
+            const detail = event && event.detail ? event.detail : {};
+            if (detail.user_id && Number(detail.user_id) !== Number(COMMUNITY_APPLICATIONS_USER_ID)) {
+                return;
+            }
+
+            queueCommunityApplicationsRefresh('Your applications were updated in realtime.');
+        });
+
+        window.communityApplicationsRealtimeBound = true;
     }
 });
 </script>
@@ -856,3 +936,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 {% endblock %}
+

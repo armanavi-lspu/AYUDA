@@ -11,7 +11,7 @@ import os
 from app.admin import admin_bp
 from app.models import User, Applications, Notifications, CommunityUsers, UserActivityLog
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.activity_logger import log_verification_request, log_user_modification
 from app.community.routes.profile import get_income_range_display
 
@@ -212,29 +212,39 @@ def reset_user_password(user_id):
     """Reset a community user's password"""
     community_user = User.query.filter_by(id=user_id, role='community').first_or_404()
     
-    # Generate random password
-    new_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
-    
-    # Update password
-    community_user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+    # Generate temporary reset code
+    reset_code = ''.join(secrets.choice(string.digits) for _ in range(8))
+    community_user.password_hash = generate_password_hash(reset_code, method='pbkdf2:sha256')
     
     try:
-        # Create notification for user
+        # Send reset code to the target user via in-app notification.
         notification = Notifications(
             user_id=user_id,
             notif_title='Password Reset',
-            notif_message='Your password has been reset by an administrator. Your new temporary password has been sent to your registered email. Please change it after logging in.',
+            notif_message=(
+                f'Your password has been reset by an administrator. '
+                f'Your temporary password/reset code is: {reset_code}. '
+                f'Use this code to log in. It is strongly recommended that you change your password immediately.'
+            ),
             related_type='profile',
+            related_id=user_id,
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
+
+        # Log reset activity as part of the same transaction.
+        log_user_modification(community_user, 'reset_password', {
+            'reset_code_delivery': 'notification_and_flash',
+            'reset_code_length': len(reset_code)
+        })
+
         db.session.commit()
         
-        flash(f'Password reset successfully for {community_user.first_name} {community_user.last_name}. User will receive credentials via email.', 'success')
-        
-        # Log activity
-        log_user_modification(community_user, 'reset_password')
-        db.session.commit()
+        flash(
+            f'Password reset successfully for {community_user.first_name} {community_user.last_name}. '
+            f'New temporary password/reset code: {reset_code}',
+            'success'
+        )
         
     except Exception as e:
         db.session.rollback()
@@ -385,8 +395,8 @@ def export_community_users():
             'Yes' if profile and profile.is_student else 'No',
             'Yes' if profile and profile.is_solo_parent else 'No',
             app_count,
-            user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else '',
-            user.last_activity.strftime('%Y-%m-%d %H:%M:%S') if user.last_activity else ''
+            manila_strftime(user.created_at, '%Y-%m-%d %H:%M:%S', ''),
+            manila_strftime(user.last_activity, '%Y-%m-%d %H:%M:%S', '')
         ])
     
     # Create response
@@ -397,7 +407,7 @@ def export_community_users():
         output,
         mimetype='text/csv',
         headers={
-            'Content-Disposition': f'attachment; filename=community_users_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+            'Content-Disposition': f'attachment; filename=community_users_{manila_strftime(datetime.utcnow(), "%Y%m%d_%H%M%S", "")}.csv'
         }
     )
 

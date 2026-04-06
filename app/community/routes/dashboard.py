@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, request, redirect, url_for, flash
+from flask import render_template, jsonify, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.models import Applications, Announcements, Programs, User, Assessment
@@ -6,6 +6,7 @@ from app.extensions import db
 from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
 from datetime import datetime, timedelta, date
+import pytz
 
 @community_bp.route('/dashboard')
 @login_required
@@ -107,7 +108,8 @@ def dashboard():
     upcoming_events = schedule_events[:5]
     
     # Today's date - use date() for consistent comparison
-    today = date.today()
+    tz = current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
+    today = datetime.now(tz).date()
     
     return render_template('community/dashboard.html',
                          total_applications=total_applications,

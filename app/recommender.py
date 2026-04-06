@@ -56,6 +56,13 @@ class BeneficiaryRecommender:
             return None
         
         df = pd.DataFrame(beneficiaries)
+
+        def normalize_text_feature(value, prefix):
+            """Return text with a guaranteed non-stopword anchor token."""
+            text = '' if value is None else str(value).strip().lower()
+            if text in ('', 'none', 'null', 'nan'):
+                return f'{prefix}_none'
+            return f'{prefix}_tag {text}'
         
         # Fill missing values
         df['age'] = df['age'].fillna(0).astype(float)
@@ -65,14 +72,17 @@ class BeneficiaryRecommender:
         df['is_student'] = df['is_student'].fillna(False).astype(int)
         df['is_pwd'] = df['is_pwd'].fillna(False).astype(int)
         df['is_currently_employed'] = df['is_currently_employed'].fillna(False).astype(int)
-        df['occupation'] = df['occupation'].fillna('unspecified')
-        # Prefix occupation to prevent TF-IDF empty vocabulary when values are stop words
-        df['occupation'] = df['occupation'].apply(
-            lambda x: f'occupation_{x}' if x in ('None', 'none', '') else x
-        )
+        # Keep a stable anchor token so TF-IDF never sees an empty vocabulary.
+        if 'occupation' in df.columns:
+            df['occupation'] = df['occupation'].apply(lambda x: normalize_text_feature(x, 'occupation'))
+        else:
+            df['occupation'] = 'occupation_none'
         df['gender'] = df['gender'].fillna('Unknown') if 'gender' in df.columns else 'Unknown'
         df['disability_type'] = df['disability_type'].fillna('None') if 'disability_type' in df.columns else 'None'
-        df['past_applications'] = df['past_applications'].fillna('') if 'past_applications' in df.columns else ''
+        if 'past_applications' in df.columns:
+            df['past_applications'] = df['past_applications'].apply(lambda x: normalize_text_feature(x, 'history'))
+        else:
+            df['past_applications'] = 'history_none'
 
         # Compound vulnerability score (combines multiple risk factors)
         df['vulnerability_compound'] = (

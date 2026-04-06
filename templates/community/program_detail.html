@@ -189,7 +189,7 @@
         <div class="col-lg-8">
             <h1 class="display-5 font-weight-bold mb-3">{{ program.program_name }}</h1>
             <p class="lead mb-2">{{ program.program_type }}</p>
-            <p class="mb-0 posted-text"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date.strftime('%B %d, %Y') if program.date else 'N/A' }}</p>
+            <p class="mb-0 posted-text"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date|manila('%B %d, %Y', 'N/A') }}</p>
         </div>
         <div class="col text-left">
             <div class="program-info-panel">
@@ -529,7 +529,7 @@
                     <h6 class="text-primary font-weight-bold mb-2">
                         <i class="fas fa-play-circle mr-2"></i>Start Date
                     </h6>
-                    <p class="mb-0 h5">{{ program.start_date.strftime('%B %d, %Y') }}</p>
+                    <p class="mb-0 h5">{{ program.start_date|manila('%B %d, %Y') }}</p>
                     <small class="text-muted">Program begins</small>
                 </div>
                 {% endif %}
@@ -538,7 +538,7 @@
                     <h6 class="text-danger font-weight-bold mb-2">
                         <i class="fas fa-stop-circle mr-2"></i>End Date / Deadline
                     </h6>
-                    <p class="mb-0 h5">{{ program.end_date.strftime('%B %d, %Y') }}</p>
+                    <p class="mb-0 h5">{{ program.end_date|manila('%B %d, %Y') }}</p>
                     <small class="text-muted">Last day for submissions</small>
                 </div>
                 {% endif %}
@@ -613,7 +613,7 @@
                     <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
                     <p class="font-weight-bold mb-2">{{ program.file_attachment.filename }}</p>
                     <p class="text-muted small mb-1">File Size: {{ (program.file_attachment.file_size / 1024) | round(2) }} KB</p>
-                    <p class="text-muted small mb-3">Uploaded: {{ program.file_attachment.uploaded_at.strftime('%B %d, %Y') }}</p>
+                    <p class="text-muted small mb-3">Uploaded: {{ program.file_attachment.uploaded_at|manila('%B %d, %Y') }}</p>
                     <a href="{{ url_for('static', filename=program.file_attachment.file_path) }}" 
                        class="btn btn-danger btn-block" 
                        download="{{ program.file_attachment.filename }}">
@@ -642,7 +642,7 @@
                 <div class="alert alert-danger mb-3">
                     <i class="fas fa-calendar-times mr-2"></i>
                     <strong>Application Period Ended!</strong><br>
-                    The deadline for this program was {{ program.end_date.strftime('%B %d, %Y') }}.
+                    The deadline for this program was {{ program.end_date|manila('%B %d, %Y') }}.
                 </div>
                 <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
                     <i class="fas fa-lock mr-2"></i>Closed
@@ -662,7 +662,7 @@
                     <i class="fas fa-clock mr-2"></i>
                     <strong>Cooldown Period Active</strong><br>
                     You recently completed or had a scheduled release for <strong>{{ application_restriction.program_name }}</strong>.
-                    You may apply again on <strong>{{ application_restriction.lock_until.strftime('%B %d, %Y') if application_restriction.lock_until else 'a later date' }}</strong>.
+                    You may apply again on <strong>{{ application_restriction.lock_until|manila('%B %d, %Y', 'a later date') }}</strong>.
                 </div>
                 <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
                     <i class="fas fa-calendar-check mr-2"></i>Cooldown Active

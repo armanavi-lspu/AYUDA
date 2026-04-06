@@ -1,10 +1,64 @@
 from flask import jsonify, render_template, request
 from flask_login import login_required, current_user
 from app.community import community_bp
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.models import Notifications
 from app.extensions import db
 from sqlalchemy import desc
+
+
+def _icon_payload(title):
+    """Return icon metadata based on a notification title."""
+    title_lower = (title or '').lower()
+    if 'application' in title_lower:
+        return 'fa-file-alt', 'success'
+    if 'approved' in title_lower:
+        return 'fa-check-circle', 'success'
+    if 'rejected' in title_lower:
+        return 'fa-times-circle', 'danger'
+    if 'reminder' in title_lower:
+        return 'fa-clock', 'warning'
+    if 'announcement' in title_lower:
+        return 'fa-bullhorn', 'info'
+    if 'update' in title_lower:
+        return 'fa-sync-alt', 'info'
+    return 'fa-info-circle', 'info'
+
+
+@community_bp.route('/notifications/data')
+@login_required
+@role_required('community')
+def get_notifications_data():
+    """Return latest notifications for realtime dropdown refresh."""
+    notifications = Notifications.query.filter_by(
+        user_id=current_user.id
+    ).order_by(desc(Notifications.created_at)).limit(15).all()
+
+    unread_count = Notifications.query.filter_by(
+        user_id=current_user.id,
+        is_read=False
+    ).count()
+
+    items = []
+    for n in notifications:
+        icon, icon_type = _icon_payload(n.notif_title)
+        items.append({
+            'id': n.id,
+            'title': n.notif_title,
+            'message': n.notif_message,
+            'is_read': n.is_read,
+            'url': n.get_url(),
+            'created_at': manila_strftime(n.created_at, '%b %d, %Y %I:%M %p', ''),
+            'icon': icon,
+            'icon_type': icon_type,
+        })
+
+    return jsonify({
+        'success': True,
+        'notifications': items,
+        'unread_count': unread_count,
+    })
+
 
 @community_bp.route('/notifications', endpoint='notifications')
 @login_required
@@ -33,27 +87,7 @@ def view_notifications():
     
     # Add icons and styles to notifications
     for notification in notifications:
-        if 'application' in notification.notif_title.lower():
-            notification.icon = 'fa-file-alt'
-            notification.icon_type = 'success'
-        elif 'approved' in notification.notif_title.lower():
-            notification.icon = 'fa-check-circle'
-            notification.icon_type = 'success'
-        elif 'rejected' in notification.notif_title.lower():
-            notification.icon = 'fa-times-circle'
-            notification.icon_type = 'danger'
-        elif 'reminder' in notification.notif_title.lower():
-            notification.icon = 'fa-clock'
-            notification.icon_type = 'warning'
-        elif 'announcement' in notification.notif_title.lower():
-            notification.icon = 'fa-bullhorn'
-            notification.icon_type = 'info'
-        elif 'update' in notification.notif_title.lower():
-            notification.icon = 'fa-sync-alt'
-            notification.icon_type = 'info'
-        else:
-            notification.icon = 'fa-info-circle'
-            notification.icon_type = 'info'
+        notification.icon, notification.icon_type = _icon_payload(notification.notif_title)
     
     # Get statistics
     total_count = Notifications.query.filter_by(user_id=current_user.id).count()
@@ -222,21 +256,7 @@ def inject_notifications():
         
         # Add icon and category for display
         for notification in notifications:
-            if 'application' in notification.notif_title.lower():
-                notification.icon = 'fa-file-alt'
-                notification.icon_type = 'success'
-            elif 'approved' in notification.notif_title.lower():
-                notification.icon = 'fa-check-circle'
-                notification.icon_type = 'success'
-            elif 'rejected' in notification.notif_title.lower():
-                notification.icon = 'fa-times-circle'
-                notification.icon_type = 'danger'
-            elif 'reminder' in notification.notif_title.lower():
-                notification.icon = 'fa-clock'
-                notification.icon_type = 'warning'
-            else:
-                notification.icon = 'fa-info-circle'
-                notification.icon_type = 'info'
+            notification.icon, notification.icon_type = _icon_payload(notification.notif_title)
         
         return {
             'notifications': notifications,

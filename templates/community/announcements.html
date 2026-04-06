@@ -120,6 +120,15 @@
         font-size: 0.98rem;
         line-height: 1.75;
         margin-bottom: 0.85rem;
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .announcement-excerpt a {
+        color: #1d4ed8;
+        font-weight: 600;
+        text-decoration: underline;
+        word-break: break-all;
     }
 
     .announcement-media-preview {
@@ -129,6 +138,64 @@
         border: 1px solid #dbe5f7;
         background: #f8fbff;
         text-align: center;
+    }
+
+    .announcement-media-single {
+        max-width: 560px;
+        margin: 0 auto;
+    }
+
+    .announcement-carousel {
+        border: 1px solid #dbe5f7;
+        border-radius: 14px;
+        background: #f8fbff;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .announcement-carousel .carousel-item {
+        padding: 0.5rem 0.55rem 0;
+    }
+
+    .announcement-carousel .announcement-media-preview {
+        margin: 0;
+        border: none;
+        background: transparent;
+    }
+
+    .announcement-carousel-control {
+        width: 44px;
+        opacity: 1;
+    }
+
+    .announcement-carousel-control-icon {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(14, 28, 52, 0.68);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(2, 18, 40, 0.28);
+    }
+
+    .announcement-carousel-control-icon i {
+        font-size: 0.85rem;
+    }
+
+    .announcement-carousel .announcement-preview-caption {
+        text-align: center;
+        margin-bottom: 0.65rem;
+        padding: 0 0.75rem;
+    }
+
+    .announcement-carousel-meta {
+        text-align: center;
+        color: #5d6f8d;
+        font-size: 0.78rem;
+        padding-bottom: 0.55rem;
+        font-weight: 600;
     }
 
     .announcement-media-preview img {
@@ -158,6 +225,7 @@
         background: #0f172a;
         padding: 0;
         text-align: center;
+        position: relative;
     }
 
     .announcement-preview-modal img {
@@ -168,6 +236,65 @@
         object-fit: contain;
         margin: 0 auto;
         display: block;
+    }
+
+    .preview-modal-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .preview-modal-nav {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .preview-modal-nav-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(15, 23, 42, 0.82);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+        transition: all 0.2s ease;
+    }
+
+    .preview-modal-nav-btn:hover {
+        background: rgba(29, 78, 216, 0.88);
+        color: #fff;
+    }
+
+    .preview-modal-counter {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #667085;
+        min-width: 64px;
+        text-align: center;
+    }
+
+    .preview-modal-download {
+        border: none;
+        border-radius: 999px;
+        padding: 0.42rem 0.85rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #fff;
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        text-decoration: none;
+        box-shadow: 0 3px 12px rgba(25, 66, 168, 0.3);
+    }
+
+    .preview-modal-download:hover {
+        color: #fff;
+        text-decoration: none;
+        transform: translateY(-1px);
     }
 
     .announcement-post-footer {
@@ -465,7 +592,7 @@
                                 </div>
                                 <small class="text-muted">
                                     <i class="far fa-clock mr-1"></i>
-                                    {{ announcement.created_at.strftime('%B %d, %Y at %I:%M %p') if announcement.created_at else 'Recently' }}
+                                    {{ announcement.created_at|manila('%B %d, %Y at %I:%M %p', 'Recently') }}
                                 </small>
                             </div>
                         </div>
@@ -500,7 +627,7 @@
                     <div class="mb-3">
                         {% if announcement.announcement_content %}
                             <div class="announcement-excerpt">
-                                {{ announcement.announcement_content|striptags|truncate(360) }}
+                                {{- announcement.announcement_content|urlize|safe -}}
                             </div>
                         {% else %}
                             <div class="announcement-excerpt">No content available.</div>
@@ -509,24 +636,57 @@
 
                     <!-- Image Preview -->
                     {% if announcement.images %}
-                    <div class="row" onclick="event.stopPropagation();">
-                        {% for image in announcement.images %}
-                        <div class="{{ 'col-12' if announcement.images|length == 1 else 'col-md-6' }} mb-3">
-                            <div class="announcement-media-preview px-2 py-2">
-                                <img src="/{{ image.image_path }}"
-                                     alt="{{ image.caption or 'Announcement Image' }}"
-                                     class="announcement-image announcement-preview-trigger"
-                                     data-preview-src="/{{ image.image_path }}"
-                                     data-preview-caption="{{ image.caption or 'Announcement Image' }}">
+                        {% if announcement.images|length == 1 %}
+                            {% set single_image = announcement.images[0] %}
+                            <div class="announcement-media-single" onclick="event.stopPropagation();">
+                                <div class="announcement-media-preview px-2 py-2">
+                                    <img src="/{{ single_image.image_path }}"
+                                         alt="{{ single_image.caption or 'Announcement Image' }}"
+                                         class="announcement-image announcement-preview-trigger"
+                                         data-preview-src="/{{ single_image.image_path }}"
+                                         data-preview-caption="{{ single_image.caption or 'Announcement Image' }}"
+                                         data-preview-group="{{ announcement.id }}"
+                                         data-preview-index="0">
+                                </div>
+                                {% if single_image.caption %}
+                                <p class="announcement-preview-caption mb-0">
+                                    <i class="fas fa-info-circle mr-1"></i>{{ single_image.caption }}
+                                </p>
+                                {% endif %}
                             </div>
-                            {% if image.caption %}
-                            <p class="announcement-preview-caption mb-0">
-                                <i class="fas fa-info-circle mr-1"></i>{{ image.caption }}
-                            </p>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                    </div>
+                        {% else %}
+                            <div id="communityAnnouncementCarousel{{ announcement.id }}" class="carousel slide announcement-carousel" data-interval="false">
+                                <div class="carousel-inner">
+                                    {% for image in announcement.images %}
+                                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                        <div class="announcement-media-preview px-2 py-2">
+                                            <img src="/{{ image.image_path }}"
+                                                 alt="{{ image.caption or 'Announcement Image' }}"
+                                                 class="announcement-image announcement-preview-trigger"
+                                                 data-preview-src="/{{ image.image_path }}"
+                                                 data-preview-caption="{{ image.caption or 'Announcement Image' }}"
+                                                 data-preview-group="{{ announcement.id }}"
+                                                 data-preview-index="{{ loop.index0 }}">
+                                        </div>
+                                        {% if image.caption %}
+                                        <p class="announcement-preview-caption mb-0">
+                                            <i class="fas fa-info-circle mr-1"></i>{{ image.caption }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <a class="carousel-control-prev announcement-carousel-control" href="#communityAnnouncementCarousel{{ announcement.id }}" role="button" data-slide="prev" aria-label="Previous image">
+                                    <span class="announcement-carousel-control-icon" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
+                                </a>
+                                <a class="carousel-control-next announcement-carousel-control" href="#communityAnnouncementCarousel{{ announcement.id }}" role="button" data-slide="next" aria-label="Next image">
+                                    <span class="announcement-carousel-control-icon" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                                </a>
+
+                                <div class="announcement-carousel-meta">{{ announcement.images|length }} images</div>
+                            </div>
+                        {% endif %}
                     {% endif %}
 
                     <div class="announcement-post-footer" onclick="event.stopPropagation();">
@@ -621,8 +781,27 @@
             <div class="modal-body">
                 <img id="announcementPreviewImage" src="" alt="Announcement Preview">
             </div>
-            <div class="modal-footer border-0 pt-2">
-                <small class="text-muted w-100" id="announcementPreviewCaption"></small>
+            <div class="modal-footer border-0 pt-2 d-block">
+                <div class="preview-modal-controls mb-1">
+                    <div class="preview-modal-nav">
+                        <button type="button" id="previewPrevBtn" class="preview-modal-nav-btn" aria-label="Previous image">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <span id="announcementPreviewCounter" class="preview-modal-counter">1 / 1</span>
+                        <button type="button" id="previewNextBtn" class="preview-modal-nav-btn" aria-label="Next image">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    <a id="announcementPreviewDownload"
+                       class="preview-modal-download"
+                       href="#"
+                       download="announcement-image"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        <i class="fas fa-download mr-1"></i>Download
+                    </a>
+                </div>
+                <small class="text-muted w-100 d-block" id="announcementPreviewCaption"></small>
             </div>
         </div>
     </div>
@@ -660,7 +839,8 @@ function updateAnnouncementsUpdatedTime() {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: 'Asia/Manila'
     });
 }
 
@@ -690,6 +870,61 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewImages = document.querySelectorAll('.announcement-preview-trigger');
     const previewImageEl = document.getElementById('announcementPreviewImage');
     const previewCaptionEl = document.getElementById('announcementPreviewCaption');
+    const previewCounterEl = document.getElementById('announcementPreviewCounter');
+    const previewPrevBtn = document.getElementById('previewPrevBtn');
+    const previewNextBtn = document.getElementById('previewNextBtn');
+    const previewDownloadEl = document.getElementById('announcementPreviewDownload');
+    const previewGroups = {};
+    let activePreviewGroup = [];
+    let activePreviewIndex = 0;
+
+    function getDownloadFilename(source) {
+        if (!source) {
+            return 'announcement-image';
+        }
+
+        const cleanSource = source.split('?')[0];
+        const segments = cleanSource.split('/');
+        return segments[segments.length - 1] || 'announcement-image';
+    }
+
+    function renderPreviewImage() {
+        if (!previewImageEl || !activePreviewGroup.length) {
+            return;
+        }
+
+        if (activePreviewIndex < 0) {
+            activePreviewIndex = activePreviewGroup.length - 1;
+        }
+        if (activePreviewIndex >= activePreviewGroup.length) {
+            activePreviewIndex = 0;
+        }
+
+        const current = activePreviewGroup[activePreviewIndex];
+        previewImageEl.setAttribute('src', current.source);
+        previewImageEl.setAttribute('alt', current.caption || 'Announcement Preview');
+
+        if (previewCaptionEl) {
+            previewCaptionEl.textContent = current.caption || 'Announcement image';
+        }
+
+        if (previewDownloadEl) {
+            previewDownloadEl.setAttribute('href', current.source || '#');
+            previewDownloadEl.setAttribute('download', getDownloadFilename(current.source));
+        }
+
+        const hasMany = activePreviewGroup.length > 1;
+        if (previewPrevBtn) {
+            previewPrevBtn.classList.toggle('d-none', !hasMany);
+        }
+        if (previewNextBtn) {
+            previewNextBtn.classList.toggle('d-none', !hasMany);
+        }
+        if (previewCounterEl) {
+            previewCounterEl.classList.toggle('d-none', !hasMany);
+            previewCounterEl.textContent = `${activePreviewIndex + 1} / ${activePreviewGroup.length}`;
+        }
+    }
 
     function isInteractiveTarget(targetElement) {
         let node = targetElement;
@@ -707,6 +942,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     previewImages.forEach(function(image) {
+        const groupKey = image.getAttribute('data-preview-group') || 'default';
+        if (!previewGroups[groupKey]) {
+            previewGroups[groupKey] = [];
+        }
+
+        const source = image.getAttribute('data-preview-src') || image.getAttribute('src') || '';
+        const caption = image.getAttribute('data-preview-caption') || image.getAttribute('alt') || '';
+        const parsedIndex = parseInt(image.getAttribute('data-preview-index'), 10);
+        const itemIndex = Number.isNaN(parsedIndex) ? previewGroups[groupKey].length : parsedIndex;
+
+        previewGroups[groupKey].push({
+            source: source,
+            caption: caption,
+            index: itemIndex
+        });
+    });
+
+    Object.keys(previewGroups).forEach(function(groupKey) {
+        previewGroups[groupKey].sort(function(a, b) {
+            return a.index - b.index;
+        });
+    });
+
+    previewImages.forEach(function(image) {
         image.addEventListener('click', function(event) {
             event.preventDefault();
             event.stopPropagation();
@@ -715,17 +974,56 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const source = image.getAttribute('data-preview-src') || image.getAttribute('src');
-            const caption = image.getAttribute('data-preview-caption') || image.getAttribute('alt') || '';
+            const groupKey = image.getAttribute('data-preview-group') || 'default';
+            activePreviewGroup = previewGroups[groupKey] || [];
 
-            previewImageEl.setAttribute('src', source);
-            previewImageEl.setAttribute('alt', caption || 'Announcement Preview');
-            if (previewCaptionEl) {
-                previewCaptionEl.textContent = caption;
-            }
+            const parsedIndex = parseInt(image.getAttribute('data-preview-index'), 10);
+            activePreviewIndex = Number.isNaN(parsedIndex) ? 0 : parsedIndex;
+
+            renderPreviewImage();
 
             $('#announcementImagePreviewModal').modal('show');
         });
+    });
+
+    if (previewPrevBtn) {
+        previewPrevBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (activePreviewGroup.length < 2) {
+                return;
+            }
+
+            activePreviewIndex = (activePreviewIndex - 1 + activePreviewGroup.length) % activePreviewGroup.length;
+            renderPreviewImage();
+        });
+    }
+
+    if (previewNextBtn) {
+        previewNextBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            if (activePreviewGroup.length < 2) {
+                return;
+            }
+
+            activePreviewIndex = (activePreviewIndex + 1) % activePreviewGroup.length;
+            renderPreviewImage();
+        });
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (!$('#announcementImagePreviewModal').hasClass('show')) {
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' && activePreviewGroup.length > 1) {
+            event.preventDefault();
+            activePreviewIndex = (activePreviewIndex - 1 + activePreviewGroup.length) % activePreviewGroup.length;
+            renderPreviewImage();
+        } else if (event.key === 'ArrowRight' && activePreviewGroup.length > 1) {
+            event.preventDefault();
+            activePreviewIndex = (activePreviewIndex + 1) % activePreviewGroup.length;
+            renderPreviewImage();
+        }
     });
 
     allCards.forEach(function(card) {

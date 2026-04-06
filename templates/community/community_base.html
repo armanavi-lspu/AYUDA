@@ -237,7 +237,7 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1030;
+            z-index: 1300;
             height: 60px;
             background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
             box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
@@ -1615,7 +1615,7 @@
                         </div>
                     </div>
                     
-                    <div class="notification-list overflow-auto">
+                    <div class="notification-list overflow-auto" id="notificationList">
                         {% if notifications %}
                             {% for notification in notifications %}
                             <a href="{{ notification.get_url() or '#' }}" 
@@ -1633,7 +1633,7 @@
                                         <div class="notification-message">{{ notification.notif_message | truncate(100) }}</div>
                                         <div class="notification-time">
                                             <i class="fas fa-clock"></i>
-                                            {{ moment(notification.created_at).fromNow() if moment else notification.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+                                            {{ moment(notification.created_at).fromNow() if moment else (notification.created_at|manila('%b %d, %Y at %I:%M %p', 'N/A')) }}
                                         </div>
                                     </div>
                                     
@@ -1724,7 +1724,7 @@
             
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
-                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' };
                     const today = new Date().toLocaleDateString('en-US', options);
                     document.getElementById('todayDate').innerHTML = '<p class="sidebar-date-text mb-0">' + today + '</p>';
                 });
@@ -1801,9 +1801,9 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="flash-messages" style="position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 1050; width: 90%; max-width: 600px;">
+    <div class="flash-messages">
         {% for category, message in messages %}
-        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible mb-3" role="alert">
             <div class="d-flex align-items-center">
                 {% if category == 'success' %}
                 <i class="fas fa-check-circle mr-2"></i>
@@ -1825,6 +1825,15 @@
     {% endif %}
     {% endwith %}
 
+    <div aria-live="polite" aria-atomic="true" class="position-fixed" style="top: 80px; right: 20px; z-index: 1200; min-width: 280px; pointer-events: none;">
+        <div id="realtimeToast" class="toast hide" role="status" data-delay="2500" style="background: #1f5ea8; color: #fff; border-radius: 10px; border: none; box-shadow: 0 10px 24px rgba(11, 44, 95, 0.25); pointer-events: auto;">
+            <div class="toast-body d-flex align-items-center" id="realtimeToastMessage">
+                <i class="fas fa-sync-alt mr-2"></i>
+                <span>Dashboard updated</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap JS -->
     <script
       src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
@@ -1841,6 +1850,41 @@
       integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
       crossorigin="anonymous"
     ></script>
+        <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+        window.showRealtimeToast = function(message) {
+            const toastEl = document.getElementById('realtimeToast');
+            const messageEl = document.getElementById('realtimeToastMessage');
+
+            if (!toastEl || !window.jQuery) {
+                return;
+            }
+
+            if (messageEl) {
+                messageEl.innerHTML = '<i class="fas fa-sync-alt mr-2"></i><span>' + (message || 'Dashboard updated') + '</span>';
+            }
+
+            // Remove animation classes
+            toastEl.classList.remove('toast-animate-out', 'toast-fade-out');
+            
+            // Add animation-in class
+            toastEl.classList.add('toast-animate-in');
+
+            // Show toast
+            window.jQuery(toastEl).toast('show');
+
+            // Handle animation-out when toast closes
+            $(toastEl).on('hide.bs.toast', function() {
+                toastEl.classList.remove('toast-animate-in');
+                toastEl.classList.add('toast-animate-out');
+            });
+            
+            $(toastEl).on('hidden.bs.toast', function() {
+                toastEl.classList.remove('toast-animate-out');
+            });
+        };
+    </script>
 
     <script>
         (function() {
@@ -2053,6 +2097,15 @@
                     $('.notification-dropdown').removeClass('show');
                 }
             });
+
+            loadNotifications();
+            initializeRealtimeSocket();
+
+            $('#notificationDropdown').on('click', function() {
+                setTimeout(loadNotifications, 100);
+            });
+
+            setInterval(loadNotifications, 30000);
         });
         
         // Enhanced notification functions
@@ -2171,6 +2224,116 @@
                     sidebarBadge.style.animation = 'bounce 0.5s ease';
                 }
             }
+        }
+
+        let notificationReloadTimer = null;
+        let realtimeSocketInitialized = false;
+
+        function queueNotificationReload(delayMs = 200) {
+            if (notificationReloadTimer) {
+                clearTimeout(notificationReloadTimer);
+            }
+            notificationReloadTimer = setTimeout(function() {
+                loadNotifications();
+            }, delayMs);
+        }
+
+        function initializeRealtimeSocket() {
+            if (realtimeSocketInitialized || typeof io === 'undefined') {
+                return;
+            }
+
+            const socket = io({ transports: ['websocket', 'polling'] });
+            window.ayudaSocket = socket;
+            realtimeSocketInitialized = true;
+
+            socket.on('new_notification', function() {
+                queueNotificationReload();
+            });
+
+            socket.on('notification_updated', function() {
+                queueNotificationReload();
+            });
+
+            socket.on('community_dashboard_update', function(payload) {
+                document.dispatchEvent(new CustomEvent('ayuda:community-dashboard-update', {
+                    detail: payload || {}
+                }));
+            });
+
+            socket.on('application_workflow_update', function(payload) {
+                document.dispatchEvent(new CustomEvent('ayuda:application-workflow-update', {
+                    detail: payload || {}
+                }));
+            });
+        }
+
+        function loadNotifications() {
+            fetch('/community/notifications/data')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success || !data.notifications) {
+                        return;
+                    }
+
+                    const notificationList = document.getElementById('notificationList');
+                    const countBadge = document.querySelector('.notification-count');
+
+                    if (!notificationList) {
+                        return;
+                    }
+
+                    if (data.notifications.length === 0) {
+                        notificationList.innerHTML = `
+                            <div class="empty-notifications">
+                                <i class="fas fa-bell-slash"></i>
+                                <h6>No notifications yet</h6>
+                                <p class="text-muted">You're all caught up! 🎉</p>
+                            </div>
+                        `;
+                    } else {
+                        let html = '';
+                        data.notifications.forEach(function(notif) {
+                            const unreadClass = notif.is_read ? '' : 'unread';
+                            const indicator = notif.is_read ? '' : '<div class="notification-unread-indicator flex-shrink-0"></div>';
+                            const notifUrl = notif.url || '#';
+                            html += `
+                                <a href="${notifUrl}"
+                                   class="notification-item ${unreadClass} text-decoration-none"
+                                   onclick="return handleNotificationClick(event, ${notif.id}, this);"
+                                   data-notification-id="${notif.id}"
+                                   title="Click to view details">
+
+                                    <div class="notification-icon ${notif.icon_type || 'info'} flex-shrink-0 d-flex align-items-center justify-content-center">
+                                        <i class="fas ${notif.icon || 'fa-info-circle'}"></i>
+                                    </div>
+
+                                    <div class="notification-content flex-grow-1">
+                                        <div class="notification-title">${notif.title}</div>
+                                        <div class="notification-message">${(notif.message || '').substring(0, 100)}...</div>
+                                        <div class="notification-time">
+                                            <i class="fas fa-clock"></i>
+                                            ${notif.created_at}
+                                        </div>
+                                    </div>
+
+                                    ${indicator}
+                                </a>
+                            `;
+                        });
+                        notificationList.innerHTML = html;
+                    }
+
+                    if (countBadge) {
+                        if (data.unread_count > 0) {
+                            countBadge.textContent = data.unread_count < 99 ? data.unread_count : '99+';
+                            countBadge.style.display = 'flex';
+                        } else {
+                            countBadge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => console.error('Error loading notifications:', error));
         }
         
         // Load profile completion status

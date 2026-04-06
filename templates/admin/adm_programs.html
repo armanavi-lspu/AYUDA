@@ -4,98 +4,135 @@
 
 {% block extra_css %}
 <style>
-    .stats-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
     }
-    
-    .stats-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+
+    .programs-shell {
+        animation: programsFadeIn 0.45s ease-out;
     }
-    
-    .program-card {
-        transition: all 0.2s ease;
-        border-left: 4px solid #dee2e6;
-    }
-    
-    .program-card:hover {
-        border-left-color: #4e73df;
-        background-color: #f8f9fc;
-    }
-    
-    .badge-program-type {
-        font-size: 0.8rem;
-        padding: 0.375rem 0.75rem;
-    }
-    
-    .requirement-item {
-        padding: 8px;
-        border: 1px solid #e3e6f0;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        transition: background-color 0.2s;
-    }
-    
-    .requirement-item:hover {
-        background-color: #f8f9fc;
-    }
-    
-    .requirement-item label {
-        margin-bottom: 0;
-        cursor: pointer;
-    }
-    
-    .requirements-list {
-        overflow-y: auto;
-        padding: 10px;
-    }
-    
-    .req-checkbox:checked ~ .custom-control-label {
-        color: #1cc88a;
-        font-weight: 600;
-    }
-    
-    .mandatory-checkbox:checked ~ .custom-control-label {
-        color: #e74a3b;
-        font-weight: 600;
-    }
-    
-    .card-header h6 {
-        margin: 0;
-        font-weight: 600;
-    }
-    
-    .card-header small {
-        display: block;
-        margin-top: 4px;
-        font-size: 0.8rem;
-    }
-    
-    .add-req-form {
-        animation: slideDown 0.3s ease;
-    }
-    
-    @keyframes slideDown {
+
+    @keyframes programsFadeIn {
         from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateY(10px);
         }
         to {
             opacity: 1;
             transform: translateY(0);
         }
     }
-    
-    .add-req-form .border {
-        border: 2px dashed #dee2e6 !important;
+
+    .programs-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
     }
-    
-    .add-req-form input:focus,
-    .add-req-form textarea:focus {
-        border-color: #4e73df;
-        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+
+    .programs-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
     }
-    
+
+    .programs-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .stats-mini-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
+    }
+
+    .stats-mini-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .stats-mini-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-primary { background: linear-gradient(135deg, #1f6feb, #1942a8); }
+    .icon-success { background: linear-gradient(135deg, #159947, #0f7e37); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); }
+    .icon-warning { background: linear-gradient(135deg, #d89f1d, #b77908); }
+
+    .program-filter-card,
+    .programs-list-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .program-filter-card .card-header,
+    .programs-list-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
     .category-button-group {
         display: flex;
         flex-wrap: wrap;
@@ -103,52 +140,229 @@
         margin: 0;
         padding: 0;
     }
-    
+
     .category-button {
         transition: all 0.3s ease;
-        border-radius: 6px;
+        border-radius: 999px;
+        font-weight: 600;
+        padding: 0.45rem 0.9rem;
     }
-    
+
     .category-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
     }
-    
+
     .category-button.active {
-        box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+        box-shadow: 0 6px 18px rgba(31, 111, 235, 0.35);
+    }
+
+    .filter-status-note {
+        color: #596b88;
+        font-size: 0.88rem;
+    }
+
+    .program-card {
+        border: 1px solid var(--dash-border);
+        border-left: 4px solid #dbe5fa;
+        border-radius: 12px;
+        transition: all 0.25s ease;
+        box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06);
+    }
+
+    .program-card:hover {
+        border-left-color: var(--dash-blue);
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.13);
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    }
+
+    .program-title {
+        font-weight: 700;
+        color: #1f2a44;
+        letter-spacing: 0.1px;
+        margin-bottom: 0.5rem;
+    }
+
+    .badge-program-type {
+        font-size: 0.78rem;
+        padding: 0.42rem 0.76rem;
+        border-radius: 999px;
+        font-weight: 600;
+    }
+
+    .program-description {
+        color: #5f6880;
+        margin-bottom: 0.7rem;
+        line-height: 1.55;
+    }
+
+    .program-meta-line {
+        color: #6b7280;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .program-stat-box {
+        border-radius: 10px;
+        color: #fff;
+        padding: 0.7rem 0.8rem;
+        margin-bottom: 0.55rem;
+        text-align: center;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.22);
+    }
+
+    .program-stat-box.total {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+    }
+
+    .program-stat-box.active {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        box-shadow: 0 6px 14px rgba(21, 153, 71, 0.24);
+    }
+
+    .program-stat-box .value {
+        display: block;
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .program-stat-box .label {
+        font-size: 0.72rem;
+        opacity: 0.95;
+        letter-spacing: 0.25px;
+        text-transform: uppercase;
+    }
+
+    .program-metrics-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0.55rem;
+    }
+
+    .program-metrics-row .program-stat-box {
+        flex: 1 1 0;
+        margin-bottom: 0;
+    }
+
+    .program-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+    .program-actions .btn {
+        min-width: 118px;
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border-color: transparent;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #667085;
+        padding: 3rem 1rem;
+    }
+
+    .empty-state i {
+        font-size: 2.75rem;
+        color: #bcc8de;
+        margin-bottom: 0.9rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .program-actions {
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            margin-top: 0.75rem;
+        }
+
+        .program-actions .btn {
+            min-width: 0;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .programs-hero {
+            padding: 1.1rem;
+        }
+
+        .programs-hero .btn {
+            width: 100%;
+            margin-top: 0.8rem;
+        }
+
+        .program-stat-box {
+            margin-top: 0.5rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid programs-shell">
     <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="font-weight-bold mb-1">Manage Programs</h1>
-            <p class="text-muted mb-0">Create and manage assistance programs</p>
-        </div>
-        <div>
-            <a href="{{ url_for('admin.add_program') }}" class="btn btn-primary">
-                <i class="fas fa-plus mr-2"></i>Create New Program
-            </a>
+    <div class="programs-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Manage Programs</h1>
+                <p class="subtitle">Create, monitor, and optimize assistance programs across categories.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.add_program') }}" class="btn btn-gradient-primary">
+                    <i class="fas fa-plus mr-2"></i>Create New Program
+                </a>
+            </div>
         </div>
     </div>
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-primary shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                Total Programs
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_programs }}</div>
+                            <div class="stat-label">Total Programs</div>
+                            <div class="stat-value">{{ total_programs }}</div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-primary"><i class="fas fa-clipboard-list"></i></span>
                         </div>
                     </div>
                 </div>
@@ -156,17 +370,15 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-success shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                Programs with Applications
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ programs_with_apps }}</div>
+                            <div class="stat-label">With Applications</div>
+                            <div class="stat-value">{{ programs_with_apps }}</div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-success"><i class="fas fa-check-circle"></i></span>
                         </div>
                     </div>
                 </div>
@@ -174,17 +386,15 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-info shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                Most Popular Type
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ popular_type }}</div>
+                            <div class="stat-label">Active Applications</div>
+                            <div class="stat-value">{{ active_applications|default(0) }}</div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-star fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-file-signature"></i></span>
                         </div>
                     </div>
                 </div>
@@ -192,17 +402,15 @@
         </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card border-left-warning shadow stats-card h-100">
+            <div class="card stats-mini-card h-100">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                New This Month
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ recent_programs }}</div>
+                            <div class="stat-label">New This Month</div>
+                            <div class="stat-value">{{ recent_programs }}</div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-calendar-plus fa-2x text-gray-300"></i>
+                            <span class="stat-icon-shell icon-warning"><i class="fas fa-calendar-plus"></i></span>
                         </div>
                     </div>
                 </div>
@@ -211,7 +419,7 @@
     </div>
 
     <!-- Category Filter Buttons -->
-    <div class="card shadow mb-4">
+    <div class="card program-filter-card mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter mr-2"></i>Filter by Program Category</h6>
         </div>
@@ -229,7 +437,7 @@
                 </a>
                 {% endfor %}
             </div>
-            <small class="text-muted d-block mt-3">
+            <small class="filter-status-note d-block mt-3">
                 <i class="fas fa-info-circle mr-1"></i>
                 {% if request.args.get('category') %}
                 Showing <strong class="text-dark">{{ request.args.get('category') }}</strong> programs only
@@ -241,9 +449,14 @@
     </div>
 
     <!-- Programs List -->
-    <div class="card shadow">
+    <div class="card programs-list-card">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Programs List</h6>
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h6 class="m-0 font-weight-bold text-primary">Programs List</h6>
+                <small class="filter-status-note mt-1 mt-md-0">
+                    <i class="fas fa-layer-group mr-1"></i>{{ programs|length }} visible on this page
+                </small>
+            </div>
         </div>
         <div class="card-body">
             {% if programs %}
@@ -251,8 +464,8 @@
                 <div class="program-card card mb-3">
                     <div class="card-body">
                         <div class="row align-items-center">
-                            <div class="col-lg-6">
-                                <h5 class="font-weight-bold mb-2">{{ program.program_name }}</h5>
+                            <div class="col-lg-7">
+                                <h5 class="program-title">{{ program.program_name }}</h5>
                                 <div class="mb-2">
                                     <span class="badge badge-primary badge-program-type mr-2">
                                         <i class="fas fa-tag mr-1"></i>{{ program.program_type }}
@@ -262,7 +475,7 @@
                                     </span>
                                 </div>
                                 {% if program.description %}
-                                <p class="text-muted small mb-2">{{ program.description[:100] }}{% if program.description|length > 100 %}...{% endif %}</p>
+                                <p class="program-description small">{{ program.description[:160] }}{% if program.description|length > 160 %}...{% endif %}</p>
                                 {% endif %}
                                 <div class="mb-2">
                                     {% if program.beneficiary_limit %}
@@ -293,50 +506,80 @@
                                     {% endif %}
                                 </div>
                                 {% if program.priority_group %}
-                                <small class="text-info d-block mb-1">
+                                <small class="program-meta-line d-block mb-1 text-info">
                                     <i class="fas fa-bullseye mr-1"></i>Priority: {{ program.priority_group }}
                                 </small>
                                 {% endif %}
                                 {% if program.start_date or program.end_date %}
-                                <small class="text-muted d-block">
+                                <small class="program-meta-line d-block">
                                     <i class="fas fa-hourglass-half mr-1"></i>
-                                    {% if program.start_date %}Start: {{ program.start_date.strftime('%b %d, %Y') }}{% endif %}
+                                    {% if program.start_date %}Start: {{ program.start_date|manila('%b %d, %Y') }}{% endif %}
                                     {% if program.start_date and program.end_date %} | {% endif %}
-                                    {% if program.end_date %}End: {{ program.end_date.strftime('%b %d, %Y') }}{% endif %}
+                                    {% if program.end_date %}End: {{ program.end_date|manila('%b %d, %Y') }}{% endif %}
                                 </small>
                                 {% endif %}
-                                <small class="text-muted d-block">
-                                    <i class="fas fa-calendar mr-1"></i>Created: {{ program.date.strftime('%b %d, %Y') }}
+                                <small class="program-meta-line d-block">
+                                    <i class="fas fa-calendar mr-1"></i>Created: {{ program.date|manila('%b %d, %Y') }}
                                 </small>
                             </div>
                             
                             <div class="col-lg-3 text-center">
-                                <div class="mb-2">
-                                    <div class="badge badge-primary p-3" style="font-size: 1.1rem; border-radius: 8px; display: block; margin-bottom: 10px;">
-                                        <i class="fas fa-users mr-2"></i>
-                                        <strong>{{ program.application_count }}</strong>
-                                        <span class="d-block small mt-1">Total Applicant{{ 's' if program.application_count != 1 else '' }}</span>
+                                <div class="program-metrics-row mt-2 mt-lg-0">
+                                    <div class="program-stat-box total">
+                                        <i class="fas fa-users mr-1"></i>
+                                        <span class="value">{{ program.application_count }}</span>
+                                        <span class="label">Total Applicant{{ 's' if program.application_count != 1 else '' }}</span>
                                     </div>
-                                    <div class="badge badge-success p-3" style="font-size: 1.1rem; border-radius: 8px; display: block;">
-                                        <i class="fas fa-check-circle mr-2"></i>
-                                        <strong>{{ program.active_application_count }}</strong>
-                                        <span class="d-block small mt-1">Active</span>
+                                    <div class="program-stat-box active">
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                        <span class="value">{{ program.active_application_count }}</span>
+                                        <span class="label">Active Applications</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="col-lg-3 text-right">
+                            <div class="col-lg-2">
+                                <div class="program-actions">
                                 <a href="{{ url_for('admin.edit_program', id=program.id) }}" 
-                                    class="btn btn-info btn-sm">
+                                    class="btn btn-soft-info btn-sm">
                                     <i class="fas fa-eye mr-1"></i>View / Edit
                                 </a>
-                                <form method="POST" action="{{ url_for('admin.delete_program', id=program.id) }}" 
-                                        class="d-inline" 
-                                        onsubmit="return confirm('Are you sure you want to delete {{ program.program_name }}?')">
-                                    <button class="btn btn-danger btn-sm">
+                                <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteProgramModal{{ program.id }}">
                                         <i class="fas fa-trash mr-1"></i>Delete
+                                </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="deleteProgramModal{{ program.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteProgramModalLabel{{ program.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header bg-light">
+                                <h5 class="modal-title" id="deleteProgramModalLabel{{ program.id }}">
+                                    <i class="fas fa-exclamation-triangle text-warning mr-2"></i>Confirm Deletion
+                                </h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="mb-2">Are you sure you want to delete this program?</p>
+                                <div class="border rounded p-2 bg-light mb-2">
+                                    <strong>{{ program.program_name }}</strong>
+                                </div>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle mr-1"></i>This action cannot be undone.
+                                </small>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                                <form method="POST" action="{{ url_for('admin.delete_program', id=program.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="fas fa-trash mr-1"></i>Delete Program
                                     </button>
-                                </form>                                
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -349,7 +592,7 @@
                     <ul class="pagination justify-content-center">
                         {% if pagination.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.adm_programs', page=pagination.prev_num) }}">
+                            <a class="page-link" href="{{ url_for('admin.adm_programs', page=pagination.prev_num, search=request.args.get('search', ''), type=request.args.get('type', ''), category=request.args.get('category', ''), period=request.args.get('period', ''), date_range=request.args.get('date_range', '')) }}">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
@@ -359,7 +602,7 @@
                             {% if page_num %}
                                 {% if page_num != pagination.page %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('admin.adm_programs', page=page_num) }}">
+                                    <a class="page-link" href="{{ url_for('admin.adm_programs', page=page_num, search=request.args.get('search', ''), type=request.args.get('type', ''), category=request.args.get('category', ''), period=request.args.get('period', ''), date_range=request.args.get('date_range', '')) }}">
                                         {{ page_num }}
                                     </a>
                                 </li>
@@ -377,7 +620,7 @@
                         
                         {% if pagination.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('admin.adm_programs', page=pagination.next_num) }}">
+                            <a class="page-link" href="{{ url_for('admin.adm_programs', page=pagination.next_num, search=request.args.get('search', ''), type=request.args.get('type', ''), category=request.args.get('category', ''), period=request.args.get('period', ''), date_range=request.args.get('date_range', '')) }}">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>
@@ -387,11 +630,11 @@
                 {% endif %}
                 
             {% else %}
-                <div class="text-center text-muted py-5">
-                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
                     <h5>No Programs Found</h5>
                     <p>Start by creating your first assistance program.</p>
-                    <a href="{{ url_for('admin.add_program') }}" class="btn btn-primary mt-3">
+                    <a href="{{ url_for('admin.add_program') }}" class="btn btn-gradient-primary mt-3">
                         <i class="fas fa-plus mr-2"></i>Create Program
                     </a>
                 </div>
@@ -401,3 +644,4 @@
 </div>
 
 {% endblock %}
+

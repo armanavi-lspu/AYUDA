@@ -3,82 +3,157 @@
 
 {% block extra_css %}
 <style>
-    .analytics-nav {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .analytics-shell {
+        animation: analyticsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes analyticsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .analytics-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .analytics-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
         border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 2rem;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
     }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .analytics-nav-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        padding: 0.55rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-nav {
+        gap: 0.55rem;
+    }
+
     .analytics-nav .nav-link {
-        color: rgba(255, 255, 255, 0.8);
-        font-weight: 500;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
+        color: #2a4b79;
+        font-weight: 600;
+        padding: 0.62rem 1.1rem;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
     }
+
     .analytics-nav .nav-link:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.1);
+        color: #1942a8;
+        background: #f4f8ff;
+        border-color: #dbe7fd;
     }
+
     .analytics-nav .nav-link.active {
-        color: white;
-        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 6px 16px rgba(31, 111, 235, 0.28);
     }
+
     .stat-card {
-        border-left: 4px solid;
-        transition: transform 0.2s ease;
-        opacity: 0;
-        animation: fadeInUp 0.6s ease forwards;
+        border: 1px solid var(--dash-border);
+        border-left-width: 4px;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
     }
+
     .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12) !important;
     }
-    .stat-card:nth-child(1) { animation-delay: 0.1s; }
-    .stat-card:nth-child(2) { animation-delay: 0.2s; }
-    .stat-card:nth-child(3) { animation-delay: 0.3s; }
-    .stat-card:nth-child(4) { animation-delay: 0.4s; }
-    
+
+    .stat-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .chart-card .card,
+    .forecast-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .chart-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .forecast-card .card-header {
+        border: 0;
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%) !important;
+    }
+
     .chart-container {
         position: relative;
         height: 400px;
-        margin-bottom: 2rem;
-        opacity: 0;
-        transform: translateY(20px);
+        margin-bottom: 0;
     }
-    .chart-container.loaded {
-        animation: fadeInUp 0.8s ease forwards;
-    }
-    .forecast-badge {
-        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
+
     .no-data-message {
         padding: 4rem 2rem;
         text-align: center;
         color: #858796;
     }
+
     .no-data-message i {
         opacity: 0.5;
     }
-    
-    /* Chart card animations */
-    .chart-card {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    .chart-card.animate {
-        animation: fadeInUp 0.8s ease forwards;
-    }
-    .chart-card:nth-child(1) { animation-delay: 0.5s; }
-    .chart-card:nth-child(2) { animation-delay: 0.6s; }
-    .chart-card:nth-child(3) { animation-delay: 0.7s; }
-    .chart-card:nth-child(4) { animation-delay: 0.8s; }
-    .chart-card:nth-child(5) { animation-delay: 0.9s; }
     
     /* Loading spinner for charts */
     .chart-loading {
@@ -98,46 +173,56 @@
         animation: spin 1s linear infinite;
     }
     
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
     
+    @media (max-width: 991.98px) {
+        .analytics-hero {
+            padding: 1.15rem;
+        }
+
+        .analytics-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .analytics-nav .nav-link,
+        .analytics-hero .btn {
+            width: 100%;
+        }
+    }
+
     @media print {
-        .analytics-nav, .btn { display: none; }
+        .analytics-nav-panel,
+        .btn {
+            display: none;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="mb-3 mb-md-0">
-            <h1 class="h2 font-weight-bold mb-2">
-                <i class="fas fa-chart-line text-dark mr-2"></i>Data Analysis
-            </h1>
-            <p class="text-muted mb-0">Comprehensive analytics and forecasting</p>
+<div id="adminAnalyticsRoot">
+<div class="container-fluid analytics-shell py-4">
+    <div class="analytics-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="h2 font-weight-bold mb-0">
+                    <i class="fas fa-chart-line mr-2"></i>Data Analysis
+                </h1>
+                <p class="subtitle">Comprehensive analytics and forecasting for program planning.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <button class="btn btn-gradient-primary" onclick="window.print()">
+                    <i class="fas fa-print mr-2"></i>Print Report
+                </button>
+            </div>
         </div>
-        <button class="btn btn-outline-primary" onclick="window.print()">
-            <i class="fas fa-print mr-2"></i>Print Report
-        </button>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="analytics-nav">
-        <ul class="nav nav-pills mb-0">
+    <div class="analytics-nav-panel">
+        <ul class="nav nav-pills analytics-nav mb-0">
             <li class="nav-item">
                 <a class="nav-link active" href="{{ url_for('admin.analytics_analysis') }}">
                     <i class="fas fa-chart-line mr-2"></i>Analysis
@@ -310,7 +395,7 @@
 
         <!-- Forecast: Applicants Over Time -->
         <div class="col-12 mb-4">
-            <div class="card shadow border-left-warning" style="border-left-width: 4px;">
+            <div class="card shadow border-left-warning forecast-card" style="border-left-width: 4px;">
                 <div class="card-header bg-warning text-white py-3">
                     <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
                         <i class="fas fa-chart-line mr-2"></i>
@@ -327,7 +412,7 @@
 
         <!-- Forecast: Applications by Program Category -->
         <div class="col-12 mb-4">
-            <div class="card shadow border-left-warning" style="border-left-width: 4px;">
+            <div class="card shadow border-left-warning forecast-card" style="border-left-width: 4px;">
                 <div class="card-header bg-warning text-white py-3">
                     <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
                         <i class="fas fa-chart-bar mr-2"></i>
@@ -348,6 +433,7 @@
 <script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
 <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
 <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+</div>
 
 {% endblock %}
 
@@ -364,15 +450,62 @@ if (typeof Chart === 'undefined') {
     console.log('✅ Chart.js loaded successfully, version:', Chart.version);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📊 Analytics page loaded');
-    
-    // Trigger chart card animations
-    setTimeout(() => {
-        document.querySelectorAll('.chart-card').forEach(card => {
-            card.classList.add('animate');
+let analyticsRealtimeReloadTimer = null;
+let analyticsRealtimeListenerBound = false;
+let analyticsRefreshInProgress = false;
+
+function refreshAnalyticsAnalysisPage(message) {
+    if (analyticsRefreshInProgress) {
+        return;
+    }
+
+    const currentRoot = document.getElementById('adminAnalyticsRoot');
+    if (!currentRoot) {
+        window.location.reload();
+        return;
+    }
+
+    analyticsRefreshInProgress = true;
+
+    fetch(`${window.location.pathname}${window.location.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh analytics (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('adminAnalyticsRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated analytics content not found');
+            }
+
+            currentRoot.replaceWith(nextRoot);
+            initializeAnalyticsAnalysisPage();
+
+            if (typeof showRealtimeToast === 'function') {
+                showRealtimeToast(message || 'Analytics refreshed from live updates.');
+            }
+        })
+        .catch(error => {
+            console.error('Soft refresh failed, falling back to full reload:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            analyticsRefreshInProgress = false;
         });
-    }, 100);
+}
+
+function initializeAnalyticsAnalysisPage() {
+    console.log('📊 Analytics page loaded');
     
     /**
      * Helper function to build forecast data array for Chart.js
@@ -399,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 loader.style.opacity = '0';
                 setTimeout(() => loader.remove(), 300);
             }
-            container.classList.add('loaded');
         }
     }
     
@@ -791,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = 1; i <= 6; i++) {
             const date = new Date();
             date.setMonth(date.getMonth() + i);
-            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
             forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
         }
         
@@ -992,7 +1124,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch(error => console.error('Error fetching time range data:', error));
         });
     }
-});
+
+    if (!analyticsRealtimeListenerBound) {
+        analyticsRealtimeListenerBound = true;
+        document.addEventListener('ayuda:admin-analytics-update', function(event) {
+            if (document.hidden) {
+                return;
+            }
+
+            if (analyticsRealtimeReloadTimer) {
+                clearTimeout(analyticsRealtimeReloadTimer);
+            }
+
+            analyticsRealtimeReloadTimer = setTimeout(function() {
+                const detail = event && event.detail ? event.detail : {};
+                const reason = detail.reason ? ` (${detail.reason.replace(/_/g, ' ')})` : '';
+                refreshAnalyticsAnalysisPage(`Analytics refreshed from live updates${reason}.`);
+            }, 1000);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initializeAnalyticsAnalysisPage);
 </script>
 
 {% endblock %}

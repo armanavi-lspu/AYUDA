@@ -1,16 +1,17 @@
 from flask import render_template, request, flash, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import desc, or_, func
+from sqlalchemy import and_, desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.activity_logger import log_activity
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
 from app.community.routes.profile import get_income_range_display
 import os
+import json
 from werkzeug.utils import secure_filename
 
 # Configuration
@@ -130,13 +131,9 @@ def programs_index():
     
     # Programs with applications
     programs_with_apps = db.session.query(func.count(func.distinct(Applications.program_id))).scalar()
-    
-    # Most popular program type
-    popular_type = db.session.query(
-        Programs.program_type,
-        func.count(Applications.id).label('app_count')
-    ).outerjoin(Applications).group_by(Programs.program_type)\
-     .order_by(desc('app_count')).first()
+
+    # Active applications across all programs
+    active_applications = Applications.query.filter_by(application_status='active').count()
     
     # Recent programs count (last 30 days)
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
@@ -157,7 +154,7 @@ def programs_index():
         pagination=pagination,
         total_programs=total_programs,
         programs_with_apps=programs_with_apps,
-        popular_type=popular_type.program_type if popular_type else 'N/A',
+        active_applications=active_applications,
         recent_programs=recent_programs,
         program_types=[t[0] for t in program_types],
         program_periods=[p[0] for p in program_periods],
@@ -169,6 +166,97 @@ def programs_index():
 
 # ===================== SUBSIDY MANAGEMENT =====================
 
+def _get_subsidy_request_log(request_id):
+    return UserActivityLog.query.options(joinedload(UserActivityLog.user)).filter(
+        UserActivityLog.id == request_id,
+        UserActivityLog.action == 'request_subsidy',
+        UserActivityLog.entity_type == 'subsidy'
+    ).first()
+
+
+def _safe_subsidy_details(log):
+    details = log.details_dict if hasattr(log, 'details_dict') else {}
+    return details if isinstance(details, dict) else {}
+
+
+def _normalize_required_document_specs(details):
+    specs = details.get('required_documents_specs')
+    normalized_specs = []
+
+    if isinstance(specs, list):
+        for item in specs:
+            if not isinstance(item, dict):
+                continue
+
+            name = str(item.get('name', '')).strip()
+            if not name:
+                continue
+
+            raw_copy_specs = item.get('copy_specs') if isinstance(item.get('copy_specs'), list) else []
+            copy_specs = []
+            for copy_spec in raw_copy_specs:
+                if not isinstance(copy_spec, dict):
+                    continue
+                copy_type = str(copy_spec.get('type', 'original')).strip() or 'original'
+                try:
+                    copy_count = max(1, int(copy_spec.get('count', 1)))
+                except (TypeError, ValueError):
+                    copy_count = 1
+                copy_specs.append({'type': copy_type, 'count': copy_count})
+
+            if not copy_specs:
+                copy_specs = [{'type': 'original', 'count': 1}]
+
+            requirement_id = item.get('requirement_id')
+            try:
+                requirement_id = int(requirement_id) if requirement_id is not None else None
+            except (TypeError, ValueError):
+                requirement_id = None
+
+            normalized_specs.append({
+                'requirement_id': requirement_id,
+                'name': name,
+                'copy_specs': copy_specs
+            })
+
+    if normalized_specs:
+        return normalized_specs
+
+    fallback_docs = details.get('required_documents')
+    if not isinstance(fallback_docs, list):
+        return []
+
+    fallback_specs = []
+    for doc_name in fallback_docs:
+        clean_name = str(doc_name).strip()
+        if clean_name:
+            fallback_specs.append({
+                'requirement_id': None,
+                'name': clean_name,
+                'copy_specs': [{'type': 'original', 'count': 1}]
+            })
+    return fallback_specs
+
+
+def _copy_type_label(copy_type):
+    copy_type_map = {
+        'original': 'Original',
+        'photocopy': 'Photocopy',
+        'certified_true_copy': 'Certified True Copy'
+    }
+    return copy_type_map.get(str(copy_type).strip().lower(), str(copy_type).replace('_', ' ').title())
+
+
+def _senior_subsidy_membership_filter():
+    """Senior subsidy list membership: age-qualified and not explicitly removed."""
+    return and_(
+        CommunityUsers.age >= 60,
+        or_(
+            CommunityUsers.senior_citizen_verification.is_(None),
+            CommunityUsers.senior_citizen_verification != 'removed'
+        )
+    )
+
 @admin_bp.route('/subsidy', endpoint='adm_subsidy')
 @login_required
 @role_required('admin')
@@ -178,8 +266,8 @@ def subsidy_index():
     # Get PWD count
     pwd_count = CommunityUsers.query.filter_by(is_pwd=True).count()
     
-    # Get Senior Citizen count (age >= 60)
-    senior_count = CommunityUsers.query.filter(CommunityUsers.age >= 60).count()
+    # Get Senior Citizen count (active subsidy members, excluding removed)
+    senior_count = CommunityUsers.query.filter(_senior_subsidy_membership_filter()).count()
     
     # Get Solo Parent count
     solo_parent_count = CommunityUsers.query.filter_by(is_solo_parent=True).count()
@@ -188,10 +276,51 @@ def subsidy_index():
     total_beneficiaries = CommunityUsers.query.filter(
         or_(
             CommunityUsers.is_pwd == True,
-            CommunityUsers.age >= 60,
+            _senior_subsidy_membership_filter(),
             CommunityUsers.is_solo_parent == True
         )
     ).count()
+
+    document_requirements_catalog = Requirements.query.filter_by(requirement_type='document').order_by(
+        Requirements.requirement_name.asc()
+    ).all()
+
+    recent_subsidy_logs = UserActivityLog.query.options(
+        joinedload(UserActivityLog.user)
+    ).filter(
+        UserActivityLog.action == 'request_subsidy',
+        UserActivityLog.entity_type == 'subsidy'
+    ).order_by(
+        UserActivityLog.created_at.desc()
+    ).limit(10).all()
+
+    recent_subsidy_requests = []
+    for log in recent_subsidy_logs:
+        details = _safe_subsidy_details(log)
+        category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+        status_value = str(details.get('status', 'pending')).replace('_', ' ').title()
+        requester_name = log.user_name if hasattr(log, 'user_name') else f'User #{log.user_id}'
+        required_documents = details.get('required_documents')
+        if not isinstance(required_documents, list):
+            required_documents = []
+        required_documents_specs = _normalize_required_document_specs(details)
+
+        recent_subsidy_requests.append({
+            'id': log.id,
+            'user_id': log.user_id,
+            'requester_name': requester_name,
+            'category_name': category_name,
+            'status': status_value,
+            'description': log.description,
+            'created_at': log.created_at,
+            'admin_instructions': details.get('admin_instructions') or '',
+            'required_documents': required_documents,
+            'required_documents_specs': required_documents_specs,
+            'office_submission_note': details.get('office_submission_note') or 'Please submit the required documents in the office within the week.',
+            'category_key': details.get('category') or '',
+            'status_key': str(details.get('status', 'pending')).lower(),
+            'requester_email': log.user.email if log.user else ''
+        })
     
     return render_template(
         'admin/adm_subsidy.html',
@@ -199,8 +328,228 @@ def subsidy_index():
         senior_count=senior_count,
         solo_parent_count=solo_parent_count,
         total_beneficiaries=total_beneficiaries,
+        recent_subsidy_requests=recent_subsidy_requests,
+        document_requirements_catalog=document_requirements_catalog,
         user=current_user
     )
+
+
+@admin_bp.route('/subsidy/requests/<int:request_id>/respond', methods=['POST'], endpoint='respond_subsidy_request')
+@login_required
+@role_required('admin')
+def respond_subsidy_request(request_id):
+    """Send office submission instructions and required documents for a subsidy request."""
+    request_log = _get_subsidy_request_log(request_id)
+
+    if not request_log:
+        flash('Subsidy request not found.', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    instructions = request.form.get('instructions', '').strip()
+    selected_requirement_ids = request.form.getlist('document_requirement_ids')
+
+    if not instructions:
+        flash('Instructions are required before sending this update.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    if not selected_requirement_ids:
+        flash('Please select at least one required document.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    requirement_ids = []
+    for req_id in selected_requirement_ids:
+        try:
+            requirement_ids.append(int(req_id))
+        except (TypeError, ValueError):
+            continue
+
+    if not requirement_ids:
+        flash('Please select valid required documents.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    requirement_rows = Requirements.query.filter(
+        Requirements.id.in_(requirement_ids),
+        Requirements.requirement_type == 'document'
+    ).all()
+    requirement_map = {req.id: req for req in requirement_rows}
+
+    required_documents = []
+    required_documents_specs = []
+    valid_copy_types = {'original', 'photocopy', 'certified_true_copy'}
+
+    for req_id in requirement_ids:
+        requirement = requirement_map.get(req_id)
+        if not requirement:
+            continue
+
+        copy_types = request.form.getlist(f'copy_type_{req_id}[]')
+        copy_counts = request.form.getlist(f'copy_count_{req_id}[]')
+        row_count = max(len(copy_types), len(copy_counts), 1)
+
+        copy_specs = []
+        for index in range(row_count):
+            copy_type = (copy_types[index] if index < len(copy_types) else 'original').strip().lower()
+            if copy_type not in valid_copy_types:
+                copy_type = 'original'
+
+            raw_count = copy_counts[index] if index < len(copy_counts) else '1'
+            try:
+                copy_count = max(1, min(10, int(raw_count)))
+            except (TypeError, ValueError):
+                copy_count = 1
+
+            copy_specs.append({
+                'type': copy_type,
+                'count': copy_count
+            })
+
+        required_documents.append(requirement.requirement_name)
+        required_documents_specs.append({
+            'requirement_id': requirement.id,
+            'name': requirement.requirement_name,
+            'copy_specs': copy_specs
+        })
+
+    if not required_documents_specs:
+        flash('Please select at least one valid required document.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    details = _safe_subsidy_details(request_log)
+
+    category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+    office_note = 'Please submit the required documents in the office within the week.'
+
+    details['status'] = 'documents_required'
+    details['admin_instructions'] = instructions
+    details['required_documents'] = required_documents
+    details['required_documents_specs'] = required_documents_specs
+    details['office_submission_note'] = office_note
+    details['admin_reviewed_by'] = current_user.id
+    details['admin_reviewed_at'] = datetime.utcnow().isoformat()
+
+    request_log.details = json.dumps(details)
+    request_log.description = f'Reviewed subsidy request for {category_name}; requested office documents.'
+
+    docs_lines = []
+    for spec in required_documents_specs:
+        copy_desc = ', '.join([f"{row['count']} { _copy_type_label(row['type']) }" for row in spec['copy_specs']])
+        docs_lines.append(f"• {spec['name']} ({copy_desc})")
+
+    user_notification = Notifications(
+        user_id=request_log.user_id,
+        notif_title=f'Subsidy Application Update: {category_name}',
+        notif_message=(
+            f'Your subsidy application for {category_name} was reviewed.\n\n'
+            f'Instructions:\n{instructions}\n\n'
+            f"Required documents to submit in the office:\n{'\\n'.join(docs_lines)}\n\n"
+            f'{office_note}'
+        ),
+        related_type='subsidy'
+    )
+
+    db.session.add(user_notification)
+    db.session.commit()
+
+    flash('Instructions and required documents were sent to the user.', 'success')
+    return redirect(url_for('admin.adm_subsidy'))
+
+
+@admin_bp.route('/subsidy/requests/<int:request_id>/status', methods=['POST'], endpoint='update_subsidy_request_status')
+@login_required
+@role_required('admin')
+def update_subsidy_request_status(request_id):
+    """Update status of a subsidy request."""
+    request_log = _get_subsidy_request_log(request_id)
+    if not request_log:
+        flash('Subsidy request not found.', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    details = _safe_subsidy_details(request_log)
+    current_status = str(details.get('status', 'pending')).lower()
+    new_status = request.form.get('status', '').strip().lower()
+
+    allowed_statuses = {
+        'pending', 'submitted', 'under_review', 'documents_required',
+        'processing', 'approved', 'rejected', 'cancelled'
+    }
+    if new_status not in allowed_statuses:
+        flash('Invalid subsidy request status selected.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    if current_status == 'completed':
+        flash('Completed subsidy requests can no longer be updated.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    if current_status == new_status:
+        flash('Status is already up to date.', 'info')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+
+    details['status'] = new_status
+    details['status_updated_by'] = current_user.id
+    details['status_updated_at'] = datetime.utcnow().isoformat()
+
+    request_log.details = json.dumps(details)
+    request_log.description = f"Updated subsidy request for {category_name} to {new_status.replace('_', ' ')}."
+
+    status_readable = new_status.replace('_', ' ').title()
+    notif = Notifications(
+        user_id=request_log.user_id,
+        notif_title=f'Subsidy Application Status: {status_readable}',
+        notif_message=(
+            f'Your subsidy application for {category_name} has been updated to {status_readable}. '
+            f'Please check your subsidy application details for next steps.'
+        ),
+        related_type='subsidy'
+    )
+
+    db.session.add(notif)
+    db.session.commit()
+
+    flash(f'Subsidy request status updated to {status_readable}.', 'success')
+    return redirect(url_for('admin.adm_subsidy'))
+
+
+@admin_bp.route('/subsidy/requests/<int:request_id>/complete', methods=['POST'], endpoint='complete_subsidy_request')
+@login_required
+@role_required('admin')
+def complete_subsidy_request(request_id):
+    """Mark a subsidy request as completed. Allowed only when status is approved."""
+    request_log = _get_subsidy_request_log(request_id)
+    if not request_log:
+        flash('Subsidy request not found.', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    details = _safe_subsidy_details(request_log)
+    current_status = str(details.get('status', 'pending')).lower()
+    if current_status != 'approved':
+        flash('Only approved subsidy requests can be marked as completed.', 'warning')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    category_name = details.get('category_name') or details.get('category') or 'Subsidy Request'
+    details['status'] = 'completed'
+    details['completed_at'] = datetime.utcnow().isoformat()
+    details['completed_by'] = current_user.id
+
+    request_log.details = json.dumps(details)
+    request_log.description = f'Completed subsidy request for {category_name}.'
+
+    notif = Notifications(
+        user_id=request_log.user_id,
+        notif_title=f'Subsidy Application Completed: {category_name}',
+        notif_message=(
+            f'Your subsidy application for {category_name} has been marked as completed. '
+            f'Please monitor your account for any additional announcements.'
+        ),
+        related_type='subsidy'
+    )
+
+    db.session.add(notif)
+    db.session.commit()
+
+    flash('Subsidy request marked as completed.', 'success')
+    return redirect(url_for('admin.adm_subsidy'))
 
 
 @admin_bp.route('/subsidy/<category>', endpoint='subsidy_list')
@@ -223,7 +572,7 @@ def subsidy_list(category):
         category_icon = 'fa-wheelchair'
         category_color = 'primary'
     elif category == 'senior':
-        query = query.filter(CommunityUsers.age >= 60)
+        query = query.filter(_senior_subsidy_membership_filter())
         category_name = 'Senior Citizens'
         category_icon = 'fa-user-clock'
         category_color = 'success'
@@ -276,6 +625,160 @@ def subsidy_list(category):
         barangays=barangays,
         user=current_user
     )
+
+
+@admin_bp.route('/subsidy/remove-beneficiary', methods=['POST'], endpoint='remove_subsidy_beneficiary')
+@login_required
+@role_required('admin')
+def remove_subsidy_beneficiary():
+    """Remove a community user from a subsidy beneficiary category."""
+    category = (request.form.get('category') or '').strip()
+    community_user_id = request.form.get('community_user_id', type=int)
+    return_url = (request.form.get('return_url') or '').strip()
+
+    category_labels = {
+        'pwd': 'PWD',
+        'senior': 'Senior Citizens',
+        'solo_parent': 'Solo Parents'
+    }
+
+    if category not in category_labels or not community_user_id:
+        flash('Invalid remove request.', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
+
+    community_user = CommunityUsers.query.get(community_user_id)
+    if not community_user or not community_user.user:
+        flash('Beneficiary record not found.', 'danger')
+        return redirect(url_for('admin.subsidy_list', category=category))
+
+    changed = False
+
+    if category == 'pwd':
+        if community_user.is_pwd:
+            community_user.is_pwd = False
+            changed = True
+    elif category == 'senior':
+        if community_user.age >= 60 and community_user.senior_citizen_verification != 'removed':
+            community_user.senior_citizen_verification = 'removed'
+            community_user.senior_citizen_verified_at = None
+            community_user.senior_citizen_verified_by = None
+            changed = True
+    elif category == 'solo_parent':
+        if community_user.is_solo_parent:
+            community_user.is_solo_parent = False
+            changed = True
+
+    if not changed:
+        flash(f'No changes applied. User is not currently in the {category_labels[category]} subsidy list.', 'warning')
+        return redirect(url_for('admin.subsidy_list', category=category))
+
+    user_name = f"{community_user.user.first_name} {community_user.user.last_name}".strip()
+
+    log_activity(
+        action='remove_subsidy_beneficiary',
+        action_type='delete',
+        entity_type='beneficiaries_list',
+        description=f"Removed {user_name} from {category_labels[category]} subsidy list",
+        entity_id=community_user.id,
+        details={
+            'category': category,
+            'category_label': category_labels[category],
+            'community_user_id': community_user.id,
+            'user_id': community_user.user_id,
+            'user_name': user_name
+        }
+    )
+
+    db.session.commit()
+    flash(f'{user_name} has been removed from the {category_labels[category]} subsidy list.', 'success')
+
+    if return_url.startswith('/admin/subsidy/'):
+        return redirect(return_url)
+    return redirect(url_for('admin.subsidy_list', category=category))
+
+
+@admin_bp.route('/subsidy/scheduled-lists', endpoint='scheduled_beneficiaries_list')
+@login_required
+@role_required('admin')
+def scheduled_beneficiaries_list():
+    """Display all scheduled/saved subsidy beneficiary lists."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 12
+    search = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', '').strip().lower()
+
+    query = SubsidyPayout.query
+
+    if search:
+        search_pattern = f'%{search}%'
+        query = query.filter(
+            or_(
+                SubsidyPayout.payout_id.ilike(search_pattern),
+                SubsidyPayout.category_label.ilike(search_pattern),
+                SubsidyPayout.payout_location.ilike(search_pattern)
+            )
+        )
+
+    allowed_statuses = {'draft', 'saved', 'announced'}
+    if status_filter in allowed_statuses:
+        query = query.filter(SubsidyPayout.status == status_filter)
+
+    query = query.order_by(SubsidyPayout.created_at.desc())
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    status_counts = {
+        'draft': SubsidyPayout.query.filter_by(status='draft').count(),
+        'saved': SubsidyPayout.query.filter_by(status='saved').count(),
+        'announced': SubsidyPayout.query.filter_by(status='announced').count()
+    }
+
+    return render_template(
+        'admin/scheduled_beneficiaries_list.html',
+        payout_lists=pagination.items,
+        pagination=pagination,
+        search=search,
+        status_filter=status_filter,
+        status_counts=status_counts,
+        user=current_user
+    )
+
+
+@admin_bp.route('/subsidy/scheduled/<string:payout_id>', endpoint='scheduled_beneficiaries')
+@login_required
+@role_required('admin')
+def scheduled_beneficiaries(payout_id):
+    """Display a scheduled payout with its beneficiary list and actions."""
+    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+    beneficiaries = payout.snapshot_data
+
+    return render_template(
+        'admin/scheduled_beneficiaries.html',
+        payout=payout,
+        beneficiaries=beneficiaries,
+        user=current_user
+    )
+
+
+@admin_bp.route('/subsidy/scheduled/<string:payout_id>/save', methods=['POST'], endpoint='save_scheduled_beneficiaries')
+@login_required
+@role_required('admin')
+def save_scheduled_beneficiaries(payout_id):
+    """Mark a scheduled payout list as saved in the system."""
+    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+
+    if payout.saved_in_system:
+        flash('This beneficiary list is already saved in the system.', 'info')
+        return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout.payout_id))
+
+    payout.saved_in_system = True
+    payout.saved_at = datetime.utcnow()
+    if payout.status == 'draft':
+        payout.status = 'saved'
+
+    db.session.commit()
+
+    flash('Beneficiary list saved in system successfully.', 'success')
+    return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout.payout_id))
 
 
 @admin_bp.route('/programs/add', endpoint='add_program', methods=['GET', 'POST'])
@@ -333,8 +836,8 @@ def add_program():
         mandatory_requirements = request.form.getlist('mandatory_requirements')
         
         # Validation
-        if not program_name or not program_type or not program_period:
-            flash('Program name, type, and period are required.', 'danger')
+        if not program_name or not program_type or not program_period or not description:
+            flash('Program name, type, period, and description are required.', 'danger')
             return redirect(url_for('admin.adm_programs'))
         
         # Validate date range
@@ -1309,7 +1812,7 @@ def generate_program_ranked_list(program_id):
         
         # Format application date
         app_date = application_date_map.get(user_id)
-        application_date_str = app_date.strftime('%B %d, %Y at %I:%M %p') if app_date else 'N/A'
+        application_date_str = manila_strftime(app_date, '%B %d, %Y at %I:%M %p', 'N/A')
         
         recommendations.append({
             'application_id': application_id_map.get(user_id),
@@ -1976,8 +2479,22 @@ def apply_workflow_template(program_id):
 @login_required
 @role_required('admin')
 def schedule_subsidy_payout():
-    """Schedule a subsidy payout and return beneficiary list for announcement"""
+    """Schedule a subsidy payout, persist beneficiary list, and redirect to details page."""
     try:
+        is_ajax_request = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+        category_names = {
+            'pwd': 'PWD',
+            'senior': 'Senior Citizens',
+            'solo_parent': 'Solo Parents'
+        }
+
+        def subsidy_error(message, status_code=400):
+            if is_ajax_request:
+                return jsonify({'success': False, 'message': message}), status_code
+            flash(message, 'danger')
+            return redirect(url_for('admin.adm_subsidy'))
+
         # Get form data
         payout_date = request.form.get('payout_date')
         payout_time = request.form.get('payout_time')
@@ -1987,88 +2504,69 @@ def schedule_subsidy_payout():
         
         # Validate inputs
         if not all([payout_date, payout_time, categories, payout_location]):
-            return jsonify({'success': False, 'message': 'Please fill in all required fields'}), 400
+            return subsidy_error('Please fill in all required fields', 400)
+
+        selected_categories = [cat for cat in categories if cat in category_names]
+        if len(selected_categories) != 1:
+            return subsidy_error('Please choose exactly one beneficiary category.', 400)
+
+        selected_category = selected_categories[0]
+        category_label = category_names[selected_category]
             
         # Combine date and time
         payout_datetime = datetime.strptime(f"{payout_date} {payout_time}", '%Y-%m-%d %H:%M')
         
         # Check if date is in the future
         if payout_datetime <= datetime.now():
-            return jsonify({'success': False, 'message': 'Payout date must be in the future'}), 400
+            return subsidy_error('Payout date must be in the future', 400)
             
         # Get beneficiaries for selected categories
         query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id).filter(User.role == 'community')
         
-        # Filter by categories - ensure we only get beneficiaries that match at least one selected category
-        category_filters = []
-        if 'pwd' in categories:
-            category_filters.append(CommunityUsers.is_pwd == True)
-        if 'senior' in categories:
-            category_filters.append(CommunityUsers.age >= 60)
-        if 'solo_parent' in categories:
-            category_filters.append(CommunityUsers.is_solo_parent == True)
+        # Filter by single category.
+        if selected_category == 'pwd':
+            query = query.filter(CommunityUsers.is_pwd == True)
+        elif selected_category == 'senior':
+            query = query.filter(_senior_subsidy_membership_filter())
+        elif selected_category == 'solo_parent':
+            query = query.filter(CommunityUsers.is_solo_parent == True)
             
-        if category_filters:
-            from sqlalchemy import or_
-            query = query.filter(or_(*category_filters))
-        else:
-            return jsonify({'success': False, 'message': 'No categories selected'}), 400
+        query = query.order_by(User.last_name, User.first_name)
             
         beneficiaries = query.all()
         
         if not beneficiaries:
-            category_names_str = ', '.join([category_names.get(cat, cat) for cat in categories])
-            return jsonify({'success': False, 'message': f'No beneficiaries found for selected categories: {category_names_str}'}), 400
+            return subsidy_error(f'No beneficiaries found for selected category: {category_label}', 400)
             
-        # Create payout record (we'll store this in a simple way for now)
-        payout_id = f"PAYOUT-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        # Create payout id and beneficiary snapshots for storage.
+        payout_id = f"PAYOUT-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}"
         
-        # Generate beneficiary list text
-        beneficiary_list = []
-        category_names = {
-            'pwd': 'PWD',
-            'senior': 'Senior Citizens', 
-            'solo_parent': 'Solo Parents'
-        }
-        
-        # Group beneficiaries by category
-        grouped_beneficiaries = {}
-        for category in categories:
-            grouped_beneficiaries[category] = []
-            
-        for beneficiary in beneficiaries:
-            if 'pwd' in categories and beneficiary.is_pwd:
-                grouped_beneficiaries['pwd'].append(beneficiary)
-            if 'senior' in categories and beneficiary.age >= 60:
-                grouped_beneficiaries['senior'].append(beneficiary)
-            if 'solo_parent' in categories and beneficiary.is_solo_parent:
-                grouped_beneficiaries['solo_parent'].append(beneficiary)
-        
-        # Create text list
-        beneficiary_text_parts = []
-        beneficiary_html_parts = []
-        
-        for category in categories:
-            if grouped_beneficiaries[category]:
-                beneficiary_text_parts.append(f"\\n{category_names[category]}:")
-                beneficiary_html_parts.append(f'<strong class="text-primary">{category_names[category]}:</strong><br>')
-                
-                for i, beneficiary in enumerate(grouped_beneficiaries[category], 1):
-                    name = f"{beneficiary.user.first_name} {beneficiary.user.last_name}"
-                    barangay = beneficiary.barangay or "Not specified"
-                    beneficiary_text_parts.append(f"{i}. {name} - {barangay}")
-                    beneficiary_html_parts.append(f"{i}. {name} - <small class='text-muted'>{barangay}</small><br>")
-                
-                beneficiary_text_parts.append("")  # Empty line between categories
-                beneficiary_html_parts.append("<br>")
+        beneficiary_snapshot = []
+        beneficiary_text_parts = [f"{category_label}:"]
+        beneficiary_html_parts = [f'<strong class="text-primary">{category_label}:</strong><br>']
+
+        for index, beneficiary in enumerate(beneficiaries, 1):
+            full_name = f"{beneficiary.user.first_name} {beneficiary.user.last_name}".strip()
+            barangay = beneficiary.barangay or "Not specified"
+
+            beneficiary_snapshot.append({
+                'rank': index,
+                'community_user_id': beneficiary.id,
+                'user_id': beneficiary.user_id,
+                'name': full_name,
+                'barangay': barangay,
+                'category': category_label
+            })
+
+            beneficiary_text_parts.append(f"{index}. {full_name} - {barangay}")
+            beneficiary_html_parts.append(f"{index}. {full_name} - <small class='text-muted'>{barangay}</small><br>")
         
         beneficiary_list_text = "\\n".join(beneficiary_text_parts)
         beneficiary_list_html = "".join(beneficiary_html_parts)
         
         # Generate suggested announcement content
         total_beneficiaries = len(beneficiaries)
-        category_list = [category_names[cat] for cat in categories]
-        category_text = ", ".join(category_list)
+        category_text = category_label
         
         suggested_title = f"Subsidy Payout Schedule - {category_text}"
         suggested_content = f"""Dear Beneficiaries,
@@ -2095,21 +2593,56 @@ Please share this information with other beneficiaries in your area.
 For questions or concerns, please contact the barangay office.
 
 Thank you."""
-        
-        return jsonify({
-            'success': True,
-            'payout_id': payout_id,
-            'suggested_title': suggested_title,
-            'suggested_content': suggested_content,
-            'beneficiary_list_html': beneficiary_list_html,
-            'total_beneficiaries': total_beneficiaries,
-            'message': 'Payout scheduled successfully!'
-        })
-        
+
+        payout_record = SubsidyPayout(
+            payout_id=payout_id,
+            payout_datetime=payout_datetime,
+            payout_location=payout_location,
+            payout_notes=payout_notes,
+            category_key=selected_category,
+            category_label=category_label,
+            beneficiary_count=total_beneficiaries,
+            beneficiary_snapshot=json.dumps(beneficiary_snapshot),
+            beneficiary_list_text=beneficiary_list_text,
+            beneficiary_list_html=beneficiary_list_html,
+            suggested_title=suggested_title,
+            suggested_content=suggested_content,
+            status='draft',
+            saved_in_system=False,
+            scheduled_by=current_user.id
+        )
+
+        db.session.add(payout_record)
+        db.session.commit()
+
+        redirect_url = url_for('admin.scheduled_beneficiaries', payout_id=payout_id)
+
+        if is_ajax_request:
+            return jsonify({
+                'success': True,
+                'message': 'Payout scheduled successfully!',
+                'payout_id': payout_id,
+                'suggested_title': suggested_title,
+                'suggested_content': suggested_content,
+                'beneficiary_list_html': beneficiary_list_html,
+                'total_beneficiaries': total_beneficiaries,
+                'redirect_url': redirect_url
+            }), 200
+
+        flash('Payout scheduled successfully.', 'success')
+        return redirect(redirect_url)
+
     except ValueError as e:
-        return jsonify({'success': False, 'message': 'Invalid date/time format or amount'}), 400
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid date/time format or amount'}), 400
+        flash('Invalid date/time format or amount', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error scheduling payout: {str(e)}'}), 500
+        db.session.rollback()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'Error scheduling payout: {str(e)}'}), 500
+        flash(f'Error scheduling payout: {str(e)}', 'danger')
+        return redirect(url_for('admin.adm_subsidy'))
 
 @admin_bp.route('/create_subsidy_announcement', methods=['POST'], endpoint='create_subsidy_announcement')
 @login_required
@@ -2126,6 +2659,14 @@ def create_subsidy_announcement():
         if not all([payout_id, announcement_title, announcement_content]):
             flash('Please fill in all required fields', 'error')
             return redirect(url_for('admin.adm_subsidy'))
+
+        payout_record = SubsidyPayout.query.filter_by(payout_id=payout_id).first()
+        if not payout_record:
+            flash('Scheduled payout record not found.', 'error')
+            return redirect(url_for('admin.adm_subsidy'))
+
+        if payout_record.beneficiary_list_text and 'LIST OF BENEFICIARIES:' not in announcement_content:
+            announcement_content = f"{announcement_content}\n\nLIST OF BENEFICIARIES:\n{payout_record.beneficiary_list_text}"
             
         # Create announcement
         announcement = Announcements(
@@ -2139,6 +2680,14 @@ def create_subsidy_announcement():
         )
         
         db.session.add(announcement)
+        db.session.flush()
+
+        payout_record.announcement_id = announcement.id
+        payout_record.saved_in_system = True
+        if not payout_record.saved_at:
+            payout_record.saved_at = datetime.utcnow()
+        payout_record.status = 'announced'
+
         db.session.commit()
         
         flash(f'Subsidy announcement "{announcement_title}" has been created and published successfully!', 'success')
@@ -2192,9 +2741,9 @@ def search_eligible_users():
             # For Senior Citizens: search users 60+ who aren't verified as senior yet
             eligible_query = base_query.filter(
                 CommunityUsers.age >= 60,
-                CommunityUsers.senior_citizen_verification != 'approved'
+                CommunityUsers.senior_citizen_verification == 'removed'
             )
-            existing_users_query = existing_users_query.filter(CommunityUsers.age >= 60)
+            existing_users_query = existing_users_query.filter(_senior_subsidy_membership_filter())
             verification_field = 'senior_citizen_verification'
             
         elif category == 'solo_parent':

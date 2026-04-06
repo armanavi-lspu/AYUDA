@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, redirect, url_for, jsonify, request, flash
+from flask import render_template, jsonify, redirect, url_for, jsonify, request, flash, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, func, extract, case, cast, Date
@@ -8,6 +8,7 @@ from app.models import (
 )
 from app.extensions import db
 import json
+import pytz
 
 def get_monthly_trend_data():
     """Get monthly application trend data for the last 12 months"""
@@ -191,6 +192,8 @@ def dashboard():
         flash('You do not have permission to access this page.', 'danger')
         return redirect(url_for('auth.login'))
     
+    tz = current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
+    local_now = datetime.now(tz)
     today = datetime.utcnow()
     start_of_today = today.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -259,7 +262,7 @@ def dashboard():
     print("============================")
     
     return render_template('admin/dashboard.html',
-                           current_date=today,
+                           current_date=local_now,
                            total_users=total_users,
                            admins_count=admins_count,
                            community_count=community_count,

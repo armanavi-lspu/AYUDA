@@ -2,7 +2,7 @@ from flask import render_template, request, flash, redirect, url_for, send_file,
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
-from app.utils import role_required
+from app.utils import role_required, manila_strftime
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers
 from app.extensions import db
 from app.user_activity_logger import log_document_upload
@@ -408,9 +408,9 @@ def _get_step_content(application, step, step_status):
             'status': a.status,
             'description': a.description,
             'location': a.location,
-            'scheduled_date': a.scheduled_date.strftime('%b %d, %Y') if a.scheduled_date else None,
+            'scheduled_date': manila_strftime(a.scheduled_date, '%b %d, %Y', None),
             'scheduled_time': a.scheduled_time,
-            'completed_at': a.completed_at.strftime('%b %d, %Y') if a.completed_at else None,
+            'completed_at': manila_strftime(a.completed_at, '%b %d, %Y', None),
             'document_count': len(a.documents),
         } for a in assessments]
         
@@ -523,7 +523,7 @@ def verify_code():
         
         # Check if code has already been used
         if application.code_used_at:
-            flash(f'This verification code has already been used on {application.code_used_at.strftime("%B %d, %Y at %I:%M %p")}.', 'warning')
+            flash(f'This verification code has already been used on {manila_strftime(application.code_used_at, "%B %d, %Y at %I:%M %p", "N/A")}.', 'warning')
             return redirect(url_for('community.application_workflow', application_id=application.id))
         
         # Mark code as used and update application status

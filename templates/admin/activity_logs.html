@@ -255,8 +255,8 @@
                         {% for activity in activities %}
                         <tr class="activity-row">
                             <td class="pl-4">
-                                <div class="small font-weight-bold">{{ activity.created_at.strftime('%b %d, %Y') }}</div>
-                                <div class="small text-muted">{{ activity.created_at.strftime('%I:%M:%S %p') }}</div>
+                                <div class="small font-weight-bold">{{ activity.created_at|manila('%b %d, %Y') }}</div>
+                                <div class="small text-muted">{{ activity.created_at|manila('%I:%M:%S %p') }}</div>
                             </td>
                             <td>
                                 <div class="d-flex align-items-center">
@@ -367,7 +367,7 @@
             {% if activities %}
             {% set current_date = None %}
             {% for activity in activities %}
-                {% set activity_date = activity.created_at.strftime('%B %d, %Y') %}
+                {% set activity_date = activity.created_at|manila('%B %d, %Y') %}
                 {% if activity_date != current_date %}
                     {% if not loop.first %}</div>{% endif %}
                     <div class="mb-2 mt-3">
@@ -387,7 +387,7 @@
                             </div>
                             <strong class="small">{{ activity.admin.first_name }} {{ activity.admin.last_name }}</strong>
                         </div>
-                        <small class="text-muted">{{ activity.created_at.strftime('%I:%M %p') }}</small>
+                        <small class="text-muted">{{ activity.created_at|manila('%I:%M %p') }}</small>
                     </div>
                     <div class="mt-2">
                         <span class="badge badge-action-{{ activity.action_type }} mr-1">{{ activity.action_type|title }}</span>
@@ -425,3 +425,4 @@ function showTimelineView() {
 }
 </script>
 {% endblock %}
+

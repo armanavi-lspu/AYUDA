@@ -3,23 +3,237 @@
 
 {% block extra_css %}
 <style>
-    .assessment-header-card {
-        border: none;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
     }
 
-    .bg-gradient-primary {
-        background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%) !important;
+    .assessment-view-shell {
+        animation: assessmentViewFadeIn 0.45s ease-out;
     }
 
-    .card-header.bg-gradient-primary .text-light.opacity-75 {
-        opacity: 0.8;
+    @keyframes assessmentViewFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .status-badge {
-        font-size: 0.75rem;
-        padding: 0.35rem 0.75rem;
+    .assessment-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .assessment-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .assessment-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0.8rem;
+    }
+
+    .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #dbe5f7;
+        background: #fff;
+        color: #1f355b;
+        font-size: 0.82rem;
         font-weight: 600;
+        padding: 0.35rem 0.72rem;
+        margin-right: 0.45rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .hero-badge {
+        font-size: 0.78rem;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.15px;
+        display: inline-flex;
+        align-items: center;
+        margin-bottom: 0.35rem;
+    }
+
+    .hero-updated {
+        font-size: 0.82rem;
+        color: #516581;
+        margin-top: 0.35rem;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.1rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        background: #fff;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .assessment-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .assessment-panel-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+        padding: 0.9rem 1rem;
+    }
+
+    .assessment-panel .card-body {
+        padding: 1.15rem;
+    }
+
+    .side-info-card .info-label {
+        color: #5e718f;
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .side-info-card p,
+    .side-info-card a {
+        color: #1f355b;
+    }
+
+    .cancel-zone-card {
+        border-color: #f3e0b9;
+        background: linear-gradient(180deg, #ffffff 0%, #fffaf0 100%);
+    }
+
+    .cancel-zone-card .assessment-panel-header {
+        background: linear-gradient(180deg, #fff7e6 0%, #fff2d8 100%);
+        border-bottom-color: #f1ddb2;
+        color: #7a5600;
+    }
+
+    .details-label {
+        color: #4e627f;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.25px;
+    }
+
+    .table thead.thead-light th {
+        background: #f8fbff;
+        border-bottom: 1px solid #dbe5f7;
+        color: #2f4c76;
+        font-weight: 700;
+        font-size: 0.84rem;
+    }
+
+    .table td,
+    .table th {
+        vertical-align: middle;
+    }
+
+    .doc-empty-state {
+        text-align: center;
+        color: #667085;
+        padding: 2.5rem 1rem;
+    }
+
+    .doc-empty-state i {
+        font-size: 2.5rem;
+        color: #bcc8de;
+        margin-bottom: 0.7rem;
+    }
+
+    .modal-modern .modal-content {
+        border: 1px solid #dbe5f7;
+        border-radius: 14px;
+        box-shadow: 0 20px 36px rgba(11, 44, 95, 0.22), 0 8px 18px rgba(11, 44, 95, 0.12);
+        overflow: hidden;
+    }
+
+    .modal-modern .modal-header {
+        border-bottom: 1px solid #dbe5f7;
+        padding: 0.85rem 1rem;
+    }
+
+    .modal-modern .modal-header .modal-title {
+        font-weight: 700;
+        letter-spacing: 0.15px;
+    }
+
+    .modal-modern .modal-footer {
+        border-top: 1px solid #e7eefb;
+        background: #fafcff;
+    }
+
+    .modal-header-gradient-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient-info {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient-success {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient-danger {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: #1f2937;
     }
 
     /* Fullscreen Modal Styles */
@@ -49,101 +263,71 @@
         max-width: 95% !important;
         max-height: 95% !important;
     }
+
+    @media (max-width: 991.98px) {
+        .assessment-hero {
+            padding: 1.1rem;
+        }
+
+        .assessment-hero h1 {
+            font-size: 1.5rem;
+        }
+
+        .assessment-panel .card-body {
+            padding: 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Back Button -->
-    <div class="mb-3">
-        <a href="{{ url_for('admin.assessments') }}" class="btn btn-sm btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Assessments
-        </a>
-    </div>
-
-    <!-- Assessment Header (Full Width) -->
-    <div class="card assessment-header-card shadow-lg mb-4 border-primary">
-        <div class="card-header bg-gradient-primary text-white py-4 position-relative">
-            <h2 class="mb-3 font-weight-bold">
-                <i class="fas fa-clipboard-check mr-2"></i>
-                {{ assessment.title }}
-            </h2>
-
-            <!-- Status Badge and Date -->
-            <div class="position-absolute" style="top: 1rem; right: 1rem; text-align: right;">
-                {% if assessment.status == 'requested' %}
-                    <span class="badge badge-info badge-pill px-3 py-2" style="font-size: 0.9rem;">
-                        <i class="fas fa-circle mr-1"></i>Requested
-                    </span>
-                {% elif assessment.status == 'scheduled' %}
-                    <span class="badge badge-warning badge-pill px-3 py-2" style="font-size: 0.9rem;">
-                        <i class="fas fa-circle mr-1"></i>Scheduled
-                    </span>
-                {% elif assessment.status == 'completed' %}
-                    <span class="badge badge-success badge-pill px-3 py-2" style="font-size: 0.9rem;">
-                        <i class="fas fa-circle mr-1"></i>Completed
-                    </span>
-                {% elif assessment.status == 'cancelled' %}
-                    <span class="badge badge-danger badge-pill px-3 py-2" style="font-size: 0.9rem;">
-                        <i class="fas fa-circle mr-1"></i>Cancelled
-                    </span>
-                {% endif %}
-                {% if assessment.case_severity == 'critical' %}
-                    <div class="mt-2">
-                        <span class="badge badge-danger badge-pill px-3 py-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-exclamation-triangle mr-1"></i>Critical Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
-                        </span>
-                    </div>
-                {% elif assessment.case_severity == 'high' %}
-                    <div class="mt-2">
-                        <span class="badge badge-warning badge-pill px-3 py-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-exclamation-circle mr-1"></i>High Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
-                        </span>
-                    </div>
-                {% elif assessment.case_severity == 'moderate' %}
-                    <div class="mt-2">
-                        <span class="badge badge-info badge-pill px-3 py-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-balance-scale mr-1"></i>Moderate Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
-                        </span>
-                    </div>
-                {% elif assessment.case_severity == 'low' %}
-                    <div class="mt-2">
-                        <span class="badge badge-primary badge-pill px-3 py-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-check-circle mr-1"></i>Low Severity{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}
-                        </span>
-                    </div>
-                {% else %}
-                    <div class="mt-2">
-                        <span class="badge badge-secondary badge-pill px-3 py-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-minus-circle mr-1"></i>Severity Unrated
-                        </span>
-                    </div>
-                {% endif %}
-                <div class="text-light mt-2" style="font-size: 0.85rem;">
-                    <i class="fas fa-calendar-alt mr-1"></i>
-                    <strong>Created:</strong> {{ assessment.created_at.strftime('%B %d, %Y %I:%M %p') }}
+<div class="container-fluid assessment-view-shell py-4">
+    <div class="assessment-hero">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start">
+            <div class="pr-lg-3">
+                <h1 class="mb-1"><i class="fas fa-clipboard-check mr-2"></i>{{ assessment.title }}</h1>
+                <p class="subtitle">Assessment details, findings, severity scoring, and supporting documents.</p>
+                <div>
+                    <span class="hero-chip"><i class="fas fa-user-circle mr-2"></i>{{ assessment.application.applicant.first_name }} {{ assessment.application.applicant.last_name }}</span>
+                    <span class="hero-chip"><i class="fas fa-graduation-cap mr-2"></i>{{ assessment.application.program.program_name }}</span>
+                    {% if assessment.assessment_type == 'interview' %}
+                    <span class="hero-chip"><i class="fas fa-comments mr-2"></i>Interview</span>
+                    {% elif assessment.assessment_type == 'home_visit' %}
+                    <span class="hero-chip"><i class="fas fa-home mr-2"></i>Home Visit</span>
+                    {% endif %}
                 </div>
             </div>
-
-            <!-- Assessment Details Row -->
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-user-circle text-light mr-2"></i>
-                        <span class="text-light">{{ assessment.application.applicant.first_name }} {{ assessment.application.applicant.last_name }}</span>
-                    </div>
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-graduation-cap text-light mr-2"></i>
-                        <span class="text-light">{{ assessment.application.program.program_name }}</span>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-tag text-light mr-2"></i>
-                        {% if assessment.assessment_type == 'interview' %}
-                            <span class="badge badge-light text-primary">Interview</span>
-                        {% elif assessment.assessment_type == 'home_visit' %}
-                            <span class="badge badge-light text-info">Home Visit</span>
-                        {% endif %}
-                    </div>
+            <div class="text-lg-right mt-3 mt-lg-0">
+                <a href="{{ url_for('admin.assessments') }}" class="btn btn-outline-custom btn-sm mb-2">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Assessments
+                </a>
+                <div>
+                    {% if assessment.status == 'requested' %}
+                        <span class="badge badge-info hero-badge"><i class="fas fa-circle mr-1"></i>Requested</span>
+                    {% elif assessment.status == 'scheduled' %}
+                        <span class="badge badge-warning hero-badge"><i class="fas fa-circle mr-1"></i>Scheduled</span>
+                    {% elif assessment.status == 'completed' %}
+                        <span class="badge badge-success hero-badge"><i class="fas fa-circle mr-1"></i>Completed</span>
+                    {% elif assessment.status == 'cancelled' %}
+                        <span class="badge badge-danger hero-badge"><i class="fas fa-circle mr-1"></i>Cancelled</span>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if assessment.case_severity == 'critical' %}
+                        <span class="badge badge-danger hero-badge"><i class="fas fa-exclamation-triangle mr-1"></i>Critical{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}</span>
+                    {% elif assessment.case_severity == 'high' %}
+                        <span class="badge badge-warning hero-badge"><i class="fas fa-exclamation-circle mr-1"></i>High{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}</span>
+                    {% elif assessment.case_severity == 'moderate' %}
+                        <span class="badge badge-info hero-badge"><i class="fas fa-balance-scale mr-1"></i>Moderate{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}</span>
+                    {% elif assessment.case_severity == 'low' %}
+                        <span class="badge badge-primary hero-badge"><i class="fas fa-check-circle mr-1"></i>Low{% if assessment.severity_score is not none %} ({{ assessment.severity_score }}){% endif %}</span>
+                    {% else %}
+                        <span class="badge badge-secondary hero-badge"><i class="fas fa-minus-circle mr-1"></i>Severity Unrated</span>
+                    {% endif %}
+                </div>
+                <div class="hero-updated">
+                    <i class="fas fa-calendar-alt mr-1"></i>
+                    <strong>Created:</strong> {{ assessment.created_at|manila('%B %d, %Y %I:%M %p') }}
                 </div>
             </div>
         </div>
@@ -153,55 +337,55 @@
     <div class="row">
         <!-- Left Sidebar: Application Info -->
         <div class="col-lg-3 mb-4">
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white py-2">
+            <div class="card assessment-panel side-info-card mb-4">
+                <div class="card-header assessment-panel-header">
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-info-circle mr-2"></i>Application Info
                     </h6>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Applicant</small>
+                        <div class="info-label">Applicant</div>
                         <p class="mb-0">
                             {{ assessment.application.applicant.first_name }} {{ assessment.application.applicant.last_name }}
                         </p>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Email</small>
+                        <div class="info-label">Email</div>
                         <p class="mb-0">
                             <a href="mailto:{{ assessment.application.applicant.email }}">{{ assessment.application.applicant.email }}</a>
                         </p>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Program</small>
+                        <div class="info-label">Program</div>
                         <p class="mb-0">{{ assessment.application.program.program_name }}</p>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Application Date</small>
-                        <p class="mb-0">{{ assessment.application.application_date.strftime('%b %d, %Y') }}</p>
+                        <div class="info-label">Application Date</div>
+                        <p class="mb-0">{{ assessment.application.application_date|manila('%b %d, %Y') }}</p>
                     </div>
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Application Status</small>
+                        <div class="info-label">Application Status</div>
                         <p class="mb-0">
                             <span class="badge badge-info">{{ assessment.application.application_status | title }}</span>
                         </p>
                     </div>
                     <hr>
                     <div class="mb-3">
-                        <small class="text-muted font-weight-bold">Conducted By</small>
+                        <div class="info-label">Conducted By</div>
                         <p class="mb-0">{{ assessment.conductor.first_name }} {{ assessment.conductor.last_name }}</p>
                     </div>
                     <div class="mb-0">
-                        <small class="text-muted font-weight-bold">Created</small>
+                        <div class="info-label">Created</div>
                         <p class="mb-0">
-                            <small>{{ assessment.created_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            <small>{{ assessment.created_at|manila('%b %d, %Y %I:%M %p') }}</small>
                         </p>
                     </div>
                     {% if assessment.completed_at %}
                     <div class="mt-3 mb-0">
-                        <small class="text-muted font-weight-bold">Completed</small>
+                        <div class="info-label">Completed</div>
                         <p class="mb-0">
-                            <small>{{ assessment.completed_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+                            <small>{{ assessment.completed_at|manila('%b %d, %Y %I:%M %p') }}</small>
                         </p>
                     </div>
                     {% endif %}
@@ -209,8 +393,8 @@
             </div>
 
             <!-- Danger Zone -->
-            <div class="card shadow border-warning">
-                <div class="card-header bg-warning text-dark py-2">
+            <div class="card assessment-panel cancel-zone-card">
+                <div class="card-header assessment-panel-header">
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-ban mr-2"></i>Cancel Assessment
                     </h6>
@@ -233,13 +417,13 @@
         <!-- Main Content Area -->
         <div class="col-lg-9">
             <!-- Assessment Details Card -->
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <div class="card assessment-panel mb-4">
+                <div class="card-header assessment-panel-header d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-edit mr-2"></i>Assessment Details
                     </h6>
                     {% if assessment.status != 'completed' %}
-                    <button type="button" class="btn btn-sm btn-success" data-toggle="modal" data-target="#markCompleteModal">
+                    <button type="button" class="btn btn-sm btn-gradient-primary" data-toggle="modal" data-target="#markCompleteModal">
                         <i class="fas fa-check mr-1"></i>Mark as Complete
                     </button>
                     {% else %}
@@ -252,11 +436,11 @@
                     <form method="POST" action="{{ url_for('admin.update_assessment', assessment_id=assessment.id) }}">
                         <div class="form-row">
                             <div class="form-group col-md-8">
-                                <small class="text-muted font-weight-bold">Title</small>
+                                <div class="details-label">Title</div>
                                 <input type="text" name="title" class="form-control" value="{{ assessment.title }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Status</small>
+                                <div class="details-label">Status</div>
                                 <select name="status" class="form-control">
                                     <option value="requested" {% if assessment.status == 'requested' %}selected{% endif %}>Requested</option>
                                     <option value="scheduled" {% if assessment.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
@@ -266,39 +450,39 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <small class="text-muted font-weight-bold">Description</small>
+                            <div class="details-label">Description</div>
                             <textarea name="description" class="form-control" rows="2">{{ assessment.description or '' }}</textarea>
                         </div>
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Scheduled Date</small>
+                                <div class="details-label">Scheduled Date</div>
                                 <input type="date" name="scheduled_date" class="form-control"
-                                    value="{{ assessment.scheduled_date.strftime('%Y-%m-%d') if assessment.scheduled_date else '' }}">
+                                    value="{{ assessment.scheduled_date|manila('%Y-%m-%d', '') }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Scheduled Time</small>
+                                <div class="details-label">Scheduled Time</div>
                                 <input type="text" name="scheduled_time" class="form-control" value="{{ assessment.scheduled_time or '' }}" placeholder="e.g. 09:00 AM">
                             </div>
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Location</small>
+                                <div class="details-label">Location</div>
                                 <input type="text" name="location" class="form-control" value="{{ assessment.location or '' }}">
                             </div>
                         </div>
                         <hr>
                         <h6 class="font-weight-bold"><i class="fas fa-file-medical-alt mr-1"></i> SCSR Findings &amp; Recommendations</h6>
                         <div class="form-group">
-                            <small class="text-muted font-weight-bold">Findings</small>
+                            <div class="details-label">Findings</div>
                             <textarea name="findings" class="form-control" rows="4" placeholder="Enter assessment findings / SCSR output...">{{ assessment.findings or '' }}</textarea>
                         </div>
                         <div class="form-group">
-                            <small class="text-muted font-weight-bold">Recommendations</small>
+                            <div class="details-label">Recommendations</div>
                             <textarea name="recommendations" class="form-control" rows="3" placeholder="Enter recommendations...">{{ assessment.recommendations or '' }}</textarea>
                         </div>
                         <hr>
                         <h6 class="font-weight-bold"><i class="fas fa-layer-group mr-1"></i> Case Severity (Prioritization)</h6>
                         <div class="form-row">
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Severity Level</small>
+                                <div class="details-label">Severity Level</div>
                                 <select name="case_severity" id="severityLevelSelect" class="form-control">
                                     <option value="unrated" {% if assessment.case_severity == 'unrated' %}selected{% endif %}>Unrated</option>
                                     <option value="low" {% if assessment.case_severity == 'low' %}selected{% endif %}>Low</option>
@@ -315,13 +499,13 @@
                                 </div>
                             </div>
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Severity Score (0-100)</small>
+                                <div class="details-label">Severity Score (0-100)</div>
                                 <input type="text" id="severityScoreDisplay" class="form-control" value="{{ assessment.severity_score if assessment.severity_score is not none else 'Auto-calculated from rubric' }}" readonly>
                                 <input type="hidden" name="severity_score" id="severityScore" value="{{ assessment.severity_score if assessment.severity_score is not none else '' }}">
                             </div>
                             <div class="form-group col-md-4">
-                                <small class="text-muted font-weight-bold">Last Severity Update</small>
-                                <input type="text" class="form-control" value="{{ assessment.severity_updated_at.strftime('%b %d, %Y %I:%M %p') if assessment.severity_updated_at else 'Not yet scored' }}" readonly>
+                                <div class="details-label">Last Severity Update</div>
+                                <input type="text" class="form-control" value="{{ assessment.severity_updated_at|manila('%b %d, %Y %I:%M %p', 'Not yet scored') }}" readonly>
                             </div>
                         </div>
                         <div class="card border-left-info mb-3">
@@ -342,10 +526,36 @@
                                         <tbody>
                                             {% for factor in severity_rubric_factors %}
                                             <tr>
-                                                <td>{{ factor.label }}</td>
-                                                <td>{{ (factor.weight * 100) | int }}%</td>
                                                 <td>
-                                                    <select name="severity_factor_{{ factor.key }}" class="form-control form-control-sm severity-factor-input" data-weight="{{ factor.weight }}">
+                                                    <input
+                                                        type="text"
+                                                        name="severity_factor_label_{{ factor.key }}"
+                                                        class="form-control form-control-sm"
+                                                        value="{{ factor.label }}"
+                                                        maxlength="120"
+                                                        required
+                                                    >
+                                                </td>
+                                                <td>
+                                                    <div class="input-group input-group-sm">
+                                                        <input
+                                                            type="number"
+                                                            name="severity_factor_weight_{{ factor.key }}"
+                                                            class="form-control severity-factor-weight-input"
+                                                            data-factor-key="{{ factor.key }}"
+                                                            value="{{ '%.2f'|format((factor.weight or 0) * 100) }}"
+                                                            min="0.01"
+                                                            max="100"
+                                                            step="0.01"
+                                                            required
+                                                        >
+                                                        <div class="input-group-append">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <select name="severity_factor_{{ factor.key }}" class="form-control form-control-sm severity-factor-input" data-factor-key="{{ factor.key }}">
                                                         <option value="1" {% if severity_factors_data[factor.key] == 1 %}selected{% endif %}>1</option>
                                                         <option value="2" {% if severity_factors_data[factor.key] == 2 %}selected{% endif %}>2</option>
                                                         <option value="3" {% if severity_factors_data[factor.key] == 3 %}selected{% endif %}>3</option>
@@ -361,22 +571,22 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <small class="text-muted font-weight-bold">Severity Justification</small>
+                            <div class="details-label">Severity Justification</div>
                             <textarea name="severity_justification" class="form-control" rows="3" placeholder="Explain why this case should be prioritized at the selected severity level.">{{ assessment.severity_justification or '' }}</textarea>
                             <small class="form-text text-muted">Required for high and critical levels to support fairness and auditability.</small>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i>Save Changes</button>
+                        <button type="submit" class="btn btn-gradient-primary"><i class="fas fa-save mr-1"></i>Save Changes</button>
                     </form>
                 </div>
             </div>
 
             <!-- Supporting Documents Section -->
-            <div class="card shadow mb-4">
-                <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <div class="card assessment-panel mb-4">
+                <div class="card-header assessment-panel-header d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-folder-open mr-2"></i>Supporting Documents
                     </h6>
-                    <button class="btn btn-sm btn-light" data-toggle="modal" data-target="#uploadDocModal">
+                    <button class="btn btn-sm btn-outline-custom" data-toggle="modal" data-target="#uploadDocModal">
                         <i class="fas fa-upload mr-1"></i>Upload Document
                     </button>
                 </div>
@@ -408,7 +618,7 @@
                                             -
                                         {% endif %}
                                     </td>
-                                    <td><small>{{ doc.uploaded_at.strftime('%b %d, %Y') }}</small></td>
+                                    <td><small>{{ doc.uploaded_at|manila('%b %d, %Y') }}</small></td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
                                             <button type="button" class="btn btn-info" data-toggle="modal" data-target="#previewModal{{ doc.id }}" title="View document">
@@ -422,9 +632,9 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                        <p class="text-muted mb-0">No supporting documents uploaded yet.</p>
+                    <div class="doc-empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p class="mb-0">No supporting documents uploaded yet.</p>
                     </div>
                     {% endif %}
                 </div>
@@ -434,11 +644,11 @@
 </div>
 
 <!-- Upload Document Modal -->
-<div class="modal fade" id="uploadDocModal" tabindex="-1" role="dialog">
+<div class="modal fade modal-modern" id="uploadDocModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.upload_assessment_document', assessment_id=assessment.id) }}" enctype="multipart/form-data">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header modal-header-gradient-primary">
                     <h5 class="modal-title">
                         <i class="fas fa-upload mr-2"></i>Upload Document
                     </h5>
@@ -468,12 +678,12 @@
 
 <!-- Preview Document Modals -->
 {% for doc in assessment.documents %}
-<div class="modal fade" id="previewModal{{ doc.id }}" tabindex="-1" role="dialog"
+<div class="modal fade modal-modern" id="previewModal{{ doc.id }}" tabindex="-1" role="dialog"
     data-filename="{{ doc.original_filename }}"
     data-view-url="{{ url_for('admin.view_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
+            <div class="modal-header modal-header-gradient-info">
                 <h5 class="modal-title">
                     <i class="fas fa-eye mr-2"></i>Preview: {{ doc.original_filename }}
                 </h5>
@@ -508,12 +718,12 @@
 </div>
 
 <!-- Fullscreen Preview Modal -->
-<div class="modal fade" id="fullscreenModal{{ doc.id }}" tabindex="-1" role="dialog" 
+<div class="modal fade modal-modern" id="fullscreenModal{{ doc.id }}" tabindex="-1" role="dialog" 
     data-filename="{{ doc.original_filename }}"
     data-view-url="{{ url_for('admin.view_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}">
     <div class="modal-dialog modal-xl" role="document" style="max-width: 95vw; max-height: 95vh;">
         <div class="modal-content" style="height: 90vh; display: flex; flex-direction: column;">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header modal-header-gradient-success">
                 <h5 class="modal-title">
                     <i class="fas fa-expand-alt mr-2"></i>{{ doc.original_filename }}
                 </h5>
@@ -539,10 +749,10 @@
 </div>
 
 <!-- Delete Document Modal -->
-<div class="modal fade" id="deleteModal{{ doc.id }}" tabindex="-1" role="dialog">
+<div class="modal fade modal-modern" id="deleteModal{{ doc.id }}" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+            <div class="modal-header modal-header-gradient-danger">
                 <h5 class="modal-title">
                     <i class="fas fa-trash mr-2"></i>Delete Document
                 </h5>
@@ -567,11 +777,11 @@
 </div>
 
 <!-- Reupload Document Modal -->
-<div class="modal fade" id="reuploadModal{{ doc.id }}" tabindex="-1" role="dialog">
+<div class="modal fade modal-modern" id="reuploadModal{{ doc.id }}" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <form method="POST" action="{{ url_for('admin.reupload_assessment_document', assessment_id=assessment.id, document_id=doc.id) }}" enctype="multipart/form-data">
-                <div class="modal-header bg-warning text-dark">
+                <div class="modal-header modal-header-gradient-warning">
                     <h5 class="modal-title">
                         <i class="fas fa-redo mr-2"></i>Reupload Document
                     </h5>
@@ -604,10 +814,10 @@
 {% endfor %}
 
 <!-- Mark as Complete Confirmation Modal -->
-<div class="modal fade" id="markCompleteModal" tabindex="-1" role="dialog">
+<div class="modal fade modal-modern" id="markCompleteModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header modal-header-gradient-success">
                 <h5 class="modal-title">
                     <i class="fas fa-check-circle mr-2"></i>Mark Assessment as Complete
                 </h5>
@@ -633,10 +843,10 @@
 </div>
 
 <!-- Cancel Assessment Confirmation Modal -->
-<div class="modal fade" id="cancelAssessmentModal" tabindex="-1" role="dialog">
+<div class="modal fade modal-modern" id="cancelAssessmentModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header modal-header-gradient-warning">
                 <h5 class="modal-title">
                     <i class="fas fa-ban mr-2"></i>Cancel Assessment
                 </h5>
@@ -689,17 +899,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateSeverityScoreFromRubric() {
         var factorInputs = document.querySelectorAll('.severity-factor-input');
         var weightedTotal = 0;
+        var totalWeight = 0;
         var hasValidFactors = true;
 
         factorInputs.forEach(function(input) {
             var score = parseInt(input.value || '0', 10);
-            var weight = parseFloat(input.getAttribute('data-weight') || '0');
+            var factorKey = input.getAttribute('data-factor-key') || '';
+            var weightInput = document.querySelector('.severity-factor-weight-input[data-factor-key="' + factorKey + '"]');
+            var rawWeight = parseFloat((weightInput && weightInput.value) || '0');
+            var weight = rawWeight > 1 ? (rawWeight / 100) : rawWeight;
 
-            if (!score || score < 1 || score > 5) {
+            if (!score || score < 1 || score > 5 || !weight || weight <= 0) {
                 hasValidFactors = false;
                 return;
             }
 
+            totalWeight += weight;
             weightedTotal += (score * weight);
         });
 
@@ -709,8 +924,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var overrideCheckbox = document.getElementById('severityOverrideCheckbox');
         var suggestionText = document.getElementById('severitySuggestionText');
 
-        if (hasValidFactors && factorInputs.length > 0) {
-            var computedScore = Math.round((weightedTotal / 5) * 100);
+        if (hasValidFactors && factorInputs.length > 0 && totalWeight > 0) {
+            var computedScore = Math.round((weightedTotal / (5 * totalWeight)) * 100);
             var suggestedLevel = getSeverityLevelFromScore(computedScore);
             hiddenScoreInput.value = computedScore;
             scoreDisplayInput.value = computedScore;
@@ -745,6 +960,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var rubricInputs = document.querySelectorAll('.severity-factor-input');
     rubricInputs.forEach(function(input) {
+        input.addEventListener('change', calculateSeverityScoreFromRubric);
+    });
+
+    var rubricWeightInputs = document.querySelectorAll('.severity-factor-weight-input');
+    rubricWeightInputs.forEach(function(input) {
+        input.addEventListener('input', calculateSeverityScoreFromRubric);
         input.addEventListener('change', calculateSeverityScoreFromRubric);
     });
 
@@ -832,3 +1053,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
