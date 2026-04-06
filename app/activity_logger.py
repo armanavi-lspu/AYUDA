@@ -161,7 +161,15 @@ def log_verification_request(user, verification_type, action, rejection_reason=N
     """Log processing of verification requests (Senior Citizen, PWD, Solo Parent)"""
     user_name = f"{user.first_name} {user.last_name}" if user else 'Unknown User'
     type_label = verification_type.replace('_', ' ').title()
-    action_label = 'Approved' if action == 'approve' else 'Rejected'
+    action_labels = {
+        'approve': 'Approved',
+        'decline': 'Declined',
+        'return': 'Returned',
+        # Keep legacy terms mapped for historical compatibility.
+        'reject': 'Declined',
+        'reupload': 'Returned',
+    }
+    action_label = action_labels.get(action, action.replace('_', ' ').title())
     
     description = f"{action_label} {type_label} verification for {user_name}"
     
@@ -176,7 +184,7 @@ def log_verification_request(user, verification_type, action, rejection_reason=N
     
     log_activity(
         action=f'{action}_verification',
-        action_type='approve' if action == 'approve' else 'reject',
+        action_type='approve' if action == 'approve' else ('return' if action in {'return', 'reupload'} else 'reject'),
         entity_type='verification',
         description=description,
         entity_id=user.id,

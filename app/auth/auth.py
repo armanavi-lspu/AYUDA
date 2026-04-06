@@ -70,11 +70,16 @@ def login():
 
         # Successful login
         login_user(user, remember=True)
+        user.last_activity = datetime.utcnow()
         
-        # Log login activity (only for community users)
+        # Log login activity (community users) and persist last activity.
         if user.role == 'community':
             log_login(user.id)
+
+        try:
             db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         if is_ajax_request():
             if user.role == 'admin':

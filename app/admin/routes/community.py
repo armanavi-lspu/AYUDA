@@ -104,12 +104,17 @@ def community():
     # Get statistics
     total_users = User.query.filter_by(role='community').count()
     
-    # Active users (last 7 days)
+    # Active users (last 7 days): consider both users.last_activity and activity logs.
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    active_users = User.query.filter(
-        User.role == 'community',
-        User.last_activity >= seven_days_ago
-    ).count()
+    active_users = db.session.query(func.count(func.distinct(User.id)))\
+        .outerjoin(UserActivityLog, UserActivityLog.user_id == User.id)\
+        .filter(User.role == 'community')\
+        .filter(
+            or_(
+                User.last_activity >= seven_days_ago,
+                UserActivityLog.created_at >= seven_days_ago
+            )
+        ).scalar() or 0
     
     # Users with applications - FIX: Specify the join condition explicitly
     users_with_apps = db.session.query(func.count(func.distinct(Applications.user_id)))\
@@ -570,7 +575,7 @@ def community_verify():
 @login_required
 @role_required('admin')
 def process_verification(user_id, verification_type):
-    """Process a verification request (approve, reupload, or decline)."""
+    """Process a verification request (approve, return, or decline)."""
     community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
     user = User.query.get(user_id)
 
@@ -579,7 +584,7 @@ def process_verification(user_id, verification_type):
     id_number = request.form.get('id_number', '').strip()
 
     valid_types = {'senior_citizen', 'pwd', 'solo_parent'}
-    valid_actions = {'approve', 'reupload', 'reject'}
+    valid_actions = {'approve', 'return', 'decline', 'reupload', 'reject'}
     user_display_name = f'{user.first_name} {user.last_name}' if user else f'User #{user_id}'
 
     if verification_type not in valid_types:
@@ -590,8 +595,14 @@ def process_verification(user_id, verification_type):
         flash('Invalid verification action.', 'error')
         return redirect(url_for('admin.community_verify'))
 
-    if action in {'reupload', 'reject'} and not rejection_reason:
-        flash('Admin note is required for Reupload and Decline actions.', 'warning')
+    # Backward compatibility for existing form values.
+    if action == 'reupload':
+        action = 'return'
+    elif action == 'reject':
+        action = 'decline'
+
+    if action in {'return', 'decline'} and not rejection_reason:
+        flash('Admin note is required for Return and Decline actions.', 'warning')
         return redirect(url_for('admin.community_verify'))
     
     try:
@@ -622,10 +633,10 @@ def process_verification(user_id, verification_type):
                 community_user.senior_citizen_verified_by = None
                 community_user.senior_citizen_rejection_reason = rejection_reason
 
-                if action == 'reupload':
-                    notif_title = 'Senior Citizen Verification Requires Reupload'
-                    notif_message = f'Your Senior Citizen verification requires document reupload. Admin note: {rejection_reason}'
-                    flash_message = f'Senior Citizen verification marked for reupload for {user_display_name}.'
+                if action == 'return':
+                    notif_title = 'Senior Citizen Verification Returned'
+                    notif_message = f'Your Senior Citizen verification was returned for corrections. Admin note: {rejection_reason}'
+                    flash_message = f'Senior Citizen verification returned for {user_display_name}.'
                 else:
                     notif_title = 'Senior Citizen Verification Declined'
                     notif_message = f'Your Senior Citizen verification was declined. Admin note: {rejection_reason}'
@@ -668,10 +679,10 @@ def process_verification(user_id, verification_type):
                 community_user.pwd_verified_by = None
                 community_user.pwd_rejection_reason = rejection_reason
 
-                if action == 'reupload':
-                    notif_title = 'PWD Verification Requires Reupload'
-                    notif_message = f'Your PWD verification requires document reupload. Admin note: {rejection_reason}'
-                    flash_message = f'PWD verification marked for reupload for {user_display_name}.'
+                if action == 'return':
+                    notif_title = 'PWD Verification Returned'
+                    notif_message = f'Your PWD verification was returned for corrections. Admin note: {rejection_reason}'
+                    flash_message = f'PWD verification returned for {user_display_name}.'
                 else:
                     notif_title = 'PWD Verification Declined'
                     notif_message = f'Your PWD verification was declined. Admin note: {rejection_reason}'
@@ -714,10 +725,10 @@ def process_verification(user_id, verification_type):
                 community_user.solo_parent_verified_by = None
                 community_user.solo_parent_rejection_reason = rejection_reason
 
-                if action == 'reupload':
-                    notif_title = 'Solo Parent Verification Requires Reupload'
-                    notif_message = f'Your Solo Parent verification requires document reupload. Admin note: {rejection_reason}'
-                    flash_message = f'Solo Parent verification marked for reupload for {user_display_name}.'
+                if action == 'return':
+                    notif_title = 'Solo Parent Verification Returned'
+                    notif_message = f'Your Solo Parent verification was returned for corrections. Admin note: {rejection_reason}'
+                    flash_message = f'Solo Parent verification returned for {user_display_name}.'
                 else:
                     notif_title = 'Solo Parent Verification Declined'
                     notif_message = f'Your Solo Parent verification was declined. Admin note: {rejection_reason}'
@@ -735,8 +746,8 @@ def process_verification(user_id, verification_type):
                 flash(flash_message, 'warning')
         
         # Log verification request activity
-        log_action = 'approve' if action == 'approve' else 'reject'
-        log_note = rejection_reason if action in {'reject', 'reupload'} else None
+        log_action = action
+        log_note = rejection_reason if action in {'decline', 'return'} else None
         log_verification_request(user, verification_type, log_action, log_note)
         
         db.session.commit()

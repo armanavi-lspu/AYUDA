@@ -3,130 +3,321 @@
 
 {% block extra_css %}
 <style>
-    .requirement-card {
-        border: 1px solid #e3e6f0;
-        border-radius: 8px;
-        transition: all 0.2s;
-        background: white;
+    :root {
+        --req-blue: #1f6feb;
+        --req-indigo: #1942a8;
+        --req-cyan: #0ea5a6;
+        --req-surface: #ffffff;
+        --req-border: #dbe6fb;
+        --req-text: #1f2937;
+        --req-muted: #64748b;
     }
-    
-    .requirement-card:hover {
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-        transform: translateY(-2px);
+
+    .requirements-shell {
+        animation: requirementsFadeIn 0.35s ease-out;
     }
-    
-    .requirement-header {
-        cursor: pointer;
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid #e3e6f0;
-        background: #f8f9fc;
-        border-radius: 8px 8px 0 0;
+
+    @keyframes requirementsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    
-    .requirement-header:hover {
-        background: #eaecf4;
+
+    .requirements-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.17), transparent 42%),
+            linear-gradient(132deg, #f6f9ff 0%, #ffffff 62%);
+        border: 1px solid var(--req-border);
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(31, 42, 68, 0.08);
+        padding: 1.25rem 1.4rem;
     }
-    
-    .requirement-body {
-        padding: 1.25rem;
+
+    .requirements-hero h1 {
+        color: #102a52;
+        font-weight: 700;
+        letter-spacing: 0.2px;
     }
-    
-    .usage-badge {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
+
+    .requirements-hero .subtitle {
+        color: var(--req-muted);
+        margin-bottom: 0.55rem;
     }
-    
-    .program-tag {
-        background: #e3f2fd;
-        color: #1976d2;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        margin: 0.125rem;
-        display: inline-block;
+
+    .hero-kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
     }
-    
-    .program-tag.mandatory {
-        background: #fff3e0;
-        color: #f57c00;
+
+    .hero-kpis .kpi-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.25px;
+        text-transform: uppercase;
+        border: 1px solid #d7e5fd;
+        background: #f5f9ff;
+        color: #21406f;
     }
-    
-    .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+
+    .hero-actions .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.58rem 1.05rem;
+    }
+
+    .hero-actions .btn-primary {
+        background: linear-gradient(135deg, var(--req-blue) 0%, var(--req-indigo) 100%);
         border: none;
     }
-    
+
+    .hero-actions .btn-primary:hover {
+        transform: translateY(-1px);
+    }
+
     .filter-section {
-        background: #f8f9fc;
-        border-radius: 8px;
+        background: var(--req-surface);
+        border: 1px solid var(--req-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 22px rgba(30, 45, 70, 0.06);
+        padding: 1rem 1.1rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .filter-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        color: #3e5d8c;
+    }
+
+    .filter-section .form-control,
+    .filter-section .input-group-text {
+        border-color: #d4e2fa;
+        border-radius: 10px;
+    }
+
+    .filter-section .form-control:focus {
+        border-color: #7aa8f5;
+        box-shadow: 0 0 0 0.15rem rgba(31, 111, 235, 0.14);
+    }
+
+    .filter-clear-btn {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .section-surface-card {
+        border: 1px solid #dce8fb;
+        border-radius: 14px;
+        box-shadow: 0 10px 26px rgba(30, 45, 70, 0.07);
+        overflow: hidden;
+    }
+
+    .section-header {
+        border-bottom: 1px solid #d9e6fb;
+        padding: 0.85rem 1rem;
+    }
+
+    .section-header.doc-header {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+    }
+
+    .section-header.qual-header {
+        background: linear-gradient(135deg, #16945a 0%, #107649 100%);
+        color: #fff;
+    }
+
+    .section-add-btn {
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    .requirement-card {
+        border: 1px solid #e3eaf8;
+        border-radius: 12px;
+        background: #fff;
+        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        box-shadow: 0 4px 12px rgba(22, 36, 63, 0.05);
+        overflow: hidden;
+    }
+
+    .requirement-card:hover {
+        border-color: #bfd5f7;
+        transform: translateY(-3px);
+        box-shadow: 0 14px 24px rgba(27, 50, 87, 0.12);
+    }
+
+    .requirement-header {
+        cursor: pointer;
+        padding: 0.95rem 1rem;
+        border-bottom: 1px solid #e7effb;
+        background: linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
+    }
+
+    .requirement-header:hover {
+        background: linear-gradient(180deg, #f4f8ff 0%, #eef4ff 100%);
+    }
+
+    .requirement-name {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-weight: 700;
+        color: var(--req-text);
+        margin-bottom: 0.55rem;
+        line-height: 1.3;
+    }
+
+    .expand-cue {
+        color: #7b92b4;
+        font-size: 0.78rem;
+        margin-right: 0.35rem;
+    }
+
+    .requirement-body {
         padding: 1rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid #e3e6f0;
+        background: #fff;
     }
-    
-    .section-divider {
-        margin: 2rem 0;
-        border-top: 2px solid #e3e6f0;
-        position: relative;
+
+    .usage-badge {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+        font-weight: 600;
     }
-    
-    .section-divider::before {
-        content: attr(data-section);
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: white;
-        padding: 0 1rem;
-        font-weight: bold;
-        color: #5a5c69;
+
+    .program-tag {
+        background: #e8f1ff;
+        color: #24579b;
+        padding: 0.26rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        margin: 0.12rem;
+        display: inline-block;
+        border: 1px solid #d7e4fb;
     }
-    
+
+    .program-tag.mandatory {
+        background: #fff5df;
+        color: #a36a00;
+        border-color: #f6deaa;
+    }
+
     .action-buttons {
         opacity: 0;
-        transition: opacity 0.2s;
+        transition: opacity 0.2s ease;
+        display: inline-flex;
+        align-items: center;
     }
-    
+
     .requirement-card:hover .action-buttons {
         opacity: 1;
     }
-    
-    .requirement-name {
-        font-weight: 600;
-        color: #5a5c69;
-        margin-bottom: 0.5rem;
-    }
-    
-    .requirement-description {
-        color: #858796;
-        font-size: 0.875rem;
-        margin-bottom: 0.75rem;
-    }
-    
-    .requirement-meta {
-        font-size: 0.75rem;
-        color: #858796;
-    }
-    
-    .bulk-actions {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
+
+    .action-buttons .btn {
         border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-        display: none;
+        min-width: 2rem;
     }
-    
+
+    .requirement-description {
+        color: #5f6f86;
+        font-size: 0.87rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.48;
+    }
+
+    .requirement-meta {
+        font-size: 0.76rem;
+        color: #6c7f98;
+        padding-top: 0.5rem;
+        border-top: 1px dashed #dde8f9;
+    }
+
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #687a93;
+    }
+
+    .empty-state i {
+        color: #99adc8;
+    }
+
+    .bulk-actions {
+        background: linear-gradient(135deg, #fff9e7 0%, #fff2c7 100%);
+        border: 1px solid #f4df9e;
+        border-radius: 12px;
+        padding: 0.8rem 1rem;
+        margin-bottom: 1.2rem;
+        display: none;
+        box-shadow: 0 8px 18px rgba(128, 101, 34, 0.14);
+    }
+
     .bulk-actions.active {
         display: block;
     }
-    
+
+    #requirementModal .modal-content,
+    #deleteModal .modal-content {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 18px 34px rgba(24, 34, 53, 0.24);
+    }
+
+    #requirementModal .modal-header {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+        border-bottom: none;
+    }
+
+    #deleteModal .modal-header {
+        background: linear-gradient(135deg, #dc3545 0%, #bf2232 100%);
+        color: #fff;
+        border-bottom: none;
+    }
+
+    #requirementModal .close,
+    #deleteModal .close {
+        color: #fff;
+        opacity: 0.85;
+    }
+
+    @media (max-width: 991.98px) {
+        .requirements-hero {
+            padding: 1.05rem;
+        }
+
+        .hero-actions {
+            margin-top: 0.65rem;
+        }
+
+        .hero-actions .btn {
+            width: 100%;
+            margin-bottom: 0.4rem;
+        }
+    }
+
     @media (max-width: 768px) {
         .requirement-card {
-            margin-bottom: 1rem;
+            margin-bottom: 0.9rem;
         }
-        
+
         .action-buttons {
             opacity: 1;
         }
@@ -135,22 +326,28 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Heading -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="fas fa-clipboard-list mr-2"></i>Manage Requirements
-            </h1>
-            <p class="text-muted">Comprehensive management of program requirements</p>
-        </div>
-        <div>
-            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-sm btn-secondary mr-2">
-                <i class="fas fa-arrow-left mr-1"></i>Back to Programs
-            </a>
-            <button class="btn btn-sm btn-primary" onclick="openAddRequirementModal()">
-                <i class="fas fa-plus mr-1"></i>Add New Requirement
-            </button>
+<div class="container-fluid requirements-shell">
+    <div class="requirements-hero mb-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+            <div>
+                <h1 class="h3 mb-1">
+                    <i class="fas fa-clipboard-list mr-2"></i>Manage Requirements
+                </h1>
+                <p class="subtitle">Create, maintain, and organize requirement rules used across assistance programs.</p>
+                <div class="hero-kpis">
+                    <span class="kpi-chip"><i class="fas fa-layer-group"></i>{{ stats.total }} Total</span>
+                    <span class="kpi-chip"><i class="fas fa-file-alt"></i>{{ stats.document }} Documents</span>
+                    <span class="kpi-chip"><i class="fas fa-user-check"></i>{{ stats.qualification }} Qualifications</span>
+                </div>
+            </div>
+            <div class="hero-actions mt-3 mt-lg-0">
+                <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary mr-lg-2">
+                    <i class="fas fa-arrow-left mr-1"></i>Back to Programs
+                </a>
+                <button class="btn btn-primary" onclick="openAddRequirementModal()">
+                    <i class="fas fa-plus mr-1"></i>Add New Requirement
+                </button>
+            </div>
         </div>
     </div>
 
@@ -229,7 +426,8 @@
     <!-- Filter Section -->
     <div class="filter-section">
         <div class="row align-items-center">
-            <div class="col-md-4">
+            <div class="col-lg-4 col-md-6 mb-3 mb-lg-0">
+                <label class="filter-label" for="searchInput">Search</label>
                 <div class="input-group">
                     <div class="input-group-prepend">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
@@ -237,22 +435,25 @@
                     <input type="text" class="form-control" id="searchInput" placeholder="Search requirements...">
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
+                <label class="filter-label" for="typeFilter">Type</label>
                 <select class="form-control" id="typeFilter">
                     <option value="">All Types</option>
                     <option value="document">Document Requirements</option>
                     <option value="qualification">Qualification Requirements</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-lg-3 col-md-6 mb-3 mb-md-0">
+                <label class="filter-label" for="usageFilter">Usage</label>
                 <select class="form-control" id="usageFilter">
                     <option value="">All Requirements</option>
                     <option value="used">In Use</option>
                     <option value="unused">Unused</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-primary btn-block" onclick="clearFilters()">
+            <div class="col-lg-2 col-md-6">
+                <label class="filter-label d-none d-md-block">Reset</label>
+                <button class="btn btn-outline-secondary btn-block filter-clear-btn" onclick="clearFilters()">
                     <i class="fas fa-undo mr-1"></i>Clear
                 </button>
             </div>
@@ -277,12 +478,12 @@
     </div>
 
     <!-- Document Requirements Section -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
+    <div class="card section-surface-card mb-4">
+        <div class="card-header section-header doc-header d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold">
                 <i class="fas fa-file-alt mr-2"></i>Document Requirements ({{ document_requirements|length }})
             </h6>
-            <button class="btn btn-sm btn-light" onclick="openAddRequirementModal('document')">
+            <button class="btn btn-sm btn-light section-add-btn" onclick="openAddRequirementModal('document')">
                 <i class="fas fa-plus mr-1"></i>Add Document
             </button>
         </div>
@@ -300,7 +501,7 @@
                                     <div class="flex-grow-1">
                                         <div class="requirement-name">
                                             <input type="checkbox" class="mr-2 requirement-checkbox" value="{{ req_data.requirement.id }}">
-                                            {{ req_data.requirement.requirement_name }}
+                                            <span>{{ req_data.requirement.requirement_name }}</span>
                                         </div>
                                         <div class="d-flex align-items-center">
                                             <span class="usage-badge badge badge-{% if req_data.usage_count > 0 %}info{% else %}secondary{% endif %} mr-2">
@@ -311,7 +512,9 @@
                                             {% endif %}
                                         </div>
                                     </div>
-                                    <div class="action-buttons ml-2">
+                                    <div class="d-flex align-items-center ml-2">
+                                        <span class="expand-cue" title="Click to expand"><i class="fas fa-chevron-down"></i></span>
+                                        <div class="action-buttons">
                                         <button class="btn btn-sm btn-outline-primary" 
                                                 onclick="editRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}', '{{ req_data.requirement.description or '' }}', 'document'); event.stopPropagation();"
                                                 title="Edit requirement">
@@ -322,6 +525,7 @@
                                                 title="Delete requirement">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -359,7 +563,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="text-center text-muted py-4">
+                <div class="empty-state">
                     <i class="fas fa-file-alt fa-3x mb-3"></i>
                     <p class="mb-2">No document requirements found</p>
                     <button class="btn btn-outline-primary" onclick="openAddRequirementModal('document')">
@@ -371,12 +575,12 @@
     </div>
 
     <!-- Qualification Requirements Section -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-success text-white d-flex justify-content-between align-items-center">
+    <div class="card section-surface-card mb-4">
+        <div class="card-header section-header qual-header d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold">
                 <i class="fas fa-user-check mr-2"></i>Qualification Requirements ({{ qualification_requirements|length }})
             </h6>
-            <button class="btn btn-sm btn-light" onclick="openAddRequirementModal('qualification')">
+            <button class="btn btn-sm btn-light section-add-btn" onclick="openAddRequirementModal('qualification')">
                 <i class="fas fa-plus mr-1"></i>Add Qualification
             </button>
         </div>
@@ -394,7 +598,7 @@
                                     <div class="flex-grow-1">
                                         <div class="requirement-name">
                                             <input type="checkbox" class="mr-2 requirement-checkbox" value="{{ req_data.requirement.id }}">
-                                            {{ req_data.requirement.requirement_name }}
+                                            <span>{{ req_data.requirement.requirement_name }}</span>
                                         </div>
                                         <div class="d-flex align-items-center">
                                             <span class="usage-badge badge badge-{% if req_data.usage_count > 0 %}success{% else %}secondary{% endif %} mr-2">
@@ -405,7 +609,9 @@
                                             {% endif %}
                                         </div>
                                     </div>
-                                    <div class="action-buttons ml-2">
+                                    <div class="d-flex align-items-center ml-2">
+                                        <span class="expand-cue" title="Click to expand"><i class="fas fa-chevron-down"></i></span>
+                                        <div class="action-buttons">
                                         <button class="btn btn-sm btn-outline-success" 
                                                 onclick="editRequirement({{ req_data.requirement.id }}, '{{ req_data.requirement.requirement_name }}', '{{ req_data.requirement.description or '' }}', 'qualification'); event.stopPropagation();"
                                                 title="Edit requirement">
@@ -416,6 +622,7 @@
                                                 title="Delete requirement">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -453,7 +660,7 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="text-center text-muted py-4">
+                <div class="empty-state">
                     <i class="fas fa-user-check fa-3x mb-3"></i>
                     <p class="mb-2">No qualification requirements found</p>
                     <button class="btn btn-outline-success" onclick="openAddRequirementModal('qualification')">

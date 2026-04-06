@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, flash, redirect, url_for
 from pathlib import Path
 from flask_login import LoginManager, current_user
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFError
 from urllib.parse import urlparse
@@ -115,6 +116,31 @@ def create_app():
             ).count()
             return {'admin_unread_count': count}
         return {'admin_unread_count': 0}
+
+    @app.before_request
+    def update_last_activity():
+        """Persist user activity timestamp for profile/admin metrics."""
+        if not current_user.is_authenticated:
+            return
+
+        if request.endpoint in {None, 'static'}:
+            return
+
+        if request.path.startswith('/static/') or request.path.startswith('/socket.io'):
+            return
+
+        now = datetime.utcnow()
+        previous_activity = current_user.last_activity
+
+        # Throttle writes to reduce unnecessary updates on rapid requests.
+        if previous_activity and (now - previous_activity) < timedelta(minutes=2):
+            return
+
+        try:
+            current_user.last_activity = now
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     # Register Socket.IO handlers and SQLAlchemy realtime hooks.
     from . import socketio_events  # noqa: F401

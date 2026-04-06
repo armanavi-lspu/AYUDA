@@ -100,6 +100,54 @@
         filter: brightness(1.05);
     }
 
+    .signup-loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(11, 44, 95, 0.78);
+        backdrop-filter: blur(2px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2100;
+        padding: 1rem;
+    }
+
+    .signup-loading-overlay.show {
+        display: flex;
+    }
+
+    .signup-loading-card {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 1.2rem 1.4rem;
+        min-width: 270px;
+        text-align: center;
+        box-shadow: 0 14px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .signup-loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #d7e4f8;
+        border-top-color: #1f5ea8;
+        border-radius: 50%;
+        margin: 0 auto 0.8rem;
+        animation: signupSpin 0.8s linear infinite;
+    }
+
+    .signup-loading-text {
+        margin: 0;
+        color: #0b2c5f;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    @keyframes signupSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
     .auth-switch {
         color: #607186;
         margin-top: 0.9rem;
@@ -138,6 +186,12 @@
 
                     <div class="signup-body">
                         <form method="POST" id="signUpForm" novalidate>
+                            {% set first_name_value = request.form.get('firstName', '') %}
+                            {% set last_name_value = request.form.get('lastName', '') %}
+                            {% set birth_date_value = request.form.get('birthDate', '') %}
+                            {% set selected_gender = request.form.get('gender', '') %}
+                            {% set email_value = request.form.get('email', '') %}
+
                             <h5 class="section-title">Personal Information</h5>
                             <div class="section-panel">
                                 <div class="form-row">
@@ -149,6 +203,7 @@
                                             id="firstName"
                                             name="firstName"
                                             placeholder="Juan"
+                                            value="{{ first_name_value }}"
                                             pattern="[A-Za-z\s]+"
                                             required
                                         >
@@ -162,6 +217,7 @@
                                             id="lastName"
                                             name="lastName"
                                             placeholder="Dela Cruz"
+                                            value="{{ last_name_value }}"
                                             pattern="[A-Za-z\s]+"
                                             required
                                         >
@@ -172,7 +228,7 @@
                                 <div class="form-row">
                                     <div class="form-group col-md-6">
                                         <label for="birthDate" class="required-field">Birth Date</label>
-                                        <input type="date" class="form-control" id="birthDate" name="birthDate" required>
+                                        <input type="date" class="form-control" id="birthDate" name="birthDate" value="{{ birth_date_value }}" required>
                                         <div class="invalid-feedback" id="birthDateFeedback">Please select a valid birth date.</div>
                                         <small class="hint-text">You must be at least 18 years old to register.</small>
                                     </div>
@@ -180,10 +236,10 @@
                                         <label for="gender" class="required-field">Gender</label>
                                         <select class="custom-select" id="gender" name="gender" required>
                                             <option value="">Select Gender</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                            <option value="Other">Other</option>
-                                            <option value="Prefer not to say">Prefer not to say</option>
+                                            <option value="Male" {% if selected_gender == 'Male' %}selected{% endif %}>Male</option>
+                                            <option value="Female" {% if selected_gender == 'Female' %}selected{% endif %}>Female</option>
+                                            <option value="Other" {% if selected_gender == 'Other' %}selected{% endif %}>Other</option>
+                                            <option value="Prefer not to say" {% if selected_gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
                                         </select>
                                         <div class="invalid-feedback">Please select your gender.</div>
                                     </div>
@@ -243,6 +299,7 @@
                                         id="email"
                                         name="email"
                                         placeholder="juan.delacruz@gmail.com"
+                                        value="{{ email_value }}"
                                         required
                                     >
                                     <div class="invalid-feedback">Please provide a valid email address.</div>
@@ -311,9 +368,17 @@
     </div>
 </section>
 
+<div id="signupLoadingOverlay" class="signup-loading-overlay" aria-live="assertive" aria-label="Creating your account">
+    <div class="signup-loading-card" role="status">
+        <div class="signup-loading-spinner" aria-hidden="true"></div>
+        <p class="signup-loading-text">Creating your account ....</p>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('signUpForm');
+    const loadingOverlay = document.getElementById('signupLoadingOverlay');
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const birthDateInput = document.getElementById('birthDate');
@@ -322,6 +387,72 @@ document.addEventListener('DOMContentLoaded', function() {
     const barangayInput = document.getElementById('barangay');
     const addressInput = document.getElementById('address');
     const municipalityBarangays = JSON.parse('{{ municipality_barangays | tojson | safe }}');
+    const signupDraftKey = 'ayuda_signup_draft_v1';
+    const draftFieldIds = [
+        'firstName',
+        'lastName',
+        'birthDate',
+        'gender',
+        'municipality',
+        'barangay',
+        'address',
+        'email'
+    ];
+
+    function saveSignupDraft() {
+        const draft = {};
+        draftFieldIds.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                draft[fieldId] = field.value;
+            }
+        });
+        localStorage.setItem(signupDraftKey, JSON.stringify(draft));
+    }
+
+    function loadSignupDraft() {
+        const rawDraft = localStorage.getItem(signupDraftKey);
+        if (!rawDraft) {
+            return;
+        }
+
+        let draft = null;
+        try {
+            draft = JSON.parse(rawDraft);
+        } catch (error) {
+            localStorage.removeItem(signupDraftKey);
+            return;
+        }
+
+        if (!draft || typeof draft !== 'object') {
+            return;
+        }
+
+        draftFieldIds.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (!field) {
+                return;
+            }
+
+            const serverValue = field.value;
+            const draftValue = draft[fieldId];
+            if (!serverValue && typeof draftValue === 'string') {
+                field.value = draftValue;
+            }
+        });
+    }
+
+    function showSignupLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('show');
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Account...';
+        }
+    }
 
     function setupToggle(buttonId, inputId, iconId) {
         const button = document.getElementById(buttonId);
@@ -401,6 +532,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupToggle('togglePassword', 'password', 'passwordIcon');
     setupToggle('toggleConfirmPassword', 'confirmPassword', 'confirmPasswordIcon');
 
+    loadSignupDraft();
+
     confirmPasswordInput.addEventListener('input', validatePasswordMatch);
     passwordInput.addEventListener('input', validatePasswordMatch);
     birthDateInput.addEventListener('change', validateAge);
@@ -412,6 +545,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     municipalityInput.addEventListener('change', function() {
         renderBarangays(municipalityInput.value, '');
+        saveSignupDraft();
+    });
+
+    draftFieldIds.forEach(function(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+            return;
+        }
+        const eventName = field.tagName === 'SELECT' ? 'change' : 'input';
+        field.addEventListener(eventName, saveSignupDraft);
     });
 
     form.addEventListener('submit', function(e) {
@@ -429,6 +572,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        saveSignupDraft();
+        showSignupLoading();
         form.submit();
     });
 });

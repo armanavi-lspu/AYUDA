@@ -687,12 +687,14 @@
                                             <i class="fas fa-calendar mr-1"></i>
                                             Joined: {{ admin.created_at|manila('%b %d, %Y') }}
                                         </small>
-                                        {% if admin.last_activity %}
-                                        <small class="text-success d-block mb-2" style="font-size: 0.83rem;">
+                                        <small class="{% if admin.last_activity %}text-success{% else %}text-muted{% endif %} d-block mb-2" style="font-size: 0.83rem;">
+                                            {% if admin.last_activity %}
                                             <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
-                                            Active: {{ admin.last_activity|manila('%b %d') }}
+                                            {% else %}
+                                            <i class="fas fa-clock"></i>
+                                            {% endif %}
+                                            Last Active: {{ admin.last_activity|manila('%b %d, %Y %I:%M %p', 'N/A') }}
                                         </small>
-                                        {% endif %}
                                         
                                         {% if admin.id != current_user.id %}
                                         <div class="btn-group btn-group-sm admin-actions" role="group">
