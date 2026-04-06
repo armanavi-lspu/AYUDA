@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, flash, redirect, url_for
 from pathlib import Path
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFError
+from urllib.parse import urlparse
 
 # Load environment variables for all app entry points (CLI, tests, WSGI, scripts)
 load_dotenv()
@@ -45,6 +46,36 @@ def create_app():
 
         flash('Security token validation failed. Please try again.', category='error')
         return redirect(request.referrer or url_for('auth.login'))
+
+    @app.errorhandler(404)
+    def handle_not_found(error):
+        accept_header = (request.headers.get('Accept') or '').lower()
+        wants_html = request.method == 'GET' and 'text/html' in accept_header
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        is_api_like = '/api/' in request.path or request.path.startswith('/socket.io')
+        is_static_request = request.path.startswith('/static/')
+
+        # Keep native 404 behavior for API/AJAX/static requests.
+        if not wants_html or is_ajax or is_api_like or is_static_request:
+            return error
+
+        message = 'Page not found, page might be removed or deleted.'
+        referrer = request.referrer
+        if referrer:
+            referrer_url = urlparse(referrer)
+            current_host = urlparse(request.host_url)
+            if referrer_url.netloc == current_host.netloc and referrer_url.path != request.path:
+                flash(message, category='warning')
+                return redirect(referrer)
+
+        flash(message, category='warning')
+        if current_user.is_authenticated:
+            if current_user.role == 'admin':
+                return redirect(url_for('admin.dashboard'))
+            if current_user.role == 'community':
+                return redirect(url_for('community.dashboard'))
+
+        return redirect(url_for('main.about'))
 
     # Import and register blueprints
     from .auth.auth import auth_bp

@@ -596,11 +596,14 @@ def view_application(application_id):
                             # Serialize upload object to dictionary
                             upload_dict = {
                                 'id': upload_obj.id,
+                                'original_filename': upload_obj.original_filename,
                                 'file_name': upload_obj.original_filename,
                                 'file_path': upload_obj.file_path,
                                 'uploaded_at': upload_obj.uploaded_at.isoformat() if upload_obj.uploaded_at else None,
                                 'requirement_id': upload_obj.requirement_id,
-                                'file_size': getattr(upload_obj, 'file_size', None)
+                                'file_size': getattr(upload_obj, 'file_size', None),
+                                'verification_status': upload_obj.verification_status or 'pending',
+                                'admin_feedback': upload_obj.admin_feedback or '',
                             }
                             step_data['uploads'].append(upload_dict)
             else:
@@ -612,11 +615,14 @@ def view_application(application_id):
                     for upload_obj in uploads_by_requirement.values():
                         upload_dict = {
                             'id': upload_obj.id,
+                            'original_filename': upload_obj.original_filename,
                             'file_name': upload_obj.original_filename,
                             'file_path': upload_obj.file_path,
                             'uploaded_at': upload_obj.uploaded_at.isoformat() if upload_obj.uploaded_at else None,
                             'requirement_id': upload_obj.requirement_id,
-                            'file_size': getattr(upload_obj, 'file_size', None)
+                            'file_size': getattr(upload_obj, 'file_size', None),
+                            'verification_status': upload_obj.verification_status or 'pending',
+                            'admin_feedback': upload_obj.admin_feedback or '',
                         }
                         step_data['uploads'].append(upload_dict)
                 elif step.step_type == 'approval':

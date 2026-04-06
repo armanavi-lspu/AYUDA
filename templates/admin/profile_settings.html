@@ -3,169 +3,424 @@
 
 {% block extra_css %}
 <style>
+    :root {
+        --profile-font: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        --profile-bg: #f3f6fb;
+        --profile-card: #ffffff;
+        --profile-primary: #0f766e;
+        --profile-primary-dark: #115e59;
+        --profile-accent: #f59e0b;
+        --profile-ink: #22313f;
+        --profile-muted: #6b7280;
+        --profile-line: #e5e7eb;
+    }
+
+    .profile-page-shell {
+        font-family: var(--profile-font);
+        position: relative;
+        isolation: isolate;
+    }
+
+    .profile-page-shell::before {
+        content: '';
+        position: absolute;
+        inset: -1.2rem -1.2rem auto -1.2rem;
+        height: 270px;
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.2), transparent 42%),
+            radial-gradient(circle at 15% 15%, rgba(15, 118, 110, 0.18), transparent 50%),
+            linear-gradient(180deg, #f7fbff 0%, #f3f6fb 70%);
+        z-index: -1;
+    }
+
+    .profile-hero {
+        background: linear-gradient(130deg, var(--profile-primary) 0%, #1f7a8c 58%, #2d8e99 100%);
+        color: #fff;
+        border-radius: 1rem;
+        padding: 1.4rem 1.6rem;
+        box-shadow: 0 18px 36px -24px rgba(16, 71, 91, 0.75);
+    }
+
+    .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.17);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 999px;
+        padding: 0.28rem 0.72rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .hero-title {
+        font-weight: 700;
+        line-height: 1.15;
+        margin-bottom: 0.2rem;
+    }
+
+    .hero-subtitle {
+        margin-bottom: 0;
+        opacity: 0.92;
+        font-size: 0.93rem;
+    }
+
+    .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.78rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.23);
+        margin-left: 0.38rem;
+        margin-top: 0.35rem;
+    }
+
+    .settings-card {
+        border: 1px solid var(--profile-line);
+        border-radius: 1rem;
+        background: var(--profile-card);
+        box-shadow: 0 20px 36px -34px rgba(30, 41, 59, 0.68);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .settings-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 28px 45px -34px rgba(15, 23, 42, 0.7);
+    }
+
+    .settings-card .card-header {
+        background: #fcfdff;
+        border-bottom: 1px solid var(--profile-line);
+        border-radius: 1rem 1rem 0 0 !important;
+        padding: 1rem 1.3rem;
+    }
+
+    .settings-card .card-header h6 {
+        font-weight: 700;
+        color: var(--profile-primary);
+        margin: 0;
+        font-size: 0.89rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
     .profile-avatar-wrapper {
         position: relative;
         display: inline-block;
     }
-    .profile-avatar {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 4px solid #fff;
-        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
-    }
+
+    .profile-avatar,
     .profile-avatar-placeholder {
-        width: 120px;
-        height: 120px;
+        width: 124px;
+        height: 124px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+        border: 5px solid #fff;
+        box-shadow: 0 14px 28px -20px rgba(15, 23, 42, 0.9);
+    }
+
+    .profile-avatar {
+        object-fit: cover;
+    }
+
+    .profile-avatar-placeholder {
+        background: linear-gradient(135deg, #136f63 0%, #21867a 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
+        font-size: 2.4rem;
         font-weight: 700;
         color: #fff;
-        border: 4px solid #fff;
-        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
     }
+
     .avatar-overlay {
         position: absolute;
-        bottom: 0;
-        right: 0;
-        background: #4e73df;
+        bottom: 2px;
+        right: 2px;
+        background: linear-gradient(135deg, var(--profile-accent) 0%, #f97316 100%);
         border-radius: 50%;
-        width: 34px;
-        height: 34px;
+        width: 36px;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         border: 2px solid #fff;
-        transition: background 0.2s;
+        transition: transform 0.2s ease;
     }
-    .avatar-overlay:hover { background: #2e59d9; }
-    .avatar-overlay i { color: #fff; font-size: 0.8rem; }
-    
+
+    .avatar-overlay:hover {
+        transform: scale(1.06);
+    }
+
+    .avatar-overlay i {
+        color: #fff;
+        font-size: 0.82rem;
+    }
+
     .profile-avatar-wrapper.clickable {
         cursor: pointer;
     }
-    
+
     .profile-avatar-wrapper.clickable .profile-avatar,
     .profile-avatar-wrapper.clickable .profile-avatar-placeholder {
         transition: transform 0.2s ease, filter 0.2s ease;
     }
-    
+
     .profile-avatar-wrapper.clickable:hover .profile-avatar,
     .profile-avatar-wrapper.clickable:hover .profile-avatar-placeholder {
         transform: scale(1.05);
-        filter: brightness(1.1);
+        filter: brightness(1.05);
     }
 
-    .settings-card {
-        border: none;
-        border-radius: 0.75rem;
-        box-shadow: 0 0.15rem 1.75rem 0 rgba(58,59,69,0.1);
-        transition: box-shadow 0.2s;
-    }
-    .settings-card:hover {
-        box-shadow: 0 0.25rem 2rem rgba(58,59,69,0.18);
-    }
-    .settings-card .card-header {
-        background: #fff;
-        border-bottom: 1px solid #e3e6f0;
-        border-radius: 0.75rem 0.75rem 0 0 !important;
-        padding: 1.1rem 1.5rem;
-    }
-    .settings-card .card-header h6 {
+    .profile-role-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.85rem;
+        font-size: 0.74rem;
         font-weight: 700;
-        color: #4e73df;
-        margin: 0;
-        font-size: 0.95rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.03em;
+        color: #0f5132;
+        background: #dcfce7;
+        border: 1px solid #86efac;
     }
 
     .stat-badge {
-        background: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.8rem;
+        padding: 0.8rem 0.65rem;
         text-align: center;
     }
+
     .stat-badge .stat-number {
-        font-size: 1.5rem;
+        font-size: 1.35rem;
         font-weight: 700;
-        color: #4e73df;
+        color: #0f766e;
         line-height: 1;
     }
+
     .stat-badge .stat-label {
-        font-size: 0.75rem;
-        color: #858796;
-        margin-top: 0.25rem;
+        font-size: 0.73rem;
+        color: var(--profile-muted);
+        margin-top: 0.22rem;
+        letter-spacing: 0.03em;
+    }
+
+    .info-list-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        padding: 0.62rem 0;
+        border-bottom: 1px solid #eef2f7;
+        align-items: center;
+    }
+
+    .info-list-item:last-child {
+        border-bottom: none;
     }
 
     .activity-timeline {
         position: relative;
-        padding-left: 1.5rem;
+        padding-left: 1.45rem;
     }
+
     .activity-timeline::before {
         content: '';
         position: absolute;
-        left: 0.45rem;
-        top: 0;
-        bottom: 0;
+        left: 0.42rem;
+        top: 0.22rem;
+        bottom: 0.2rem;
         width: 2px;
-        background: #e3e6f0;
+        background: #dbe6f2;
     }
+
     .activity-item {
         position: relative;
-        padding-bottom: 1rem;
+        padding-bottom: 1.02rem;
     }
+
     .activity-item::before {
         content: '';
         position: absolute;
-        left: -1.15rem;
-        top: 0.35rem;
+        left: -1.07rem;
+        top: 0.33rem;
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #4e73df;
+        background: var(--profile-accent);
         border: 2px solid #fff;
-        box-shadow: 0 0 0 2px #4e73df;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.38);
     }
+
     .activity-item .activity-time {
-        font-size: 0.75rem;
-        color: #858796;
+        font-size: 0.74rem;
+        color: #7b8798;
+    }
+
+    .tab-nav {
+        gap: 0.45rem;
+        border-bottom: none;
     }
 
     .tab-nav .nav-link {
-        color: #858796;
+        color: #64748b;
         font-weight: 600;
-        border: none;
-        border-bottom: 3px solid transparent;
-        padding: 0.75rem 1.25rem;
-        border-radius: 0;
+        border: 1px solid transparent;
+        padding: 0.58rem 1rem;
+        border-radius: 999px;
+        transition: all 0.2s ease;
     }
+
     .tab-nav .nav-link.active {
-        color: #4e73df;
-        border-bottom-color: #4e73df;
-        background: transparent;
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        box-shadow: 0 10px 20px -16px rgba(15, 118, 110, 0.95);
     }
+
     .tab-nav .nav-link:hover {
-        color: #4e73df;
+        color: var(--profile-primary);
+        border-color: #d1d5db;
     }
-    .password-strength { height: 4px; border-radius: 2px; transition: all 0.3s; }
+
+    .section-kicker {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: #0f766e;
+        background: #ccfbf1;
+        border: 1px solid #99f6e4;
+        border-radius: 999px;
+        padding: 0.25rem 0.62rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .settings-card .form-control,
+    .settings-card .custom-select,
+    .settings-card select {
+        border-radius: 0.75rem;
+        border-color: #d7dde6;
+        min-height: 42px;
+        box-shadow: none;
+    }
+
+    .settings-card .form-control:focus,
+    .settings-card .custom-select:focus,
+    .settings-card select:focus {
+        border-color: #2aa198;
+        box-shadow: 0 0 0 0.18rem rgba(15, 118, 110, 0.14);
+    }
+
+    .btn-brand {
+        border: none;
+        border-radius: 0.7rem;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        box-shadow: 0 16px 24px -20px rgba(15, 118, 110, 1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-brand:hover,
+    .btn-brand:focus {
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 20px 28px -20px rgba(15, 118, 110, 1);
+    }
+
+    .btn-soft-danger {
+        border-radius: 0.7rem;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #be123c;
+        font-weight: 600;
+    }
+
+    .security-note {
+        border-radius: 0.8rem;
+        border: 1px solid #bae6fd;
+        background: #eff6ff;
+        color: #0c4a6e;
+    }
+
+    .modal-modern .modal-content {
+        border: none;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 32px 48px -24px rgba(15, 23, 42, 0.88);
+    }
+
+    .modal-header-gradient {
+        border-bottom: none;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient .close {
+        color: #fff;
+        opacity: 0.9;
+        text-shadow: none;
+    }
+
+    .password-strength {
+        height: 4px;
+        border-radius: 999px;
+        transition: all 0.3s;
+    }
+
+    @media (max-width: 991.98px) {
+        .profile-hero {
+            padding: 1.2rem 1.1rem;
+        }
+
+        .hero-chip {
+            margin-left: 0;
+            margin-right: 0.35rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .profile-avatar,
+        .profile-avatar-placeholder {
+            width: 106px;
+            height: 106px;
+        }
+
+        .settings-card .card-body,
+        .settings-card .card-footer,
+        .tab-content.card-body {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid profile-page-shell">
     <!-- Page Header -->
-    <div class="d-flex align-items-center mb-4">
-        <div>
-            <h1 class="font-weight-bold mb-1">Profile &amp; Settings</h1>
-            <p class="text-muted mb-0">Manage your account information and preferences</p>
+    <div class="profile-hero mb-4">
+        <div class="d-lg-flex align-items-center justify-content-between">
+            <div>
+                <span class="hero-eyebrow"><i class="fas fa-shield-alt mr-2"></i>Account Center</span>
+                <h1 class="hero-title h3">Profile &amp; Settings</h1>
+                <p class="hero-subtitle">Manage your account details, security controls, and profile visibility.</p>
+            </div>
+            <div class="text-lg-right mt-3 mt-lg-0">
+                <span class="hero-chip"><i class="fas fa-user-check mr-2"></i>Administrator</span>
+                <span class="hero-chip"><i class="fas fa-clock mr-2"></i>Last Active: {{ user.last_activity|manila('%b %d, %Y', 'N/A') }}</span>
+            </div>
         </div>
     </div>
 
@@ -199,7 +454,7 @@
                         {{ user.last_name }}
                     </h5>
                     <p class="text-muted small mb-1">{{ user.email }}</p>
-                    <span class="badge badge-primary px-3 py-1">Administrator</span>
+                    <span class="profile-role-badge">Administrator</span>
                     <div class="small text-muted mt-2">
                         <i class="fas fa-map-marker-alt mr-1"></i>
                         {{ user.admin_profile.municipality if user.admin_profile and user.admin_profile.municipality else 'Municipality not set' }}
@@ -233,23 +488,23 @@
                 <!-- Account Info -->
                 <div class="card-footer bg-white border-top-0 px-4 pb-4">
                     <ul class="list-unstyled small mb-0">
-                        <li class="d-flex justify-content-between py-2 border-bottom">
+                        <li class="info-list-item">
                             <span class="text-muted"><i class="fas fa-envelope mr-2"></i>Email</span>
                             <span class="font-weight-600 text-truncate ml-2" style="max-width:160px">{{ user.email }}</span>
                         </li>
-                        <li class="d-flex justify-content-between py-2 border-bottom">
+                        <li class="info-list-item">
                             <span class="text-muted"><i class="fas fa-user-shield mr-2"></i>Role</span>
                             <span class="font-weight-600">Administrator</span>
                         </li>
-                        <li class="d-flex justify-content-between py-2 border-bottom">
+                        <li class="info-list-item">
                             <span class="text-muted"><i class="fas fa-map-marker-alt mr-2"></i>Municipality</span>
                             <span class="font-weight-600">{{ user.admin_profile.municipality if user.admin_profile and user.admin_profile.municipality else 'Not set' }}</span>
                         </li>
-                        <li class="d-flex justify-content-between py-2 border-bottom">
+                        <li class="info-list-item">
                             <span class="text-muted"><i class="fas fa-calendar mr-2"></i>Member Since</span>
                             <span class="font-weight-600">{{ user.created_at|manila('%b %d, %Y', 'N/A') }}</span>
                         </li>
-                        <li class="d-flex justify-content-between py-2">
+                        <li class="info-list-item">
                             <span class="text-muted"><i class="fas fa-clock mr-2"></i>Last Active</span>
                             <span class="font-weight-600">{{ user.last_activity|manila('%b %d, %Y', 'N/A') }}</span>
                         </li>
@@ -306,6 +561,7 @@
                 <div class="tab-content card-body px-4 py-4">
                     <!-- Profile Tab -->
                     <div class="tab-pane fade show active" id="pane-profile">
+                        <div class="section-kicker"><i class="fas fa-id-badge mr-2"></i>Personal Details</div>
                         <h6 class="font-weight-bold mb-1">Personal Information</h6>
                         <p class="text-muted small mb-4">Update your name and assigned municipality as displayed across the system.</p>
 
@@ -345,7 +601,7 @@
                             </div>
 
                             <div class="d-flex justify-content-end mt-3">
-                                <button type="submit" class="btn btn-primary px-4">
+                                <button type="submit" class="btn btn-brand px-4">
                                     <i class="fas fa-save mr-2"></i>Save Changes
                                 </button>
                             </div>
@@ -354,6 +610,7 @@
 
                     <!-- Security Tab -->
                     <div class="tab-pane fade" id="pane-security">
+                        <div class="section-kicker"><i class="fas fa-lock mr-2"></i>Security Controls</div>
                         <h6 class="font-weight-bold mb-1">Change Password</h6>
                         <p class="text-muted small mb-4">Use a strong password to keep your account secure.</p>
 
@@ -402,13 +659,13 @@
                                 <small id="matchText" class="text-muted"></small>
                             </div>
 
-                            <div class="alert alert-info small py-2 mb-4">
+                            <div class="alert security-note small py-2 mb-4">
                                 <i class="fas fa-info-circle mr-1"></i>
                                 Password must be at least 8 characters. Use a mix of letters, numbers, and symbols for better security.
                             </div>
 
                             <div class="d-flex justify-content-end">
-                                <button type="submit" class="btn btn-primary px-4" id="changePasswordBtn">
+                                <button type="submit" class="btn btn-brand px-4" id="changePasswordBtn">
                                     <i class="fas fa-key mr-2"></i>Change Password
                                 </button>
                             </div>
@@ -421,10 +678,10 @@
 </div>
 
 <!-- Photo Preview Modal (for existing photo) -->
-<div class="modal fade" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
+<div class="modal fade modal-modern" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
         <div class="modal-content border-0">
-            <div class="modal-header bg-light border-0 pb-0">
+            <div class="modal-header modal-header-gradient">
                 <h5 class="modal-title" id="photoPreviewTitle">Profile Picture</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -433,11 +690,11 @@
             <div class="modal-body text-center py-4">
                 <img id="previewImage" src="" alt="Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
             </div>
-            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
-                <button type="button" class="btn btn-primary" onclick="document.getElementById('profilePicInput').click()">
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-brand mr-2" onclick="document.getElementById('profilePicInput').click()">
                     <i class="fas fa-camera mr-2"></i>Change Photo
                 </button>
-                <button type="button" class="btn btn-outline-danger" onclick="removePhoto()">
+                <button type="button" class="btn btn-soft-danger" onclick="removePhoto()">
                     <i class="fas fa-trash-alt mr-2"></i>Remove Photo
                 </button>
             </div>
@@ -446,10 +703,10 @@
 </div>
 
 <!-- Photo Upload Confirmation Modal -->
-<div class="modal fade" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
+<div class="modal fade modal-modern" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
         <div class="modal-content border-0">
-            <div class="modal-header bg-light border-0 pb-0">
+            <div class="modal-header modal-header-gradient">
                 <h5 class="modal-title" id="photoConfirmTitle">Confirm Profile Picture</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelPhotoUpload()">
                     <span aria-hidden="true">&times;</span>
@@ -459,11 +716,11 @@
                 <p class="text-muted mb-3">Preview your new profile picture:</p>
                 <img id="confirmPreviewImage" src="" alt="New Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
             </div>
-            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
                 <button type="button" class="btn btn-secondary" onclick="cancelPhotoUpload()">
                     <i class="fas fa-times mr-2"></i>Cancel
                 </button>
-                <button type="button" class="btn btn-primary" onclick="confirmPhotoUpload()">
+                <button type="button" class="btn btn-brand ml-2" onclick="confirmPhotoUpload()">
                     <i class="fas fa-check mr-2"></i>Confirm & Upload
                 </button>
             </div>

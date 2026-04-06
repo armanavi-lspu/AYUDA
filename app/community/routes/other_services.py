@@ -61,6 +61,25 @@ def _load_user_requests(user_id):
     subsidy_requests = []
     assessment_requests = []
 
+    assessment_ids = []
+    for log in logs:
+        if log.action != 'request_assessment':
+            continue
+        details = _safe_details(log.details)
+        assessment_id = details.get('assessment_id') or log.entity_id
+        try:
+            assessment_id = int(assessment_id)
+        except (TypeError, ValueError):
+            assessment_id = None
+
+        if assessment_id:
+            assessment_ids.append(assessment_id)
+
+    assessments_map = {}
+    if assessment_ids:
+        linked_assessments = Assessment.query.filter(Assessment.id.in_(assessment_ids)).all()
+        assessments_map = {assessment.id: assessment for assessment in linked_assessments}
+
     for log in logs:
         details = _safe_details(log.details)
         payload = {
@@ -73,6 +92,26 @@ def _load_user_requests(user_id):
         if log.action == 'request_subsidy':
             subsidy_requests.append(payload)
         elif log.action == 'request_assessment':
+            assessment_id = details.get('assessment_id') or log.entity_id
+            try:
+                assessment_id = int(assessment_id)
+            except (TypeError, ValueError):
+                assessment_id = None
+            linked_assessment = assessments_map.get(assessment_id)
+            if linked_assessment:
+                payload['status'] = linked_assessment.status or payload['status']
+                payload['details']['assessment_id'] = linked_assessment.id
+                payload['details']['assessment_title'] = linked_assessment.title
+                payload['details']['assessment_type'] = linked_assessment.assessment_type
+                payload['details']['scheduled_date'] = (
+                    linked_assessment.scheduled_date.strftime('%Y-%m-%d') if linked_assessment.scheduled_date else None
+                )
+                payload['details']['scheduled_time'] = linked_assessment.scheduled_time
+                payload['details']['location'] = linked_assessment.location
+                if linked_assessment.application:
+                    payload['details']['application_id'] = linked_assessment.application.id
+                    payload['details']['application_program'] = linked_assessment.application.program.program_name
+
             assessment_requests.append(payload)
 
     return subsidy_requests, assessment_requests
@@ -252,18 +291,22 @@ def request_assessment_service():
     preferred_date = request.form.get('preferred_date', '').strip()
     notes = request.form.get('notes', '').strip()
 
-    if not application_id:
-        flash('Please select an application for this assessment request.', 'warning')
-        return redirect(url_for('community.other_services'))
-
     if not purpose:
         flash('Please specify the purpose of your assessment/SCSR request.', 'warning')
         return redirect(url_for('community.other_services'))
 
-    application = Applications.query.filter_by(id=application_id, user_id=current_user.id).first()
-    if not application:
-        flash('Invalid application selected.', 'danger')
-        return redirect(url_for('community.other_services'))
+    application = None
+    if application_id:
+        application = Applications.query.filter_by(id=application_id, user_id=current_user.id).first()
+        if not application:
+            flash('Invalid application selected.', 'danger')
+            return redirect(url_for('community.other_services'))
+    else:
+        # Related application is optional in the form; auto-link to the most recent user application.
+        application = Applications.query.filter_by(user_id=current_user.id).order_by(desc(Applications.application_date)).first()
+        if not application:
+            flash('Please submit at least one program application before requesting assessment/SCSR.', 'warning')
+            return redirect(url_for('community.other_services'))
 
     assigned_admin = User.query.filter_by(role='admin').order_by(User.id.asc()).first()
 
@@ -299,6 +342,9 @@ def request_assessment_service():
         'purpose': purpose,
         'preferred_date': preferred_date or None,
         'notes': notes or None,
+        'assessment_title': assessment.title,
+        'assessment_type': assessment.assessment_type,
+        'application_program': application.program.program_name,
         'status': 'requested'
     }
 

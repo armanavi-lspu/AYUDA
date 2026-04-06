@@ -7,7 +7,7 @@ from sqlalchemy import desc, or_, func
 from app.admin import admin_bp
 from app.models import (
     Assessment, AssessmentDocument, Applications, Programs,
-    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps
+    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog
 )
 from app.extensions import db
 from app.utils import role_required
@@ -60,17 +60,26 @@ def _load_assessment_rubric(assessment):
     """
     factors = _default_rubric_factors()
     scores = {factor['key']: 3 for factor in factors}
+    severity_enabled = True
 
     if not assessment.severity_factors:
-        return factors, scores
+        return factors, scores, severity_enabled
 
     try:
         payload = json.loads(assessment.severity_factors)
     except (TypeError, ValueError):
-        return factors, scores
+        return factors, scores, severity_enabled
 
     if not isinstance(payload, dict):
-        return factors, scores
+        return factors, scores, severity_enabled
+
+    payload_flag = payload.get('severity_enabled')
+    if isinstance(payload_flag, bool):
+        severity_enabled = payload_flag
+    elif isinstance(payload_flag, (int, float)):
+        severity_enabled = bool(payload_flag)
+    elif isinstance(payload_flag, str):
+        severity_enabled = payload_flag.strip().lower() not in {'0', 'false', 'off', 'no'}
 
     # Legacy: top-level key -> score.
     if 'scores' not in payload and 'labels' not in payload and 'weights' not in payload:
@@ -79,7 +88,7 @@ def _load_assessment_rubric(assessment):
             value = payload.get(key)
             if isinstance(value, int) and 1 <= value <= 5:
                 scores[key] = value
-        return factors, scores
+        return factors, scores, severity_enabled
 
     payload_scores = payload.get('scores', {})
     payload_labels = payload.get('labels', {})
@@ -105,15 +114,16 @@ def _load_assessment_rubric(assessment):
             scores[key] = score_value
 
     _normalize_rubric_weights(factors)
-    return factors, scores
+    return factors, scores, severity_enabled
 
 
-def _serialize_assessment_rubric(factors, scores):
+def _serialize_assessment_rubric(factors, scores, severity_enabled=True):
     """Serialize rubric factors/scores for persistence in severity_factors."""
     payload = {
         'scores': {factor['key']: int(scores.get(factor['key'], 3)) for factor in factors},
         'labels': {factor['key']: factor['label'] for factor in factors},
         'weights': {factor['key']: round(float(factor['weight']), 6) for factor in factors},
+        'severity_enabled': bool(severity_enabled),
     }
     return json.dumps(payload)
 
@@ -134,6 +144,70 @@ def suggest_severity_level(score):
     if score <= 74:
         return 'high'
     return 'critical'
+
+
+def _safe_activity_details(details_text):
+    if not details_text:
+        return {}
+    try:
+        if isinstance(details_text, dict):
+            return details_text
+        return json.loads(details_text)
+    except (TypeError, ValueError):
+        return {}
+
+
+def _update_assessment_request_log(assessment, status, admin_notes=None):
+    request_log = UserActivityLog.query.filter(
+        UserActivityLog.action == 'request_assessment',
+        UserActivityLog.entity_type == 'assessment_request',
+        UserActivityLog.entity_id == assessment.id,
+    ).order_by(desc(UserActivityLog.created_at)).first()
+
+    if not request_log:
+        return
+
+    details = _safe_activity_details(request_log.details)
+    details['status'] = status
+    details['assessment_id'] = assessment.id
+    details['assessment_type'] = assessment.assessment_type
+    details['assessment_title'] = assessment.title
+    details['scheduled_date'] = assessment.scheduled_date.strftime('%Y-%m-%d') if assessment.scheduled_date else None
+    details['scheduled_time'] = assessment.scheduled_time
+    details['location'] = assessment.location
+    if admin_notes:
+        details['admin_notes'] = admin_notes
+
+    request_log.details = json.dumps(details)
+
+
+def _complete_assessment_workflow_step(application, reviewer_id=None):
+    """Mark the assessment workflow step as completed for the given application."""
+    if not application:
+        return
+
+    assessment_step = ProgramWorkflowSteps.query.filter_by(
+        program_id=application.program_id,
+        step_type='assessment'
+    ).first()
+
+    if not assessment_step:
+        return
+
+    workflow_status = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application.id,
+        workflow_step_id=assessment_step.id
+    ).first()
+
+    if not workflow_status:
+        return
+
+    now = datetime.utcnow()
+    workflow_status.step_status = 'completed'
+    workflow_status.completed_at = workflow_status.completed_at or now
+    workflow_status.reviewed_at = now
+    if reviewer_id:
+        workflow_status.reviewed_by = reviewer_id
 
 
 @admin_bp.route('/assessments', endpoint='assessments')
@@ -208,6 +282,28 @@ def assessments_index():
         bool(severity_filter),
     ])
 
+    requested_ids = [item.id for item in assessments.items if item.status == 'requested']
+    request_summaries = {}
+    if requested_ids:
+        request_logs = UserActivityLog.query.filter(
+            UserActivityLog.action == 'request_assessment',
+            UserActivityLog.entity_type == 'assessment_request',
+            UserActivityLog.entity_id.in_(requested_ids),
+        ).order_by(desc(UserActivityLog.created_at)).all()
+
+        for log in request_logs:
+            if log.entity_id in request_summaries:
+                continue
+            details = _safe_activity_details(log.details)
+            request_summaries[log.entity_id] = {
+                'purpose': details.get('purpose') or '',
+                'preferred_date': details.get('preferred_date') or '',
+                'notes': details.get('notes') or '',
+                'requested_at': log.created_at,
+                'application_id': details.get('application_id'),
+                'application_program': details.get('application_program') or '',
+            }
+
     # Statistics for summary cards
     total_assessments = Assessment.query.count()
     requested_assessments = Assessment.query.filter_by(status='requested').count()
@@ -233,6 +329,7 @@ def assessments_index():
         assessment_type=assessment_type,
         status_filter=status_filter,
         severity_filter=severity_filter,
+        request_summaries=request_summaries,
         sort_by=sort_by,
         sort_order=sort_order,
         has_active_filters=has_active_filters,
@@ -328,13 +425,14 @@ def view_assessment(assessment_id):
     """View a single assessment with its documents"""
     assessment = Assessment.query.get_or_404(assessment_id)
 
-    severity_rubric_factors, severity_factors_data = _load_assessment_rubric(assessment)
+    severity_rubric_factors, severity_factors_data, severity_enabled = _load_assessment_rubric(assessment)
 
     return render_template(
         'admin/view_assessment.html',
         assessment=assessment,
         severity_rubric_factors=severity_rubric_factors,
         severity_factors_data=severity_factors_data,
+        severity_enabled=severity_enabled,
         user=current_user,
     )
 
@@ -358,9 +456,18 @@ def update_assessment(assessment_id):
     severity_score_value = request.form.get('severity_score', '').strip()
     severity_justification = request.form.get('severity_justification', '').strip()
     severity_override = request.form.get('severity_override') == '1'
-    severity_form_submitted = request.form.get('case_severity') is not None
+    severity_enabled_values = request.form.getlist('severity_enabled')
+    severity_form_submitted = request.form.get('case_severity') is not None or bool(severity_enabled_values)
 
-    stored_rubric_factors, _ = _load_assessment_rubric(assessment)
+    stored_rubric_factors, stored_rubric_scores, stored_severity_enabled = _load_assessment_rubric(assessment)
+    if severity_enabled_values:
+        severity_enabled = '1' in severity_enabled_values
+    else:
+        severity_enabled = stored_severity_enabled
+
+    if severity_enabled and not case_severity:
+        case_severity = 'unrated'
+
     stored_rubric_map = {factor['key']: factor for factor in stored_rubric_factors}
 
     rubric_factors = _default_rubric_factors()
@@ -418,8 +525,10 @@ def update_assessment(assessment_id):
                     rubric_scores[key] = score_value
             except ValueError:
                 rubric_errors.append(f"{factor['label']} must be a valid number.")
+        else:
+            rubric_scores[key] = int(stored_rubric_scores.get(key, 3))
 
-    if severity_form_submitted and case_severity and case_severity not in Assessment.SEVERITY_LEVELS:
+    if severity_form_submitted and severity_enabled and case_severity and case_severity not in Assessment.SEVERITY_LEVELS:
         flash('Invalid case severity level.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
@@ -427,17 +536,17 @@ def update_assessment(assessment_id):
         flash(rubric_errors[0], 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if severity_form_submitted and case_severity and case_severity != 'unrated' and len(rubric_scores) not in (0, len(rubric_factors)):
+    if severity_form_submitted and severity_enabled and case_severity and case_severity != 'unrated' and len(rubric_scores) not in (0, len(rubric_factors)):
         flash('All severity rubric factors must be scored from 1 to 5.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
     severity_score = None
-    if severity_form_submitted and rubric_submitted and len(rubric_scores) == len(rubric_factors):
+    if severity_form_submitted and severity_enabled and rubric_submitted and len(rubric_scores) == len(rubric_factors):
         weighted_score_sum = 0
         for factor in rubric_factors:
             weighted_score_sum += rubric_scores[factor['key']] * factor['weight']
         severity_score = round((weighted_score_sum / 5) * 100)
-    elif severity_form_submitted and severity_score_value:
+    elif severity_form_submitted and severity_enabled and severity_score_value:
         try:
             severity_score = int(severity_score_value)
         except ValueError:
@@ -448,19 +557,19 @@ def update_assessment(assessment_id):
             flash('Severity score must be between 0 and 100.', 'danger')
             return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    suggested_severity = suggest_severity_level(severity_score) if severity_score is not None else 'unrated'
+    suggested_severity = suggest_severity_level(severity_score) if (severity_enabled and severity_score is not None) else 'unrated'
 
-    if severity_form_submitted and not severity_override and severity_score is not None:
+    if severity_form_submitted and severity_enabled and not severity_override and severity_score is not None:
         case_severity = suggested_severity
-    elif severity_form_submitted and severity_override and severity_score is not None and case_severity in ('', 'unrated'):
+    elif severity_form_submitted and severity_enabled and severity_override and severity_score is not None and case_severity in ('', 'unrated'):
         flash('Select a manual severity level when override is enabled.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if severity_form_submitted and case_severity in ('high', 'critical') and not severity_justification:
+    if severity_form_submitted and severity_enabled and case_severity in ('high', 'critical') and not severity_justification:
         flash('Justification is required for high or critical severity.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
-    if severity_form_submitted and case_severity and case_severity != 'unrated' and severity_score is None:
+    if severity_form_submitted and severity_enabled and case_severity and case_severity != 'unrated' and severity_score is None:
         flash('Severity score could not be computed. Please complete all rubric factors.', 'danger')
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
@@ -478,8 +587,11 @@ def update_assessment(assessment_id):
         assessment.scheduled_time = scheduled_time
     if location is not None:
         assessment.location = location
+    status_changed_to_completed = False
     if status and status in ('requested', 'scheduled', 'completed', 'cancelled'):
+        previous_status = assessment.status
         assessment.status = status
+        status_changed_to_completed = (status == 'completed' and previous_status != 'completed')
         if status == 'completed' and not assessment.completed_at:
             assessment.completed_at = datetime.utcnow()
     if findings is not None:
@@ -487,36 +599,54 @@ def update_assessment(assessment_id):
     if recommendations is not None:
         assessment.recommendations = recommendations
 
-    if severity_form_submitted and case_severity:
+    if severity_form_submitted:
         old_level = assessment.case_severity
         old_score = assessment.severity_score
 
-        assessment.case_severity = case_severity
-        assessment.severity_score = severity_score if case_severity != 'unrated' else None
-        assessment.severity_factors = _serialize_assessment_rubric(rubric_factors, rubric_scores)
-        assessment.severity_justification = severity_justification or None
+        if severity_enabled:
+            assessment.case_severity = case_severity or 'unrated'
+            assessment.severity_score = severity_score if assessment.case_severity != 'unrated' else None
+            assessment.severity_justification = severity_justification or None
+        else:
+            assessment.case_severity = 'unrated'
+            assessment.severity_score = None
+            assessment.severity_justification = None
+
+        assessment.severity_factors = _serialize_assessment_rubric(
+            rubric_factors,
+            rubric_scores,
+            severity_enabled=severity_enabled,
+        )
         assessment.severity_updated_by = current_user.id
         assessment.severity_updated_at = datetime.utcnow()
+
+        new_severity_label = assessment.case_severity if severity_enabled else 'severity_off'
 
         log_activity(
             action='update_assessment_severity',
             action_type='update',
             entity_type='assessment',
-            description=f'Updated severity for Assessment #{assessment.id} from {old_level} to {case_severity}',
+            description=f'Updated severity for Assessment #{assessment.id} from {old_level} to {new_severity_label}',
             entity_id=assessment.id,
             details={
                 'application_id': assessment.application_id,
                 'old_severity': old_level,
-                'new_severity': case_severity,
+                'new_severity': new_severity_label,
                 'old_score': old_score,
-                'new_score': severity_score,
+                'new_score': assessment.severity_score,
                 'rubric_scores': rubric_scores,
                 'rubric_labels': {factor['key']: factor['label'] for factor in rubric_factors},
                 'rubric_weights': {factor['key']: factor['weight'] for factor in rubric_factors},
                 'suggested_severity': suggested_severity,
                 'severity_override': severity_override,
+                'severity_enabled': severity_enabled,
             }
         )
+
+    # If an assessment gets marked completed from this screen, complete the
+    # corresponding Assessment / SCSR workflow step as well.
+    if status_changed_to_completed:
+        _complete_assessment_workflow_step(assessment.application, current_user.id)
 
     db.session.commit()
     flash('Assessment updated successfully.', 'success')
@@ -746,27 +876,116 @@ def complete_assessment(assessment_id):
     # Mark assessment as completed
     assessment.status = 'completed'
     assessment.completed_at = datetime.utcnow()
-    
-    # Find and update the workflow status for assessment step
-    assessment_step = ProgramWorkflowSteps.query.filter_by(
-        program_id=application.program_id,
-        step_type='assessment'
-    ).first()
-    
-    if assessment_step:
-        # Mark the assessment step as completed
-        workflow_status = ApplicationWorkflowStatus.query.filter_by(
-            application_id=application_id,
-            workflow_step_id=assessment_step.id
-        ).first()
-        
-        if workflow_status:
-            workflow_status.step_status = 'completed'
-            workflow_status.completed_at = datetime.utcnow()
-            workflow_status.reviewed_at = datetime.utcnow()
-            workflow_status.reviewed_by = current_user.id
+
+    _complete_assessment_workflow_step(application, current_user.id)
     
     db.session.commit()
     
     flash('Assessment marked as complete. Proceeding to next step.', 'success')
     return redirect(url_for('admin.view_application', application_id=application_id))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/schedule-request', methods=['POST'], endpoint='schedule_requested_assessment')
+@login_required
+@role_required('admin')
+def schedule_requested_assessment(assessment_id):
+    """Schedule a community-requested assessment from the assessments list modal."""
+    assessment = Assessment.query.get_or_404(assessment_id)
+
+    if assessment.status != 'requested':
+        flash('Only assessment requests can be scheduled from this action.', 'warning')
+        return redirect(url_for('admin.assessments'))
+
+    a_type = (request.form.get('assessment_type') or '').strip()
+    title = (request.form.get('title') or '').strip()
+    description = (request.form.get('description') or '').strip()
+    scheduled_date_str = (request.form.get('scheduled_date') or '').strip()
+    scheduled_time = (request.form.get('scheduled_time') or '').strip()
+    location = (request.form.get('location') or '').strip()
+
+    if a_type not in ('interview', 'home_visit'):
+        flash('Please select a valid assessment type.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    if not title:
+        flash('Assessment title is required.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    if not scheduled_date_str:
+        flash('Scheduled date is required.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    try:
+        scheduled_date = datetime.strptime(scheduled_date_str, '%Y-%m-%d')
+    except ValueError:
+        flash('Invalid scheduled date format.', 'danger')
+        return redirect(url_for('admin.assessments'))
+
+    assessment.assessment_type = a_type
+    assessment.title = title
+    assessment.description = description
+    assessment.scheduled_date = scheduled_date
+    assessment.scheduled_time = scheduled_time
+    assessment.location = location
+    assessment.status = 'scheduled'
+    assessment.conducted_by = current_user.id
+
+    _update_assessment_request_log(assessment, 'scheduled')
+
+    notif = Notifications(
+        user_id=assessment.application.user_id,
+        notif_title='Assessment Request Scheduled',
+        notif_message=(
+            f'Your assessment/SCSR request has been scheduled on '
+            f'{scheduled_date.strftime("%b %d, %Y")}'
+            f'{f" at {scheduled_time}" if scheduled_time else ""}.'
+        ),
+        related_id=assessment.id,
+        related_type='assessment',
+    )
+    db.session.add(notif)
+
+    db.session.commit()
+    flash('Assessment request scheduled successfully.', 'success')
+    return redirect(url_for('admin.assessments'))
+
+
+@admin_bp.route('/assessments/<int:assessment_id>/decline-request', methods=['POST'], endpoint='decline_requested_assessment')
+@login_required
+@role_required('admin')
+def decline_requested_assessment(assessment_id):
+    """Decline a community-requested assessment from the assessments list modal."""
+    assessment = Assessment.query.get_or_404(assessment_id)
+
+    if assessment.status != 'requested':
+        flash('Only assessment requests can be declined from this action.', 'warning')
+        return redirect(url_for('admin.assessments'))
+
+    decline_reason = (request.form.get('decline_reason') or '').strip()
+
+    assessment.status = 'cancelled'
+    if decline_reason:
+        description_prefix = (assessment.description or '').strip()
+        decline_note = f'Decline reason: {decline_reason}'
+        if description_prefix:
+            assessment.description = f'{description_prefix}\n\n{decline_note}'
+        else:
+            assessment.description = decline_note
+
+    _update_assessment_request_log(assessment, 'cancelled', admin_notes=decline_reason or None)
+
+    notif = Notifications(
+        user_id=assessment.application.user_id,
+        notif_title='Assessment Request Declined',
+        notif_message=(
+            'Your assessment/SCSR request was declined.'
+            + (f' Reason: {decline_reason}' if decline_reason else '')
+        ),
+        related_id=assessment.id,
+        related_type='assessment',
+    )
+    db.session.add(notif)
+
+    db.session.commit()
+    flash('Assessment request declined.', 'success')
+    return redirect(url_for('admin.assessments'))

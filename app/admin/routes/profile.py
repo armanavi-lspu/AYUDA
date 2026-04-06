@@ -104,6 +104,24 @@ def change_admin_password():
         return redirect(url_for('admin.admin_profile'))
 
     current_user.password_hash = generate_password_hash(new_password)
+
+    # Log successful password change without storing sensitive values.
+    log_entry = AdminActivityLog(
+        admin_id=current_user.id,
+        action='change_password',
+        action_type='update',
+        entity_type='admin',
+        entity_id=current_user.id,
+        description=f"Changed password for {current_user.first_name} {current_user.last_name}",
+        details=json.dumps({
+            'password_change_method': 'self_service_profile',
+            'password_policy_min_length': 8
+        }),
+        ip_address=request.remote_addr,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(log_entry)
+
     db.session.commit()
     flash('Password changed successfully.', 'success')
     return redirect(url_for('admin.admin_profile'))

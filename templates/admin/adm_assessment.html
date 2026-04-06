@@ -589,7 +589,7 @@
                                 </td>
                                 <td>
                                     {% if a.status == 'requested' %}
-                                        <span class="status-chip status-requested">Requested</span>
+                                        <span class="status-chip status-requested">Request</span>
                                     {% elif a.status == 'scheduled' %}
                                         <span class="status-chip status-scheduled">Scheduled</span>
                                     {% elif a.status == 'completed' %}
@@ -612,10 +612,32 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
+                                    {% set req_summary = request_summaries.get(a.id, {}) %}
+                                    {% if a.status == 'requested' %}
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-soft-info open-request-summary-modal"
+                                        data-toggle="modal"
+                                        data-target="#assessmentRequestSummaryModal"
+                                        data-assessment-id="{{ a.id }}"
+                                        data-title="{{ a.title|e }}"
+                                        data-applicant="{{ (a.application.applicant.first_name ~ ' ' ~ a.application.applicant.last_name)|e }}"
+                                        data-program="{{ a.application.program.program_name|e }}"
+                                        data-purpose="{{ req_summary.get('purpose', '')|e }}"
+                                        data-notes="{{ req_summary.get('notes', '')|e }}"
+                                        data-preferred-date="{{ req_summary.get('preferred_date', '')|e }}"
+                                        data-requested-at="{{ req_summary.get('requested_at')|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                        data-schedule-url="{{ url_for('admin.schedule_requested_assessment', assessment_id=a.id) }}"
+                                        data-decline-url="{{ url_for('admin.decline_requested_assessment', assessment_id=a.id) }}"
+                                    >
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </button>
+                                    {% else %}
                                     <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" 
                                        class="btn btn-sm btn-soft-info" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -749,5 +771,141 @@
         </div>
     </div>
 </div>
+
+<!-- Requested Assessment Summary Modal -->
+<div class="modal fade modal-modern" id="assessmentRequestSummaryModal" tabindex="-1" role="dialog" aria-labelledby="assessmentRequestSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header modal-header-gradient-primary">
+                <h5 class="modal-title" id="assessmentRequestSummaryModalLabel">
+                    <i class="fas fa-file-alt mr-2"></i>Assessment/SCSR Request Summary
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Applicant</small>
+                        <strong id="reqSummaryApplicant">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Program</small>
+                        <strong id="reqSummaryProgram">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Requested At</small>
+                        <span id="reqSummaryRequestedAt">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Preferred Date</small>
+                        <span id="reqSummaryPreferredDate">No preference submitted</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Purpose</small>
+                    <div class="border rounded p-2 bg-light" id="reqSummaryPurpose">-</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Notes</small>
+                    <div class="border rounded p-2 bg-light" id="reqSummaryNotes">No additional notes provided.</div>
+                </div>
+
+                <hr>
+                <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-calendar-check mr-2"></i>Schedule Assessment</h6>
+                <form id="scheduleRequestedAssessmentForm" method="POST">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_assessment_type">Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" id="request_modal_assessment_type" class="form-control" required>
+                                <option value="interview">Interview</option>
+                                <option value="home_visit">Home Visit</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-8">
+                            <label class="modal-field-label" for="request_modal_title">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="request_modal_title" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="modal-field-label" for="request_modal_description">Description</label>
+                        <textarea name="description" id="request_modal_description" class="form-control" rows="2" placeholder="Purpose and notes for this scheduled assessment..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_scheduled_date">Scheduled Date <span class="text-danger">*</span></label>
+                            <input type="date" name="scheduled_date" id="request_modal_scheduled_date" class="form-control" required>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_scheduled_time">Scheduled Time</label>
+                            <input type="text" name="scheduled_time" id="request_modal_scheduled_time" class="form-control" placeholder="e.g. 09:00 AM">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_location">Location</label>
+                            <input type="text" name="location" id="request_modal_location" class="form-control" placeholder="e.g. MSWD Office">
+                        </div>
+                    </div>
+
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-gradient-primary">
+                            <i class="fas fa-calendar-check mr-1"></i>Schedule Assessment
+                        </button>
+                    </div>
+                </form>
+
+                <hr>
+                <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-times-circle mr-2"></i>Decline Request</h6>
+                <form id="declineRequestedAssessmentForm" method="POST">
+                    <div class="form-group mb-2">
+                        <label class="modal-field-label" for="request_modal_decline_reason">Reason (optional)</label>
+                        <textarea name="decline_reason" id="request_modal_decline_reason" class="form-control" rows="2" placeholder="Reason for declining this request..."></textarea>
+                    </div>
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-ban mr-1"></i>Decline Assessment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    $(document).on('click', '.open-request-summary-modal', function() {
+        const data = this.dataset;
+
+        $('#reqSummaryApplicant').text(data.applicant || '-');
+        $('#reqSummaryProgram').text(data.program || '-');
+        $('#reqSummaryRequestedAt').text(data.requestedAt || 'N/A');
+        $('#reqSummaryPreferredDate').text(data.preferredDate || 'No preference submitted');
+        $('#reqSummaryPurpose').text(data.purpose || 'No purpose submitted.');
+        $('#reqSummaryNotes').text(data.notes || 'No additional notes provided.');
+
+        $('#request_modal_title').val(data.title || 'Requested Assessment / SCSR');
+        $('#request_modal_description').val((data.purpose || '') + (data.notes ? ('\n\nNotes: ' + data.notes) : ''));
+        $('#request_modal_scheduled_date').val(data.preferredDate || '');
+        $('#request_modal_scheduled_time').val('');
+        $('#request_modal_location').val('');
+        $('#request_modal_decline_reason').val('');
+        $('#request_modal_assessment_type').val('interview');
+
+        $('#scheduleRequestedAssessmentForm').attr('action', data.scheduleUrl || '#');
+        $('#declineRequestedAssessmentForm').attr('action', data.declineUrl || '#');
+    });
+
+    $('#declineRequestedAssessmentForm').on('submit', function(e) {
+        if (!confirm('Decline this assessment request?')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
 {% endblock %}
 

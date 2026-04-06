@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
 from app.utils import role_required, manila_strftime
-from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers
+from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers, Assessment, AssessmentDocument
 from app.extensions import db
 from app.user_activity_logger import log_document_upload
 from sqlalchemy import desc, or_
@@ -139,33 +139,22 @@ def application_workflow(application_id):
     # Check if user is requesting a specific step to view (e.g., from step history)
     requested_step_id = request.args.get('step_id', type=int)
     
-    # FIRST: Determine the actual active step (what the user should be working on)
+    # FIRST: Determine the actual active step (strict sequential gating)
     active_step = None
     active_step_status = None
-    
-    # Find the step user should be working on
+
+    # Active step is the first step that is not yet complete.
+    # This guarantees the next step cannot activate while a previous step is still pending.
     for status in workflow_status:
-        if status.step_status in ['not_started', 'in_progress', 'rejected']:
+        if status.step_status not in ['approved', 'completed']:
             active_step = status.workflow_step
             active_step_status = status
             break
-    
-    # If no in-progress step, check if we can start the next step
-    if not active_step:
-        for status in workflow_status:
-            if status.step_status == 'not_started':
-                # Check if previous steps are completed
-                previous_steps_completed = True
-                for prev_status in workflow_status:
-                    if (prev_status.workflow_step.step_order < status.workflow_step.step_order and 
-                        prev_status.step_status not in ['approved', 'completed']):
-                        previous_steps_completed = False
-                        break
-                
-                if previous_steps_completed:
-                    active_step = status.workflow_step
-                    active_step_status = status
-                    break
+
+    # If all steps are complete, keep the last step visible as reference.
+    if not active_step and workflow_status:
+        active_step = workflow_status[-1].workflow_step
+        active_step_status = workflow_status[-1]
     
     # SECOND: Determine which step to display content for (may differ from active step)
     current_step = active_step
@@ -176,8 +165,9 @@ def application_workflow(application_id):
         # Only allow viewing completed or current steps
         for status in workflow_status:
             if status.workflow_step.id == requested_step_id:
-                # Allow viewing if step is completed, approved, or is the current step
-                if status.step_status in ['completed', 'approved', 'in_progress', 'pending_review']:
+                # Allow viewing if step is completed/under-review, or if it is the current active step
+                is_active_requested_step = bool(active_step and status.workflow_step.id == active_step.id)
+                if status.step_status in ['completed', 'approved', 'pending_review'] or is_active_requested_step:
                     current_step = status.workflow_step
                     current_step_status = status
                 break
@@ -595,6 +585,23 @@ def cancel_application(application_id):
                     except:
                         pass
                 db.session.delete(photo)
+
+        # Delete assessments (and attached SCSR documents) linked to this application
+        assessments = Assessment.query.filter_by(application_id=application_id).all()
+        for assessment in assessments:
+            # Remove uploaded assessment files from disk before deleting DB records
+            assessment_docs = AssessmentDocument.query.filter_by(assessment_id=assessment.id).all()
+            for doc in assessment_docs:
+                if doc.file_path:
+                    try:
+                        for candidate_path in (doc.file_path, os.path.abspath(doc.file_path)):
+                            if candidate_path and os.path.exists(candidate_path):
+                                os.remove(candidate_path)
+                                break
+                    except:
+                        pass
+                db.session.delete(doc)
+            db.session.delete(assessment)
         
         # Delete the application itself
         db.session.delete(application)
@@ -1345,6 +1352,26 @@ def submit_workflow_step(application_id):
     
     if not workflow_status:
         return jsonify({'success': False, 'message': 'Workflow status not found'})
+
+    # Enforce strict sequence: all previous steps must be complete before submission.
+    step_statuses = db.session.query(ApplicationWorkflowStatus).filter_by(
+        application_id=application_id
+    ).join(ProgramWorkflowSteps).order_by(ProgramWorkflowSteps.step_order).all()
+
+    target_status = next((s for s in step_statuses if s.workflow_step_id == step_id), None)
+    if not target_status:
+        return jsonify({'success': False, 'message': 'Selected workflow step is invalid'})
+
+    for prev_status in step_statuses:
+        if prev_status.workflow_step.step_order < target_status.workflow_step.step_order:
+            if prev_status.step_status not in ['approved', 'completed']:
+                return jsonify({
+                    'success': False,
+                    'message': f'You cannot submit this step yet. Complete Step {prev_status.workflow_step.step_order}: {prev_status.workflow_step.step_name} first.'
+                })
+
+    if workflow_status.step_status in ['approved', 'completed', 'pending_review']:
+        return jsonify({'success': False, 'message': 'This step has already been submitted and is being processed.'})
     
     # Validate photo_upload step type - must have minimum 3 photos
     workflow_step = ProgramWorkflowSteps.query.get(step_id)
@@ -1542,6 +1569,26 @@ def start_workflow_step(application_id, step_id):
     
     if not workflow_status:
         return jsonify({'success': False, 'message': 'Workflow status not found'})
+
+    # Enforce strict sequence: previous steps must be complete before starting this step.
+    step_statuses = db.session.query(ApplicationWorkflowStatus).filter_by(
+        application_id=application_id
+    ).join(ProgramWorkflowSteps).order_by(ProgramWorkflowSteps.step_order).all()
+
+    target_status = next((s for s in step_statuses if s.workflow_step_id == step_id), None)
+    if not target_status:
+        return jsonify({'success': False, 'message': 'Selected workflow step is invalid'})
+
+    for prev_status in step_statuses:
+        if prev_status.workflow_step.step_order < target_status.workflow_step.step_order:
+            if prev_status.step_status not in ['approved', 'completed']:
+                return jsonify({
+                    'success': False,
+                    'message': f'You cannot start this step yet. Complete Step {prev_status.workflow_step.step_order}: {prev_status.workflow_step.step_name} first.'
+                })
+
+    if workflow_status.step_status in ['approved', 'completed', 'pending_review']:
+        return jsonify({'success': False, 'message': 'This step is not available to start right now.'})
     
     # Update status to in_progress
     workflow_status.step_status = 'in_progress'

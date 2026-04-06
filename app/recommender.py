@@ -206,6 +206,11 @@ class BeneficiaryRecommender:
 
             # Apply filters dict if provided
             if filters:
+                if 'municipality' in filters:
+                    rec_municipality = str(rec.get('municipality') or '').strip().lower()
+                    filter_municipality = str(filters['municipality'] or '').strip().lower()
+                    if filter_municipality and rec_municipality != filter_municipality:
+                        continue
                 if 'barangay' in filters and rec.get('barangay') not in filters['barangay']:
                     continue
                 if 'is_solo_parent' in filters and bool(rec.get('is_solo_parent')) != bool(filters['is_solo_parent']):
@@ -476,6 +481,30 @@ def _parse_priority_group_tokens(priority_groups):
     return [t.strip().lower() for t in str(priority_groups).split(',') if t.strip()]
 
 
+def _token_is_student(token):
+    return 'student' in token
+
+
+def _token_is_solo_parent(token):
+    return 'solo parent' in token or 'solo_parent' in token or 'single parent' in token
+
+
+def _token_is_pwd(token):
+    return 'pwd' in token or 'disabilit' in token
+
+
+def _token_is_senior(token):
+    return 'senior' in token or 'elderly' in token
+
+
+def _token_is_low_income(token):
+    return 'low income' in token or 'indigent' in token
+
+
+def _token_is_unemployed(token):
+    return 'not employed' in token or 'unemployed' in token
+
+
 def _parse_priority_groups(priority_groups):
     """
     Parse a comma-separated priority groups string into individual priority flags.
@@ -490,20 +519,25 @@ def _parse_priority_groups(priority_groups):
     if not tokens:
         return False, False, False, False
     
-    solo_parent = any('solo parent' in token or 'solo_parent' in token for token in tokens)
-    student = any('student' in token for token in tokens)
-    pwd = any('pwd' in token or 'disability' in token for token in tokens)
-    senior = any('senior' in token or 'elderly' in token for token in tokens)
+    solo_parent = any(_token_is_solo_parent(token) for token in tokens)
+    student = any(_token_is_student(token) for token in tokens)
+    pwd = any(_token_is_pwd(token) for token in tokens)
+    senior = any(_token_is_senior(token) for token in tokens)
     
     return solo_parent, student, pwd, senior
 
 
 def _beneficiary_matches_priority_groups(beneficiary, priority_groups):
     """
-    Return True if beneficiary matches at least one enforceable priority group.
+        Return True if beneficiary satisfies all active strict priority constraints.
 
-    If no enforceable profile-based token exists, this function returns True
-    (program stays open for non-profile descriptors).
+        Strict behavior:
+        - If identity groups are selected (student/solo parent/PWD/senior),
+            beneficiary must match at least one selected identity group.
+        - If low-income/indigent groups are selected, beneficiary must satisfy
+            the low-income threshold.
+        - If unemployed groups are selected, beneficiary must be unemployed.
+        - If no known enforceable groups are present, return False.
     """
     tokens = _parse_priority_group_tokens(priority_groups)
     if not tokens:
@@ -516,34 +550,38 @@ def _beneficiary_matches_priority_groups(beneficiary, priority_groups):
     is_pwd = bool(beneficiary.get('is_pwd'))
     is_employed = bool(beneficiary.get('is_currently_employed'))
 
-    enforceable_found = False
-    for token in tokens:
-        if 'student' in token:
-            enforceable_found = True
-            if is_student:
-                return True
-        elif 'solo parent' in token or 'single parent' in token:
-            enforceable_found = True
-            if is_solo_parent:
-                return True
-        elif 'pwd' in token or 'disability' in token:
-            enforceable_found = True
-            if is_pwd:
-                return True
-        elif 'senior' in token or 'elderly' in token:
-            enforceable_found = True
-            if age >= SENIOR_CITIZEN_AGE:
-                return True
-        elif 'low income' in token or 'indigent' in token:
-            enforceable_found = True
-            if income <= 250000:
-                return True
-        elif 'not employed' in token or 'unemployed' in token:
-            enforceable_found = True
-            if not is_employed:
-                return True
+    identity_checks = []
+    requires_low_income = False
+    requires_unemployed = False
 
-    return not enforceable_found
+    for token in tokens:
+        if _token_is_student(token):
+            identity_checks.append(is_student)
+        elif _token_is_solo_parent(token):
+            identity_checks.append(is_solo_parent)
+        elif _token_is_pwd(token):
+            identity_checks.append(is_pwd)
+        elif _token_is_senior(token):
+            identity_checks.append(age >= SENIOR_CITIZEN_AGE)
+        elif _token_is_low_income(token):
+            requires_low_income = True
+        elif _token_is_unemployed(token):
+            requires_unemployed = True
+
+    has_enforceable_group = bool(identity_checks) or requires_low_income or requires_unemployed
+    if not has_enforceable_group:
+        return False
+
+    if identity_checks and not any(identity_checks):
+        return False
+
+    if requires_low_income and income > 250000:
+        return False
+
+    if requires_unemployed and is_employed:
+        return False
+
+    return True
 
 
 def _apply_severity_boost(recommendations, case_severity_prioritization):
@@ -561,6 +599,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                        solo_parent_priority=False, student_priority=False,
                        pwd_priority=False, senior_citizen_priority=False,
                        priority_barangays=None,
+                       priority_municipality=None,
                        priority_groups=None,
                        min_income=0, max_income=10000000,
                        case_severity_prioritization=False):
@@ -586,6 +625,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         pwd_priority: Whether to prioritize PWDs
         senior_citizen_priority: Whether to prioritize senior citizens (age >= 60)
         priority_barangays: List of barangays to filter by
+        priority_municipality: Municipality to strictly filter by
         priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD")
                         Overrides individual priority flags if provided and acts as
                         a hard profile filter on returned beneficiaries
@@ -610,6 +650,13 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
     # Ensure min <= max
     if min_income > max_income:
         min_income, max_income = 0, 10000000  # Reset to defaults if invalid
+
+    normalized_priority_municipality = str(priority_municipality or '').strip().lower() or None
+    normalized_priority_barangays = {
+        str(barangay).strip().lower()
+        for barangay in (priority_barangays or [])
+        if str(barangay).strip()
+    }
     
     # Apply basic filters
     filtered = []
@@ -628,10 +675,16 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
             # Skip if income cannot be converted to float
             continue
         
-        # Barangay filter - if priority_barangays is provided, filter by them
-        if priority_barangays and len(priority_barangays) > 0:
-            barangay = b.get('barangay', '')
-            if barangay not in priority_barangays:
+        # Municipality filter - strict when provided.
+        if normalized_priority_municipality:
+            municipality = str(b.get('municipality') or '').strip().lower()
+            if municipality != normalized_priority_municipality:
+                continue
+
+        # Barangay filter - if priority_barangays is provided, filter by them.
+        if normalized_priority_barangays:
+            barangay = str(b.get('barangay') or '').strip().lower()
+            if barangay not in normalized_priority_barangays:
                 continue
 
         # Priority-group profile filter - enforce only matching profiles when configured
@@ -669,10 +722,29 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                 filters=filters
             )
             if cbf_results:
+                # Final hard guards to ensure strict compliance with active filters.
+                if priority_groups:
+                    cbf_results = [
+                        rec for rec in cbf_results
+                        if _beneficiary_matches_priority_groups(rec, priority_groups)
+                    ]
+
+                if normalized_priority_municipality:
+                    cbf_results = [
+                        rec for rec in cbf_results
+                        if str(rec.get('municipality') or '').strip().lower() == normalized_priority_municipality
+                    ]
+
+                if normalized_priority_barangays:
+                    cbf_results = [
+                        rec for rec in cbf_results
+                        if str(rec.get('barangay') or '').strip().lower() in normalized_priority_barangays
+                    ]
+
                 # Apply severity boost if enabled
                 if case_severity_prioritization:
                     cbf_results = _apply_severity_boost(cbf_results, case_severity_prioritization)
-                return cbf_results
+                return cbf_results[:max_beneficiaries]
         # If CBF produced no results (e.g. empty filtered pool), fall through to scoring
 
     # --- Rule-based scoring path (fallback or default) ---
@@ -696,6 +768,24 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
     # Apply severity boost if enabled
     if case_severity_prioritization:
         scored = _apply_severity_boost(scored, case_severity_prioritization)
+
+    if priority_groups:
+        scored = [
+            rec for rec in scored
+            if _beneficiary_matches_priority_groups(rec, priority_groups)
+        ]
+
+    if normalized_priority_municipality:
+        scored = [
+            rec for rec in scored
+            if str(rec.get('municipality') or '').strip().lower() == normalized_priority_municipality
+        ]
+
+    if normalized_priority_barangays:
+        scored = [
+            rec for rec in scored
+            if str(rec.get('barangay') or '').strip().lower() in normalized_priority_barangays
+        ]
     
     # Return top N beneficiaries
     return scored[:max_beneficiaries]

@@ -273,11 +273,16 @@
 <div class="container-fluid analytics-shell py-4">
     <div class="analytics-hero">
         <div class="row align-items-center">
-            <div class="col-lg-9 mb-2 mb-lg-0">
+            <div class="col-lg-8 mb-2 mb-lg-0">
                 <h1 class="h2 font-weight-bold mb-0">
                     <i class="fas fa-users mr-2"></i>Beneficiary Recommendation
                 </h1>
                 <p class="subtitle">Generate prioritized beneficiary lists using data-driven scoring.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <a href="{{ url_for('admin.analytics_reports') }}" class="btn btn-outline-custom">
+                    <i class="fas fa-file-export mr-2"></i>Generate Report
+                </a>
             </div>
         </div>
     </div>
@@ -292,6 +297,11 @@
             <li class="nav-item">
                 <a class="nav-link active" href="{{ url_for('admin.analytics_recommend') }}">
                     <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_reports') }}">
+                    <i class="fas fa-file-export mr-2"></i>Reports
                 </a>
             </li>
         </ul>
@@ -342,21 +352,26 @@
                             <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
                         </h6>
 
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-map-marked-alt mr-2 text-primary"></i>Municipality
+                            </label>
+                            <select class="form-control" id="priority_municipality" name="priority_municipality">
+                                <option value="">Select municipality first...</option>
+                                {% for municipality in municipalities %}
+                                <option value="{{ municipality }}">{{ municipality }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Choose a municipality to load its barangays</small>
+                        </div>
+
                         <!-- Barangay Priority - Checkboxes -->
                         <div class="form-group">
                             <label>Priority Barangays <small class="text-muted">(Select one or more)</small></label>
-                            <div class="barangay-checkbox-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
-                                {% for barangay in barangays %}
-                                <div class="custom-control custom-checkbox mb-1">
-                                    <input type="checkbox" class="custom-control-input barangay-checkbox" 
-                                           id="barangay_{{ loop.index }}" name="priority_barangays" value="{{ barangay }}">
-                                    <label class="custom-control-label" for="barangay_{{ loop.index }}">
-                                        {{ barangay }}
-                                    </label>
-                                </div>
-                                {% endfor %}
+                            <div class="barangay-checkbox-container" id="barangayCheckboxContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
+                                <small class="text-muted">Select a municipality first to view available barangays.</small>
                             </div>
-                            <small class="form-text text-muted">Leave all unchecked to include all barangays</small>
+                            <small class="form-text text-muted">Leave all unchecked to include all barangays in the selected municipality</small>
                         </div>
 
                         <!-- Income Range -->
@@ -383,33 +398,6 @@
                             <small class="form-text text-muted">Select an income bracket to filter beneficiaries</small>
                         </div>
 
-                        <!-- Priority Checkboxes -->
-                        <div class="form-group">
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" 
-                                       id="solo_parent_priority" name="solo_parent_priority">
-                                <label class="custom-control-label" for="solo_parent_priority">
-                                    Prioritize Solo Parents
-                                </label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" 
-                                       id="student_priority" name="student_priority">
-                                <label class="custom-control-label" for="student_priority">
-                                    Prioritize Students
-                                </label>
-                            </div>
-                            <div class="custom-control custom-checkbox mb-2">
-                                <input type="checkbox" class="custom-control-input" 
-                                       id="pwd_priority" name="pwd_priority">
-                                <label class="custom-control-label" for="pwd_priority">
-                                    Prioritize PWDs
-                                </label>
-                            </div>
-                        </div>
-
-                        <hr>
-
                         <!-- ML Model Note -->
                         <div class="alert alert-info">
                             <i class="fas fa-robot mr-2"></i>
@@ -432,11 +420,26 @@
                     <h6 class="m-0 font-weight-bold">
                         <i class="fas fa-list-ol mr-2"></i>Recommended Beneficiaries
                     </h6>
-                    <button class="btn btn-outline-custom btn-sm" id="exportBtn" style="display: none;">
-                        <i class="fas fa-download mr-2"></i>Export List
-                    </button>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-outline-custom btn-sm mr-2" id="viewSavedListsBtn" type="button">
+                            <i class="fas fa-folder-open mr-2"></i>View Saved Lists
+                        </button>
+                        <div id="resultActionButtons" style="display: none;">
+                        <button class="btn btn-outline-custom btn-sm mr-2" id="saveListBtn" type="button">
+                            <i class="fas fa-save mr-2"></i>Save List
+                        </button>
+                        <button class="btn btn-gradient-primary btn-sm mr-2" id="notifyUsersBtn" type="button">
+                            <i class="fas fa-bell mr-2"></i>Notify Users
+                        </button>
+                        <button class="btn btn-outline-custom btn-sm" id="exportBtn" type="button">
+                            <i class="fas fa-download mr-2"></i>Export List
+                        </button>
+                    </div>
+                    </div>
                 </div>
                 <div class="card-body">
+                    <div id="actionFeedback" style="display: none;"></div>
+
                     <!-- Initial State -->
                     <div id="initialState" class="text-center py-5">
                         <i class="fas fa-users-cog fa-4x text-muted mb-3"></i>
@@ -500,6 +503,105 @@
         </div>
     </div>
 </div>
+
+<!-- Saved Recommendation Lists Modal -->
+<div class="modal fade" id="savedListsModal" tabindex="-1" role="dialog" aria-labelledby="savedListsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="savedListsModalLabel">
+                    <i class="fas fa-folder-open mr-2"></i>Saved Recommendation Lists
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="savedListFeedback" style="display: none;"></div>
+                <div class="row">
+                    <div class="col-lg-5 border-right">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="font-weight-bold mb-0">Generated Sets</h6>
+                            <button type="button" class="btn btn-outline-custom btn-sm" id="refreshSavedListsBtn">
+                                <i class="fas fa-sync-alt mr-1"></i>Refresh
+                            </button>
+                        </div>
+                        <div id="savedListsLoading" class="text-center py-4 text-muted" style="display: none;">
+                            <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+                            Loading saved lists...
+                        </div>
+                        <div class="list-group" id="savedListsContainer"></div>
+                    </div>
+                    <div class="col-lg-7">
+                        <h6 class="font-weight-bold mb-3">List Summary</h6>
+                        <div id="savedListDetailPanel" class="text-muted">
+                            Select a saved recommendation set to view parameters and actions.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-gradient-primary" id="notifySavedListUsersBtn" disabled>
+                    <i class="fas fa-bell mr-2"></i>Notify Users
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Saved List Beneficiaries Modal -->
+<div class="modal fade" id="savedListBeneficiariesModal" tabindex="-1" role="dialog" aria-labelledby="savedListBeneficiariesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="savedListBeneficiariesModalLabel">
+                    <i class="fas fa-users mr-2"></i>Saved List Beneficiaries
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="savedBeneficiariesModalFeedback" style="display: none;"></div>
+
+                <div id="savedBeneficiariesLoading" class="text-center py-4 text-muted" style="display: none;">
+                    <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+                    Loading beneficiaries...
+                </div>
+
+                <div id="savedBeneficiariesContent" style="display: none;">
+                    <div id="savedBeneficiariesSummary" class="mb-3"></div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th style="width: 70px;">#</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Municipality</th>
+                                    <th>Barangay</th>
+                                    <th style="width: 140px;">Tags</th>
+                                </tr>
+                            </thead>
+                            <tbody id="savedBeneficiariesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="savedBeneficiariesEmpty" class="text-center text-muted py-3" style="display: none;">
+                        No beneficiaries available in this saved list.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-gradient-primary" id="notifySavedBeneficiariesBtn" disabled>
+                    <i class="fas fa-bell mr-2"></i>Notify Users
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -508,6 +610,212 @@
 let currentRecommendations = [];
 let currentAlgorithm = '';
 let currentPriorityGroups = '';  // Store program's priority groups for explanation generation
+let currentProgramId = null;
+let currentProgramName = '';
+let currentRequestFilters = {};
+const municipalityBarangays = {{ municipality_barangays_json | safe }};
+const RECOMMENDATION_STATE_KEY = 'ayuda_admin_recommend_state_v1';
+let savedRecommendationSets = [];
+let selectedSavedListId = null;
+let selectedSavedListDetail = null;
+const savedRecommendationDetailUrlTemplate = '{{ url_for("admin.api_saved_recommendation_detail", saved_list_id=0) }}';
+
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatCurrency(value) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : 0;
+    return `₱${safeValue.toLocaleString()}`;
+}
+
+function formatTimestamp(isoValue) {
+    if (!isoValue) return 'N/A';
+    const date = new Date(isoValue);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila'
+    });
+}
+
+function csvEscape(value) {
+    const stringValue = String(value === null || value === undefined ? '' : value);
+    if (/[",\r\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+}
+
+function sanitizeFilename(input) {
+    return String(input || 'program')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'program';
+}
+
+function setResultActionButtonsVisible(isVisible) {
+    const actionWrapper = document.getElementById('resultActionButtons');
+    actionWrapper.style.display = isVisible ? 'flex' : 'none';
+}
+
+function clearActionFeedback() {
+    const feedback = document.getElementById('actionFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function showActionFeedback(message, variant) {
+    const feedback = document.getElementById('actionFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function getUniqueRecommendationUserIds() {
+    return Array.from(new Set(
+        currentRecommendations
+            .map(rec => parseInt(rec.user_id, 10))
+            .filter(id => Number.isInteger(id) && id > 0)
+    ));
+}
+
+function persistRecommendationState(generatedAt) {
+    try {
+        const payload = {
+            generated_at: generatedAt || new Date().toISOString(),
+            program_id: currentProgramId,
+            program_name: currentProgramName,
+            algorithm: currentAlgorithm,
+            priority_groups: currentPriorityGroups,
+            filters: currentRequestFilters || {},
+            recommendations: currentRecommendations || [],
+            count: Array.isArray(currentRecommendations) ? currentRecommendations.length : 0,
+        };
+        sessionStorage.setItem(RECOMMENDATION_STATE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Unable to persist recommendation state:', error);
+    }
+}
+
+function restoreRecommendationState() {
+    try {
+        const raw = sessionStorage.getItem(RECOMMENDATION_STATE_KEY);
+        if (!raw) return false;
+
+        const payload = JSON.parse(raw);
+        if (!payload || !Array.isArray(payload.recommendations)) {
+            sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+            return false;
+        }
+
+        currentRecommendations = payload.recommendations;
+        currentAlgorithm = payload.algorithm || '';
+        currentPriorityGroups = payload.priority_groups || '';
+        currentProgramId = payload.program_id ? parseInt(payload.program_id, 10) : null;
+        currentProgramName = payload.program_name || '';
+        currentRequestFilters = payload.filters && typeof payload.filters === 'object' ? payload.filters : {};
+
+        const programSelect = document.getElementById('program_id');
+        if (programSelect && currentProgramId) {
+            const programValue = String(currentProgramId);
+            const optionExists = Array.from(programSelect.options).some(option => option.value === programValue);
+            if (optionExists) {
+                programSelect.value = programValue;
+            }
+        }
+
+        if (currentRequestFilters.max_beneficiaries) {
+            document.getElementById('max_beneficiaries').value = currentRequestFilters.max_beneficiaries;
+        }
+
+        if (currentRequestFilters.priority_municipality) {
+            const municipalitySelect = document.getElementById('priority_municipality');
+            municipalitySelect.value = currentRequestFilters.priority_municipality;
+            renderBarangayOptionsForMunicipality(currentRequestFilters.priority_municipality);
+
+            const selectedBarangays = Array.isArray(currentRequestFilters.priority_barangays)
+                ? currentRequestFilters.priority_barangays
+                : [];
+
+            if (selectedBarangays.length > 0) {
+                document.querySelectorAll('.barangay-checkbox').forEach(checkbox => {
+                    checkbox.checked = selectedBarangays.includes(checkbox.value);
+                });
+            }
+        }
+
+        if (
+            typeof currentRequestFilters.min_income === 'number' &&
+            typeof currentRequestFilters.max_income === 'number'
+        ) {
+            setIncomeRangeDropdownFromBounds(currentRequestFilters.min_income, currentRequestFilters.max_income);
+            document.getElementById('min_income').value = String(currentRequestFilters.min_income);
+            document.getElementById('max_income').value = String(currentRequestFilters.max_income);
+        }
+
+        displayResults({
+            count: payload.count || payload.recommendations.length,
+            recommendations: payload.recommendations,
+            generated_at: payload.generated_at,
+        }, { persistState: false });
+
+        showActionFeedback('<i class="fas fa-history mr-2"></i>Restored the last generated recommendation list for this session.', 'info');
+        return true;
+    } catch (error) {
+        console.warn('Unable to restore recommendation state:', error);
+        sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+        return false;
+    }
+}
+
+function renderBarangayOptionsForMunicipality(municipality) {
+    const container = document.getElementById('barangayCheckboxContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!municipality) {
+        container.innerHTML = '<small class="text-muted">Select a municipality first to view available barangays.</small>';
+        return;
+    }
+
+    const barangays = municipalityBarangays[municipality] || [];
+    if (!barangays.length) {
+        container.innerHTML = '<small class="text-muted">No barangays available for the selected municipality.</small>';
+        return;
+    }
+
+    barangays.forEach((barangay, index) => {
+        const optionId = `priority_barangay_${index}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-control custom-checkbox mb-1';
+        wrapper.innerHTML = `
+            <input type="checkbox" class="custom-control-input barangay-checkbox" id="${optionId}" name="priority_barangays" value="${barangay}">
+            <label class="custom-control-label" for="${optionId}">${barangay}</label>
+        `;
+        container.appendChild(wrapper);
+    });
+}
 
 // Auto-fill parameters when program is selected
 document.getElementById('program_id').addEventListener('change', function() {
@@ -538,10 +846,6 @@ function autofillParameters(programData) {
         parseIncomeRange(programData.income_range);
     }
     
-    // Auto-fill priority checkboxes
-    if (programData.priority_group) {
-        parsePriorityGroups(programData.priority_group);
-    }
 }
 
 function parseIncomeRange(incomeRangeStr) {
@@ -596,34 +900,14 @@ function syncIncomeRangeBoundsFromDropdown() {
 
 document.getElementById('income_range_filter').addEventListener('change', syncIncomeRangeBoundsFromDropdown);
 
-function parsePriorityGroups(priorityGroupStr) {
-    // Reset all checkboxes
-    document.getElementById('solo_parent_priority').checked = false;
-    document.getElementById('student_priority').checked = false;
-    document.getElementById('pwd_priority').checked = false;
-    
-    if (!priorityGroupStr) return;
-    
-    const lowerStr = priorityGroupStr.toLowerCase();
-    
-    // Check for solo parent keywords
-    if (lowerStr.includes('solo parent') || lowerStr.includes('single parent')) {
-        document.getElementById('solo_parent_priority').checked = true;
-    }
-    
-    // Check for student keywords
-    if (lowerStr.includes('student') || lowerStr.includes('scholar')) {
-        document.getElementById('student_priority').checked = true;
-    }
-    
-    // Check for PWD keywords
-    if (lowerStr.includes('pwd') || lowerStr.includes('disability') || lowerStr.includes('disabled')) {
-        document.getElementById('pwd_priority').checked = true;
-    }
-}
+document.getElementById('priority_municipality').addEventListener('change', function() {
+    renderBarangayOptionsForMunicipality(this.value);
+});
 
 document.getElementById('recommendationForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    clearActionFeedback();
+    setResultActionButtonsVisible(false);
     
     // Show loading state
     document.getElementById('initialState').style.display = 'none';
@@ -635,6 +919,12 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     document.querySelectorAll('.barangay-checkbox:checked').forEach(checkbox => {
         selectedBarangays.push(checkbox.value);
     });
+
+    const selectedMunicipality = document.getElementById('priority_municipality').value;
+    if (selectedMunicipality && selectedBarangays.length === 0) {
+        const municipalityOptions = municipalityBarangays[selectedMunicipality] || [];
+        selectedBarangays.push(...municipalityOptions);
+    }
     
     syncIncomeRangeBoundsFromDropdown();
 
@@ -673,12 +963,22 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     const formData = {
         program_id: document.getElementById('program_id').value,
         max_beneficiaries: document.getElementById('max_beneficiaries').value,
+        priority_municipality: selectedMunicipality,
         priority_barangays: selectedBarangays,
         min_income: minIncome,
+        max_income: maxIncome
+    };
+
+    const programSelect = document.getElementById('program_id');
+    const selectedOption = programSelect.options[programSelect.selectedIndex];
+    currentProgramId = formData.program_id ? parseInt(formData.program_id, 10) : null;
+    currentProgramName = selectedOption ? selectedOption.text.trim() : '';
+    currentRequestFilters = {
+        max_beneficiaries: parseInt(formData.max_beneficiaries, 10) || 0,
+        priority_municipality: formData.priority_municipality,
+        priority_barangays: [...selectedBarangays],
+        min_income: minIncome,
         max_income: maxIncome,
-        solo_parent_priority: document.getElementById('solo_parent_priority').checked,
-        student_priority: document.getElementById('student_priority').checked,
-        pwd_priority: document.getElementById('pwd_priority').checked
     };
     
     // Make API call
@@ -695,7 +995,12 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
             currentRecommendations = data.recommendations;
             currentAlgorithm = data.algorithm || '';
             currentPriorityGroups = data.priority_groups || '';
-            displayResults(data);
+            currentRequestFilters.priority_groups = currentPriorityGroups;
+            const generatedAt = new Date().toISOString();
+            displayResults({
+                ...data,
+                generated_at: generatedAt,
+            });
         } else {
             alert('Error generating recommendations: ' + data.message);
         }
@@ -709,10 +1014,16 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     });
 });
 
-function displayResults(data) {
+function displayResults(data, options = {}) {
+    const shouldPersist = options.persistState !== false;
+
+    document.getElementById('initialState').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'none';
+
     // Update result count
     document.getElementById('resultCount').textContent = data.count;
-    document.getElementById('resultTimestamp').textContent = new Date().toLocaleString('en-US', {
+    const generatedDate = data.generated_at ? new Date(data.generated_at) : new Date();
+    document.getElementById('resultTimestamp').textContent = generatedDate.toLocaleString('en-US', {
         month: 'short',
         day: '2-digit',
         year: 'numeric',
@@ -772,13 +1083,555 @@ function displayResults(data) {
     
     // Show results
     document.getElementById('resultsContainer').style.display = 'block';
-    document.getElementById('exportBtn').style.display = 'inline-block';
+    setResultActionButtonsVisible(true);
+    document.getElementById('notifyUsersBtn').disabled = data.recommendations.length === 0;
+    document.getElementById('saveListBtn').disabled = !currentProgramId;
+
+    if (shouldPersist) {
+        persistRecommendationState(data.generated_at);
+    }
 }
 
 // Export functionality
 document.getElementById('exportBtn').addEventListener('click', function() {
-    // TODO: Implement CSV export
-    alert('Export functionality will be implemented');
+    if (!currentRecommendations.length) {
+        showActionFeedback('No recommendation list available to export.', 'warning');
+        return;
+    }
+
+    const generatedAtText = document.getElementById('resultTimestamp').textContent || formatTimestamp(new Date().toISOString());
+    const rows = [
+        ['Program', currentProgramName || 'N/A'],
+        ['Generated At', generatedAtText],
+        ['Algorithm', currentAlgorithm || 'N/A'],
+        ['Priority Groups', currentPriorityGroups || 'N/A'],
+        ['Municipality Filter', (currentRequestFilters.priority_municipality || 'All')],
+        ['Income Range', `${formatCurrency(currentRequestFilters.min_income || 0)} - ${formatCurrency(currentRequestFilters.max_income || 10000000)}`],
+        [],
+        ['Rank', 'User ID', 'Name', 'Email', 'Municipality', 'Barangay', 'Age', 'Annual Income', 'Student', 'Solo Parent', 'PWD', 'Senior Citizen', 'Score Type', 'Score']
+    ];
+
+    currentRecommendations.forEach((rec, index) => {
+        rows.push([
+            index + 1,
+            rec.user_id || '',
+            rec.name || '',
+            rec.email || '',
+            rec.municipality || '',
+            rec.barangay || '',
+            rec.age != null ? rec.age : '',
+            rec.income || 0,
+            rec.is_student ? 'Yes' : 'No',
+            rec.is_solo_parent ? 'Yes' : 'No',
+            rec.is_pwd ? 'Yes' : 'No',
+            rec.is_senior ? 'Yes' : 'No',
+            rec.similarity_score != null ? 'Similarity' : 'Priority Score',
+            Number(rec.score || 0).toFixed(4)
+        ]);
+    });
+
+    const csvContent = rows
+        .map(row => row.map(csvEscape).join(','))
+        .join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
+    const filename = `recommendations_${sanitizeFilename(currentProgramName)}_${timestamp}.csv`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    showActionFeedback(`<i class="fas fa-file-csv mr-2"></i>Exported recommendation list to ${filename}.`, 'success');
+});
+
+function showSavedListFeedback(message, variant) {
+    const feedback = document.getElementById('savedListFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function clearSavedListFeedback() {
+    const feedback = document.getElementById('savedListFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function showSavedBeneficiariesModalFeedback(message, variant) {
+    const feedback = document.getElementById('savedBeneficiariesModalFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function clearSavedBeneficiariesModalFeedback() {
+    const feedback = document.getElementById('savedBeneficiariesModalFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function getSavedRecommendationDetailUrl(savedListId) {
+    return savedRecommendationDetailUrlTemplate.replace(/0$/, String(savedListId));
+}
+
+function buildSavedBeneficiaryTagBadges(beneficiary) {
+    const tags = [];
+    if (beneficiary.is_student) tags.push('<span class="badge badge-primary mr-1">Student</span>');
+    if (beneficiary.is_solo_parent) tags.push('<span class="badge badge-info mr-1">Solo Parent</span>');
+    if (beneficiary.is_pwd) tags.push('<span class="badge badge-warning mr-1">PWD</span>');
+    if (beneficiary.is_senior) tags.push('<span class="badge badge-secondary mr-1">Senior</span>');
+    return tags.length ? tags.join('') : '<span class="text-muted small">-</span>';
+}
+
+function renderSavedBeneficiariesModalContent(savedItem, beneficiaries) {
+    const summaryEl = document.getElementById('savedBeneficiariesSummary');
+    const tableBodyEl = document.getElementById('savedBeneficiariesTableBody');
+    const emptyEl = document.getElementById('savedBeneficiariesEmpty');
+    const notifyBtn = document.getElementById('notifySavedBeneficiariesBtn');
+
+    const filters = savedItem.filters || {};
+    summaryEl.innerHTML = `
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+            <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
+            <small class="text-muted">Saved ${escapeHtml(formatTimestamp(savedItem.created_at))} by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+        </div>
+        <div class="mb-2">
+            <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users saved</span>
+            <span class="badge badge-light">Priority: ${escapeHtml(filters.priority_groups || 'Not set')}</span>
+        </div>
+    `;
+
+    tableBodyEl.innerHTML = '';
+    if (!beneficiaries.length) {
+        emptyEl.style.display = 'block';
+        notifyBtn.disabled = true;
+        return;
+    }
+
+    emptyEl.style.display = 'none';
+    beneficiaries.forEach((beneficiary, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(beneficiary.name || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.email || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.municipality || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.barangay || 'N/A')}</td>
+            <td>${buildSavedBeneficiaryTagBadges(beneficiary)}</td>
+        `;
+        tableBodyEl.appendChild(row);
+    });
+
+    notifyBtn.disabled = !(savedItem.program_id && Array.isArray(savedItem.recommended_user_ids) && savedItem.recommended_user_ids.length > 0);
+}
+
+function openSavedRecommendationBeneficiariesModal(savedListId) {
+    const loadingEl = document.getElementById('savedBeneficiariesLoading');
+    const contentEl = document.getElementById('savedBeneficiariesContent');
+    const titleEl = document.getElementById('savedListBeneficiariesModalLabel');
+    const notifyBtn = document.getElementById('notifySavedBeneficiariesBtn');
+
+    clearSavedBeneficiariesModalFeedback();
+    selectedSavedListDetail = null;
+    notifyBtn.disabled = true;
+    titleEl.innerHTML = '<i class="fas fa-users mr-2"></i>Saved List Beneficiaries';
+
+    loadingEl.style.display = 'block';
+    contentEl.style.display = 'none';
+
+    $('#savedListBeneficiariesModal').modal('show');
+
+    fetch(getSavedRecommendationDetailUrl(savedListId))
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load saved list beneficiaries.'}`, 'danger');
+                return;
+            }
+
+            const savedItem = data.saved_list || {};
+            const beneficiaries = Array.isArray(data.beneficiaries) ? data.beneficiaries : [];
+            selectedSavedListDetail = {
+                ...savedItem,
+                beneficiaries,
+            };
+
+            titleEl.innerHTML = `<i class="fas fa-users mr-2"></i>${escapeHtml(savedItem.program_name || 'Saved List')} Beneficiaries`;
+            renderSavedBeneficiariesModalContent(savedItem, beneficiaries);
+            contentEl.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading saved list details:', error);
+            showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading saved beneficiaries.', 'danger');
+        })
+        .finally(() => {
+            loadingEl.style.display = 'none';
+        });
+}
+
+function getSavedListById(savedListId) {
+    return savedRecommendationSets.find(item => item.id === savedListId) || null;
+}
+
+function renderSavedListSummary(savedItem) {
+    const detailPanel = document.getElementById('savedListDetailPanel');
+    const notifyButton = document.getElementById('notifySavedListUsersBtn');
+
+    if (!savedItem) {
+        detailPanel.innerHTML = 'Select a saved recommendation set to view parameters and actions.';
+        notifyButton.disabled = true;
+        return;
+    }
+
+    const filters = savedItem.filters || {};
+    const barangays = Array.isArray(filters.priority_barangays) ? filters.priority_barangays : [];
+    const userIds = Array.isArray(savedItem.recommended_user_ids) ? savedItem.recommended_user_ids : [];
+
+    const barangayDisplay = barangays.length ? escapeHtml(barangays.join(', ')) : 'All barangays';
+    const minIncome = Number.isFinite(Number(filters.min_income)) ? Number(filters.min_income) : 0;
+    const maxIncome = Number.isFinite(Number(filters.max_income)) ? Number(filters.max_income) : 10000000;
+
+    detailPanel.innerHTML = `
+        <div class="mb-3">
+            <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
+            <div class="text-muted small">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')} on ${escapeHtml(formatTimestamp(savedItem.created_at))}</div>
+        </div>
+        <div class="mb-3">
+            <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users saved</span>
+            ${savedItem.recommended_user_ids_truncated ? '<span class="badge badge-warning">User list truncated in saved record</span>' : ''}
+        </div>
+        <hr>
+        <h6 class="font-weight-bold">Parameter Summary</h6>
+        <ul class="mb-0 pl-3">
+            <li><strong>Priority Groups:</strong> ${escapeHtml(filters.priority_groups || 'Not set')}</li>
+            <li><strong>Municipality:</strong> ${escapeHtml(filters.priority_municipality || 'All municipalities')}</li>
+            <li><strong>Priority Barangays:</strong> ${barangayDisplay}</li>
+            <li><strong>Income Range:</strong> ${escapeHtml(formatCurrency(minIncome))} - ${escapeHtml(formatCurrency(maxIncome))}</li>
+            <li><strong>Max Beneficiaries:</strong> ${escapeHtml(filters.max_beneficiaries || 'N/A')}</li>
+            <li><strong>Algorithm:</strong> ${escapeHtml(filters.algorithm || 'N/A')}</li>
+        </ul>
+    `;
+
+    notifyButton.disabled = !(savedItem.program_id && userIds.length > 0);
+}
+
+function selectSavedRecommendation(savedListId) {
+    selectedSavedListId = savedListId;
+    document.querySelectorAll('.saved-list-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-saved-id') === String(savedListId));
+    });
+    renderSavedListSummary(getSavedListById(savedListId));
+}
+
+function renderSavedRecommendationSets() {
+    const container = document.getElementById('savedListsContainer');
+    container.innerHTML = '';
+
+    if (!savedRecommendationSets.length) {
+        container.innerHTML = '<div class="text-muted small py-2">No saved recommendation lists found.</div>';
+        renderSavedListSummary(null);
+        return;
+    }
+
+    savedRecommendationSets.forEach((savedItem, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'list-group-item list-group-item-action saved-list-item';
+        button.setAttribute('data-saved-id', String(savedItem.id));
+        button.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <div>
+                    <div class="font-weight-bold">${escapeHtml(savedItem.program_name || 'Unknown Program')}</div>
+                    <small class="text-muted">${escapeHtml(savedItem.recommendation_count)} recommendations</small>
+                </div>
+                <small class="text-muted">${escapeHtml(formatTimestamp(savedItem.created_at))}</small>
+            </div>
+            <small class="text-muted d-block mt-1">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+        `;
+        button.addEventListener('click', function() {
+            selectSavedRecommendation(savedItem.id);
+            openSavedRecommendationBeneficiariesModal(savedItem.id);
+        });
+        container.appendChild(button);
+
+        if (index === 0) {
+            selectSavedRecommendation(savedItem.id);
+        }
+    });
+}
+
+function loadSavedRecommendationSets() {
+    clearSavedListFeedback();
+
+    const loading = document.getElementById('savedListsLoading');
+    const container = document.getElementById('savedListsContainer');
+    loading.style.display = 'block';
+    container.innerHTML = '';
+
+    fetch('{{ url_for("admin.api_saved_recommendations") }}?limit=50')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load saved lists.'}`, 'danger');
+                savedRecommendationSets = [];
+                selectedSavedListId = null;
+                renderSavedRecommendationSets();
+                return;
+            }
+
+            savedRecommendationSets = Array.isArray(data.saved_lists) ? data.saved_lists : [];
+            selectedSavedListId = null;
+            renderSavedRecommendationSets();
+        })
+        .catch(error => {
+            console.error('Error loading saved recommendation lists:', error);
+            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading saved lists.', 'danger');
+            savedRecommendationSets = [];
+            selectedSavedListId = null;
+            renderSavedRecommendationSets();
+        })
+        .finally(() => {
+            loading.style.display = 'none';
+        });
+}
+
+document.getElementById('viewSavedListsBtn').addEventListener('click', function() {
+    $('#savedListsModal').modal('show');
+    loadSavedRecommendationSets();
+});
+
+document.getElementById('refreshSavedListsBtn').addEventListener('click', function() {
+    loadSavedRecommendationSets();
+});
+
+document.getElementById('notifySavedListUsersBtn').addEventListener('click', function() {
+    const selected = getSavedListById(selectedSavedListId);
+    if (!selected) {
+        showSavedListFeedback('Select a saved recommendation list first.', 'warning');
+        return;
+    }
+
+    const userIds = Array.isArray(selected.recommended_user_ids) ? selected.recommended_user_ids : [];
+    if (!selected.program_id || !userIds.length) {
+        showSavedListFeedback('This saved set does not include enough data to notify users.', 'warning');
+        return;
+    }
+
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this saved list?`);
+    if (!confirmed) {
+        return;
+    }
+
+    const notifyBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            program_id: selected.program_id,
+            user_ids: userIds,
+            saved_list_id: selected.id,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
+        } else {
+            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from saved set.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying saved list users:', error);
+        showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+    });
+});
+
+document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click', function() {
+    if (!selectedSavedListDetail) {
+        showSavedBeneficiariesModalFeedback('Select a saved recommendation list first.', 'warning');
+        return;
+    }
+
+    const userIds = Array.isArray(selectedSavedListDetail.recommended_user_ids)
+        ? selectedSavedListDetail.recommended_user_ids
+        : [];
+
+    if (!selectedSavedListDetail.program_id || !userIds.length) {
+        showSavedBeneficiariesModalFeedback('This saved set does not include enough data to notify users.', 'warning');
+        return;
+    }
+
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this saved list?`);
+    if (!confirmed) {
+        return;
+    }
+
+    const notifyBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            program_id: selectedSavedListDetail.program_id,
+            user_ids: userIds,
+            saved_list_id: selectedSavedListDetail.id,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSavedBeneficiariesModalFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
+        } else {
+            showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from saved set.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying users from beneficiaries modal:', error);
+        showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+    });
+});
+
+document.getElementById('saveListBtn').addEventListener('click', function() {
+    if (!currentProgramId) {
+        showActionFeedback('Select a valid target program before saving a list.', 'warning');
+        return;
+    }
+
+    const saveBtn = this;
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+
+    const payload = {
+        program_id: currentProgramId,
+        count: currentRecommendations.length,
+        recommendation_user_ids: getUniqueRecommendationUserIds(),
+        filters: {
+            ...currentRequestFilters,
+            algorithm: currentAlgorithm,
+            priority_groups: currentPriorityGroups,
+        }
+    };
+
+    fetch('{{ url_for("admin.api_save_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+        } else {
+            showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to save recommendation list.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving recommendations:', error);
+        showActionFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while saving the list.', 'danger');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+    });
+});
+
+document.getElementById('notifyUsersBtn').addEventListener('click', function() {
+    if (!currentProgramId) {
+        showActionFeedback('Select a valid target program before sending notifications.', 'warning');
+        return;
+    }
+
+    const userIds = getUniqueRecommendationUserIds();
+    if (userIds.length === 0) {
+        showActionFeedback('No recommended beneficiaries are available for notification.', 'warning');
+        return;
+    }
+
+    const confirmed = confirm(`Send recommendation notifications to ${userIds.length} user(s) for ${currentProgramName || 'the selected program'}?`);
+    if (!confirmed) {
+        return;
+    }
+
+    const notifyBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            program_id: currentProgramId,
+            user_ids: userIds,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+        } else {
+            showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying users:', error);
+        showActionFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+    });
 });
 
 // Helper function to parse priority groups string into tokens
@@ -1155,5 +2008,11 @@ function showBeneficiaryDetail(index) {
     document.getElementById('beneficiaryDetailBody').innerHTML = html;
     $('#beneficiaryDetailModal').modal('show');
 }
+
+// Restore recommendations after page reload for the same browser session.
+(function initializeRecommendationState() {
+    syncIncomeRangeBoundsFromDropdown();
+    restoreRecommendationState();
+})();
 </script>
 {% endblock %}

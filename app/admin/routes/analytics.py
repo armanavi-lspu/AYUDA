@@ -1,9 +1,19 @@
 
-from flask import render_template, jsonify, request, redirect, url_for
+from flask import render_template, jsonify, request, redirect, url_for, Response, flash
 from flask_login import login_required, current_user
 from app.admin import admin_bp
-from app.utils import role_required
-from app.models import Applications, Programs, CommunityUsers, User, Requirements, ProgramRequirements
+from app.utils import role_required, manila_strftime
+from app.models import (
+    Applications,
+    Programs,
+    CommunityUsers,
+    User,
+    Notifications,
+    Requirements,
+    ProgramRequirements,
+    AdminActivityLog,
+    UserActivityLog,
+)
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_growth, forecast_program_timeseries
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE, BeneficiaryRecommender
@@ -12,15 +22,596 @@ from app.ml.explainer import BeneficiaryExplainer
 from app.ml.fairness_auditor import FairnessAuditor
 from app.ml.program_compatibility import ProgramCompatibilityScorer
 from app.ml.weight_optimizer import WeightOptimizer
-from app.activity_logger import log_recommendation_saved
-from sqlalchemy import func, extract
+from app.activity_logger import log_recommendation_saved, log_activity
+from app.location_options import get_municipalities, get_barangays_by_municipality
+from sqlalchemy import func, extract, or_
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+import csv
+import io
 import json
+import textwrap
 
 # Default age for target profile when program priority group is not senior citizens;
 # 30 represents a typical working-age beneficiary demographic
 DEFAULT_TARGET_AGE = 30
+
+REPORT_TYPE_OPTIONS = (
+    {'value': 'applications', 'label': 'Applications'},
+    {'value': 'activity_logs', 'label': 'Activity Logs'},
+    {'value': 'summary', 'label': 'Summary Report'},
+)
+
+DATE_PRESET_OPTIONS = (
+    {'value': 'last_7_days', 'label': 'Last 7 Days'},
+    {'value': 'last_30_days', 'label': 'Last 30 Days'},
+    {'value': 'this_month', 'label': 'This Month'},
+    {'value': 'this_year', 'label': 'This Year'},
+    {'value': 'custom', 'label': 'Custom Date Range'},
+)
+
+EXPORT_FORMAT_OPTIONS = (
+    {
+        'value': 'pdf',
+        'label': 'PDF',
+        'description': 'Recommended for better accessibility',
+        'recommended': True,
+    },
+    {
+        'value': 'excel',
+        'label': 'Excel Spreadsheet',
+        'description': 'Table-ready format for spreadsheet workflows',
+        'recommended': False,
+    },
+    {
+        'value': 'csv',
+        'label': 'CSV File',
+        'description': 'Lightweight flat-file export for integrations',
+        'recommended': False,
+    },
+)
+
+QUICK_REPORT_PRESETS = (
+    {
+        'slug': 'weekly_sessions',
+        'name': 'Weekly Sessions',
+        'description': 'Community session and authentication activities for the last 7 days.',
+        'params': {
+            'report_type': 'activity_logs',
+            'date_preset': 'last_7_days',
+            'log_scope': 'community',
+            'activity_focus': 'sessions',
+            'export_format': 'pdf',
+        },
+    },
+    {
+        'slug': 'weekly_applications',
+        'name': 'Weekly Applications',
+        'description': 'Applications submitted in the last 7 days across all program types.',
+        'params': {
+            'report_type': 'applications',
+            'date_preset': 'last_7_days',
+            'export_format': 'pdf',
+        },
+    },
+    {
+        'slug': 'monthly_summary',
+        'name': 'Monthly Summary',
+        'description': 'Monthly roll-up of applications and activity trends.',
+        'params': {
+            'report_type': 'summary',
+            'date_preset': 'this_month',
+            'export_format': 'pdf',
+        },
+    },
+)
+
+VALID_REPORT_TYPES = {option['value'] for option in REPORT_TYPE_OPTIONS}
+VALID_DATE_PRESETS = {option['value'] for option in DATE_PRESET_OPTIONS}
+VALID_EXPORT_FORMATS = {option['value'] for option in EXPORT_FORMAT_OPTIONS}
+VALID_LOG_SCOPES = {'all', 'admin', 'community'}
+VALID_ACTIVITY_FOCUS = {'all', 'sessions', 'applications'}
+
+
+def _default_report_form_values(preset_slug=None):
+    """Build default form values for the analytics report configuration page."""
+    defaults = {
+        'report_type': 'applications',
+        'date_preset': 'last_30_days',
+        'start_date': '',
+        'end_date': '',
+        'application_status': '',
+        'program_type': '',
+        'log_scope': 'all',
+        'activity_focus': 'all',
+        'export_format': 'pdf',
+    }
+
+    if preset_slug:
+        preset = next((item for item in QUICK_REPORT_PRESETS if item['slug'] == preset_slug), None)
+        if preset:
+            defaults.update(preset.get('params', {}))
+
+    return defaults
+
+
+def _resolve_report_date_range(date_preset, start_date_raw, end_date_raw):
+    """Resolve report date range inputs into start/end datetimes and a display label."""
+    if date_preset not in VALID_DATE_PRESETS:
+        raise ValueError('Please select a valid date range preset.')
+
+    now = datetime.now()
+    today = now.date()
+
+    if date_preset == 'last_7_days':
+        start_date = today - timedelta(days=6)
+        end_date = today
+        label = 'Last 7 Days'
+    elif date_preset == 'last_30_days':
+        start_date = today - timedelta(days=29)
+        end_date = today
+        label = 'Last 30 Days'
+    elif date_preset == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+        label = 'This Month'
+    elif date_preset == 'this_year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+        label = 'This Year'
+    else:
+        if not start_date_raw or not end_date_raw:
+            raise ValueError('Custom date range requires both start and end dates.')
+
+        try:
+            start_date = datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_raw, '%Y-%m-%d').date()
+        except ValueError as exc:
+            raise ValueError('Custom date range must follow YYYY-MM-DD format.') from exc
+
+        if start_date > end_date:
+            raise ValueError('Start date cannot be later than end date.')
+
+        label = f'Custom ({start_date.isoformat()} to {end_date.isoformat()})'
+
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+    return start_dt, end_dt, label
+
+
+def _build_applications_report(start_dt, end_dt, filters):
+    """Build tabular data for applications report exports."""
+    status_filter = (filters.get('application_status') or '').strip().lower()
+    program_type_filter = (filters.get('program_type') or '').strip()
+
+    query = db.session.query(
+        Applications.id,
+        Applications.application_status,
+        Applications.application_date,
+        User.first_name,
+        User.last_name,
+        User.email,
+        Programs.program_name,
+        Programs.program_type,
+    ).join(
+        User, Applications.user_id == User.id
+    ).join(
+        Programs, Applications.program_id == Programs.id
+    ).filter(
+        Applications.application_date >= start_dt,
+        Applications.application_date <= end_dt,
+    )
+
+    if status_filter:
+        query = query.filter(Applications.application_status == status_filter)
+
+    if program_type_filter:
+        query = query.filter(Programs.program_type == program_type_filter)
+
+    records = query.order_by(Applications.application_date.desc()).all()
+    rows = []
+    for record in records:
+        full_name = f'{record.first_name} {record.last_name}'.strip()
+        rows.append([
+            record.id,
+            full_name,
+            record.email,
+            record.program_name,
+            record.program_type,
+            record.application_status,
+            manila_strftime(record.application_date, '%Y-%m-%d %H:%M:%S', ''),
+        ])
+
+    summary_lines = [f'Total matching applications: {len(rows)}']
+    if status_filter:
+        summary_lines.append(f'Application status filter: {status_filter}')
+    if program_type_filter:
+        summary_lines.append(f'Program type filter: {program_type_filter}')
+
+    return {
+        'title': 'Applications Report',
+        'columns': [
+            'Application ID',
+            'Applicant Name',
+            'Email',
+            'Program',
+            'Program Type',
+            'Status',
+            'Application Date',
+        ],
+        'rows': rows,
+        'summary_lines': summary_lines,
+    }
+
+
+def _build_activity_logs_report(start_dt, end_dt, filters):
+    """Build tabular data for activity log exports."""
+    log_scope = (filters.get('log_scope') or 'all').strip().lower()
+    activity_focus = (filters.get('activity_focus') or 'all').strip().lower()
+
+    if log_scope not in VALID_LOG_SCOPES:
+        log_scope = 'all'
+    if activity_focus not in VALID_ACTIVITY_FOCUS:
+        activity_focus = 'all'
+
+    entries = []
+
+    if log_scope in {'all', 'admin'}:
+        admin_query = db.session.query(
+            AdminActivityLog,
+            User.first_name,
+            User.last_name,
+        ).join(
+            User, AdminActivityLog.admin_id == User.id
+        ).filter(
+            AdminActivityLog.created_at >= start_dt,
+            AdminActivityLog.created_at <= end_dt,
+        )
+
+        if activity_focus == 'applications':
+            admin_query = admin_query.filter(AdminActivityLog.entity_type == 'application')
+        elif activity_focus == 'sessions':
+            admin_query = admin_query.filter(AdminActivityLog.entity_type == 'session')
+
+        for log, first_name, last_name in admin_query.all():
+            entries.append({
+                'created_at': log.created_at or datetime.min,
+                'role': 'Admin',
+                'row': [
+                    manila_strftime(log.created_at, '%Y-%m-%d %H:%M:%S', ''),
+                    f'{first_name} {last_name}'.strip(),
+                    'Admin',
+                    log.action,
+                    log.action_type,
+                    log.entity_type,
+                    log.description,
+                    log.ip_address or '',
+                ],
+            })
+
+    if log_scope in {'all', 'community'}:
+        community_query = db.session.query(
+            UserActivityLog,
+            User.first_name,
+            User.last_name,
+        ).join(
+            User, UserActivityLog.user_id == User.id
+        ).filter(
+            UserActivityLog.created_at >= start_dt,
+            UserActivityLog.created_at <= end_dt,
+        )
+
+        if activity_focus == 'applications':
+            community_query = community_query.filter(UserActivityLog.entity_type == 'application')
+        elif activity_focus == 'sessions':
+            community_query = community_query.filter(
+                or_(
+                    UserActivityLog.entity_type == 'session',
+                    UserActivityLog.action_type == 'auth',
+                )
+            )
+
+        for log, first_name, last_name in community_query.all():
+            entries.append({
+                'created_at': log.created_at or datetime.min,
+                'role': 'Community',
+                'row': [
+                    manila_strftime(log.created_at, '%Y-%m-%d %H:%M:%S', ''),
+                    f'{first_name} {last_name}'.strip(),
+                    'Community',
+                    log.action,
+                    log.action_type,
+                    log.entity_type,
+                    log.description,
+                    log.ip_address or '',
+                ],
+            })
+
+    entries.sort(key=lambda item: item['created_at'], reverse=True)
+    rows = [entry['row'] for entry in entries]
+
+    admin_count = sum(1 for entry in entries if entry['role'] == 'Admin')
+    community_count = sum(1 for entry in entries if entry['role'] == 'Community')
+
+    focus_label = 'All Activities'
+    if activity_focus == 'sessions':
+        focus_label = 'Session Activities'
+    elif activity_focus == 'applications':
+        focus_label = 'Application Activities'
+
+    summary_lines = [
+        f'Total log entries: {len(rows)}',
+        f'Admin entries: {admin_count}',
+        f'Community entries: {community_count}',
+        f'Focus: {focus_label}',
+    ]
+
+    return {
+        'title': 'Activity Logs Report',
+        'columns': [
+            'Date & Time',
+            'Actor',
+            'Role',
+            'Action',
+            'Action Type',
+            'Entity Type',
+            'Description',
+            'IP Address',
+        ],
+        'rows': rows,
+        'summary_lines': summary_lines,
+    }
+
+
+def _build_summary_report(start_dt, end_dt, filters):
+    """Build tabular data for a high-level summary report export."""
+    status_filter = (filters.get('application_status') or '').strip().lower()
+    program_type_filter = (filters.get('program_type') or '').strip()
+
+    application_query = db.session.query(Applications).join(
+        Programs, Applications.program_id == Programs.id
+    ).filter(
+        Applications.application_date >= start_dt,
+        Applications.application_date <= end_dt,
+    )
+
+    if status_filter:
+        application_query = application_query.filter(Applications.application_status == status_filter)
+
+    if program_type_filter:
+        application_query = application_query.filter(Programs.program_type == program_type_filter)
+
+    total_applications = application_query.count()
+
+    unique_applicants = application_query.with_entities(
+        func.count(func.distinct(Applications.user_id))
+    ).scalar() or 0
+
+    status_breakdown = application_query.with_entities(
+        Applications.application_status,
+        func.count(Applications.id),
+    ).group_by(Applications.application_status).all()
+
+    top_programs = db.session.query(
+        Programs.program_name,
+        func.count(Applications.id).label('application_count'),
+    ).join(
+        Applications, Programs.id == Applications.program_id
+    ).filter(
+        Applications.application_date >= start_dt,
+        Applications.application_date <= end_dt,
+    )
+
+    if status_filter:
+        top_programs = top_programs.filter(Applications.application_status == status_filter)
+    if program_type_filter:
+        top_programs = top_programs.filter(Programs.program_type == program_type_filter)
+
+    top_programs = top_programs.group_by(Programs.program_name).order_by(
+        func.count(Applications.id).desc()
+    ).limit(5).all()
+
+    admin_activity_count = AdminActivityLog.query.filter(
+        AdminActivityLog.created_at >= start_dt,
+        AdminActivityLog.created_at <= end_dt,
+    ).count()
+    community_activity_count = UserActivityLog.query.filter(
+        UserActivityLog.created_at >= start_dt,
+        UserActivityLog.created_at <= end_dt,
+    ).count()
+
+    rows = [
+        ['Applications Submitted', total_applications],
+        ['Unique Applicants', unique_applicants],
+        ['Admin Activity Entries', admin_activity_count],
+        ['Community Activity Entries', community_activity_count],
+    ]
+
+    for status, count in sorted(status_breakdown, key=lambda item: item[0] or ''):
+        label = (status or 'unknown').replace('_', ' ').title()
+        rows.append([f'Applications ({label})', count])
+
+    if top_programs:
+        rows.append(['Top Programs by Applications', ''])
+        for index, (program_name, count) in enumerate(top_programs, start=1):
+            rows.append([f'{index}. {program_name}', count])
+
+    summary_lines = [
+        'Summary report combines application and activity-level indicators.',
+        f'Total summary metrics: {len(rows)}',
+    ]
+    if status_filter:
+        summary_lines.append(f'Application status filter: {status_filter}')
+    if program_type_filter:
+        summary_lines.append(f'Program type filter: {program_type_filter}')
+
+    return {
+        'title': 'Summary Report',
+        'columns': ['Metric', 'Value'],
+        'rows': rows,
+        'summary_lines': summary_lines,
+    }
+
+
+def _build_report_payload(report_type, start_dt, end_dt, filters):
+    """Dispatch report payload builder based on report type."""
+    if report_type == 'applications':
+        return _build_applications_report(start_dt, end_dt, filters)
+    if report_type == 'activity_logs':
+        return _build_activity_logs_report(start_dt, end_dt, filters)
+    return _build_summary_report(start_dt, end_dt, filters)
+
+
+def _build_delimited_response(report_payload, filename, date_label, delimiter, mimetype, extension):
+    """Serialize report payload to CSV/TSV-like formats for download."""
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=delimiter)
+
+    writer.writerow([report_payload['title']])
+    writer.writerow([f'Date Range: {date_label}'])
+    for line in report_payload.get('summary_lines', []):
+        writer.writerow([line])
+    writer.writerow([])
+    writer.writerow(report_payload['columns'])
+
+    for row in report_payload['rows']:
+        writer.writerow(row)
+
+    return Response(
+        output.getvalue(),
+        mimetype=mimetype,
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}.{extension}'
+        },
+    )
+
+
+def _pdf_escape(value):
+    """Escape a string value for direct PDF text object rendering."""
+    text = str(value).replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    return text.encode('latin-1', 'replace').decode('latin-1')
+
+
+def _build_simple_pdf(lines):
+    """Build a simple, dependency-free PDF document from text lines."""
+    safe_lines = [_pdf_escape(line) for line in lines]
+    if not safe_lines:
+        safe_lines = ['No data available.']
+
+    lines_per_page = 42
+    pages = [
+        safe_lines[index:index + lines_per_page]
+        for index in range(0, len(safe_lines), lines_per_page)
+    ]
+
+    if not pages:
+        pages = [['No data available.']]
+
+    object_count = 3 + (len(pages) * 2)
+    objects = {}
+
+    page_object_ids = []
+    for page_index, page_lines in enumerate(pages):
+        page_id = 4 + (page_index * 2)
+        content_id = page_id + 1
+        page_object_ids.append(page_id)
+
+        stream_lines = ['BT', '/F1 10 Tf', '40 780 Td']
+        for line_index, line in enumerate(page_lines):
+            if line_index > 0:
+                stream_lines.append('0 -17 Td')
+            stream_lines.append(f'({line}) Tj')
+        stream_lines.append('ET')
+        stream = '\n'.join(stream_lines)
+        stream_bytes = stream.encode('latin-1', 'replace')
+
+        objects[content_id] = (
+            f'<< /Length {len(stream_bytes)} >>\n'
+            'stream\n'
+            f'{stream}\n'
+            'endstream'
+        )
+        objects[page_id] = (
+            '<< /Type /Page '
+            '/Parent 2 0 R '
+            '/MediaBox [0 0 612 792] '
+            '/Resources << /Font << /F1 3 0 R >> >> '
+            f'/Contents {content_id} 0 R >>'
+        )
+
+    kids = ' '.join([f'{page_id} 0 R' for page_id in page_object_ids])
+    objects[1] = '<< /Type /Catalog /Pages 2 0 R >>'
+    objects[2] = f'<< /Type /Pages /Kids [ {kids} ] /Count {len(page_object_ids)} >>'
+    objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+
+    pdf_bytes = bytearray()
+    pdf_bytes.extend(b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n')
+
+    offsets = {}
+    for object_id in range(1, object_count + 1):
+        offsets[object_id] = len(pdf_bytes)
+        pdf_bytes.extend(f'{object_id} 0 obj\n'.encode('ascii'))
+        pdf_bytes.extend(objects[object_id].encode('latin-1', 'replace'))
+        pdf_bytes.extend(b'\nendobj\n')
+
+    xref_position = len(pdf_bytes)
+    pdf_bytes.extend(f'xref\n0 {object_count + 1}\n'.encode('ascii'))
+    pdf_bytes.extend(b'0000000000 65535 f \n')
+    for object_id in range(1, object_count + 1):
+        pdf_bytes.extend(f'{offsets[object_id]:010d} 00000 n \n'.encode('ascii'))
+
+    pdf_bytes.extend(
+        (
+            f'trailer\n<< /Size {object_count + 1} /Root 1 0 R >>\n'
+            f'startxref\n{xref_position}\n%%EOF'
+        ).encode('ascii')
+    )
+
+    return bytes(pdf_bytes)
+
+
+def _build_pdf_response(report_payload, filename, date_label):
+    """Serialize report payload into a downloadable PDF file."""
+    generated_at = manila_strftime(datetime.now(), '%B %d, %Y %I:%M %p', '')
+
+    lines = [
+        report_payload['title'],
+        f'Generated On: {generated_at}',
+        f'Date Range: {date_label}',
+        '',
+        'Summary',
+    ]
+
+    for line in report_payload.get('summary_lines', []):
+        lines.extend(textwrap.wrap(str(line), width=95) or [''])
+
+    lines.extend(['', 'Data'])
+
+    headers = ' | '.join([str(column) for column in report_payload['columns']])
+    lines.append(headers)
+    lines.append('-' * min(len(headers), 110))
+
+    rows = report_payload['rows']
+    max_rows = 220
+    for row in rows[:max_rows]:
+        row_text = ' | '.join([str(value) for value in row])
+        lines.extend(textwrap.wrap(row_text, width=110) or [''])
+
+    if len(rows) > max_rows:
+        lines.append('')
+        lines.append(f'Output truncated: {len(rows) - max_rows} row(s) were omitted in this PDF export.')
+
+    if not rows:
+        lines.append('No records found for the selected configuration.')
+
+    pdf_content = _build_simple_pdf(lines)
+    return Response(
+        pdf_content,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}.pdf'
+        },
+    )
 
 @admin_bp.route('/adm_analytics')
 @login_required
@@ -105,6 +696,128 @@ def analytics_analysis():
         status_breakdown=status_breakdown
     )
 
+
+@admin_bp.route('/adm_analytics/reports')
+@login_required
+@role_required('admin')
+def analytics_reports():
+    """Render report configuration page for admin analytics exports."""
+    selected_preset = (request.args.get('preset') or '').strip().lower()
+    form_values = _default_report_form_values(selected_preset)
+
+    for field in form_values.keys():
+        value = request.args.get(field)
+        if value is not None and value != '':
+            form_values[field] = value.strip()
+
+    if form_values.get('date_preset') == 'custom':
+        today = datetime.now().date()
+        if not form_values.get('start_date'):
+            form_values['start_date'] = (today - timedelta(days=6)).isoformat()
+        if not form_values.get('end_date'):
+            form_values['end_date'] = today.isoformat()
+
+    application_status_options = [
+        row[0]
+        for row in db.session.query(Applications.application_status)
+        .filter(Applications.application_status.isnot(None))
+        .distinct()
+        .order_by(Applications.application_status)
+        .all()
+    ]
+
+    program_type_options = [
+        row[0]
+        for row in db.session.query(Programs.program_type)
+        .filter(Programs.program_type.isnot(None))
+        .distinct()
+        .order_by(Programs.program_type)
+        .all()
+    ]
+
+    quick_report_presets = []
+    for preset in QUICK_REPORT_PRESETS:
+        quick_report_presets.append({
+            'slug': preset['slug'],
+            'name': preset['name'],
+            'description': preset['description'],
+            'configure_url': url_for('admin.analytics_reports', preset=preset['slug']),
+            'generate_url': url_for('admin.analytics_generate_report', **preset['params']),
+        })
+
+    return render_template(
+        'admin/analytics_reports.html',
+        user=current_user,
+        report_type_options=REPORT_TYPE_OPTIONS,
+        date_preset_options=DATE_PRESET_OPTIONS,
+        export_format_options=EXPORT_FORMAT_OPTIONS,
+        quick_report_presets=quick_report_presets,
+        application_status_options=application_status_options,
+        program_type_options=program_type_options,
+        form_values=form_values,
+    )
+
+
+@admin_bp.route('/adm_analytics/reports/generate', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def analytics_generate_report():
+    """Generate and export reports based on analytics report configuration."""
+    source = request.form if request.method == 'POST' else request.args
+
+    report_type = (source.get('report_type') or '').strip().lower()
+    date_preset = (source.get('date_preset') or 'last_30_days').strip().lower()
+    export_format = (source.get('export_format') or 'pdf').strip().lower()
+    start_date = (source.get('start_date') or '').strip()
+    end_date = (source.get('end_date') or '').strip()
+
+    if report_type not in VALID_REPORT_TYPES:
+        flash('Please choose a valid report type.', 'danger')
+        return redirect(url_for('admin.analytics_reports'))
+
+    if export_format not in VALID_EXPORT_FORMATS:
+        flash('Please choose a valid export format.', 'danger')
+        return redirect(url_for('admin.analytics_reports'))
+
+    filters = {
+        'application_status': (source.get('application_status') or '').strip().lower(),
+        'program_type': (source.get('program_type') or '').strip(),
+        'log_scope': (source.get('log_scope') or 'all').strip().lower(),
+        'activity_focus': (source.get('activity_focus') or 'all').strip().lower(),
+    }
+
+    try:
+        start_dt, end_dt, date_label = _resolve_report_date_range(date_preset, start_date, end_date)
+    except ValueError as exc:
+        flash(str(exc), 'danger')
+        return redirect(url_for('admin.analytics_reports'))
+
+    report_payload = _build_report_payload(report_type, start_dt, end_dt, filters)
+    timestamp = manila_strftime(datetime.now(), '%Y%m%d_%H%M%S', '')
+    filename = f'{report_type}_report_{timestamp}'
+
+    if export_format == 'csv':
+        return _build_delimited_response(
+            report_payload,
+            filename,
+            date_label,
+            delimiter=',',
+            mimetype='text/csv',
+            extension='csv',
+        )
+
+    if export_format == 'excel':
+        return _build_delimited_response(
+            report_payload,
+            filename,
+            date_label,
+            delimiter='\t',
+            mimetype='application/vnd.ms-excel',
+            extension='xls',
+        )
+
+    return _build_pdf_response(report_payload, filename, date_label)
+
 @admin_bp.route('/adm_analytics/recommend')
 @login_required
 @role_required('admin')
@@ -117,18 +830,18 @@ def analytics_recommend():
         Programs.program_period != 'Emergency'
     ).all()
     
-    # Get available barangays
-    barangays = db.session.query(
-        CommunityUsers.barangay
-    ).filter(
-        CommunityUsers.barangay.isnot(None)
-    ).distinct().all()
+    municipalities = get_municipalities()
+    municipality_barangays = {
+        municipality: get_barangays_by_municipality(municipality)
+        for municipality in municipalities
+    }
     
     return render_template(
         'admin/analytics_recommend.html',
         user=current_user,
         programs=programs,
-        barangays=[b[0] for b in barangays]
+        municipalities=municipalities,
+        municipality_barangays_json=json.dumps(municipality_barangays)
     )
 
 @admin_bp.route('/api/program/<int:program_id>/parameters')
@@ -180,13 +893,11 @@ def api_generate_recommendations():
         max_beneficiaries: Maximum number of recommendations to return (default: 50)
         priority_barangays: List of barangay names to filter by. If empty list or not 
                            provided, all barangays are included in recommendations.
+        priority_municipality: Municipality name to strictly filter recommendations.
         priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD, Senior Citizen")
                         Takes precedence over individual priority flags if provided.
         min_income: Minimum annual income filter (default: 0)
         max_income: Maximum annual income filter (default: 999999999)
-        solo_parent_priority: Boolean to prioritize solo parents in scoring (default: False)
-        student_priority: Boolean to prioritize students in scoring (default: False)
-        pwd_priority: Boolean to prioritize PWDs in scoring (default: False)
         senior_citizen_priority: Boolean to prioritize senior citizens in scoring (default: False)
     
     Returns:
@@ -217,6 +928,11 @@ def api_generate_recommendations():
     
     # priority_barangays is a list of barangay names; empty list means include all barangays
     priority_barangays = data.get('priority_barangays', [])
+    priority_municipality = (data.get('priority_municipality') or '').strip()
+
+    valid_municipalities = set(get_municipalities())
+    if priority_municipality and priority_municipality not in valid_municipalities:
+        return jsonify({'success': False, 'message': 'Invalid municipality filter selected'}), 400
     
     # Validate income range with comprehensive error handling
     try:
@@ -260,9 +976,10 @@ def api_generate_recommendations():
         if 'priority_barangays' not in data and preset.priority_barangays:
             priority_barangays = preset.priority_barangays
 
-    solo_parent_priority = data.get('solo_parent_priority', preset.solo_parent_priority if config_type else False)
-    student_priority = data.get('student_priority', preset.student_priority if config_type else False)
-    pwd_priority = data.get('pwd_priority', preset.pwd_priority if config_type else False)
+    # These three manual filters are intentionally disabled from the analytics UI.
+    solo_parent_priority = False
+    student_priority = False
+    pwd_priority = False
     senior_citizen_priority = data.get('senior_citizen_priority', preset.senior_citizen_priority if config_type else False)
     
     # Query all community users with their profiles
@@ -273,6 +990,7 @@ def api_generate_recommendations():
         User.email,
         CommunityUsers.age,
         CommunityUsers.barangay,
+        CommunityUsers.municipality,
         CommunityUsers.family_annual_income,
         CommunityUsers.is_solo_parent,
         CommunityUsers.is_student,
@@ -309,6 +1027,7 @@ def api_generate_recommendations():
             'email': u.email,
             'age': u.age,
             'barangay': u.barangay,
+            'municipality': u.municipality,
             'family_annual_income': float(u.family_annual_income) if u.family_annual_income and 0 <= u.family_annual_income <= 10000000 else 0,
             'is_solo_parent': u.is_solo_parent,
             'is_student': u.is_student,
@@ -402,6 +1121,7 @@ def api_generate_recommendations():
         pwd_priority=pwd_priority,
         senior_citizen_priority=senior_citizen_priority,
         priority_barangays=priority_barangays if priority_barangays else None,
+        priority_municipality=priority_municipality or None,
         priority_groups=effective_priority_groups,
         min_income=min_income,
         max_income=max_income
@@ -416,6 +1136,7 @@ def api_generate_recommendations():
                 'name': f"{r.get('first_name', '')} {r.get('last_name', '')}",
                 'email': r.get('email', ''),
                 'barangay': r.get('barangay', 'N/A'),
+                'municipality': r.get('municipality', 'N/A'),
                 'income': r.get('family_annual_income', 0),
                 'age': r.get('age', None),
                 'is_solo_parent': r.get('is_solo_parent', False),
@@ -461,31 +1182,345 @@ def api_recommender_config_detail(config_type):
     return jsonify({'success': True, 'config': config.to_dict()})
 
 
+def _parse_positive_int_list(raw_values):
+    """Return unique positive integer IDs from a raw list payload."""
+    values = []
+    if isinstance(raw_values, list):
+        for raw_id in raw_values:
+            try:
+                parsed_id = int(raw_id)
+                if parsed_id > 0:
+                    values.append(parsed_id)
+            except (TypeError, ValueError):
+                continue
+    return sorted(set(values))
+
+
 @admin_bp.route('/api/analytics/save-recommendations', methods=['POST'])
 @login_required
 @role_required('admin')
 def api_save_recommendations():
     """Save/log a recommendation list generation for audit trail"""
-    data = request.get_json()
-    
-    program_id = data.get('program_id')
-    recommendation_count = data.get('count', 0)
-    
+    data = request.get_json() or {}
+
+    program_id_raw = data.get('program_id')
+    try:
+        program_id = int(program_id_raw) if program_id_raw not in (None, '') else None
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Invalid program ID supplied.'}), 400
+
+    raw_user_ids = data.get('recommendation_user_ids', [])
+    recommendation_user_ids = _parse_positive_int_list(raw_user_ids)
+
+    recommendation_count_raw = data.get('count', len(recommendation_user_ids))
+    try:
+        recommendation_count = max(0, int(recommendation_count_raw))
+    except (TypeError, ValueError):
+        recommendation_count = len(recommendation_user_ids)
+
+    recommendation_count = max(recommendation_count, len(recommendation_user_ids))
+
     program = Programs.query.get(program_id) if program_id else None
+    if program_id and not program:
+        return jsonify({'success': False, 'message': 'Selected program was not found.'}), 404
+
     program_name = program.program_name if program else 'Unknown Program'
-    
+
+    filters_payload = data.get('filters', {})
+    if not isinstance(filters_payload, dict):
+        filters_payload = {}
+
+    max_ids_to_store = 300
+    stored_user_ids = recommendation_user_ids[:max_ids_to_store]
+
     try:
         log_recommendation_saved(
             program_name=program_name,
             recommendation_count=recommendation_count,
             details_extra={
                 'program_id': program_id,
-                'filters': data.get('filters', {}),
+                'filters': filters_payload,
+                'recommended_user_ids': stored_user_ids,
+                'recommended_user_count': len(recommendation_user_ids),
+                'recommended_user_ids_truncated': len(recommendation_user_ids) > len(stored_user_ids),
             }
         )
         db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Recommendation list saved to activity log'})
+
+        return jsonify({
+            'success': True,
+            'message': 'Recommendation list saved successfully.',
+            'saved_count': len(recommendation_user_ids),
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/api/analytics/saved-recommendations')
+@login_required
+@role_required('admin')
+def api_saved_recommendations():
+    """Return recent saved recommendation lists with summary details."""
+    limit = request.args.get('limit', 30, type=int)
+    limit = max(1, min(limit, 100))
+
+    logs = AdminActivityLog.query.filter(
+        AdminActivityLog.action == 'save_recommendation',
+        AdminActivityLog.entity_type == 'recommendation'
+    ).order_by(
+        AdminActivityLog.created_at.desc()
+    ).limit(limit).all()
+
+    program_ids = set()
+    for log in logs:
+        details = log.details_dict if hasattr(log, 'details_dict') else {}
+        if not isinstance(details, dict):
+            continue
+        raw_program_id = details.get('program_id')
+        try:
+            parsed_program_id = int(raw_program_id) if raw_program_id not in (None, '') else None
+        except (TypeError, ValueError):
+            parsed_program_id = None
+        if parsed_program_id:
+            program_ids.add(parsed_program_id)
+
+    programs_map = {}
+    if program_ids:
+        programs = Programs.query.filter(Programs.id.in_(program_ids)).all()
+        programs_map = {program.id: program.program_name for program in programs}
+
+    saved_lists = []
+    for log in logs:
+        details = log.details_dict if hasattr(log, 'details_dict') else {}
+        if not isinstance(details, dict):
+            details = {}
+
+        raw_program_id = details.get('program_id')
+        try:
+            program_id = int(raw_program_id) if raw_program_id not in (None, '') else None
+        except (TypeError, ValueError):
+            program_id = None
+
+        filters_payload = details.get('filters', {})
+        if not isinstance(filters_payload, dict):
+            filters_payload = {}
+
+        recommended_user_ids = _parse_positive_int_list(details.get('recommended_user_ids', []))
+
+        recommended_user_count = details.get('recommended_user_count', len(recommended_user_ids))
+        try:
+            recommended_user_count = max(int(recommended_user_count), len(recommended_user_ids))
+        except (TypeError, ValueError):
+            recommended_user_count = len(recommended_user_ids)
+
+        recommendation_count = details.get('recommendation_count', recommended_user_count)
+        try:
+            recommendation_count = max(int(recommendation_count), recommended_user_count)
+        except (TypeError, ValueError):
+            recommendation_count = recommended_user_count
+
+        saved_lists.append({
+            'id': log.id,
+            'created_at': log.created_at.isoformat() if log.created_at else None,
+            'admin_id': log.admin_id,
+            'admin_name': log.admin_name,
+            'program_id': program_id,
+            'program_name': programs_map.get(program_id) or details.get('program_name') or 'Unknown Program',
+            'recommendation_count': recommendation_count,
+            'recommended_user_count': recommended_user_count,
+            'recommended_user_ids': recommended_user_ids,
+            'recommended_user_ids_truncated': bool(details.get('recommended_user_ids_truncated', False)),
+            'filters': filters_payload,
+        })
+
+    return jsonify({
+        'success': True,
+        'count': len(saved_lists),
+        'saved_lists': saved_lists,
+    })
+
+
+@admin_bp.route('/api/analytics/saved-recommendations/<int:saved_list_id>')
+@login_required
+@role_required('admin')
+def api_saved_recommendation_detail(saved_list_id):
+    """Return one saved recommendation list with beneficiary details."""
+    log = AdminActivityLog.query.filter(
+        AdminActivityLog.id == saved_list_id,
+        AdminActivityLog.action == 'save_recommendation',
+        AdminActivityLog.entity_type == 'recommendation'
+    ).first()
+
+    if not log:
+        return jsonify({'success': False, 'message': 'Saved recommendation list not found.'}), 404
+
+    details = log.details_dict if hasattr(log, 'details_dict') else {}
+    if not isinstance(details, dict):
+        details = {}
+
+    raw_program_id = details.get('program_id')
+    try:
+        program_id = int(raw_program_id) if raw_program_id not in (None, '') else None
+    except (TypeError, ValueError):
+        program_id = None
+
+    program = Programs.query.get(program_id) if program_id else None
+    program_name = program.program_name if program else (details.get('program_name') or 'Unknown Program')
+
+    filters_payload = details.get('filters', {})
+    if not isinstance(filters_payload, dict):
+        filters_payload = {}
+
+    recommended_user_ids = _parse_positive_int_list(details.get('recommended_user_ids', []))
+
+    recommended_user_count = details.get('recommended_user_count', len(recommended_user_ids))
+    try:
+        recommended_user_count = max(int(recommended_user_count), len(recommended_user_ids))
+    except (TypeError, ValueError):
+        recommended_user_count = len(recommended_user_ids)
+
+    recommendation_count = details.get('recommendation_count', recommended_user_count)
+    try:
+        recommendation_count = max(int(recommendation_count), recommended_user_count)
+    except (TypeError, ValueError):
+        recommendation_count = recommended_user_count
+
+    beneficiary_rows = []
+    if recommended_user_ids:
+        beneficiary_rows = db.session.query(
+            User.id,
+            User.first_name,
+            User.last_name,
+            User.email,
+            CommunityUsers.municipality,
+            CommunityUsers.barangay,
+            CommunityUsers.age,
+            CommunityUsers.is_solo_parent,
+            CommunityUsers.is_student,
+            CommunityUsers.is_pwd,
+        ).outerjoin(
+            CommunityUsers, CommunityUsers.user_id == User.id
+        ).filter(
+            User.id.in_(recommended_user_ids),
+            User.role == 'community'
+        ).all()
+
+    row_map = {row.id: row for row in beneficiary_rows}
+    beneficiaries = []
+    for user_id in recommended_user_ids:
+        row = row_map.get(user_id)
+        if not row:
+            continue
+        age_value = row.age if row.age is not None else None
+        beneficiaries.append({
+            'user_id': row.id,
+            'name': f'{(row.first_name or "").strip()} {(row.last_name or "").strip()}'.strip() or f'User #{row.id}',
+            'email': row.email or '',
+            'municipality': row.municipality or 'N/A',
+            'barangay': row.barangay or 'N/A',
+            'age': age_value,
+            'is_solo_parent': bool(row.is_solo_parent),
+            'is_student': bool(row.is_student),
+            'is_pwd': bool(row.is_pwd),
+            'is_senior': bool(age_value is not None and age_value >= SENIOR_CITIZEN_AGE),
+        })
+
+    saved_list_payload = {
+        'id': log.id,
+        'created_at': log.created_at.isoformat() if log.created_at else None,
+        'admin_id': log.admin_id,
+        'admin_name': log.admin_name,
+        'program_id': program_id,
+        'program_name': program_name,
+        'recommendation_count': recommendation_count,
+        'recommended_user_count': recommended_user_count,
+        'recommended_user_ids': recommended_user_ids,
+        'recommended_user_ids_truncated': bool(details.get('recommended_user_ids_truncated', False)),
+        'filters': filters_payload,
+    }
+
+    return jsonify({
+        'success': True,
+        'saved_list': saved_list_payload,
+        'beneficiaries': beneficiaries,
+        'beneficiary_count': len(beneficiaries),
+    })
+
+
+@admin_bp.route('/api/analytics/notify-recommendations', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_notify_recommendations():
+    """Send recommendation notifications to selected users."""
+    data = request.get_json() or {}
+
+    program_id_raw = data.get('program_id')
+    try:
+        program_id = int(program_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'A valid program ID is required.'}), 400
+
+    program = Programs.query.get(program_id)
+    if not program:
+        return jsonify({'success': False, 'message': 'Selected program was not found.'}), 404
+
+    raw_user_ids = data.get('user_ids') or data.get('recommendation_user_ids') or []
+    user_ids = _parse_positive_int_list(raw_user_ids)
+    if not user_ids:
+        return jsonify({'success': False, 'message': 'No valid beneficiaries were provided for notification.'}), 400
+
+    target_rows = db.session.query(User.id).join(
+        CommunityUsers, CommunityUsers.user_id == User.id
+    ).filter(
+        User.id.in_(user_ids),
+        User.role == 'community'
+    ).all()
+
+    target_user_ids = [row[0] for row in target_rows]
+    if not target_user_ids:
+        return jsonify({'success': False, 'message': 'No eligible community users found to notify.'}), 400
+
+    notifications = []
+    for user_id in target_user_ids:
+        notifications.append(Notifications(
+            user_id=user_id,
+            notif_title=f'Program Recommendation: {program.program_name}',
+            notif_message=(
+                f'You are included in the recommended beneficiary list for {program.program_name}. '
+                f'Click this notification to open the Programs page and review the recommendation.'
+            ),
+            related_type='program',
+            related_id=None,
+            created_at=datetime.utcnow(),
+        ))
+
+    try:
+        db.session.add_all(notifications)
+
+        log_activity(
+            action='notify_recommended_beneficiaries',
+            action_type='create',
+            entity_type='recommendation',
+            description=(
+                f'Sent recommendation notifications for "{program.program_name}" '
+                f'to {len(target_user_ids)} community user(s).'
+            ),
+            entity_id=program.id,
+            details={
+                'program_id': program.id,
+                'program_name': program.program_name,
+                'target_user_ids': target_user_ids,
+                'target_count': len(target_user_ids),
+            }
+        )
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Notifications sent to {len(target_user_ids)} user(s).',
+            'notified_count': len(target_user_ids),
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500

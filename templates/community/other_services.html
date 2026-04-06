@@ -301,18 +301,16 @@
             <div class="card-body">
                 <form class="service-form" method="POST" action="{{ url_for('community.request_assessment_service') }}">
                     <div class="form-group">
-                        <label for="application_id">Related Application <span class="text-danger">*</span></label>
-                        <select class="form-control" id="application_id" name="application_id" required>
-                            <option value="">Select your application...</option>
+                        <label for="application_id">Related Application (optional)</label>
+                        <select class="form-control" id="application_id" name="application_id">
+                            <option value="">No specific application (auto-link latest)</option>
                             {% for app in user_applications %}
                             <option value="{{ app.id }}">
                                 #{{ app.id }} - {{ app.program.program_name }} ({{ app.application_status|title }})
                             </option>
                             {% endfor %}
                         </select>
-                        {% if not user_applications %}
-                            <small class="text-muted">You need at least one application to request an assessment/SCSR.</small>
-                        {% endif %}
+                        <small class="text-muted">Leave blank if this request is general. The system will auto-link your latest application.</small>
                     </div>
 
                     <div class="form-group">
@@ -330,7 +328,7 @@
                         <textarea class="form-control" id="notes" name="notes" rows="4" maxlength="1000" placeholder="Provide extra details for the assessor."></textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block" {% if not user_applications %}disabled{% endif %}>
+                    <button type="submit" class="btn btn-primary btn-block">
                         <i class="fas fa-paper-plane mr-1"></i>Submit Assessment/SCSR Request
                     </button>
                 </form>
@@ -349,12 +347,40 @@
                     <div class="request-history-item">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <strong>{{ req.details.get('purpose', 'Assessment Request') }}</strong>
-                            <span class="badge badge-info status-pill">{{ req.status|replace('_', ' ')|title }}</span>
+                            <span class="badge badge-info status-pill">
+                                {% if req.status == 'requested' %}
+                                Request
+                                {% else %}
+                                {{ req.status|replace('_', ' ')|title }}
+                                {% endif %}
+                            </span>
                         </div>
                         {% if req.details.get('preferred_date') %}
                             <div class="small text-muted">Preferred date: {{ req.details.get('preferred_date') }}</div>
                         {% endif %}
                         <div class="small text-muted">Submitted on {{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A') }}</div>
+
+                        <div class="request-history-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm open-assessment-request-modal"
+                                data-toggle="modal"
+                                data-target="#assessmentRequestModal"
+                                data-purpose="{{ req.details.get('purpose', 'Assessment Request')|e }}"
+                                data-status="{% if req.status == 'requested' %}Request{% else %}{{ req.status|replace('_', ' ')|title }}{% endif %}"
+                                data-submitted-at="{{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                data-preferred-date="{{ req.details.get('preferred_date', '')|e }}"
+                                data-notes="{{ req.details.get('notes', '')|e }}"
+                                data-assessment-type="{{ req.details.get('assessment_type', '')|replace('_', ' ')|title|e }}"
+                                data-assessment-title="{{ req.details.get('assessment_title', '')|e }}"
+                                data-scheduled-date="{{ req.details.get('scheduled_date', '')|e }}"
+                                data-scheduled-time="{{ req.details.get('scheduled_time', '')|e }}"
+                                data-location="{{ req.details.get('location', '')|e }}"
+                                data-program="{{ req.details.get('application_program', '')|e }}"
+                            >
+                                <i class="fas fa-eye mr-1"></i>View Details
+                            </button>
+                        </div>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -440,6 +466,65 @@
     </div>
 </div>
 
+<!-- Assessment Request Summary Modal -->
+<div class="modal fade" id="assessmentRequestModal" tabindex="-1" role="dialog" aria-labelledby="assessmentRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="assessmentRequestModalLabel">
+                    <i class="fas fa-clipboard-list mr-2"></i>Assessment/SCSR Request Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Status</small>
+                        <span class="badge badge-info status-pill" id="assessmentModalStatus">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Submitted</small>
+                        <span id="assessmentModalSubmitted">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Preferred Date</small>
+                        <span id="assessmentModalPreferredDate">No preference submitted</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Program</small>
+                        <span id="assessmentModalProgram">Not specified</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Purpose</small>
+                    <div class="border rounded p-2 bg-light" id="assessmentModalPurpose">-</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Notes</small>
+                    <div class="border rounded p-2 bg-light" id="assessmentModalNotes">No notes provided.</div>
+                </div>
+
+                <div class="mb-0">
+                    <small class="text-muted d-block">Latest Assessment Update</small>
+                    <div class="border rounded p-2 bg-light">
+                        <div><strong id="assessmentModalTitle">No title yet</strong></div>
+                        <div class="small text-muted" id="assessmentModalType">Type: Not set</div>
+                        <div class="small text-muted" id="assessmentModalSchedule">Schedule: Not yet scheduled</div>
+                        <div class="small text-muted" id="assessmentModalLocation">Location: To be announced</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const activeStatuses = new Set(['pending', 'submitted', 'under_review', 'documents_required', 'processing', 'approved']);
@@ -504,6 +589,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!confirm('Delete this subsidy application from your history?')) {
             e.preventDefault();
         }
+    });
+
+    $(document).on('click', '.open-assessment-request-modal', function() {
+        const data = this.dataset;
+
+        $('#assessmentModalStatus').text(data.status || '-');
+        $('#assessmentModalSubmitted').text(data.submittedAt || '-');
+        $('#assessmentModalPreferredDate').text(data.preferredDate || 'No preference submitted');
+        $('#assessmentModalProgram').text(data.program || 'Not specified');
+        $('#assessmentModalPurpose').text(data.purpose || 'No purpose provided.');
+        $('#assessmentModalNotes').text(data.notes || 'No notes provided.');
+
+        $('#assessmentModalTitle').text(data.assessmentTitle || 'No title yet');
+        $('#assessmentModalType').text('Type: ' + (data.assessmentType || 'Not set'));
+
+        if (data.scheduledDate) {
+            const scheduleText = 'Schedule: ' + data.scheduledDate + (data.scheduledTime ? (' at ' + data.scheduledTime) : '');
+            $('#assessmentModalSchedule').text(scheduleText);
+        } else {
+            $('#assessmentModalSchedule').text('Schedule: Not yet scheduled');
+        }
+
+        $('#assessmentModalLocation').text('Location: ' + (data.location || 'To be announced'));
     });
 });
 </script>

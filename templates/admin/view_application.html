@@ -986,7 +986,7 @@
         </div>
         
         <div class="workflow-timeline" style="--progress-width: {{ progress_percentage }}%;">
-            {# First, determine the active step (the step that needs work) #}
+            {# First, determine the active step using strict sequential gating #}
             {% set active_step = namespace(id=None) %}
             {% for step in application.program.workflow_steps|sort(attribute='step_order') %}
                 {% set step_ws = namespace(status='not_started') %}
@@ -996,9 +996,9 @@
                     {% endif %}
                 {% endfor %}
                 
-                {# Active step is the first one with status: not_started, in_progress, or rejected #}
+                {# Active step is the first step that is not complete yet #}
                 {% if active_step.id is none %}
-                    {% if step_ws.status in ['not_started', 'in_progress', 'rejected'] %}
+                    {% if step_ws.status not in ['approved', 'completed'] %}
                         {% set active_step.id = step.id %}
                     {% endif %}
                 {% endif %}
@@ -1793,7 +1793,7 @@
             <div class="row">
                 {% for req in document_requirements %}
                 <div class="col-md-6 mb-3">
-                    <div class="card border-left-{% if req.requirement_id in uploads_by_requirement and uploads_by_requirement[req.requirement_id].verification_status == 'approved' %}success{% elif req.requirement_id in uploads_by_requirement %}info{% else %}warning{% endif %} shadow-sm h-100">
+                    <div class="card border-left-{% if req.requirement_id in uploads_by_requirement and uploads_by_requirement[req.requirement_id].verification_status in ['approved', 'verified'] %}success{% elif req.requirement_id in uploads_by_requirement %}info{% else %}warning{% endif %} shadow-sm h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div class="flex-grow-1">
@@ -1822,9 +1822,9 @@
                                     <i class="far fa-clock mr-1"></i>Uploaded: {{ upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
                                 </p>
                                 
-                                <span class="badge badge-{% if upload.verification_status == 'approved' %}success{% elif upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
-                                    {% if upload.verification_status == 'approved' %}
-                                        <i class="fas fa-check-circle"></i> Approved
+                                <span class="badge badge-{% if upload.verification_status in ['approved', 'verified'] %}success{% elif upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                    {% if upload.verification_status in ['approved', 'verified'] %}
+                                        <i class="fas fa-check-circle"></i> Verified
                                     {% elif upload.verification_status == 'rejected' %}
                                         <i class="fas fa-times-circle"></i> Rejected
                                     {% else %}
@@ -5426,11 +5426,14 @@ function viewStepDetails(stepId) {
         `;
         
         stepData.uploads.forEach(upload => {
-            const statusBadgeClass = upload.verification_status === 'approved' ? 'success' : 
-                                   upload.verification_status === 'rejected' ? 'danger' : 'warning';
-            const statusText = upload.verification_status === 'approved' ? '<i class="fas fa-check-circle"></i> Verified' : 
-                             upload.verification_status === 'rejected' ? '<i class="fas fa-times-circle"></i> Rejected' : 
+            const uploadStatus = (upload.verification_status || 'pending').toLowerCase();
+            const isVerifiedUpload = uploadStatus === 'approved' || uploadStatus === 'verified';
+            const statusBadgeClass = isVerifiedUpload ? 'success' :
+                                   uploadStatus === 'rejected' ? 'danger' : 'warning';
+            const statusText = isVerifiedUpload ? '<i class="fas fa-check-circle"></i> Verified' :
+                             uploadStatus === 'rejected' ? '<i class="fas fa-times-circle"></i> Rejected' :
                              '<i class="fas fa-clock"></i> Pending';
+            const uploadName = upload.original_filename || upload.file_name || 'Uploaded file';
             const feedbackHtml = upload.admin_feedback ? `
                 <div class="alert alert-info alert-sm py-2 mb-2">
                     <small><strong>Admin Feedback:</strong> ${upload.admin_feedback}</small>
@@ -5443,7 +5446,7 @@ function viewStepDetails(stepId) {
                         <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div class="flex-grow-1">
-                                    <h6 class="font-weight-bold mb-1">${upload.original_filename}</h6>
+                                    <h6 class="font-weight-bold mb-1">${uploadName}</h6>
                                     <small class="text-muted">
                                         <i class="far fa-clock mr-1"></i>${new Date(upload.uploaded_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'})}
                                     </small>
@@ -5457,13 +5460,13 @@ function viewStepDetails(stepId) {
                                 <a href="/community/uploaded-documents/${upload.id}/view" class="btn btn-outline-primary" target="_blank">
                                     <i class="fas fa-eye"></i> View
                                 </a>
-                                ${upload.verification_status !== 'approved' ? `
+                                ${!isVerifiedUpload ? `
                                 <button type="button" class="btn btn-outline-success" onclick="verifyUpload(${upload.id}, 'approved')">
                                     <i class="fas fa-check"></i> Approve
                                 </button>
                                 ` : ''}
-                                ${upload.verification_status !== 'rejected' ? `
-                                <button type="button" class="btn btn-outline-danger" onclick="showRejectModal(${upload.id}, '${upload.original_filename}')">
+                                ${uploadStatus !== 'rejected' ? `
+                                <button type="button" class="btn btn-outline-danger" onclick="showRejectModal(${upload.id}, '${uploadName}')">
                                     <i class="fas fa-times"></i> Reject
                                 </button>
                                 ` : ''}
@@ -5757,8 +5760,8 @@ function showStepDetails(stepId, stepName, stepOrder, step_type, silent = false)
 // Auto-show current active step on page load
 {% if application.program.workflow_steps %}
 $(document).ready(function() {
-    // Find the current active step based on workflow status
-    const workflowSteps = {{ workflow_steps_json | tojson | safe }};
+    // Find the current active step based on strict sequential completion
+    const workflowSteps = [...({{ workflow_steps_json | tojson | safe }})].sort((a, b) => a.step_order - b.step_order);
     
     // Build a map of workflow status by step_id from the template
     const statusMap = {};
@@ -5772,27 +5775,19 @@ $(document).ready(function() {
     let currentStepOrder = 0;
     let currentStepType = '';
 
-    // Track candidates by priority
-    let inProgressStep = null;
-    let approvedApprovalStep = null;
-    let firstNotStartedStep = null;
+    let firstIncompleteStep = null;
 
     for (const step of workflowSteps) {
         const stepStatus = statusMap[step.id] || 'not_started';
 
-        if (stepStatus === 'in_progress' || stepStatus === 'pending_review') {
-            inProgressStep = step;
-            break; // Highest priority – stop looking
-        } else if ((stepStatus === 'approved' || stepStatus === 'completed') && step.step_type === 'approval' && !approvedApprovalStep) {
-            // Keep the approval module visible after it has been approved
-            approvedApprovalStep = step;
-        } else if (stepStatus === 'not_started' && !firstNotStartedStep) {
-            firstNotStartedStep = step;
+        // Strict rule: next step unlocks only after current step is complete.
+        if (stepStatus !== 'approved' && stepStatus !== 'completed') {
+            firstIncompleteStep = step;
+            break;
         }
     }
 
-    // Priority: in_progress/pending_review > approved approval step > first not_started > last step
-    const selectedStep = inProgressStep || approvedApprovalStep || firstNotStartedStep;
+    const selectedStep = firstIncompleteStep;
 
     // Fallback: If all steps are completed or rejected, show the last step
     if (selectedStep) {

@@ -345,6 +345,31 @@ class Applications(db.Model):
     workflow_status = db.relationship('ApplicationWorkflowStatus', foreign_keys='ApplicationWorkflowStatus.application_id', lazy=True, cascade='all, delete-orphan')
     
     # Note: applicant, reviewer, and claim_scheduler relationships are defined in User model
+
+    _COMPLETE_DOCUMENT_STATUSES = {'approved', 'verified'}
+
+    def _current_program_document_requirement_ids(self, mandatory_only=False):
+        """Return current document requirement IDs configured for this program."""
+        query = db.session.query(ProgramRequirements.requirement_id).join(
+            Requirements,
+            ProgramRequirements.requirement_id == Requirements.id
+        ).filter(
+            ProgramRequirements.program_id == self.program_id,
+            Requirements.requirement_type == 'document'
+        )
+
+        if mandatory_only:
+            query = query.filter(ProgramRequirements.is_mandatory.is_(True))
+
+        return {requirement_id for requirement_id, in query.distinct().all()}
+
+    def _completed_document_requirement_ids(self):
+        """Return requirement IDs whose checklist entries are marked complete."""
+        return {
+            doc.requirement_id
+            for doc in self.document_checklist
+            if doc.requirement_id and doc.submission_status in self._COMPLETE_DOCUMENT_STATUSES
+        }
     
     @property
     def cal_docs_verified(self):
@@ -357,41 +382,24 @@ class Applications(db.Model):
     
     @property
     def documents_complete(self):
-        """Check if all mandatory documents are approved"""
-        if not self.document_checklist:
-            return False
-            
-        mandatory_docs = []
-        for doc in self.document_checklist:
-            prog_req = db.session.query(ProgramRequirements).filter_by(
-                program_id=self.program_id,
-                requirement_id=doc.requirement_id,
-                is_mandatory=True
-            ).first()
-            if prog_req:
-                mandatory_docs.append(doc)
-        
-        if not mandatory_docs:
-            return True  # No mandatory docs required
-            
-        return all(doc.submission_status == 'approved' for doc in mandatory_docs)
+        """Check if all current mandatory document requirements are complete."""
+        mandatory_requirement_ids = self._current_program_document_requirement_ids(mandatory_only=True)
+        if not mandatory_requirement_ids:
+            return True  # No mandatory document requirements configured
+
+        completed_requirement_ids = self._completed_document_requirement_ids()
+        return mandatory_requirement_ids.issubset(completed_requirement_ids)
     
     @property
     def completion_percentage(self):
         """Calculate document completion percentage (excludes qualification requirements)"""
-        if not self.document_checklist:
-            return 0
-        
-        # Only count document type requirements, not qualifications
-        document_items = [item for item in self.document_checklist 
-                         if item.requirement.requirement_type == 'document']
-        
-        if not document_items:
-            return 100  # No documents required means 100% complete
-        
-        approved_count = sum(1 for doc in document_items 
-                           if doc.submission_status == 'approved')
-        return round((approved_count / len(document_items)) * 100)
+        required_document_ids = self._current_program_document_requirement_ids(mandatory_only=False)
+        if not required_document_ids:
+            return 100  # No document requirements configured
+
+        completed_requirement_ids = self._completed_document_requirement_ids()
+        completed_count = len(required_document_ids.intersection(completed_requirement_ids))
+        return round((completed_count / len(required_document_ids)) * 100)
     
     @property
     def documents_list(self):
@@ -450,9 +458,9 @@ class ApplicationDocuments(db.Model):
     
     @property
     def is_complete(self):
-        """Check if requirement is complete (document approved or qualification met)"""
+        """Check if requirement is complete (document verified/approved or qualification met)."""
         if self.requirement.requirement_type == 'document':
-            return self.submission_status == 'approved'
+            return self.submission_status in ['approved', 'verified']
         elif self.requirement.requirement_type == 'qualification':
             return self.qualification_met
         return False
