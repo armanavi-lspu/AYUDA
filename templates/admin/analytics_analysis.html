@@ -344,6 +344,77 @@
         </div>
     </div>
 
+    <!-- User Summary -->
+    <div class="row mb-4">
+        <div class="col-12 mb-2">
+            <h5 class="font-weight-bold text-gray-800 mb-1">
+                <i class="fas fa-user-friends mr-2 text-primary"></i>User Summary
+            </h5>
+            <p class="text-muted mb-0">Overview of registered community users and municipality coverage.</p>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #5a5c69;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-dark font-weight-bold text-xs mb-1">
+                                Total Community Users
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_community_users }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-dark opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #1d4ed8;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-primary font-weight-bold text-xs mb-1">
+                                Municipalities Represented
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ municipalities_represented }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-city fa-2x text-primary opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-12 mb-3">
+            <div class="card stat-card shadow-sm h-100" style="border-left-color: #0ea5a6;">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-info font-weight-bold text-xs mb-1">
+                                Highest User Municipality
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ top_municipality_name }}
+                            </div>
+                            <small class="text-muted">{{ top_municipality_user_count }} users</small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-map-marked-alt fa-2x text-info opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Chart Section -->
     <div class="row">
         <!-- Applicants Over Time -->
@@ -417,6 +488,26 @@
             </div>
         </div>
 
+        <!-- Users by Municipality -->
+        <div class="col-12 mb-4 chart-card">
+            <div class="card shadow">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-city mr-2"></i>Users Count by Municipality
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="municipalityUsersContainer" style="height: 380px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="municipalityUsersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Forecast: Applicants Over Time -->
         <div class="col-12 mb-4">
             <div class="card shadow border-left-warning forecast-card" style="border-left-width: 4px;">
@@ -457,6 +548,7 @@
 <script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
 <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
 <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+<script type="application/json" id="users-by-municipality-data">{{ users_by_municipality_json | safe }}</script>
 </div>
 
 {% endblock %}
@@ -560,25 +652,28 @@ function initializeAnalyticsAnalysisPage() {
     }
     
     // Parse data from hidden script tags with error handling
-    let applicantsOverTimeData, applicationsByTypeData, applicantsByBarangayData;
+    let applicantsOverTimeData, applicationsByTypeData, applicantsByBarangayData, usersByMunicipalityData;
     
     try {
         const timeDataElement = document.getElementById('applicants-over-time-data');
         const typeDataElement = document.getElementById('applications-by-type-data');
         const barangayDataElement = document.getElementById('applicants-by-barangay-data');
+        const municipalityDataElement = document.getElementById('users-by-municipality-data');
         
         console.log('🔍 Checking for data elements...');
         console.log('   Time element:', timeDataElement ? '✅ Found' : '❌ Missing');
         console.log('   Type element:', typeDataElement ? '✅ Found' : '❌ Missing');
         console.log('   Barangay element:', barangayDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Municipality element:', municipalityDataElement ? '✅ Found' : '❌ Missing');
         
-        if (!timeDataElement || !typeDataElement || !barangayDataElement) {
+        if (!timeDataElement || !typeDataElement || !barangayDataElement || !municipalityDataElement) {
             console.error('❌ ERROR: Required data elements not found in DOM!');
             console.error('   This means data is not being passed from Flask backend.');
             console.error('   Check that analytics_analysis route is passing all JSON variables:');
             console.error('   - applicants_over_time_json');
             console.error('   - applications_by_type_json');
             console.error('   - applicants_by_barangay_json');
+            console.error('   - users_by_municipality_json');
             alert('Error: Chart data not found. Please check server logs.');
             return;
         }
@@ -587,11 +682,13 @@ function initializeAnalyticsAnalysisPage() {
         applicantsOverTimeData = JSON.parse(timeDataElement.textContent);
         applicationsByTypeData = JSON.parse(typeDataElement.textContent);
         applicantsByBarangayData = JSON.parse(barangayDataElement.textContent);
+        usersByMunicipalityData = JSON.parse(municipalityDataElement.textContent);
         
         console.log('✅ Data loaded successfully');
         console.log('Applicants Over Time:', applicantsOverTimeData);
         console.log('Applications By Type:', applicationsByTypeData);
         console.log('Applicants By Barangay:', applicantsByBarangayData);
+        console.log('Users By Municipality:', usersByMunicipalityData);
         
         // Show debug panel with data
         const debugPanel = document.getElementById('debugData');
@@ -613,6 +710,10 @@ function initializeAnalyticsAnalysisPage() {
         }
         if (!applicantsByBarangayData.labels || !applicantsByBarangayData.data) {
             console.error('ERROR: Invalid applicantsByBarangayData structure');
+            return;
+        }
+        if (!usersByMunicipalityData.labels || !usersByMunicipalityData.data) {
+            console.error('ERROR: Invalid usersByMunicipalityData structure');
             return;
         }
         
@@ -780,8 +881,61 @@ function initializeAnalyticsAnalysisPage() {
     } else {
         console.error('❌ Barangay Chart canvas not found');
     }
+
+    // 4. Municipality Users Column Chart
+    const municipalityCtx = document.getElementById('municipalityUsersChart');
+    if (municipalityCtx) {
+        console.log('Creating Municipality Users Column Chart...');
+        try {
+            new Chart(municipalityCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: usersByMunicipalityData.labels,
+                    datasets: [{
+                        label: 'Number of Users',
+                        data: usersByMunicipalityData.data,
+                        backgroundColor: 'rgba(31, 111, 235, 0.65)',
+                        borderColor: 'rgba(31, 111, 235, 1)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        maxBarThickness: 48
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Municipality Users Chart created');
+            showChart('municipalityUsersContainer');
+        } catch (error) {
+            console.error('❌ Error creating Municipality Users Chart:', error);
+        }
+    } else {
+        console.error('❌ Municipality Users Chart canvas not found');
+    }
     
-    // 4. Forecast: Applicants Over Time - Using ARIMA from backend
+    // 5. Forecast: Applicants Over Time - Using ARIMA from backend
     const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
     let applicantsForecastChart = null;
     
@@ -1005,7 +1159,7 @@ function initializeAnalyticsAnalysisPage() {
     // Load ARIMA forecast on page load
     loadArimaForecast();
     
-    // 5. Forecast: Program Category - Using backend forecast
+    // 6. Forecast: Program Category - Using backend forecast
     const forecastProgramCtx = document.getElementById('forecastProgramCategoryChart');
     let programForecastChart = null;
     

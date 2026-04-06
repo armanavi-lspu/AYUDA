@@ -1717,7 +1717,7 @@ if (!window.adminApplicationsRealtimeBound) {
                     <h5 class="modal-title" id="beneficiariesModalLabel">
                         <i class="fas fa-users mr-2"></i>Generate Beneficiaries List
                     </h5>
-                    <p class="benef-modal-subtitle">Filter approved applications and export a polished beneficiaries list.</p>
+                    <p class="benef-modal-subtitle">Filter completed applications and export a polished beneficiaries list.</p>
                 </div>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -1728,7 +1728,7 @@ if (!window.adminApplicationsRealtimeBound) {
                 <div class="benef-panel mb-4">
                     <div class="benef-panel-head">
                         <h6 class="benef-panel-title"><i class="fas fa-sliders-h mr-2"></i>Customize List</h6>
-                        <span class="benef-chip"><i class="fas fa-info-circle"></i>Approved beneficiaries only</span>
+                        <span class="benef-chip"><i class="fas fa-info-circle"></i>Completed beneficiaries only</span>
                     </div>
                     <div class="benef-panel-body">
                         <div class="row">
@@ -1795,7 +1795,7 @@ if (!window.adminApplicationsRealtimeBound) {
                         </table>
                     </div>
                     <p id="benefEmptyMsg" class="benef-empty" style="display:none;">
-                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No approved beneficiaries found for the selected filters.
+                        <i class="fas fa-inbox fa-2x mb-2 d-block"></i>No completed beneficiaries found for the selected filters.
                     </p>
                 </div>
 
@@ -1887,9 +1887,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     benefEmptyMsg.style.display = 'none';
                     previewTableWrap.style.display = '';
-                    const statusColors = {approved: 'success', active: 'info', completed: 'primary'};
+                    const statusColors = {completed: 'success'};
                     data.beneficiaries.forEach(function(b, idx) {
-                        const color = statusColors[b.status] || 'secondary';
+                        const rawStatus = String(b.status || 'completed').toLowerCase();
+                        const color = statusColors[rawStatus] || 'secondary';
+                        const statusLabel = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
                         previewBody.innerHTML += `<tr>
                             <td>${idx + 1}</td>
                             <td>#${b.id}</td>
@@ -1897,7 +1899,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <td>${b.barangay}</td>
                             <td>${b.program}</td>
                             <td>${b.program_type}</td>
-                            <td><span class="badge badge-${color}">${b.status}</span></td>
+                            <td><span class="badge badge-${color}">${statusLabel}</span></td>
                         </tr>`;
                     });
                 }

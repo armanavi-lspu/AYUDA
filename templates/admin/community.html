@@ -564,12 +564,13 @@
             </h6>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ url_for('admin.community') }}">
+            <form method="GET" action="{{ url_for('admin.community') }}" id="communityFilterForm">
                 <div class="row">
                     <div class="col-lg-4 col-md-6 mb-3">
                         <label class="filter-label">Search</label>
-                        <input type="text" class="form-control" name="search" 
-                               placeholder="Name, email, mobile, barangay, municipality..." 
+                        <input type="text" class="form-control" name="search" id="communitySearchInput"
+                               placeholder="Search by user name or email..."
+                               autocomplete="off"
                                value="{{ request.args.get('search', '') }}">
                     </div>
                     <div class="col-lg-2 col-md-6 mb-3">
@@ -963,4 +964,44 @@
     </div>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('communitySearchInput');
+    const filterForm = document.getElementById('communityFilterForm');
+
+    if (!searchInput || !filterForm) {
+        return;
+    }
+
+    const userRows = Array.from(document.querySelectorAll('.community-users-table tbody tr.user-card'));
+    let submitTimer = null;
+
+    function applyClientSearch() {
+        const query = searchInput.value.trim().toLowerCase();
+
+        userRows.forEach(function (row) {
+            const nameElement = row.querySelector('td:nth-child(2) .font-weight-bold');
+            const emailElement = row.querySelector('td:nth-child(2) small');
+            const nameText = nameElement ? nameElement.textContent : '';
+            const emailText = emailElement ? emailElement.textContent : '';
+            const searchableText = (nameText + ' ' + emailText).toLowerCase();
+            const matches = query === '' || searchableText.includes(query);
+
+            row.style.display = matches ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', function () {
+        applyClientSearch();
+
+        clearTimeout(submitTimer);
+        submitTimer = setTimeout(function () {
+            filterForm.submit();
+        }, 350);
+    });
+});
+</script>
 {% endblock %}

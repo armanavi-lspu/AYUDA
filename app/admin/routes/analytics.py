@@ -32,6 +32,17 @@ import io
 import json
 import textwrap
 
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
+
 # Default age for target profile when program priority group is not senior citizens;
 # 30 represents a typical working-age beneficiary demographic
 DEFAULT_TARGET_AGE = 30
@@ -570,8 +581,219 @@ def _build_simple_pdf(lines):
     return bytes(pdf_bytes)
 
 
+def _normalize_table_value(value, max_chars=220):
+    """Normalize payload values for safer table rendering in PDF cells."""
+    text = str(value if value is not None else '').replace('\r\n', '\n').replace('\r', '\n').strip()
+    if not text:
+        return '-'
+    if len(text) > max_chars:
+        return text[: max_chars - 3] + '...'
+    return text
+
+
+def _estimate_pdf_col_widths(columns, available_width):
+    """Estimate balanced table column widths from semantic header hints."""
+    if not columns:
+        return []
+
+    weights = []
+    for column in columns:
+        key = str(column or '').lower()
+        weight = 1.0
+
+        if 'description' in key or 'message' in key:
+            weight = 2.6
+        elif 'name' in key:
+            weight = 1.8
+        elif 'program' in key:
+            weight = 1.7
+        elif 'email' in key:
+            weight = 2.0
+        elif 'date' in key or 'time' in key:
+            weight = 1.4
+        elif 'ip' in key:
+            weight = 1.2
+        elif 'income' in key:
+            weight = 1.3
+        elif key.endswith('id') or key == 'id' or ' id' in key:
+            weight = 0.8
+
+        weights.append(weight)
+
+    total_weight = sum(weights) if sum(weights) > 0 else len(columns)
+    return [available_width * (weight / total_weight) for weight in weights]
+
+
+def _build_reportlab_pdf(report_payload, date_label):
+    """Build a styled table-based PDF document using ReportLab."""
+    generated_at = manila_strftime(datetime.now(), '%B %d, %Y %I:%M %p', '')
+    buffer = io.BytesIO()
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        leftMargin=0.45 * inch,
+        rightMargin=0.45 * inch,
+        topMargin=0.45 * inch,
+        bottomMargin=0.45 * inch,
+        title=_normalize_table_value(report_payload.get('title', 'Analytics Report'), max_chars=120),
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'AnalyticsReportTitle',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor('#1f2a44'),
+        spaceAfter=6,
+    )
+    meta_style = ParagraphStyle(
+        'AnalyticsReportMeta',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#3f4f63'),
+    )
+    section_style = ParagraphStyle(
+        'AnalyticsReportSection',
+        parent=styles['Heading4'],
+        fontName='Helvetica-Bold',
+        fontSize=10.5,
+        leading=13,
+        textColor=colors.HexColor('#1f2a44'),
+        spaceBefore=4,
+        spaceAfter=4,
+    )
+    summary_style = ParagraphStyle(
+        'AnalyticsReportSummary',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=8.7,
+        leading=11,
+        textColor=colors.HexColor('#364456'),
+        leftIndent=8,
+    )
+    header_cell_style = ParagraphStyle(
+        'AnalyticsReportHeaderCell',
+        parent=styles['BodyText'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        textColor=colors.white,
+        alignment=1,
+    )
+    body_cell_style = ParagraphStyle(
+        'AnalyticsReportBodyCell',
+        parent=styles['BodyText'],
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor('#1f2a44'),
+    )
+
+    elements = []
+    elements.append(Paragraph(_normalize_table_value(report_payload.get('title', 'Analytics Report'), max_chars=140), title_style))
+    elements.append(
+        Paragraph(
+            f'<b>Generated On:</b> {_normalize_table_value(generated_at, 60)}&nbsp;&nbsp;&nbsp;&nbsp;'
+            f'<b>Date Range:</b> {_normalize_table_value(date_label, 100)}',
+            meta_style,
+        )
+    )
+
+    summary_lines = report_payload.get('summary_lines', [])
+    if summary_lines:
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph('Summary', section_style))
+        for line in summary_lines:
+            elements.append(Paragraph(f'&#8226; {_normalize_table_value(line, max_chars=180)}', summary_style))
+
+    rows = report_payload.get('rows', [])
+    columns = report_payload.get('columns', [])
+
+    elements.append(Spacer(1, 8))
+    elements.append(Paragraph('Data Table', section_style))
+
+    if not rows:
+        elements.append(Paragraph('No records found for the selected configuration.', meta_style))
+        doc.build(elements)
+        return buffer.getvalue()
+
+    max_rows = 420
+    truncated_count = max(0, len(rows) - max_rows)
+    table_rows = rows[:max_rows]
+
+    table_data = [
+        [Paragraph(_normalize_table_value(column, max_chars=80), header_cell_style) for column in columns]
+    ]
+
+    for row in table_rows:
+        padded_row = list(row[: len(columns)]) + [''] * max(0, len(columns) - len(row))
+        table_data.append([
+            Paragraph(_normalize_table_value(value), body_cell_style)
+            for value in padded_row[: len(columns)]
+        ])
+
+    col_widths = _estimate_pdf_col_widths(columns, doc.width)
+    table = Table(table_data, repeatRows=1, colWidths=col_widths, hAlign='LEFT')
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f6feb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d7dfeb')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ])
+
+    for row_index in range(1, len(table_data)):
+        if row_index % 2 == 0:
+            table_style.add('BACKGROUND', (0, row_index), (-1, row_index), colors.HexColor('#f7faff'))
+
+    for col_index, column in enumerate(columns):
+        key = str(column or '').lower()
+        if 'income' in key or 'count' in key or 'value' in key or 'score' in key:
+            table_style.add('ALIGN', (col_index, 1), (col_index, -1), 'RIGHT')
+        elif key.endswith('id') or key == 'id' or ' id' in key:
+            table_style.add('ALIGN', (col_index, 1), (col_index, -1), 'CENTER')
+
+    table.setStyle(table_style)
+    elements.append(table)
+
+    if truncated_count > 0:
+        elements.append(Spacer(1, 6))
+        elements.append(
+            Paragraph(
+                f'Note: {truncated_count} row(s) were omitted to keep PDF output readable. '
+                'Use CSV/Excel export for full raw datasets.',
+                meta_style,
+            )
+        )
+
+    doc.build(elements)
+    return buffer.getvalue()
+
+
 def _build_pdf_response(report_payload, filename, date_label):
     """Serialize report payload into a downloadable PDF file."""
+    if REPORTLAB_AVAILABLE:
+        try:
+            pdf_content = _build_reportlab_pdf(report_payload, date_label)
+            return Response(
+                pdf_content,
+                mimetype='application/pdf',
+                headers={
+                    'Content-Disposition': f'attachment; filename={filename}.pdf'
+                },
+            )
+        except Exception:
+            # Fall back to the simple generator if table rendering fails.
+            pass
+
     generated_at = manila_strftime(datetime.now(), '%B %d, %Y %I:%M %p', '')
 
     lines = [
@@ -672,11 +894,34 @@ def analytics_analysis():
         'labels': [row.barangay for row in applicants_by_barangay_raw],
         'data': [row.count for row in applicants_by_barangay_raw]
     }
+
+    # 4. Community users by municipality
+    municipality_expr = func.coalesce(
+        func.nullif(func.trim(CommunityUsers.municipality), ''),
+        'Not Specified'
+    )
+    users_by_municipality_raw = db.session.query(
+        municipality_expr.label('municipality'),
+        func.count(CommunityUsers.id).label('count')
+    ).group_by(municipality_expr).order_by(func.count(CommunityUsers.id).desc()).all()
+
+    users_by_municipality = {
+        'labels': [row.municipality for row in users_by_municipality_raw],
+        'data': [row.count for row in users_by_municipality_raw]
+    }
     
     # Summary statistics
     total_applications = Applications.query.count()
     total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar()
     total_programs = Programs.query.count()
+    total_community_users = CommunityUsers.query.count()
+    municipalities_represented = db.session.query(
+        func.count(func.distinct(func.nullif(func.trim(CommunityUsers.municipality), '')))
+    ).scalar() or 0
+
+    top_municipality = users_by_municipality_raw[0] if users_by_municipality_raw else None
+    top_municipality_name = top_municipality.municipality if top_municipality else 'No municipality data'
+    top_municipality_user_count = top_municipality.count if top_municipality else 0
     
     # Application status breakdown
     status_breakdown = db.session.query(
@@ -690,9 +935,14 @@ def analytics_analysis():
         applicants_over_time_json=json.dumps(applicants_over_time),
         applications_by_type_json=json.dumps(applications_by_type),
         applicants_by_barangay_json=json.dumps(applicants_by_barangay),
+        users_by_municipality_json=json.dumps(users_by_municipality),
         total_applications=total_applications,
         total_applicants=total_applicants,
         total_programs=total_programs,
+        total_community_users=total_community_users,
+        municipalities_represented=municipalities_represented,
+        top_municipality_name=top_municipality_name,
+        top_municipality_user_count=top_municipality_user_count,
         status_breakdown=status_breakdown
     )
 

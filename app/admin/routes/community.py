@@ -37,16 +37,16 @@ def community():
     # Base query - only community users
     query = User.query.filter_by(role='community')
     
-    # Apply search filter
+    # Apply search filter (name and email only)
     if search:
-        query = query.outerjoin(CommunityUsers, CommunityUsers.user_id == User.id)
+        full_name = User.first_name + ' ' + User.last_name
+        reverse_full_name = User.last_name + ' ' + User.first_name
         search_filter = or_(
             User.first_name.ilike(f'%{search}%'),
             User.last_name.ilike(f'%{search}%'),
             User.email.ilike(f'%{search}%'),
-            CommunityUsers.mobile_no.ilike(f'%{search}%'),
-            CommunityUsers.barangay.ilike(f'%{search}%'),
-            CommunityUsers.municipality.ilike(f'%{search}%')
+            full_name.ilike(f'%{search}%'),
+            reverse_full_name.ilike(f'%{search}%')
         )
         query = query.filter(search_filter)
     
@@ -570,13 +570,29 @@ def community_verify():
 @login_required
 @role_required('admin')
 def process_verification(user_id, verification_type):
-    """Process a verification request (approve or reject)"""
+    """Process a verification request (approve, reupload, or decline)."""
     community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
     user = User.query.get(user_id)
-    
-    action = request.form.get('action')  # 'approve' or 'reject'
+
+    action = (request.form.get('action') or '').strip().lower()
     rejection_reason = request.form.get('rejection_reason', '').strip()
     id_number = request.form.get('id_number', '').strip()
+
+    valid_types = {'senior_citizen', 'pwd', 'solo_parent'}
+    valid_actions = {'approve', 'reupload', 'reject'}
+    user_display_name = f'{user.first_name} {user.last_name}' if user else f'User #{user_id}'
+
+    if verification_type not in valid_types:
+        flash('Invalid verification type.', 'error')
+        return redirect(url_for('admin.community_verify'))
+
+    if action not in valid_actions:
+        flash('Invalid verification action.', 'error')
+        return redirect(url_for('admin.community_verify'))
+
+    if action in {'reupload', 'reject'} and not rejection_reason:
+        flash('Admin note is required for Reupload and Decline actions.', 'warning')
+        return redirect(url_for('admin.community_verify'))
     
     try:
         if verification_type == 'senior_citizen':
@@ -584,6 +600,7 @@ def process_verification(user_id, verification_type):
                 community_user.senior_citizen_verification = 'approved'
                 community_user.senior_citizen_verified_at = datetime.utcnow()
                 community_user.senior_citizen_verified_by = current_user.id
+                community_user.senior_citizen_rejection_reason = None
                 if id_number:
                     community_user.senior_citizen_id_number = id_number
                 # Also set the is_pwd equivalent for senior (age >= 60 is already tracked)
@@ -598,21 +615,32 @@ def process_verification(user_id, verification_type):
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'Senior Citizen verification approved for {user.first_name} {user.last_name}.', 'success')
+                flash(f'Senior Citizen verification approved for {user_display_name}.', 'success')
             else:
                 community_user.senior_citizen_verification = 'rejected'
+                community_user.senior_citizen_verified_at = None
+                community_user.senior_citizen_verified_by = None
                 community_user.senior_citizen_rejection_reason = rejection_reason
+
+                if action == 'reupload':
+                    notif_title = 'Senior Citizen Verification Requires Reupload'
+                    notif_message = f'Your Senior Citizen verification requires document reupload. Admin note: {rejection_reason}'
+                    flash_message = f'Senior Citizen verification marked for reupload for {user_display_name}.'
+                else:
+                    notif_title = 'Senior Citizen Verification Declined'
+                    notif_message = f'Your Senior Citizen verification was declined. Admin note: {rejection_reason}'
+                    flash_message = f'Senior Citizen verification declined for {user_display_name}.'
                 
                 notification = Notifications(
                     user_id=user_id,
-                    notif_title='Senior Citizen Verification Rejected',
-                    notif_message=f'Your Senior Citizen verification was rejected. Reason: {rejection_reason}',
+                    notif_title=notif_title,
+                    notif_message=notif_message,
                     is_read=False,
                     related_type='profile',
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'Senior Citizen verification rejected for {user.first_name} {user.last_name}.', 'warning')
+                flash(flash_message, 'warning')
                 
         elif verification_type == 'pwd':
             if action == 'approve':
@@ -620,6 +648,7 @@ def process_verification(user_id, verification_type):
                 community_user.pwd_verified_at = datetime.utcnow()
                 community_user.pwd_verified_by = current_user.id
                 community_user.is_pwd = True  # Set the is_pwd flag
+                community_user.pwd_rejection_reason = None
                 if id_number:
                     community_user.pwd_id_number = id_number
                 
@@ -632,21 +661,32 @@ def process_verification(user_id, verification_type):
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'PWD verification approved for {user.first_name} {user.last_name}.', 'success')
+                flash(f'PWD verification approved for {user_display_name}.', 'success')
             else:
                 community_user.pwd_verification = 'rejected'
+                community_user.pwd_verified_at = None
+                community_user.pwd_verified_by = None
                 community_user.pwd_rejection_reason = rejection_reason
+
+                if action == 'reupload':
+                    notif_title = 'PWD Verification Requires Reupload'
+                    notif_message = f'Your PWD verification requires document reupload. Admin note: {rejection_reason}'
+                    flash_message = f'PWD verification marked for reupload for {user_display_name}.'
+                else:
+                    notif_title = 'PWD Verification Declined'
+                    notif_message = f'Your PWD verification was declined. Admin note: {rejection_reason}'
+                    flash_message = f'PWD verification declined for {user_display_name}.'
                 
                 notification = Notifications(
                     user_id=user_id,
-                    notif_title='PWD Verification Rejected',
-                    notif_message=f'Your PWD verification was rejected. Reason: {rejection_reason}',
+                    notif_title=notif_title,
+                    notif_message=notif_message,
                     is_read=False,
                     related_type='profile',
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'PWD verification rejected for {user.first_name} {user.last_name}.', 'warning')
+                flash(flash_message, 'warning')
                 
         elif verification_type == 'solo_parent':
             if action == 'approve':
@@ -654,6 +694,7 @@ def process_verification(user_id, verification_type):
                 community_user.solo_parent_verified_at = datetime.utcnow()
                 community_user.solo_parent_verified_by = current_user.id
                 community_user.is_solo_parent = True  # Set the is_solo_parent flag
+                community_user.solo_parent_rejection_reason = None
                 if id_number:
                     community_user.solo_parent_id_number = id_number
                 
@@ -666,27 +707,37 @@ def process_verification(user_id, verification_type):
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'Solo Parent verification approved for {user.first_name} {user.last_name}.', 'success')
+                flash(f'Solo Parent verification approved for {user_display_name}.', 'success')
             else:
                 community_user.solo_parent_verification = 'rejected'
+                community_user.solo_parent_verified_at = None
+                community_user.solo_parent_verified_by = None
                 community_user.solo_parent_rejection_reason = rejection_reason
+
+                if action == 'reupload':
+                    notif_title = 'Solo Parent Verification Requires Reupload'
+                    notif_message = f'Your Solo Parent verification requires document reupload. Admin note: {rejection_reason}'
+                    flash_message = f'Solo Parent verification marked for reupload for {user_display_name}.'
+                else:
+                    notif_title = 'Solo Parent Verification Declined'
+                    notif_message = f'Your Solo Parent verification was declined. Admin note: {rejection_reason}'
+                    flash_message = f'Solo Parent verification declined for {user_display_name}.'
                 
                 notification = Notifications(
                     user_id=user_id,
-                    notif_title='Solo Parent Verification Rejected',
-                    notif_message=f'Your Solo Parent verification was rejected. Reason: {rejection_reason}',
+                    notif_title=notif_title,
+                    notif_message=notif_message,
                     is_read=False,
                     related_type='profile',
                     created_at=datetime.utcnow()
                 )
                 db.session.add(notification)
-                flash(f'Solo Parent verification rejected for {user.first_name} {user.last_name}.', 'warning')
-        else:
-            flash('Invalid verification type.', 'error')
-            return redirect(url_for('admin.community_verify'))
+                flash(flash_message, 'warning')
         
         # Log verification request activity
-        log_verification_request(user, verification_type, action, rejection_reason if action == 'reject' else None)
+        log_action = 'approve' if action == 'approve' else 'reject'
+        log_note = rejection_reason if action in {'reject', 'reupload'} else None
+        log_verification_request(user, verification_type, log_action, log_note)
         
         db.session.commit()
         

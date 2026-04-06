@@ -253,6 +253,7 @@
                 {% if subsidy_requests %}
                     {% for req in subsidy_requests %}
                     {% set req_docs = req.details.get('required_documents') if req.details.get('required_documents') is iterable and req.details.get('required_documents') is not string else [] %}
+                    {% set req_docs_specs = req.details.get('required_documents_specs') if req.details.get('required_documents_specs') is iterable and req.details.get('required_documents_specs') is not string else [] %}
                     <div class="request-history-item">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -275,6 +276,7 @@
                                 data-description="{{ req.description|e }}"
                                 data-admin-instructions="{{ req.details.get('admin_instructions', '')|e }}"
                                 data-required-docs="{{ req_docs|join('||')|e }}"
+                                data-required-docs-specs='{{ req_docs_specs|tojson|forceescape }}'
                                 data-office-note="{{ req.details.get('office_submission_note', 'Please submit the required documents in the office within the week.')|e }}"
                                 data-cancel-url="{{ url_for('community.cancel_subsidy_request', request_id=req.id) }}"
                                 data-delete-url="{{ url_for('community.delete_subsidy_request', request_id=req.id) }}"
@@ -529,10 +531,55 @@
 document.addEventListener('DOMContentLoaded', function() {
     const activeStatuses = new Set(['pending', 'submitted', 'under_review', 'documents_required', 'processing', 'approved']);
 
+    function normalizeRequiredDocSpecs(rawSpecs, fallbackDocs) {
+        if (Array.isArray(rawSpecs) && rawSpecs.length) {
+            return rawSpecs
+                .filter((item) => item && typeof item === 'object')
+                .map((item) => {
+                    const name = String(item.name || '').trim();
+                    const copySpecs = Array.isArray(item.copy_specs)
+                        ? item.copy_specs
+                            .filter((spec) => spec && typeof spec === 'object')
+                            .map((spec) => ({
+                                type: String(spec.type || 'original').trim() || 'original',
+                                count: Math.max(1, parseInt(spec.count, 10) || 1)
+                            }))
+                        : [{ type: 'original', count: 1 }];
+                    return { name, copy_specs: copySpecs.length ? copySpecs : [{ type: 'original', count: 1 }] };
+                })
+                .filter((item) => item.name);
+        }
+
+        return fallbackDocs.map((docName) => ({
+            name: docName,
+            copy_specs: [{ type: 'original', count: 1 }]
+        }));
+    }
+
+    function copyTypeLabel(copyType) {
+        const clean = String(copyType || 'original').trim().toLowerCase();
+        if (clean === 'certified_true_copy') {
+            return 'Certified True Copy';
+        }
+        if (clean === 'photocopy') {
+            return 'Photocopy';
+        }
+        return 'Original';
+    }
+
     $(document).on('click', '.open-subsidy-request-modal', function() {
         const data = this.dataset;
         const statusKey = (data.statusKey || '').toLowerCase();
         const docs = (data.requiredDocs || '').split('||').map((item) => item.trim()).filter(Boolean);
+        let docsSpecsRaw = [];
+        if (data.requiredDocsSpecs) {
+            try {
+                docsSpecsRaw = JSON.parse(data.requiredDocsSpecs);
+            } catch (err) {
+                docsSpecsRaw = [];
+            }
+        }
+        const docsSpecs = normalizeRequiredDocSpecs(docsSpecsRaw, docs);
         const hasInstructions = (data.adminInstructions || '').trim().length > 0;
 
         $('#subsidyModalCategory').text(data.categoryName || '-');
@@ -551,8 +598,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const docsList = $('#subsidyModalRequiredDocs');
             docsList.empty();
-            if (docs.length) {
-                docs.forEach((doc) => docsList.append(`<li>${doc}</li>`));
+            if (docsSpecs.length) {
+                docsSpecs.forEach((doc) => {
+                    const copySpecText = doc.copy_specs
+                        .map((spec) => `${spec.count} ${copyTypeLabel(spec.type)}`)
+                        .join(', ');
+
+                    const item = $('<li></li>');
+                    $('<strong></strong>').text(doc.name).appendTo(item);
+                    $('<br>').appendTo(item);
+                    $('<small class="text-muted"></small>').text(copySpecText).appendTo(item);
+                    docsList.append(item);
+                });
             } else {
                 docsList.append('<li>No required documents listed yet.</li>');
             }

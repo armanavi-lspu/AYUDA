@@ -241,6 +241,35 @@
         background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
     }
 
+    .btn-soft-danger {
+        background: rgba(231, 74, 59, 0.12);
+        color: #c92a1c;
+        border: 1px solid rgba(201, 42, 28, 0.22);
+    }
+
+    .btn-soft-danger:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+    }
+
+    .verification-action-panel {
+        border: 1px solid #d9e5fa;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+        padding: 0.9rem;
+    }
+
+    .verification-action-panel:not(:last-child) {
+        margin-bottom: 0.95rem;
+    }
+
+    .action-panel-header {
+        border-bottom: 1px dashed #d5e1f6;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.65rem;
+    }
+
     .pagination .page-link {
         border-radius: 8px;
         margin: 0 0.2rem;
@@ -263,7 +292,7 @@
     }
 
     .verify-modal .modal-dialog {
-        max-width: 600px;
+        max-width: 760px;
     }
 
     .verify-modal .modal-content {
@@ -646,38 +675,26 @@
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
+                                {% set has_pending_request = profile.senior_citizen_verification == 'pending' or profile.pwd_verification == 'pending' or profile.solo_parent_verification == 'pending' %}
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('admin.view_community_user', user_id=user_info.id) }}" 
-                                           class="btn btn-soft-info" title="View User Profile">
+                                        <button type="button" class="btn btn-soft-info"
+                                                data-toggle="modal"
+                                                data-target="#verificationDetailsModal{{ profile.id }}"
+                                                title="View Verification Requests">
                                             <i class="fas fa-eye"></i>
-                                        </a>
-                                        <!-- Process Verification Buttons -->
-                                        {% if profile.senior_citizen_verification == 'pending' %}
-                                        <button type="button" class="btn btn-soft-success" 
-                                                data-toggle="modal" 
-                                                data-target="#approveModal{{ profile.id }}_senior"
-                                                title="Approve Senior Citizen">
-                                            <i class="fas fa-user-check"></i>
                                         </button>
-                                        {% endif %}
-                                        {% if profile.pwd_verification == 'pending' %}
-                                        <button type="button" class="btn btn-soft-success" 
-                                                data-toggle="modal" 
-                                                data-target="#approveModal{{ profile.id }}_pwd"
-                                                title="Approve PWD">
-                                            <i class="fas fa-wheelchair"></i>
+                                        <button type="button" class="btn btn-soft-danger"
+                                                data-toggle="modal"
+                                                data-target="#verificationDetailsModal{{ profile.id }}"
+                                                title="Reject Verification Request"
+                                                {% if not has_pending_request %}disabled{% endif %}>
+                                            <i class="fas fa-times"></i>
                                         </button>
-                                        {% endif %}
-                                        {% if profile.solo_parent_verification == 'pending' %}
-                                        <button type="button" class="btn btn-soft-success" 
-                                                data-toggle="modal" 
-                                                data-target="#approveModal{{ profile.id }}_solo"
-                                                title="Approve Solo Parent">
-                                            <i class="fas fa-child"></i>
-                                        </button>
-                                        {% endif %}
                                     </div>
+                                    {% if not has_pending_request %}
+                                    <small class="text-muted d-block mt-1">No pending requests</small>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -740,196 +757,235 @@
     </div>
 </div>
 
-<!-- Modals for Each Verification -->
+<!-- Consolidated Verification Request Modal -->
 {% for profile in verifications %}
 {% set user_info = profile.user %}
-
-<!-- Senior Citizen Approval Modal -->
-{% if profile.senior_citizen_verification == 'pending' %}
-<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_senior" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+{% set has_pending_request = profile.senior_citizen_verification == 'pending' or profile.pwd_verification == 'pending' or profile.solo_parent_verification == 'pending' %}
+<div class="modal fade verify-modal" id="verificationDetailsModal{{ profile.id }}" tabindex="-1" role="dialog" aria-labelledby="verificationDetailsLabel{{ profile.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content">
-            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='senior_citizen') }}">
-                <div class="modal-header modal-header-primary">
-                    <h5 class="modal-title">
-                        <i class="fas fa-user-check mr-2"></i>Senior Citizen Verification
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
+            <div class="modal-header modal-header-primary">
+                <h5 class="modal-title" id="verificationDetailsLabel{{ profile.id }}">
+                    <i class="fas fa-id-card mr-2"></i>Verification Request Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-info-card">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    View uploaded IDs and process each request using Verify, Reupload, or Decline.
                 </div>
-                <div class="modal-body">
-                    <div class="modal-info-card">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Review the uploaded document and process this verification request.
-                    </div>
 
-                    <p class="mb-2">Process verification for:</p>
-                    <div class="modal-context-block">
-                        <p class="font-weight-bold mb-1">{{ user_info.first_name }} {{ user_info.last_name }}</p>
-                        <small class="text-muted">Age: {{ profile.age }} years old</small>
-                    </div>
-                    
-                    {% if profile.senior_citizen_document_path %}
-                    <div class="mb-3">
-                        <label class="small font-weight-bold">Uploaded Document:</label>
-                        <div>
+                <div class="modal-context-block">
+                    <div class="font-weight-bold mb-1">{{ user_info.first_name }} {{ user_info.last_name }}</div>
+                    <small class="text-muted d-block">Email: {{ user_info.email }}</small>
+                    <small class="text-muted d-block">Location: {{ profile.barangay or 'N/A' }}{% if profile.municipality %}, {{ profile.municipality }}{% endif %}</small>
+                </div>
+
+                {% if has_pending_request %}
+                    {% if profile.senior_citizen_verification == 'pending' %}
+                    <div class="verification-action-panel">
+                        <div class="d-flex justify-content-between align-items-start action-panel-header">
+                            <div>
+                                <h6 class="font-weight-bold text-primary mb-1"><i class="fas fa-user-tie mr-2"></i>Senior Citizen</h6>
+                                {% if profile.age %}
+                                <small class="text-muted">Age: {{ profile.age }} years old</small>
+                                {% endif %}
+                            </div>
+                            <span class="badge badge-warning verification-badge"><i class="fas fa-clock mr-1"></i>Pending</span>
+                        </div>
+
+                        <div class="mb-3">
+                            {% if profile.senior_citizen_document_path %}
                             <a href="{{ profile.senior_citizen_document_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-doc-link">
-                                <i class="fas fa-file-image mr-1"></i>View Document
+                                <i class="fas fa-file-image mr-1"></i>View Uploaded ID
                             </a>
+                            {% else %}
+                            <small class="text-danger">No uploaded document found.</small>
+                            {% endif %}
+                            {% if profile.senior_citizen_id_number %}
+                            <small class="d-block text-muted mt-2">Submitted ID Number: {{ profile.senior_citizen_id_number }}</small>
+                            {% endif %}
                         </div>
+
+                        <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='senior_citizen') }}" class="verification-action-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Approved ID Number (optional)</label>
+                                <input type="text" class="form-control form-control-sm" name="id_number" value="{{ profile.senior_citizen_id_number or '' }}" placeholder="Enter approved Senior Citizen ID number">
+                            </div>
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Admin Note</label>
+                                <textarea class="form-control form-control-sm admin-note" name="rejection_reason" rows="2" placeholder="Required for Reupload and Decline actions."></textarea>
+                                <div class="invalid-feedback">Admin note is required for Reupload and Decline actions.</div>
+                            </div>
+                            <div class="d-flex flex-wrap">
+                                <button type="submit" name="action" value="approve" class="btn btn-sm btn-gradient-success mr-2 mb-2">
+                                    <i class="fas fa-check mr-1"></i>Verify
+                                </button>
+                                <button type="submit" name="action" value="reupload" data-requires-note="true" class="btn btn-sm btn-outline-warning mr-2 mb-2">
+                                    <i class="fas fa-upload mr-1"></i>Reupload
+                                </button>
+                                <button type="submit" name="action" value="reject" data-requires-note="true" class="btn btn-sm btn-gradient-danger mb-2">
+                                    <i class="fas fa-times mr-1"></i>Decline
+                                </button>
+                            </div>
+                        </form>
                     </div>
                     {% endif %}
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Senior Citizen ID Number (optional)</label>
-                        <input type="text" class="form-control" name="id_number" placeholder="Enter ID number if available">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
-                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
-                        <i class="fas fa-times mr-1"></i>Reject
-                    </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
-                        <i class="fas fa-check mr-1"></i>Approve
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 
-<!-- PWD Approval Modal -->
-{% if profile.pwd_verification == 'pending' %}
-<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_pwd" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='pwd') }}">
-                <div class="modal-header modal-header-success">
-                    <h5 class="modal-title">
-                        <i class="fas fa-wheelchair mr-2"></i>PWD Verification
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="modal-info-card">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Confirm document authenticity before approving the request.
-                    </div>
+                    {% if profile.pwd_verification == 'pending' %}
+                    <div class="verification-action-panel">
+                        <div class="d-flex justify-content-between align-items-start action-panel-header">
+                            <div>
+                                <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-wheelchair mr-2"></i>PWD</h6>
+                                {% if profile.disability_type %}
+                                <small class="text-muted">Disability Type: {{ profile.disability_type }}</small>
+                                {% endif %}
+                            </div>
+                            <span class="badge badge-warning verification-badge"><i class="fas fa-clock mr-1"></i>Pending</span>
+                        </div>
 
-                    <p class="mb-2">Process verification for:</p>
-                    <div class="modal-context-block">
-                        <p class="font-weight-bold mb-1">{{ user_info.first_name }} {{ user_info.last_name }}</p>
-                        {% if profile.disability_type %}
-                        <small class="text-muted">Disability Type: {{ profile.disability_type }}</small>
-                        {% endif %}
-                    </div>
-                    
-                    {% if profile.pwd_document_path %}
-                    <div class="mb-3">
-                        <label class="small font-weight-bold">Uploaded Document:</label>
-                        <div>
+                        <div class="mb-3">
+                            {% if profile.pwd_document_path %}
                             <a href="{{ profile.pwd_document_path }}" target="_blank" class="btn btn-sm btn-outline-success btn-doc-link">
-                                <i class="fas fa-file-image mr-1"></i>View Document
+                                <i class="fas fa-file-image mr-1"></i>View Uploaded ID
                             </a>
+                            {% else %}
+                            <small class="text-danger">No uploaded document found.</small>
+                            {% endif %}
+                            {% if profile.pwd_id_number %}
+                            <small class="d-block text-muted mt-2">Submitted ID Number: {{ profile.pwd_id_number }}</small>
+                            {% endif %}
                         </div>
+
+                        <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='pwd') }}" class="verification-action-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Approved ID Number (optional)</label>
+                                <input type="text" class="form-control form-control-sm" name="id_number" value="{{ profile.pwd_id_number or '' }}" placeholder="Enter approved PWD ID number">
+                            </div>
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Admin Note</label>
+                                <textarea class="form-control form-control-sm admin-note" name="rejection_reason" rows="2" placeholder="Required for Reupload and Decline actions."></textarea>
+                                <div class="invalid-feedback">Admin note is required for Reupload and Decline actions.</div>
+                            </div>
+                            <div class="d-flex flex-wrap">
+                                <button type="submit" name="action" value="approve" class="btn btn-sm btn-gradient-success mr-2 mb-2">
+                                    <i class="fas fa-check mr-1"></i>Verify
+                                </button>
+                                <button type="submit" name="action" value="reupload" data-requires-note="true" class="btn btn-sm btn-outline-warning mr-2 mb-2">
+                                    <i class="fas fa-upload mr-1"></i>Reupload
+                                </button>
+                                <button type="submit" name="action" value="reject" data-requires-note="true" class="btn btn-sm btn-gradient-danger mb-2">
+                                    <i class="fas fa-times mr-1"></i>Decline
+                                </button>
+                            </div>
+                        </form>
                     </div>
                     {% endif %}
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">PWD ID Number (optional)</label>
-                        <input type="text" class="form-control" name="id_number" placeholder="Enter PWD ID number if available">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
-                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
-                        <i class="fas fa-times mr-1"></i>Reject
-                    </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
-                        <i class="fas fa-check mr-1"></i>Approve
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 
-<!-- Solo Parent Approval Modal -->
-{% if profile.solo_parent_verification == 'pending' %}
-<div class="modal fade verify-modal" id="approveModal{{ profile.id }}_solo" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='solo_parent') }}">
-                <div class="modal-header modal-header-warning">
-                    <h5 class="modal-title">
-                        <i class="fas fa-child mr-2"></i>Solo Parent Verification
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="modal-info-card">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        Validate supporting details before approving this request.
-                    </div>
+                    {% if profile.solo_parent_verification == 'pending' %}
+                    <div class="verification-action-panel">
+                        <div class="d-flex justify-content-between align-items-start action-panel-header">
+                            <div>
+                                <h6 class="font-weight-bold text-warning mb-1"><i class="fas fa-child mr-2"></i>Solo Parent</h6>
+                                <small class="text-muted">Uploaded Solo Parent proof document</small>
+                            </div>
+                            <span class="badge badge-warning verification-badge"><i class="fas fa-clock mr-1"></i>Pending</span>
+                        </div>
 
-                    <p class="mb-2">Process verification for:</p>
-                    <div class="modal-context-block">
-                        <p class="font-weight-bold mb-0">{{ user_info.first_name }} {{ user_info.last_name }}</p>
-                    </div>
-                    
-                    {% if profile.solo_parent_document_path %}
-                    <div class="mb-3">
-                        <label class="small font-weight-bold">Uploaded Document:</label>
-                        <div>
+                        <div class="mb-3">
+                            {% if profile.solo_parent_document_path %}
                             <a href="{{ profile.solo_parent_document_path }}" target="_blank" class="btn btn-sm btn-outline-warning btn-doc-link">
-                                <i class="fas fa-file-image mr-1"></i>View Document
+                                <i class="fas fa-file-image mr-1"></i>View Uploaded ID
                             </a>
+                            {% else %}
+                            <small class="text-danger">No uploaded document found.</small>
+                            {% endif %}
+                            {% if profile.solo_parent_id_number %}
+                            <small class="d-block text-muted mt-2">Submitted ID Number: {{ profile.solo_parent_id_number }}</small>
+                            {% endif %}
                         </div>
+
+                        <form method="POST" action="{{ url_for('admin.process_verification', user_id=user_info.id, verification_type='solo_parent') }}" class="verification-action-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Approved ID Number (optional)</label>
+                                <input type="text" class="form-control form-control-sm" name="id_number" value="{{ profile.solo_parent_id_number or '' }}" placeholder="Enter approved Solo Parent ID number">
+                            </div>
+                            <div class="form-group mb-2">
+                                <label class="small font-weight-bold">Admin Note</label>
+                                <textarea class="form-control form-control-sm admin-note" name="rejection_reason" rows="2" placeholder="Required for Reupload and Decline actions."></textarea>
+                                <div class="invalid-feedback">Admin note is required for Reupload and Decline actions.</div>
+                            </div>
+                            <div class="d-flex flex-wrap">
+                                <button type="submit" name="action" value="approve" class="btn btn-sm btn-gradient-success mr-2 mb-2">
+                                    <i class="fas fa-check mr-1"></i>Verify
+                                </button>
+                                <button type="submit" name="action" value="reupload" data-requires-note="true" class="btn btn-sm btn-outline-warning mr-2 mb-2">
+                                    <i class="fas fa-upload mr-1"></i>Reupload
+                                </button>
+                                <button type="submit" name="action" value="reject" data-requires-note="true" class="btn btn-sm btn-gradient-danger mb-2">
+                                    <i class="fas fa-times mr-1"></i>Decline
+                                </button>
+                            </div>
+                        </form>
                     </div>
                     {% endif %}
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Solo Parent ID Number (optional)</label>
-                        <input type="text" class="form-control" name="id_number" placeholder="Enter Solo Parent ID number if available">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="small font-weight-bold">Rejection Reason (if rejecting)</label>
-                        <textarea class="form-control" name="rejection_reason" rows="2" placeholder="Enter reason for rejection..."></textarea>
-                    </div>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle mr-2"></i>No pending verification requests for this user.
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
-                    <button type="submit" name="action" value="reject" class="btn btn-gradient-danger">
-                        <i class="fas fa-times mr-1"></i>Reject
-                    </button>
-                    <button type="submit" name="action" value="approve" class="btn btn-gradient-success">
-                        <i class="fas fa-check mr-1"></i>Approve
-                    </button>
-                </div>
-            </form>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for('admin.view_community_user', user_id=user_info.id) }}" class="btn btn-outline-custom">
+                    <i class="fas fa-user mr-1"></i>Open Profile
+                </a>
+                <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
-{% endif %}
-
 {% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.verification-action-form').forEach(function(form) {
+        const noteField = form.querySelector('.admin-note');
+
+        form.addEventListener('submit', function(event) {
+            const submitter = event.submitter;
+            if (!submitter) {
+                return;
+            }
+
+            const requiresNote = submitter.getAttribute('data-requires-note') === 'true';
+            if (requiresNote && noteField && !noteField.value.trim()) {
+                event.preventDefault();
+                noteField.classList.add('is-invalid');
+                noteField.focus();
+                return;
+            }
+
+            if (noteField) {
+                noteField.classList.remove('is-invalid');
+            }
+        });
+
+        if (noteField) {
+            noteField.addEventListener('input', function() {
+                if (noteField.value.trim()) {
+                    noteField.classList.remove('is-invalid');
+                }
+            });
+        }
+    });
+});
+</script>
 {% endblock %}

@@ -22,6 +22,60 @@ def _safe_details(details_text):
         return {}
 
 
+def _normalize_required_document_specs(details):
+    specs = details.get('required_documents_specs')
+    normalized_specs = []
+
+    if isinstance(specs, list):
+        for item in specs:
+            if not isinstance(item, dict):
+                continue
+
+            name = str(item.get('name', '')).strip()
+            if not name:
+                continue
+
+            raw_copy_specs = item.get('copy_specs') if isinstance(item.get('copy_specs'), list) else []
+            copy_specs = []
+            for copy_spec in raw_copy_specs:
+                if not isinstance(copy_spec, dict):
+                    continue
+
+                copy_type = str(copy_spec.get('type', 'original')).strip() or 'original'
+                try:
+                    copy_count = max(1, int(copy_spec.get('count', 1)))
+                except (TypeError, ValueError):
+                    copy_count = 1
+
+                copy_specs.append({'type': copy_type, 'count': copy_count})
+
+            if not copy_specs:
+                copy_specs = [{'type': 'original', 'count': 1}]
+
+            normalized_specs.append({
+                'name': name,
+                'copy_specs': copy_specs
+            })
+
+    if normalized_specs:
+        return normalized_specs
+
+    fallback_docs = details.get('required_documents')
+    if not isinstance(fallback_docs, list):
+        return []
+
+    fallback_specs = []
+    for doc_name in fallback_docs:
+        clean_name = str(doc_name).strip()
+        if clean_name:
+            fallback_specs.append({
+                'name': clean_name,
+                'copy_specs': [{'type': 'original', 'count': 1}]
+            })
+
+    return fallback_specs
+
+
 def _build_subsidy_cards(profile):
     cards = [
         {
@@ -82,6 +136,12 @@ def _load_user_requests(user_id):
 
     for log in logs:
         details = _safe_details(log.details)
+        if log.action == 'request_subsidy':
+            required_docs_specs = _normalize_required_document_specs(details)
+            if required_docs_specs:
+                details['required_documents_specs'] = required_docs_specs
+                details['required_documents'] = [item['name'] for item in required_docs_specs]
+
         payload = {
             'id': log.id,
             'description': log.description,

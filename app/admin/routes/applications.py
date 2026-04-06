@@ -2278,12 +2278,13 @@ def verify_document_status(application_id, doc_id):
 @login_required
 @role_required('admin')
 def preview_beneficiaries_list():
-    """Return JSON preview of filtered beneficiaries list"""
+    """Return JSON preview of filtered beneficiaries list (completed applications only)."""
     program_ids = request.args.get('program_ids', '').strip()
     program_type = request.args.get('program_type', '').strip()
 
+    # Strict policy: generated beneficiaries list may only include completed applications.
     query = Applications.query.filter(
-        Applications.application_status.in_(['approved', 'active', 'completed'])
+        Applications.application_status == 'completed'
     ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
 
     if program_ids:
@@ -2316,13 +2317,14 @@ def preview_beneficiaries_list():
 @login_required
 @role_required('admin')
 def generate_beneficiaries_list():
-    """Generate a JPG image of approved beneficiaries list"""
+    """Generate a JPG image of beneficiaries with completed applications only."""
     try:
         program_ids = request.args.get('program_ids', '').strip()
         program_type = request.args.get('program_type', '').strip()
 
+        # Strict policy: generated beneficiaries list may only include completed applications.
         query = Applications.query.filter(
-            Applications.application_status.in_(['approved', 'active', 'completed'])
+            Applications.application_status == 'completed'
         ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
 
         if program_ids:
@@ -2333,11 +2335,11 @@ def generate_beneficiaries_list():
         if program_type:
             query = query.join(Programs, Applications.program_id == Programs.id).filter(Programs.program_type == program_type)
 
-        # Get all approved/active/completed applications with user and community profile data
-        approved_applications = query.order_by(Applications.id).all()
+        # Get all completed applications with user and community profile data
+        completed_applications = query.order_by(Applications.id).all()
         
-        if not approved_applications:
-            flash('No approved applications found.', 'warning')
+        if not completed_applications:
+            flash('No completed applications found.', 'warning')
             return redirect(url_for('admin.applications'))
         
         # Create image with table
@@ -2345,7 +2347,7 @@ def generate_beneficiaries_list():
         row_height = 40
         header_height = 60
         padding = 40
-        num_rows = len(approved_applications)
+        num_rows = len(completed_applications)
         
         img_width = 800
         img_height = header_height + (num_rows * row_height) + padding * 2
@@ -2366,9 +2368,9 @@ def generate_beneficiaries_list():
         
         # Title
         if program_type:
-            title = f"LIST OF APPROVED BENEFICIARIES – {program_type.upper()}"
+            title = f"LIST OF COMPLETED BENEFICIARIES – {program_type.upper()}"
         else:
-            title = "LIST OF APPROVED BENEFICIARIES"
+            title = "LIST OF COMPLETED BENEFICIARIES"
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_bbox[2] - title_bbox[0]
         draw.text(((img_width - title_width) / 2, padding), title, fill='black', font=title_font)
@@ -2389,7 +2391,7 @@ def generate_beneficiaries_list():
         y_offset += 40
         
         # Draw table rows
-        for idx, app in enumerate(approved_applications):
+        for idx, app in enumerate(completed_applications):
             # Alternate row colors
             if idx % 2 == 0:
                 draw.rectangle([30, y_offset, img_width - 30, y_offset + row_height], fill='#f8f9fc')
@@ -2428,7 +2430,7 @@ def generate_beneficiaries_list():
         filename = f"beneficiaries_list_{manila_strftime(datetime.utcnow(), '%Y%m%d_%H%M%S', '')}.jpg"
         
         # Log activity
-        log_beneficiaries_list_generated(len(approved_applications))
+        log_beneficiaries_list_generated(len(completed_applications))
         db.session.commit()
         
         return send_file(
