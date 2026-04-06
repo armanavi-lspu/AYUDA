@@ -399,6 +399,19 @@ document.addEventListener('DOMContentLoaded', function() {
         'email'
     ];
 
+    function isReloadNavigation() {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (navEntries && navEntries.length > 0) {
+            return navEntries[0].type === 'reload';
+        }
+
+        if (performance.navigation) {
+            return performance.navigation.type === 1;
+        }
+
+        return false;
+    }
+
     function saveSignupDraft() {
         const draft = {};
         draftFieldIds.forEach(function(fieldId) {
@@ -407,11 +420,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 draft[fieldId] = field.value;
             }
         });
-        localStorage.setItem(signupDraftKey, JSON.stringify(draft));
+        sessionStorage.setItem(signupDraftKey, JSON.stringify(draft));
     }
 
     function loadSignupDraft() {
-        const rawDraft = localStorage.getItem(signupDraftKey);
+        const rawDraft = sessionStorage.getItem(signupDraftKey);
         if (!rawDraft) {
             return;
         }
@@ -420,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             draft = JSON.parse(rawDraft);
         } catch (error) {
-            localStorage.removeItem(signupDraftKey);
+            sessionStorage.removeItem(signupDraftKey);
             return;
         }
 
@@ -531,6 +544,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupToggle('togglePassword', 'password', 'passwordIcon');
     setupToggle('toggleConfirmPassword', 'confirmPassword', 'confirmPasswordIcon');
+
+    if (!isReloadNavigation()) {
+        sessionStorage.removeItem(signupDraftKey);
+    }
 
     loadSignupDraft();
 

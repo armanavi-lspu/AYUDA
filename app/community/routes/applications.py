@@ -6,6 +6,7 @@ from app.utils import role_required, manila_strftime
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers, Assessment, AssessmentDocument
 from app.extensions import db
 from app.user_activity_logger import log_document_upload
+from app.application_logs import build_application_activity_entries
 from sqlalchemy import desc, or_
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -195,6 +196,30 @@ def application_workflow(application_id):
         datetime=datetime,
         user=current_user,
         no_workflow=False
+    )
+
+
+@community_bp.route('/applications/<int:application_id>/logs')
+@login_required
+@role_required('community')
+def application_logs(application_id):
+    """Display application activity logs for the application owner."""
+    application = Applications.query.filter_by(
+        id=application_id,
+        user_id=current_user.id,
+    ).first_or_404()
+
+    activity_entries = build_application_activity_entries(
+        application,
+        include_admin_activity=True,
+        include_user_activity=True,
+    )
+
+    return render_template(
+        'community/application_logs.html',
+        application=application,
+        activity_entries=activity_entries,
+        user=current_user,
     )
 
 

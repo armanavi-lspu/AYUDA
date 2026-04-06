@@ -279,6 +279,61 @@
         background: #fbfdff;
     }
 
+    .verification-detail-list {
+        border: 1px solid #e6edf8;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .verification-detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.7rem 0.9rem;
+        border-bottom: 1px solid #eef3fb;
+        gap: 0.8rem;
+    }
+
+    .verification-detail-item:last-child {
+        border-bottom: 0;
+    }
+
+    .verification-detail-label {
+        color: #60708b;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .verification-detail-value {
+        color: #1f2a44;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .verification-doc-preview {
+        border: 1px solid #e6edf8;
+        border-radius: 10px;
+        padding: 0.75rem;
+        background: #f9fcff;
+    }
+
+    .verification-doc-preview img {
+        width: 100%;
+        max-height: 260px;
+        object-fit: contain;
+        border-radius: 8px;
+        border: 1px solid #dce7f7;
+        background: #ffffff;
+    }
+
+    .verification-detail-btn {
+        border-radius: 10px;
+        font-weight: 700;
+    }
+
     @media (max-width: 767.98px) {
         .profile-header {
             padding: 2.4rem 0;
@@ -743,6 +798,10 @@
                                             <i class="fas fa-upload mr-1"></i>Request Verification
                                         </button>
                                     {% endif %}
+
+                                    <button class="btn btn-sm btn-outline-info btn-block mt-2 verification-detail-btn" data-toggle="modal" data-target="#seniorVerificationDetailsModal">
+                                        <i class="fas fa-eye mr-1"></i>View Verification Details
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -788,6 +847,10 @@
                                             <i class="fas fa-upload mr-1"></i>Request Verification
                                         </button>
                                     {% endif %}
+
+                                    <button class="btn btn-sm btn-outline-success btn-block mt-2 verification-detail-btn" data-toggle="modal" data-target="#pwdVerificationDetailsModal">
+                                        <i class="fas fa-eye mr-1"></i>View Verification Details
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -833,6 +896,10 @@
                                             <i class="fas fa-upload mr-1"></i>Request Verification
                                         </button>
                                     {% endif %}
+
+                                    <button class="btn btn-sm btn-outline-warning btn-block mt-2 verification-detail-btn" data-toggle="modal" data-target="#soloVerificationDetailsModal">
+                                        <i class="fas fa-eye mr-1"></i>View Verification Details
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -969,6 +1036,80 @@
 </div>
 {% endif %}
 
+<!-- Senior Citizen Verification Details Modal -->
+{% if profile.age and profile.age >= 60 %}
+<div class="modal fade" id="seniorVerificationDetailsModal" tabindex="-1" aria-labelledby="seniorVerificationDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="seniorVerificationDetailsModalLabel">
+                    <i class="fas fa-id-card mr-2"></i>Senior Citizen Verification Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="verification-detail-list">
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Status</span>
+                        <span class="verification-detail-value">
+                            {% if profile.senior_citizen_verification == 'approved' %}
+                                <span class="badge badge-success">Approved</span>
+                            {% elif profile.senior_citizen_verification == 'pending' %}
+                                <span class="badge badge-warning">Pending Review</span>
+                            {% elif profile.senior_citizen_verification == 'rejected' %}
+                                <span class="badge badge-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Not Submitted</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">ID Number</span>
+                        <span class="verification-detail-value">{{ profile.senior_citizen_id_number or 'Not provided' }}</span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Verified Date</span>
+                        <span class="verification-detail-value">{{ profile.senior_citizen_verified_at|manila('%B %d, %Y %I:%M %p', 'Not yet verified') }}</span>
+                    </div>
+                </div>
+
+                {% if profile.senior_citizen_verification == 'rejected' and profile.senior_citizen_rejection_reason %}
+                <div class="alert alert-danger">
+                    <strong>Rejection Reason:</strong> {{ profile.senior_citizen_rejection_reason }}
+                </div>
+                {% endif %}
+
+                <h6 class="font-weight-bold text-muted mb-2">Uploaded Document</h6>
+                {% if profile.senior_citizen_document_path %}
+                    {% set senior_doc_path = profile.senior_citizen_document_path %}
+                    {% set senior_doc_path_lower = senior_doc_path|lower %}
+                    {% set senior_is_image = senior_doc_path_lower.endswith('.png') or senior_doc_path_lower.endswith('.jpg') or senior_doc_path_lower.endswith('.jpeg') %}
+                    <div class="verification-doc-preview">
+                        {% if senior_is_image %}
+                        <img src="{{ senior_doc_path }}" alt="Senior Citizen ID Document">
+                        {% else %}
+                        <div class="alert alert-secondary mb-2">
+                            <i class="fas fa-file-pdf mr-1"></i>Preview is unavailable for this file type.
+                        </div>
+                        {% endif %}
+                        <a href="{{ senior_doc_path }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="fas fa-external-link-alt mr-1"></i>Open Uploaded Document
+                        </a>
+                    </div>
+                {% else %}
+                <p class="text-muted mb-0">No uploaded document yet.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- PWD Verification Modal -->
 {% if profile.is_pwd %}
 <div class="modal fade" id="verifyPwdModal" tabindex="-1" aria-labelledby="verifyPwdModalLabel" aria-hidden="true">
@@ -1024,6 +1165,80 @@
 </div>
 {% endif %}
 
+<!-- PWD Verification Details Modal -->
+{% if profile.is_pwd %}
+<div class="modal fade" id="pwdVerificationDetailsModal" tabindex="-1" aria-labelledby="pwdVerificationDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="pwdVerificationDetailsModalLabel">
+                    <i class="fas fa-id-card mr-2"></i>PWD Verification Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="verification-detail-list">
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Status</span>
+                        <span class="verification-detail-value">
+                            {% if profile.pwd_verification == 'approved' %}
+                                <span class="badge badge-success">Approved</span>
+                            {% elif profile.pwd_verification == 'pending' %}
+                                <span class="badge badge-warning">Pending Review</span>
+                            {% elif profile.pwd_verification == 'rejected' %}
+                                <span class="badge badge-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Not Submitted</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">ID Number</span>
+                        <span class="verification-detail-value">{{ profile.pwd_id_number or 'Not provided' }}</span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Verified Date</span>
+                        <span class="verification-detail-value">{{ profile.pwd_verified_at|manila('%B %d, %Y %I:%M %p', 'Not yet verified') }}</span>
+                    </div>
+                </div>
+
+                {% if profile.pwd_verification == 'rejected' and profile.pwd_rejection_reason %}
+                <div class="alert alert-danger">
+                    <strong>Rejection Reason:</strong> {{ profile.pwd_rejection_reason }}
+                </div>
+                {% endif %}
+
+                <h6 class="font-weight-bold text-muted mb-2">Uploaded Document</h6>
+                {% if profile.pwd_document_path %}
+                    {% set pwd_doc_path = profile.pwd_document_path %}
+                    {% set pwd_doc_path_lower = pwd_doc_path|lower %}
+                    {% set pwd_is_image = pwd_doc_path_lower.endswith('.png') or pwd_doc_path_lower.endswith('.jpg') or pwd_doc_path_lower.endswith('.jpeg') %}
+                    <div class="verification-doc-preview">
+                        {% if pwd_is_image %}
+                        <img src="{{ pwd_doc_path }}" alt="PWD ID Document">
+                        {% else %}
+                        <div class="alert alert-secondary mb-2">
+                            <i class="fas fa-file-pdf mr-1"></i>Preview is unavailable for this file type.
+                        </div>
+                        {% endif %}
+                        <a href="{{ pwd_doc_path }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="fas fa-external-link-alt mr-1"></i>Open Uploaded Document
+                        </a>
+                    </div>
+                {% else %}
+                <p class="text-muted mb-0">No uploaded document yet.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Solo Parent Verification Modal -->
 {% if profile.is_solo_parent %}
 <div class="modal fade" id="verifySoloModal" tabindex="-1" aria-labelledby="verifySoloModalLabel" aria-hidden="true">
@@ -1074,6 +1289,80 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Solo Parent Verification Details Modal -->
+{% if profile.is_solo_parent %}
+<div class="modal fade" id="soloVerificationDetailsModal" tabindex="-1" aria-labelledby="soloVerificationDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="soloVerificationDetailsModalLabel">
+                    <i class="fas fa-id-card mr-2"></i>Solo Parent Verification Details
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="verification-detail-list">
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Status</span>
+                        <span class="verification-detail-value">
+                            {% if profile.solo_parent_verification == 'approved' %}
+                                <span class="badge badge-success">Approved</span>
+                            {% elif profile.solo_parent_verification == 'pending' %}
+                                <span class="badge badge-warning">Pending Review</span>
+                            {% elif profile.solo_parent_verification == 'rejected' %}
+                                <span class="badge badge-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Not Submitted</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">ID Number</span>
+                        <span class="verification-detail-value">{{ profile.solo_parent_id_number or 'Not provided' }}</span>
+                    </div>
+                    <div class="verification-detail-item">
+                        <span class="verification-detail-label">Verified Date</span>
+                        <span class="verification-detail-value">{{ profile.solo_parent_verified_at|manila('%B %d, %Y %I:%M %p', 'Not yet verified') }}</span>
+                    </div>
+                </div>
+
+                {% if profile.solo_parent_verification == 'rejected' and profile.solo_parent_rejection_reason %}
+                <div class="alert alert-danger">
+                    <strong>Rejection Reason:</strong> {{ profile.solo_parent_rejection_reason }}
+                </div>
+                {% endif %}
+
+                <h6 class="font-weight-bold text-muted mb-2">Uploaded Document</h6>
+                {% if profile.solo_parent_document_path %}
+                    {% set solo_doc_path = profile.solo_parent_document_path %}
+                    {% set solo_doc_path_lower = solo_doc_path|lower %}
+                    {% set solo_is_image = solo_doc_path_lower.endswith('.png') or solo_doc_path_lower.endswith('.jpg') or solo_doc_path_lower.endswith('.jpeg') %}
+                    <div class="verification-doc-preview">
+                        {% if solo_is_image %}
+                        <img src="{{ solo_doc_path }}" alt="Solo Parent ID Document">
+                        {% else %}
+                        <div class="alert alert-secondary mb-2">
+                            <i class="fas fa-file-pdf mr-1"></i>Preview is unavailable for this file type.
+                        </div>
+                        {% endif %}
+                        <a href="{{ solo_doc_path }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
+                            <i class="fas fa-external-link-alt mr-1"></i>Open Uploaded Document
+                        </a>
+                    </div>
+                {% else %}
+                <p class="text-muted mb-0">No uploaded document yet.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>

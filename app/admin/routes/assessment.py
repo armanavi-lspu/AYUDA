@@ -189,7 +189,7 @@ def _complete_assessment_workflow_step(application, reviewer_id=None):
     assessment_step = ProgramWorkflowSteps.query.filter_by(
         program_id=application.program_id,
         step_type='assessment'
-    ).first()
+    ).order_by(ProgramWorkflowSteps.step_order.asc()).first()
 
     if not assessment_step:
         return
@@ -208,6 +208,75 @@ def _complete_assessment_workflow_step(application, reviewer_id=None):
     workflow_status.reviewed_at = now
     if reviewer_id:
         workflow_status.reviewed_by = reviewer_id
+
+    _enable_next_workflow_step(application, assessment_step.id)
+    _refresh_application_status_from_workflow(application)
+
+
+def _enable_next_workflow_step(application, completed_step_id):
+    """Enable the immediate next workflow step after a completed step."""
+    if not application or not application.program or not application.program.workflow_steps:
+        return
+
+    workflow_steps = sorted(application.program.workflow_steps, key=lambda step: step.step_order)
+    completed_step = next((step for step in workflow_steps if step.id == completed_step_id), None)
+    if not completed_step:
+        return
+
+    next_step = next((step for step in workflow_steps if step.step_order == completed_step.step_order + 1), None)
+    if not next_step:
+        return
+
+    next_step_status = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application.id,
+        workflow_step_id=next_step.id,
+    ).first()
+
+    now = datetime.utcnow()
+    if not next_step_status:
+        next_step_status = ApplicationWorkflowStatus(
+            application_id=application.id,
+            workflow_step_id=next_step.id,
+            step_status='not_started',
+        )
+        db.session.add(next_step_status)
+
+    if next_step_status.step_status == 'not_started':
+        next_step_status.step_status = 'in_progress'
+        next_step_status.started_at = now
+    next_step_status.updated_at = now
+
+
+def _refresh_application_status_from_workflow(application):
+    """Recompute parent application status from workflow progression."""
+    if not application or not application.program or not application.program.workflow_steps:
+        return
+
+    workflow_steps = sorted(application.program.workflow_steps, key=lambda step: step.step_order)
+    if not workflow_steps:
+        return
+
+    workflow_status_rows = ApplicationWorkflowStatus.query.filter_by(application_id=application.id).all()
+    status_map = {row.workflow_step_id: row.step_status for row in workflow_status_rows}
+
+    current_step = next(
+        (step for step in workflow_steps if status_map.get(step.id) not in ['approved', 'completed']),
+        workflow_steps[-1]
+    )
+
+    first_step = workflow_steps[0]
+    last_step = workflow_steps[-1]
+
+    if current_step.step_order == first_step.step_order:
+        new_status = 'pending'
+    elif current_step.step_order == last_step.step_order:
+        new_status = 'completed'
+    else:
+        new_status = 'active'
+
+    if application.application_status != new_status:
+        application.application_status = new_status
+        application.updated_at = datetime.utcnow()
 
 
 @admin_bp.route('/assessments', endpoint='assessments')

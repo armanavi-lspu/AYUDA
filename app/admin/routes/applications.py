@@ -7,6 +7,7 @@ from app.utils import role_required, manila_strftime
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
+from app.application_logs import build_application_activity_entries
 import re
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -662,6 +663,26 @@ def view_application(application_id):
         default_deadline=default_deadline,
         datetime=datetime,
         user=current_user
+    )
+
+
+@admin_bp.route('/applications/<int:application_id>/logs')
+@login_required
+@role_required('admin')
+def application_logs(application_id):
+    """Display a consolidated activity timeline for one application."""
+    application = Applications.query.get_or_404(application_id)
+    activity_entries = build_application_activity_entries(
+        application,
+        include_admin_activity=True,
+        include_user_activity=True,
+    )
+
+    return render_template(
+        'admin/application_logs.html',
+        application=application,
+        activity_entries=activity_entries,
+        user=current_user,
     )
 
 

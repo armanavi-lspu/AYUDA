@@ -1,0 +1,87 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Application Logs #{{ application.id }} - AYUDA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1 font-weight-bold text-gray-800">Application Logs</h4>
+            <p class="text-muted mb-0">
+                Application #{{ application.id }} for {{ application.applicant.first_name }} {{ application.applicant.last_name }}
+            </p>
+        </div>
+        <a href="{{ url_for('admin.view_application', application_id=application.id) }}" class="btn btn-secondary btn-sm mt-2 mt-sm-0">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Workflow
+        </a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="row">
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <small class="text-muted d-block">Program</small>
+                    <strong>{{ application.program.program_name if application.program else 'N/A' }}</strong>
+                </div>
+                <div class="col-md-4 mb-2 mb-md-0">
+                    <small class="text-muted d-block">Current Status</small>
+                    <strong>{{ application.application_status.replace('_', ' ').title() }}</strong>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted d-block">Submitted On</small>
+                    <strong>{{ application.application_date|manila('%B %d, %Y %I:%M %p', 'N/A') }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Workflow Activity Feed</h6>
+            <span class="badge badge-light">{{ activity_entries|length }} record(s)</span>
+        </div>
+        <div class="card-body p-0">
+            {% if activity_entries %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Date and Time</th>
+                            <th>Actor</th>
+                            <th>Source</th>
+                            <th>Activity</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in activity_entries %}
+                        <tr>
+                            <td class="text-nowrap">{{ entry.timestamp|manila('%b %d, %Y %I:%M %p', 'N/A') }}</td>
+                            <td>{{ entry.actor }}</td>
+                            <td>
+                                {% if entry.source == 'workflow' %}
+                                <span class="badge badge-info">Workflow</span>
+                                {% elif entry.source == 'admin_activity' %}
+                                <span class="badge badge-primary">Admin Activity</span>
+                                {% elif entry.source == 'community_activity' %}
+                                <span class="badge badge-secondary">Community Activity</span>
+                                {% else %}
+                                <span class="badge badge-light">Application</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.activity }}</td>
+                            <td>{{ entry.notes if entry.notes else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-center text-muted">
+                <i class="fas fa-clipboard-list fa-2x mb-2 d-block"></i>
+                No activity logs were found for this application.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
