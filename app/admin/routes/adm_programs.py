@@ -434,6 +434,7 @@ def respond_subsidy_request(request_id):
     for spec in required_documents_specs:
         copy_desc = ', '.join([f"{row['count']} { _copy_type_label(row['type']) }" for row in spec['copy_specs']])
         docs_lines.append(f"• {spec['name']} ({copy_desc})")
+    docs_text = "\n".join(docs_lines)
 
     user_notification = Notifications(
         user_id=request_log.user_id,
@@ -441,7 +442,7 @@ def respond_subsidy_request(request_id):
         notif_message=(
             f'Your subsidy application for {category_name} was reviewed.\n\n'
             f'Instructions:\n{instructions}\n\n'
-            f"Required documents to submit in the office:\n{'\\n'.join(docs_lines)}\n\n"
+            f"Required documents to submit in the office:\n{docs_text}\n\n"
             f'{office_note}'
         ),
         related_type='subsidy'
