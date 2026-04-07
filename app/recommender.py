@@ -28,6 +28,214 @@ CANDIDATE_MULTIPLIER = 3
 MIN_CANDIDATE_POOL = 30
 
 
+# Need-focused ranking weights used for beneficiary ranking transparency.
+NEED_FOCUSED_WEIGHTS = {
+    'case_severity': 0.60,
+    'income_vulnerability': 0.25,
+    'household_vulnerability': 0.12,
+    'repeat_beneficiary_penalty': 0.03,
+}
+
+NEED_FOCUSED_FACTOR_KEYS = tuple(NEED_FOCUSED_WEIGHTS.keys())
+
+
+def _coerce_bool(value):
+    """Convert common bool-like values into a boolean."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value or '').strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+
+def _resolve_need_focused_weights(scoring_parameters=None):
+    """Return active scoring weights with disabled factors set to zero."""
+    active_weights = dict(NEED_FOCUSED_WEIGHTS)
+
+    if not isinstance(scoring_parameters, dict):
+        return active_weights
+
+    for factor_key in NEED_FOCUSED_FACTOR_KEYS:
+        if factor_key in scoring_parameters and not _coerce_bool(scoring_parameters.get(factor_key)):
+            active_weights[factor_key] = 0.0
+
+    return active_weights
+
+
+def _case_severity_score(raw_severity):
+    """Map case severity labels to a normalized score in [0, 1]."""
+    label = str(raw_severity or '').strip().lower()
+    if label in {'high', 'critical'}:
+        return 1.0
+    if label in {'medium', 'moderate'}:
+        return 0.6
+    if label == 'low':
+        return 0.2
+    # Neutral fallback for missing/unknown severities.
+    return 0.4
+
+
+def _income_vulnerability_score(raw_income):
+    """Return vulnerability score where lower income means higher need."""
+    try:
+        income = float(raw_income or 0)
+    except (TypeError, ValueError):
+        income = 0.0
+
+    if income <= 0:
+        return 1.0
+    if income < 100_000:
+        return 1.0
+    if income < 250_000:
+        return 0.75
+    if income < 400_000:
+        return 0.50
+    if income < 600_000:
+        return 0.25
+    return 0.10
+
+
+def _household_vulnerability_score(beneficiary):
+    """Compute a capped 0-1 household vulnerability score from profile indicators."""
+    raw = 0.0
+
+    if bool(beneficiary.get('is_solo_parent')):
+        raw += 0.35
+    if bool(beneficiary.get('is_student')):
+        raw += 0.20
+    if bool(beneficiary.get('is_pwd')):
+        raw += 0.30
+
+    age = beneficiary.get('age', 0) or 0
+    try:
+        age = float(age)
+    except (TypeError, ValueError):
+        age = 0.0
+    if age >= SENIOR_CITIZEN_AGE:
+        raw += 0.25
+
+    is_employed = bool(beneficiary.get('is_currently_employed'))
+    occupation = str(beneficiary.get('occupation') or '').strip().lower()
+    occupation_keywords = {'laborer', 'farmer', 'vendor', 'driver', 'helper', 'cashier'}
+
+    if not is_employed:
+        raw += 0.25
+    elif any(keyword in occupation for keyword in occupation_keywords):
+        raw += 0.15
+
+    return min(raw, 1.0)
+
+
+def _parse_past_applications_count(past_apps):
+    """Normalize past application history into a non-negative integer count."""
+    if past_apps is None:
+        return 0
+
+    if isinstance(past_apps, (int, float)):
+        return max(0, int(past_apps))
+
+    if isinstance(past_apps, (list, tuple, set)):
+        return len(past_apps)
+
+    text = str(past_apps).strip()
+    if not text:
+        return 0
+
+    if text.isdigit():
+        return int(text)
+
+    for delimiter in ('|', ';', ','):
+        if delimiter in text:
+            return len([part for part in text.split(delimiter) if part.strip()])
+
+    # Non-empty history text implies at least one prior application signal.
+    return 1
+
+
+def _repeat_beneficiary_penalty(raw_past_applications):
+    """Return repeat-beneficiary penalty in [-1.0, 0.0]."""
+    past_apps = _parse_past_applications_count(raw_past_applications)
+    if past_apps <= 0:
+        return 0.0
+    if past_apps == 1:
+        return -0.3
+    if past_apps == 2:
+        return -0.6
+    return -1.0
+
+
+def _build_need_focused_breakdown(beneficiary, weights=None):
+    """Build four-factor score breakdown aligned with the ranking formula."""
+    active_weights = dict(NEED_FOCUSED_WEIGHTS)
+    if isinstance(weights, dict):
+        for factor_key in NEED_FOCUSED_FACTOR_KEYS:
+            if factor_key in weights:
+                try:
+                    active_weights[factor_key] = float(weights.get(factor_key) or 0.0)
+                except (TypeError, ValueError):
+                    active_weights[factor_key] = 0.0
+
+    case_value = _case_severity_score(beneficiary.get('case_severity'))
+    income_value = _income_vulnerability_score(beneficiary.get('family_annual_income'))
+    household_value = _household_vulnerability_score(beneficiary)
+    repeat_value = _repeat_beneficiary_penalty(
+        beneficiary.get('past_applications_count', beneficiary.get('past_applications'))
+    )
+
+    case_contrib = active_weights['case_severity'] * case_value
+    income_contrib = active_weights['income_vulnerability'] * income_value
+    household_contrib = active_weights['household_vulnerability'] * household_value
+    repeat_contrib = active_weights['repeat_beneficiary_penalty'] * repeat_value
+
+    return {
+        'case_severity_factor': {
+            'label': 'Case Severity',
+            'weight': active_weights['case_severity'],
+            'beneficiary_value': round(case_value, 4),
+            'contribution': round(case_contrib, 4),
+        },
+        'income_vulnerability_factor': {
+            'label': 'Income Vulnerability',
+            'weight': active_weights['income_vulnerability'],
+            'beneficiary_value': round(income_value, 4),
+            'contribution': round(income_contrib, 4),
+        },
+        'household_vulnerability_factor': {
+            'label': 'Household Vulnerability',
+            'weight': active_weights['household_vulnerability'],
+            'beneficiary_value': round(household_value, 4),
+            'contribution': round(household_contrib, 4),
+        },
+        'repeat_beneficiary_penalty_factor': {
+            'label': 'Repeat Beneficiary Penalty',
+            'weight': active_weights['repeat_beneficiary_penalty'],
+            'beneficiary_value': round(repeat_value, 4),
+            'contribution': round(repeat_contrib, 4),
+        },
+        # Legacy flat keys retained for compatibility with existing consumers.
+        'severity_component': round(case_contrib, 4),
+        'income_score': round(income_contrib, 4),
+        'household_vulnerability_component': round(household_contrib, 4),
+        'repeat_penalty_component': round(repeat_contrib, 4),
+        'solo_parent_bonus': 0.0,
+        'student_bonus': 0.0,
+        'pwd_bonus': 0.0,
+        'senior_bonus': 0.0,
+    }
+
+
+def _compute_need_focused_score(beneficiary, weights=None):
+    """Compute final need-focused score and aligned breakdown."""
+    breakdown = _build_need_focused_breakdown(beneficiary, weights=weights)
+    score = (
+        breakdown['case_severity_factor']['contribution']
+        + breakdown['income_vulnerability_factor']['contribution']
+        + breakdown['household_vulnerability_factor']['contribution']
+        + breakdown['repeat_beneficiary_penalty_factor']['contribution']
+    )
+    return round(score, 4), breakdown
+
+
 class BeneficiaryRecommender:
     """
     Content-based recommender for beneficiaries using nearest neighbors.
@@ -254,10 +462,11 @@ class BeneficiaryRecommender:
                 'severity_component': round(severity_score * 0.5, 4),  # 50% weight
                 'similarity_score': round(float(sim), 4),
                 'income_score': round(max(0, 1 - abs(income - target_income) / max(target_income, 1)) * 0.2, 4) if target_income > 0 else 0,
-                'solo_parent_bonus': 0.1 if rec.get('is_solo_parent') and target_profile.get('is_solo_parent') else 0,
-                'student_bonus': 0.08 if rec.get('is_student') and target_profile.get('is_student') else 0,
-                'pwd_bonus': 0.1 if rec.get('is_pwd') and target_profile.get('is_pwd') else 0,
-                'senior_bonus': 0.02 if (rec.get('age') or 0) >= SENIOR_CITIZEN_AGE and (target_profile.get('age') or 0) >= SENIOR_CITIZEN_AGE else 0,
+                # Identity-group bonuses are intentionally disabled; priority groups are enforced via filters.
+                'solo_parent_bonus': 0.0,
+                'student_bonus': 0.0,
+                'pwd_bonus': 0.0,
+                'senior_bonus': 0.0,
             }
 
             recommendations.append(rec)
@@ -301,10 +510,9 @@ class BeneficiaryRecommender:
         except Exception:
             return None
     
-    def score_beneficiaries(self, beneficiaries, priority_weights=None):
+    def score_beneficiaries(self, beneficiaries, priority_weights=None, scoring_parameters=None):
         """
-        Score beneficiaries based on priority weights and needs assessment.
-        CASE SEVERITY is the HEAVIEST weight (50%).
+        Score beneficiaries using the finalized need-focused formula.
         
         Args:
             beneficiaries: List of dictionaries with beneficiary data
@@ -315,85 +523,15 @@ class BeneficiaryRecommender:
         """
         if not beneficiaries:
             return []
-        
-        if priority_weights is None:
-            priority_weights = {
-                'case_severity': 0.5,  # HEAVIEST WEIGHT: 50%
-                'low_income': 0.2,
-                'solo_parent': 0.1,
-                'student': 0.08,
-                'pwd': 0.1,
-                'senior_citizen': 0.02,
-            }
-        
+
+        effective_weights = _resolve_need_focused_weights(scoring_parameters)
         scored_beneficiaries = []
-        
-        # Case severity score mapper
-        severity_scores = {
-            'critical': 1.0,
-            'high': 0.8,
-            'moderate': 0.6,
-            'low': 0.4,
-            'unrated': 0.0,
-        }
-        
-        # Get income statistics for normalization
-        incomes = [b.get('family_annual_income', 0) or 0 for b in beneficiaries]
-        max_income = max(incomes) if incomes else 1
-        min_income = min(incomes) if incomes else 0
-        income_range = max_income - min_income if max_income > min_income else 1
-        
+
         for b in beneficiaries:
-            score = 0.0
-            breakdown = {}
-            
-            # 1. CASE SEVERITY SCORE (50% weight) - PRIMARY CRITERION
-            severity = (b.get('case_severity') or 'unrated').lower()
-            severity_score = severity_scores.get(severity, 0.0)
-            severity_component = priority_weights.get('case_severity', 0.5) * severity_score
-            score += severity_component
-            breakdown['severity_score'] = round(severity_score, 4)
-            breakdown['severity_component'] = round(severity_component, 4)
-            
-            # 2. Income score - lower income = higher score (with validation)
-            try:
-                income = float(b.get('family_annual_income', 0) or 0)
-                # Validate and clamp income to valid range
-                if income < 0:
-                    income = 0
-                elif income > 10000000:
-                    income = 10000000
-            except (ValueError, TypeError):
-                income = 0
-            
-            income_score = 1 - ((income - min_income) / income_range) if income_range > 0 else 0.5
-            income_score = max(0.0, min(1.0, income_score))
-            score += priority_weights.get('low_income', 0.2) * income_score
-            breakdown['income_score'] = round(income_score * priority_weights.get('low_income', 0.2), 4)
-            
-            # Solo parent bonus
-            solo_parent_score = priority_weights.get('solo_parent', 0.1) if b.get('is_solo_parent') else 0
-            score += solo_parent_score
-            breakdown['solo_parent_bonus'] = solo_parent_score
-            
-            # Student bonus
-            student_score = priority_weights.get('student', 0.08) if b.get('is_student') else 0
-            score += student_score
-            breakdown['student_bonus'] = student_score
-            
-            # PWD bonus
-            pwd_score = priority_weights.get('pwd', 0.1) if b.get('is_pwd') else 0
-            score += pwd_score
-            breakdown['pwd_bonus'] = pwd_score
-            
-            # Senior citizen bonus (age >= SENIOR_CITIZEN_AGE)
-            age = b.get('age', 0) or 0
-            senior_score = priority_weights.get('senior_citizen', 0.02) if age >= SENIOR_CITIZEN_AGE else 0
-            score += senior_score
-            breakdown['senior_bonus'] = senior_score
-            
+            score, breakdown = _compute_need_focused_score(b, weights=effective_weights)
+
             b_copy = dict(b)
-            b_copy['score'] = round(score, 4)
+            b_copy['score'] = score
             b_copy['score_breakdown'] = breakdown
             scored_beneficiaries.append(b_copy)
         
@@ -602,7 +740,8 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                        priority_municipality=None,
                        priority_groups=None,
                        min_income=0, max_income=10000000,
-                       case_severity_prioritization=False):
+                       case_severity_prioritization=False,
+                       scoring_parameters=None):
     """
     Main function to generate beneficiary recommendations.
 
@@ -632,6 +771,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         min_income: Minimum income filter (default: 0, max: 10,000,000)
         max_income: Maximum income filter (default: 10,000,000)
         case_severity_prioritization: If True, boost scores for higher severity cases
+        scoring_parameters: Optional dict to enable/disable scoring factors
         
     Returns:
         List of recommended beneficiaries with scores
@@ -748,22 +888,20 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         # If CBF produced no results (e.g. empty filtered pool), fall through to scoring
 
     # --- Rule-based scoring path (fallback or default) ---
-    # Calculate priority weights based on user preferences
+    # Identity-group priority bonuses are intentionally disabled;
+    # program priority groups act as pre-selection filters.
     priority_weights = {
-        'low_income': 0.3,
-        'solo_parent': 0.3 if solo_parent_priority else 0.1,
-        'student': 0.2 if student_priority else 0.1,
-        'pwd': 0.3 if pwd_priority else 0.1,
-        'senior_citizen': 0.2 if senior_citizen_priority else 0.05,
+        'case_severity': 0.5,
+        'low_income': 0.2,
     }
-    
-    # Normalize weights
-    total_weight = sum(priority_weights.values())
-    priority_weights = {k: v / total_weight for k, v in priority_weights.items()}
     
     # Create recommender and score beneficiaries
     recommender = BeneficiaryRecommender()
-    scored = recommender.score_beneficiaries(filtered, priority_weights)
+    scored = recommender.score_beneficiaries(
+        filtered,
+        priority_weights,
+        scoring_parameters=scoring_parameters,
+    )
     
     # Apply severity boost if enabled
     if case_severity_prioritization:

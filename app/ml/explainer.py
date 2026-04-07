@@ -9,6 +9,14 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from app.recommender import (
+    NEED_FOCUSED_WEIGHTS,
+    _case_severity_score,
+    _income_vulnerability_score,
+    _household_vulnerability_score,
+    _repeat_beneficiary_penalty,
+)
+
 
 class BeneficiaryExplainer:
     """Generate human-readable explanations for recommendation scores."""
@@ -20,14 +28,8 @@ class BeneficiaryExplainer:
         (400_000, 'moderate income'),
     ]
 
-    # Default weight map – mirrors score_beneficiaries() in recommender.py
-    _DEFAULT_WEIGHTS = {
-        'low_income': 0.30,
-        'solo_parent': 0.20,
-        'student': 0.15,
-        'pwd': 0.20,
-        'senior_citizen': 0.15,
-    }
+    # Default weight map – mirrors finalized need-focused ranking formula.
+    _DEFAULT_WEIGHTS = dict(NEED_FOCUSED_WEIGHTS)
 
     SENIOR_CITIZEN_AGE = 60
 
@@ -56,58 +58,47 @@ class BeneficiaryExplainer:
         - ``compared_to_average``: comparison against population mean
         - ``vulnerability_level``: HIGH / MEDIUM / LOW classification
         """
-        income_score = self._income_score(beneficiary)
+        case_value = _case_severity_score(beneficiary.get('case_severity'))
+        income_value = _income_vulnerability_score(beneficiary.get('family_annual_income'))
+        household_value = _household_vulnerability_score(beneficiary)
+        repeat_value = _repeat_beneficiary_penalty(
+            beneficiary.get('past_applications_count', beneficiary.get('past_applications'))
+        )
 
         breakdown: Dict[str, Dict[str, Any]] = {
-            'income_factor': {
-                'weight': self.weights.get('low_income', 0.30),
-                'beneficiary_value': round(income_score, 4),
-                'contribution': round(self.weights.get('low_income', 0.30) * income_score, 4),
+            'case_severity_factor': {
+                'label': 'Case Severity',
+                'weight': self.weights.get('case_severity', NEED_FOCUSED_WEIGHTS['case_severity']),
+                'beneficiary_value': round(case_value, 4),
+                'contribution': round(self.weights.get('case_severity', NEED_FOCUSED_WEIGHTS['case_severity']) * case_value, 4),
             },
-            'solo_parent_factor': {
-                'weight': self.weights.get('solo_parent', 0.20),
-                'beneficiary_value': float(bool(beneficiary.get('is_solo_parent', False))),
-                'contribution': round(
-                    self.weights.get('solo_parent', 0.20)
-                    if beneficiary.get('is_solo_parent') else 0, 4
-                ),
+            'income_vulnerability_factor': {
+                'label': 'Income Vulnerability',
+                'weight': self.weights.get('income_vulnerability', NEED_FOCUSED_WEIGHTS['income_vulnerability']),
+                'beneficiary_value': round(income_value, 4),
+                'contribution': round(self.weights.get('income_vulnerability', NEED_FOCUSED_WEIGHTS['income_vulnerability']) * income_value, 4),
             },
-            'student_factor': {
-                'weight': self.weights.get('student', 0.15),
-                'beneficiary_value': float(bool(beneficiary.get('is_student', False))),
-                'contribution': round(
-                    self.weights.get('student', 0.15)
-                    if beneficiary.get('is_student') else 0, 4
-                ),
+            'household_vulnerability_factor': {
+                'label': 'Household Vulnerability',
+                'weight': self.weights.get('household_vulnerability', NEED_FOCUSED_WEIGHTS['household_vulnerability']),
+                'beneficiary_value': round(household_value, 4),
+                'contribution': round(self.weights.get('household_vulnerability', NEED_FOCUSED_WEIGHTS['household_vulnerability']) * household_value, 4),
             },
-            'pwd_factor': {
-                'weight': self.weights.get('pwd', 0.20),
-                'beneficiary_value': float(bool(beneficiary.get('is_pwd', False))),
-                'contribution': round(
-                    self.weights.get('pwd', 0.20)
-                    if beneficiary.get('is_pwd') else 0, 4
-                ),
-            },
-            'senior_citizen_factor': {
-                'weight': self.weights.get('senior_citizen', 0.15),
-                'beneficiary_value': float((beneficiary.get('age') or 0) >= self.SENIOR_CITIZEN_AGE),
-                'contribution': round(
-                    self.weights.get('senior_citizen', 0.15)
-                    if (beneficiary.get('age') or 0) >= self.SENIOR_CITIZEN_AGE else 0, 4
-                ),
-            },
-            'unemployed_factor': {
-                'weight': 0.0,  # implicit boost, not a separate weight
-                'beneficiary_value': float(not beneficiary.get('is_currently_employed', False)),
-                'contribution': 0.0,
+            'repeat_beneficiary_penalty_factor': {
+                'label': 'Repeat Beneficiary Penalty',
+                'weight': self.weights.get('repeat_beneficiary_penalty', NEED_FOCUSED_WEIGHTS['repeat_beneficiary_penalty']),
+                'beneficiary_value': round(repeat_value, 4),
+                'contribution': round(self.weights.get('repeat_beneficiary_penalty', NEED_FOCUSED_WEIGHTS['repeat_beneficiary_penalty']) * repeat_value, 4),
             },
         }
 
+        computed_total = round(sum(part['contribution'] for part in breakdown.values()), 4)
+
         return {
-            'total_score': round(score, 4),
+            'total_score': computed_total,
             'score_breakdown': breakdown,
             'plain_english_explanation': self._generate_explanation(beneficiary),
-            'compared_to_average': self._compare_to_population(beneficiary, score),
+            'compared_to_average': self._compare_to_population(beneficiary, computed_total),
             'vulnerability_level': self._assess_vulnerability(beneficiary),
         }
 

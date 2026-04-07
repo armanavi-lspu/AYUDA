@@ -80,21 +80,40 @@ class TestBeneficiaryRecommender:
         assert scored[1]['score'] >= scored[2]['score']
     
     def test_score_with_priority_weights(self, sample_beneficiaries):
-        """Test scoring with custom priority weights"""
+        """Priority-weight input should not alter finalized need-focused formula."""
         recommender = BeneficiaryRecommender()
-        
-        # Prioritize solo parents heavily
+
+        # Input is accepted for compatibility but ignored by finalized scoring.
         priority_weights = {
-            'low_income': 0.1,
-            'solo_parent': 0.5,
-            'student': 0.1,
-            'pwd': 0.1
+            'low_income': 1.0,
+            'solo_parent': 0.9,
+            'student': 0.9,
+            'pwd': 0.9
         }
-        
+
         scored = recommender.score_beneficiaries(sample_beneficiaries, priority_weights)
-        
-        # Solo parent (Juan) should have highest score
+
+        # Juan ranks first due to combined household + income vulnerability.
         assert scored[0]['first_name'] == 'Juan'
+
+    def test_score_beneficiaries_respects_scoring_parameters(self, sample_beneficiaries):
+        """Disabled scoring factors should have zero weight and zero contribution."""
+        recommender = BeneficiaryRecommender()
+        scored = recommender.score_beneficiaries(
+            sample_beneficiaries,
+            scoring_parameters={
+                'case_severity': False,
+                'income_vulnerability': True,
+                'household_vulnerability': True,
+                'repeat_beneficiary_penalty': True,
+            },
+        )
+
+        assert scored
+        for beneficiary in scored:
+            factor = beneficiary['score_breakdown']['case_severity_factor']
+            assert factor['weight'] == 0.0
+            assert factor['contribution'] == 0.0
 
 
 class TestGetRecommendations:
@@ -152,51 +171,63 @@ class TestGetRecommendations:
             assert r['barangay'] in ['Poblacion', 'San Jose']
     
     def test_get_recommendations_solo_parent_priority(self, sample_beneficiaries):
-        """Test recommendations with solo parent priority"""
+        """Solo-parent flag should not change score-based ordering."""
+        baseline = get_recommendations(sample_beneficiaries)
         results = get_recommendations(
             sample_beneficiaries,
             solo_parent_priority=True
         )
-        
-        # Solo parent should be ranked higher
-        solo_parents = [r for r in results if r['is_solo_parent']]
-        if solo_parents:
-            # Check that solo parent has higher score
-            solo_parent_score = solo_parents[0]['score']
-            non_solo_parent_scores = [r['score'] for r in results if not r['is_solo_parent']]
-            # At least one non-solo parent should have lower score
-            assert any(s < solo_parent_score for s in non_solo_parent_scores)
+
+        assert [r['user_id'] for r in results] == [r['user_id'] for r in baseline]
     
     def test_get_recommendations_pwd_priority(self, sample_beneficiaries):
-        """Test recommendations with PWD priority"""
+        """PWD flag should not change score-based ordering."""
+        baseline = get_recommendations(sample_beneficiaries)
         results = get_recommendations(
             sample_beneficiaries,
             pwd_priority=True
         )
-        
-        # PWD beneficiaries should be ranked higher
-        pwd_beneficiaries = [r for r in results if r['is_pwd']]
-        assert len(pwd_beneficiaries) > 0
+
+        assert [r['user_id'] for r in results] == [r['user_id'] for r in baseline]
     
     def test_get_recommendations_student_priority(self, sample_beneficiaries):
-        """Test recommendations with student priority"""
+        """Student flag should not change score-based ordering."""
+        baseline = get_recommendations(sample_beneficiaries)
         results = get_recommendations(
             sample_beneficiaries,
             student_priority=True
         )
-        
-        # Students should be ranked higher
-        students = [r for r in results if r['is_student']]
-        assert len(students) > 0
+
+        assert [r['user_id'] for r in results] == [r['user_id'] for r in baseline]
     
     def test_get_recommendations_combined_priorities(self, sample_beneficiaries):
-        """Test recommendations with multiple priorities"""
+        """Combined priority flags should not change score-based ordering."""
+        baseline = get_recommendations(sample_beneficiaries)
         results = get_recommendations(
             sample_beneficiaries,
             solo_parent_priority=True,
             pwd_priority=True,
             student_priority=True
         )
-        
-        # Juan (solo parent + PWD) should be first
-        assert results[0]['first_name'] == 'Juan'
+
+        assert [r['user_id'] for r in results] == [r['user_id'] for r in baseline]
+
+    def test_get_recommendations_with_scoring_parameters(self, sample_beneficiaries):
+        """get_recommendations should pass scoring-parameter toggles into breakdown."""
+        results = get_recommendations(
+            sample_beneficiaries,
+            scoring_parameters={
+                'case_severity': True,
+                'income_vulnerability': False,
+                'household_vulnerability': True,
+                'repeat_beneficiary_penalty': False,
+            },
+        )
+
+        assert results
+        for beneficiary in results:
+            breakdown = beneficiary['score_breakdown']
+            assert breakdown['income_vulnerability_factor']['weight'] == 0.0
+            assert breakdown['income_vulnerability_factor']['contribution'] == 0.0
+            assert breakdown['repeat_beneficiary_penalty_factor']['weight'] == 0.0
+            assert breakdown['repeat_beneficiary_penalty_factor']['contribution'] == 0.0

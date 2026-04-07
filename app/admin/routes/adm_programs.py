@@ -10,6 +10,7 @@ from app.utils import role_required, manila_strftime
 from app.activity_logger import log_activity
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
 from app.community.routes.profile import get_income_range_display
+from app.location_options import MUNICIPALITY_BARANGAYS, get_municipalities, is_valid_municipality
 import os
 import json
 from werkzeug.utils import secure_filename
@@ -1640,13 +1641,40 @@ def program_ranked_list(program_id):
     """Dedicated page for generating ranked beneficiaries for a program."""
     program = Programs.query.get_or_404(program_id)
 
-    barangays = [
-        row[0] for row in db.session.query(CommunityUsers.barangay)
-        .filter(CommunityUsers.barangay.isnot(None))
-        .distinct()
-        .order_by(CommunityUsers.barangay)
-        .all()
-    ]
+    # Start from the canonical municipality-barangay reference list,
+    # then merge additional values seen in existing community records.
+    municipality_barangays = {
+        municipality: set(barangays)
+        for municipality, barangays in MUNICIPALITY_BARANGAYS.items()
+    }
+
+    location_rows = db.session.query(
+        CommunityUsers.municipality,
+        CommunityUsers.barangay
+    ).filter(
+        CommunityUsers.municipality.isnot(None)
+    ).distinct().all()
+
+    for raw_municipality, raw_barangay in location_rows:
+        municipality = (raw_municipality or '').strip()
+        barangay = (raw_barangay or '').strip()
+        if not municipality:
+            continue
+        municipality_barangays.setdefault(municipality, set())
+        if barangay:
+            municipality_barangays[municipality].add(barangay)
+
+    canonical_order = list(get_municipalities())
+    extra_municipalities = sorted(
+        municipality for municipality in municipality_barangays.keys()
+        if municipality not in canonical_order
+    )
+    municipalities = canonical_order + extra_municipalities
+
+    municipality_barangays = {
+        municipality: sorted(set(municipality_barangays.get(municipality, [])))
+        for municipality in municipalities
+    }
 
     eligible_unscheduled_count = Applications.query.filter(
         Applications.program_id == program_id,
@@ -1657,7 +1685,8 @@ def program_ranked_list(program_id):
     return render_template(
         'admin/program_ranked_list.html',
         program=program,
-        barangays=barangays,
+        municipalities=municipalities,
+        municipality_barangays_json=json.dumps(municipality_barangays),
         eligible_unscheduled_count=eligible_unscheduled_count,
         user=current_user
     )
@@ -1692,13 +1721,50 @@ def generate_program_ranked_list(program_id):
     if min_income > max_income:
         return jsonify({'success': False, 'message': 'Minimum income cannot be greater than maximum income.'}), 400
 
+    completion_date_order = str(data.get('completion_date_order', 'asc') or 'asc').strip().lower()
+    if completion_date_order not in {'asc', 'desc'}:
+        return jsonify({'success': False, 'message': 'Invalid completion date order. Use asc or desc.'}), 400
+
     priority_barangays = data.get('priority_barangays', []) or []
-    priority_groups = (data.get('priority_groups') or program.priority_group or '').strip()
-    case_severity = (data.get('case_severity') or '').strip()
+    priority_municipality = (data.get('priority_municipality') or '').strip()
+    priority_groups = ''
+    case_severity = ''
     solo_parent_priority = bool(data.get('solo_parent_priority', False))
     student_priority = bool(data.get('student_priority', False))
     pwd_priority = bool(data.get('pwd_priority', False))
     senior_citizen_priority = bool(data.get('senior_citizen_priority', False))
+
+    def _to_bool(value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        return str(value or '').strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
+
+    raw_scoring_parameters = data.get('scoring_parameters') or {}
+    if not isinstance(raw_scoring_parameters, dict):
+        return jsonify({'success': False, 'message': 'Invalid scoring parameters payload.'}), 400
+
+    scoring_parameters = {
+        'case_severity': _to_bool(raw_scoring_parameters.get('case_severity', True)),
+        'income_vulnerability': _to_bool(raw_scoring_parameters.get('income_vulnerability', True)),
+        'household_vulnerability': _to_bool(raw_scoring_parameters.get('household_vulnerability', True)),
+        'repeat_beneficiary_penalty': _to_bool(raw_scoring_parameters.get('repeat_beneficiary_penalty', True)),
+    }
+
+    if not any(scoring_parameters.values()):
+        return jsonify({'success': False, 'message': 'Select at least one scoring parameter.'}), 400
+
+    if priority_municipality:
+        valid_municipalities = {m for m in get_municipalities() if m}
+        valid_municipalities.update(
+            (row[0] or '').strip()
+            for row in db.session.query(CommunityUsers.municipality)
+            .filter(CommunityUsers.municipality.isnot(None)).distinct().all()
+            if (row[0] or '').strip()
+        )
+        if priority_municipality not in valid_municipalities and not is_valid_municipality(priority_municipality):
+            return jsonify({'success': False, 'message': 'Invalid municipality filter selected.'}), 400
 
     # Restrict candidate pool to completed applications that are not yet scheduled for claiming.
     query = db.session.query(
@@ -1709,6 +1775,7 @@ def generate_program_ranked_list(program_id):
         User.last_name,
         User.email,
         CommunityUsers.age,
+        CommunityUsers.municipality,
         CommunityUsers.barangay,
         CommunityUsers.family_annual_income,
         CommunityUsers.is_solo_parent,
@@ -1725,29 +1792,6 @@ def generate_program_ranked_list(program_id):
         Applications.application_status == 'completed',
         Applications.claim_status == 'not_scheduled'
     )
-    
-    # Apply severity case filtering if specified
-    if case_severity and case_severity in ['unrated', 'low', 'moderate', 'high', 'critical']:
-        # Order severity levels for filtering: we want to include the specified level and higher
-        severity_levels = ['critical', 'high', 'moderate', 'low', 'unrated']
-        severity_index = severity_levels.index(case_severity)
-        included_severities = severity_levels[:severity_index + 1]
-        
-        # Subquery to get the most severe case for each application
-        max_severity_subquery = db.session.query(
-            func.max(Assessment.case_severity).label('max_severity'),
-            Assessment.application_id
-        ).group_by(Assessment.application_id).subquery()
-        
-        query = query.outerjoin(
-            max_severity_subquery,
-            Applications.id == max_severity_subquery.c.application_id
-        ).filter(
-            or_(
-                max_severity_subquery.c.max_severity.in_(included_severities),
-                max_severity_subquery.c.max_severity.is_(None)  # Include applicants without assessments
-            )
-        )
     
     eligible_rows = query.all()
 
@@ -1779,12 +1823,14 @@ def generate_program_ranked_list(program_id):
     ).all()
 
     app_history_map = {}
+    app_history_count_map = {}
     for user_id, program_name, program_type in app_history_rows:
         token = ' '.join(filter(None, [program_name, program_type]))
         if user_id in app_history_map:
             app_history_map[user_id] += ' ' + token
         else:
             app_history_map[user_id] = token
+        app_history_count_map[user_id] = app_history_count_map.get(user_id, 0) + 1
 
     # Build severity map for each application
     severity_map = {}
@@ -1808,6 +1854,7 @@ def generate_program_ranked_list(program_id):
             'last_name': row.last_name,
             'email': row.email,
             'age': row.age,
+            'municipality': row.municipality,
             'barangay': row.barangay,
             'family_annual_income': float(row.family_annual_income) if row.family_annual_income and 0 <= row.family_annual_income <= 10000000 else 0,
             'is_solo_parent': row.is_solo_parent,
@@ -1816,81 +1863,50 @@ def generate_program_ranked_list(program_id):
             'is_currently_employed': row.is_currently_employed,
             'occupation': row.occupation,
             'past_applications': app_history_map.get(row.user_id, ''),
+            'past_applications_count': app_history_count_map.get(row.user_id, 0),
             'case_severity': severity_map.get(row.user_id, 'unrated'),
         }
         for row in eligible_rows
     ]
 
-    requirements = db.session.query(Requirements).join(
-        ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
-    ).filter(
-        ProgramRequirements.program_id == program_id,
-        Requirements.requirement_type == 'qualification'
-    ).all()
-
-    req_text = ' '.join([
-        req.requirement_name + ' ' + (req.description or '')
-        for req in requirements
-    ])
-    priority_group = (program.priority_group or '').lower()
-    priority_tokens = [token.strip() for token in priority_group.split(',') if token.strip()]
-    senior_targeted = any(
-        token in {'senior', 'senior citizen', 'senior citizens', 'seniors', 'elderly'} or 'senior' in token
-        for token in priority_tokens
-    )
-
-    max_income_target = _parse_program_income_upper_bound(program.income_range)
-    target_profile = {
-        'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
-        'family_annual_income': max_income_target / 2 if max_income_target > 0 else 0,
-        'barangay': 'Unknown',
-        'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
-        'is_student': 'student' in priority_group,
-        'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
-        'is_currently_employed': False,
-        'occupation': req_text or program.description or '',
-        'past_applications': ' '.join(filter(None, [
-            program.program_name,
-            program.program_type,
-            program.priority_group or ''
-        ])),
-    }
-
     ranked = get_recommendations(
         beneficiaries_data=beneficiaries_data,
-        target_profile=target_profile,
+        target_profile=None,
         max_beneficiaries=max_beneficiaries,
         solo_parent_priority=solo_parent_priority,
         student_priority=student_priority,
         pwd_priority=pwd_priority,
         senior_citizen_priority=senior_citizen_priority,
         priority_barangays=priority_barangays if priority_barangays else None,
+        priority_municipality=priority_municipality or None,
         priority_groups=priority_groups,
         min_income=min_income,
         max_income=max_income,
         case_severity_prioritization=bool(case_severity),
+        scoring_parameters=scoring_parameters,
+    )
+
+    # Stable two-pass sorting: completion date order is used only as tie-breaker for equal scores.
+    if completion_date_order == 'desc':
+        ranked.sort(
+            key=lambda row: application_date_map.get(row.get('user_id')) or datetime.min,
+            reverse=True,
+        )
+    else:
+        ranked.sort(
+            key=lambda row: application_date_map.get(row.get('user_id')) or datetime.max,
+        )
+
+    ranked.sort(
+        key=lambda row: float(row.get('score', 0.0) or 0.0),
+        reverse=True,
     )
 
     recommendations = []
     for row in ranked:
         user_id = row.get('user_id')
-        
-        # Use 'score' if available (from rule-based path), otherwise compute from similarity_score
-        if 'score' in row:
-            score_value = row.get('score', 0.0)
-        elif 'similarity_score' in row:
-            # CBF path: compute combined score with case severity
-            breakdown = row.get('score_breakdown', {})
-            score_value = (
-                breakdown.get('severity_component', 0) +
-                breakdown.get('income_score', 0) +
-                breakdown.get('solo_parent_bonus', 0) +
-                breakdown.get('student_bonus', 0) +
-                breakdown.get('pwd_bonus', 0) +
-                breakdown.get('senior_bonus', 0)
-            )
-        else:
-            score_value = 0.0
+
+        score_value = float(row.get('score', 0.0) or 0.0)
         
         family_annual_income = row.get('family_annual_income', 0)
         # Ensure income is numeric for the display function
@@ -1908,6 +1924,7 @@ def generate_program_ranked_list(program_id):
             'user_id': user_id,
             'name': f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
             'email': row.get('email', ''),
+            'municipality': row.get('municipality', 'N/A'),
             'barangay': row.get('barangay', 'N/A'),
             'income': family_annual_income,
             'income_range': get_income_range_display(income_numeric),
@@ -1927,6 +1944,7 @@ def generate_program_ranked_list(program_id):
         'count': len(recommendations),
         'eligible_pool_count': len(beneficiaries_data),
         'recommendations': recommendations,
+        'completion_date_order': completion_date_order,
         'message': 'Ranked list generated from completed and unscheduled applications only.'
     })
 

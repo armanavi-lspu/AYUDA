@@ -239,7 +239,9 @@ class TestExplainability:
         explainer = BeneficiaryExplainer()
         result = explainer.explain_score(small_beneficiaries[0], 0.75)
 
-        assert result['total_score'] == 0.75
+        breakdown = result['score_breakdown']
+        expected_total = round(sum(part['contribution'] for part in breakdown.values()), 4)
+        assert result['total_score'] == expected_total
         assert 'score_breakdown' in result
         assert 'plain_english_explanation' in result
         assert 'compared_to_average' in result
@@ -251,12 +253,16 @@ class TestExplainability:
         breakdown = result['score_breakdown']
 
         expected_factors = [
-            'income_factor', 'solo_parent_factor', 'student_factor',
-            'pwd_factor', 'senior_citizen_factor', 'unemployed_factor',
+            'case_severity_factor',
+            'income_vulnerability_factor',
+            'household_vulnerability_factor',
+            'repeat_beneficiary_penalty_factor',
         ]
         for factor in expected_factors:
             assert factor in breakdown
+            assert 'label' in breakdown[factor]
             assert 'weight' in breakdown[factor]
+            assert 'beneficiary_value' in breakdown[factor]
             assert 'contribution' in breakdown[factor]
 
     def test_explain_with_population(self, sample_beneficiaries):
