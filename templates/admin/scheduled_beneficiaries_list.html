@@ -107,10 +107,20 @@
     <div class="list-hero">
         <div class="d-flex flex-wrap justify-content-between align-items-center">
             <div>
+                {% if ranked_program_id %}
+                <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>Saved Ranked Lists</h1>
+                <p>Access ranked beneficiary lists saved for this program.</p>
+                {% else %}
                 <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>Scheduled Beneficiary Lists</h1>
                 <p>Access all payout beneficiary lists saved and scheduled in the system.</p>
+                {% endif %}
             </div>
             <div class="mt-2 mt-md-0">
+                {% if ranked_program_id %}
+                <a href="{{ url_for('admin.program_ranked_list', program_id=ranked_program_id) }}" class="btn btn-outline-primary mr-2">
+                    <i class="fas fa-sort-amount-down mr-2"></i>Back to Ranked List
+                </a>
+                {% endif %}
                 <a href="{{ url_for('admin.adm_subsidy') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-arrow-left mr-2"></i>Back to Subsidy
                 </a>
@@ -148,6 +158,9 @@
     <div class="card filter-card mb-3">
         <div class="card-body py-3">
             <form method="GET" action="{{ url_for('admin.scheduled_beneficiaries_list') }}">
+                {% if ranked_program_id %}
+                <input type="hidden" name="ranked_program_id" value="{{ ranked_program_id }}">
+                {% endif %}
                 <div class="form-row align-items-end">
                     <div class="col-md-6 mb-2">
                         <label class="font-weight-bold mb-1">Search</label>
@@ -228,7 +241,7 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.prev_num, search=search, status=status_filter) }}">Previous</a>
+                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.prev_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">Previous</a>
                     </li>
                     {% endif %}
 
@@ -238,7 +251,7 @@
                             <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
                             {% else %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=page_num, search=search, status=status_filter) }}">{{ page_num }}</a>
+                                <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=page_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">{{ page_num }}</a>
                             </li>
                             {% endif %}
                         {% else %}
@@ -248,7 +261,7 @@
 
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.next_num, search=search, status=status_filter) }}">Next</a>
+                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.next_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">Next</a>
                     </li>
                     {% endif %}
                 </ul>

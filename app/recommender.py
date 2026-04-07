@@ -48,16 +48,30 @@ def _coerce_bool(value):
     return str(value or '').strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
 
 
-def _resolve_need_focused_weights(scoring_parameters=None):
-    """Return active scoring weights with disabled factors set to zero."""
+def _resolve_need_focused_weights(scoring_parameters=None, scoring_weights=None):
+    """Return active scoring weights with optional overrides and disabled factors set to zero."""
     active_weights = dict(NEED_FOCUSED_WEIGHTS)
 
-    if not isinstance(scoring_parameters, dict):
-        return active_weights
+    if isinstance(scoring_weights, dict):
+        for factor_key in NEED_FOCUSED_FACTOR_KEYS:
+            if factor_key in scoring_weights:
+                try:
+                    weight_value = float(scoring_weights.get(factor_key) or 0.0)
+                except (TypeError, ValueError):
+                    weight_value = 0.0
+                active_weights[factor_key] = max(0.0, weight_value)
 
-    for factor_key in NEED_FOCUSED_FACTOR_KEYS:
-        if factor_key in scoring_parameters and not _coerce_bool(scoring_parameters.get(factor_key)):
-            active_weights[factor_key] = 0.0
+    if isinstance(scoring_parameters, dict):
+        for factor_key in NEED_FOCUSED_FACTOR_KEYS:
+            if factor_key in scoring_parameters and not _coerce_bool(scoring_parameters.get(factor_key)):
+                active_weights[factor_key] = 0.0
+
+    total_weight = sum(active_weights[factor_key] for factor_key in NEED_FOCUSED_FACTOR_KEYS)
+    if total_weight > 0:
+        active_weights = {
+            factor_key: active_weights[factor_key] / total_weight
+            for factor_key in NEED_FOCUSED_FACTOR_KEYS
+        }
 
     return active_weights
 
@@ -169,11 +183,10 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
     active_weights = dict(NEED_FOCUSED_WEIGHTS)
     if isinstance(weights, dict):
         for factor_key in NEED_FOCUSED_FACTOR_KEYS:
-            if factor_key in weights:
-                try:
-                    active_weights[factor_key] = float(weights.get(factor_key) or 0.0)
-                except (TypeError, ValueError):
-                    active_weights[factor_key] = 0.0
+            try:
+                active_weights[factor_key] = float(weights.get(factor_key) or 0.0)
+            except (TypeError, ValueError):
+                active_weights[factor_key] = 0.0
 
     case_value = _case_severity_score(beneficiary.get('case_severity'))
     income_value = _income_vulnerability_score(beneficiary.get('family_annual_income'))
@@ -510,7 +523,7 @@ class BeneficiaryRecommender:
         except Exception:
             return None
     
-    def score_beneficiaries(self, beneficiaries, priority_weights=None, scoring_parameters=None):
+    def score_beneficiaries(self, beneficiaries, priority_weights=None, scoring_parameters=None, scoring_weights=None):
         """
         Score beneficiaries using the finalized need-focused formula.
         
@@ -524,7 +537,10 @@ class BeneficiaryRecommender:
         if not beneficiaries:
             return []
 
-        effective_weights = _resolve_need_focused_weights(scoring_parameters)
+        effective_weights = _resolve_need_focused_weights(
+            scoring_parameters=scoring_parameters,
+            scoring_weights=scoring_weights,
+        )
         scored_beneficiaries = []
 
         for b in beneficiaries:
@@ -741,7 +757,8 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                        priority_groups=None,
                        min_income=0, max_income=10000000,
                        case_severity_prioritization=False,
-                       scoring_parameters=None):
+                       scoring_parameters=None,
+                       scoring_weights=None):
     """
     Main function to generate beneficiary recommendations.
 
@@ -772,6 +789,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         max_income: Maximum income filter (default: 10,000,000)
         case_severity_prioritization: If True, boost scores for higher severity cases
         scoring_parameters: Optional dict to enable/disable scoring factors
+        scoring_weights: Optional dict to override scoring factor weights
         
     Returns:
         List of recommended beneficiaries with scores
@@ -901,6 +919,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         filtered,
         priority_weights,
         scoring_parameters=scoring_parameters,
+        scoring_weights=scoring_weights,
     )
     
     # Apply severity boost if enabled

@@ -15,7 +15,7 @@ from app.location_options import (
     is_valid_municipality,
 )
 from app.utils import calculate_profile_completion
-from app.user_activity_logger import log_profile_edit
+from app.user_activity_logger import log_profile_edit, log_user_activity
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import os
@@ -703,6 +703,20 @@ def request_verification(verification_type):
             created_at=datetime.utcnow()
         )
         db.session.add(notification)
+
+        log_user_activity(
+            action='request_identity_verification',
+            action_type='create',
+            entity_type='profile',
+            description=f'Submitted {verification_name} identity verification request',
+            entity_id=community_profile.id,
+            details={
+                'verification_type': verification_type,
+                'verification_status': 'pending',
+                'has_id_number': bool(id_number),
+                'has_document': True,
+            },
+        )
         
         db.session.commit()
         flash(f'Your {verification_name} verification request has been submitted successfully! Please wait for admin review.', 'success')

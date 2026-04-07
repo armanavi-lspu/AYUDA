@@ -25,9 +25,14 @@
             </h1>
             <p class="text-muted mb-0">Program: <strong>{{ program.program_name }}</strong></p>
         </div>
-        <a href="{{ url_for('admin.edit_program', id=program.id) }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left mr-1"></i>Back to Program
-        </a>
+        <div class="d-flex">
+            <a href="{{ url_for('admin.scheduled_beneficiaries_list', ranked_program_id=program.id) }}" class="btn btn-outline-primary mr-2">
+                <i class="fas fa-folder-open mr-1"></i>View Saved Lists
+            </a>
+            <a href="{{ url_for('admin.edit_program', id=program.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Program
+            </a>
+        </div>
     </div>
 
     <div class="card shadow mb-4">
@@ -133,7 +138,10 @@
     <div class="card shadow" id="programRankedListResults" style="display: none;">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold">Ranked Results</h6>
-            <div class="text-right">
+            <div class="text-right d-flex align-items-center">
+                <button type="button" class="btn btn-sm btn-primary mr-2" id="saveAndScheduleRankedBtn" style="display: none;">
+                    <i class="fas fa-calendar-check mr-1"></i>Save List &amp; Schedule Payout
+                </button>
                 <small class="text-muted d-block" id="programRankedListMeta"></small>
             </div>
         </div>
@@ -158,6 +166,51 @@
             <p id="programRankedListEmpty" class="text-muted text-center py-3 mb-0" style="display: none;">
                 No eligible beneficiaries matched the selected filters.
             </p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankedSchedulePayoutModal" tabindex="-1" role="dialog" aria-labelledby="rankedSchedulePayoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rankedSchedulePayoutModalLabel">
+                    <i class="fas fa-calendar-check mr-2"></i>Save List &amp; Schedule Payout
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">This schedules payout for everyone currently included in the ranked results list.</p>
+                <div class="alert alert-info py-2">
+                    <i class="fas fa-users mr-2"></i>
+                    Beneficiaries to schedule: <strong id="rankedScheduleTargetCount">0</strong>
+                </div>
+
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutDate">Payout Date</label>
+                    <input type="date" class="form-control" id="rankedPayoutDate">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutTime">Payout Time</label>
+                    <input type="time" class="form-control" id="rankedPayoutTime" value="09:00">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutLocation">Payout Location</label>
+                    <input type="text" class="form-control" id="rankedPayoutLocation" value="MSWD Office, Municipal Building, Mabitac, Laguna">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="font-weight-bold" for="rankedPayoutInstructions">Instructions (Optional)</label>
+                    <textarea class="form-control" id="rankedPayoutInstructions" rows="2" placeholder="Bring valid ID and application slip."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSaveAndSchedulePayoutBtn">
+                    <i class="fas fa-save mr-1"></i>Save &amp; Schedule
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -192,19 +245,47 @@
                 <p class="text-muted mb-2">Scoring parameters used for ranking:</p>
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="modalIncludeCaseSeverityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeCaseSeverityFactor">Case Severity</label>
+                    <label class="custom-control-label" for="modalIncludeCaseSeverityFactor">
+                        Case Severity
+                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Measures urgency based on assessed case severity. Higher severity increases rank."></i>
+                    </label>
+                </div>
+                <div class="form-group ml-4 mb-2">
+                    <label class="small text-muted mb-1" for="modalCaseSeverityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalCaseSeverityWeight" min="0" step="0.01" value="60">
                 </div>
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="modalIncludeIncomeVulnerabilityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeIncomeVulnerabilityFactor">Income Vulnerability</label>
+                    <label class="custom-control-label" for="modalIncludeIncomeVulnerabilityFactor">
+                        Income Vulnerability
+                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Prioritizes lower-income households. Lower annual income maps to higher vulnerability value."></i>
+                    </label>
+                </div>
+                <div class="form-group ml-4 mb-2">
+                    <label class="small text-muted mb-1" for="modalIncomeVulnerabilityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalIncomeVulnerabilityWeight" min="0" step="0.01" value="25">
                 </div>
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="modalIncludeHouseholdVulnerabilityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeHouseholdVulnerabilityFactor">Household Vulnerability</label>
+                    <label class="custom-control-label" for="modalIncludeHouseholdVulnerabilityFactor">
+                        Household Vulnerability
+                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Combines household risk indicators such as solo parent, student, PWD, senior status, and employment context."></i>
+                    </label>
+                </div>
+                <div class="form-group ml-4 mb-2">
+                    <label class="small text-muted mb-1" for="modalHouseholdVulnerabilityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalHouseholdVulnerabilityWeight" min="0" step="0.01" value="12">
                 </div>
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="modalIncludeRepeatPenaltyFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeRepeatPenaltyFactor">Repeat Beneficiary Penalty</label>
+                    <label class="custom-control-label" for="modalIncludeRepeatPenaltyFactor">
+                        Repeat Beneficiary Penalty
+                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Applies a negative adjustment when there are multiple prior applications to support fairer distribution."></i>
+                    </label>
+                </div>
+                <div class="form-group ml-4 mb-2">
+                    <label class="small text-muted mb-1" for="modalRepeatPenaltyWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalRepeatPenaltyWeight" min="0" step="0.01" value="3">
                 </div>
             </div>
             <div class="modal-footer">
@@ -233,6 +314,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const rankedListEmpty = document.getElementById('programRankedListEmpty');
     const rankedListMeta = document.getElementById('programRankedListMeta');
     const rankedListButton = document.getElementById('generateProgramRankedListBtn');
+    const saveAndScheduleRankedBtn = document.getElementById('saveAndScheduleRankedBtn');
+    const confirmSaveAndSchedulePayoutBtn = document.getElementById('confirmSaveAndSchedulePayoutBtn');
+    const rankedScheduleTargetCount = document.getElementById('rankedScheduleTargetCount');
+    const rankedPayoutDateInput = document.getElementById('rankedPayoutDate');
+    const rankedPayoutTimeInput = document.getElementById('rankedPayoutTime');
+    const rankedPayoutLocationInput = document.getElementById('rankedPayoutLocation');
+    const rankedPayoutInstructionsInput = document.getElementById('rankedPayoutInstructions');
     const rankedCriteriaSummaryText = document.getElementById('rankedCriteriaSummaryText');
     const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
     const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
@@ -243,6 +331,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalIncludeIncomeVulnerabilityFactor = document.getElementById('modalIncludeIncomeVulnerabilityFactor');
     const modalIncludeHouseholdVulnerabilityFactor = document.getElementById('modalIncludeHouseholdVulnerabilityFactor');
     const modalIncludeRepeatPenaltyFactor = document.getElementById('modalIncludeRepeatPenaltyFactor');
+    const modalCaseSeverityWeightInput = document.getElementById('modalCaseSeverityWeight');
+    const modalIncomeVulnerabilityWeightInput = document.getElementById('modalIncomeVulnerabilityWeight');
+    const modalHouseholdVulnerabilityWeightInput = document.getElementById('modalHouseholdVulnerabilityWeight');
+    const modalRepeatPenaltyWeightInput = document.getElementById('modalRepeatPenaltyWeight');
     const rankedMaxBeneficiariesInput = document.getElementById('rankedMaxBeneficiaries');
     const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
     const rankedMinIncomeInput = document.getElementById('rankedMinIncome');
@@ -250,6 +342,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const rankedMunicipalityFilterInput = document.getElementById('rankedMunicipalityFilter');
     const rankedBarangayContainer = document.getElementById('rankedBarangayContainer');
     const rankedCompletionDateOrderInput = document.getElementById('rankedCompletionDateOrder');
+
+    if (window.$ && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip({ container: 'body' });
+    }
 
     const rankedCriteriaState = {
         includeMaxBeneficiaries: true,
@@ -259,12 +355,32 @@ document.addEventListener('DOMContentLoaded', function() {
         includeIncomeVulnerabilityFactor: true,
         includeHouseholdVulnerabilityFactor: true,
         includeRepeatPenaltyFactor: true,
+        caseSeverityWeight: 60,
+        incomeVulnerabilityWeight: 25,
+        householdVulnerabilityWeight: 12,
+        repeatPenaltyWeight: 3,
     };
+
+    let latestRankedRecommendations = [];
 
     function getSelectedRankedBarangays() {
         return Array.from(document.querySelectorAll('.ranked-barangay:checked')).map(function(el) {
             return el.value;
         });
+    }
+
+    function updateSaveAndScheduleRankedButton() {
+        const count = latestRankedRecommendations.length;
+        if (!saveAndScheduleRankedBtn) {
+            return;
+        }
+
+        if (count > 0) {
+            saveAndScheduleRankedBtn.style.display = 'inline-block';
+            saveAndScheduleRankedBtn.innerHTML = `<i class="fas fa-calendar-check mr-1"></i>Save List &amp; Schedule Payout (${count})`;
+        } else {
+            saveAndScheduleRankedBtn.style.display = 'none';
+        }
     }
 
     function renderRankedBarangayOptionsForMunicipality(municipality) {
@@ -314,10 +430,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (rankedCriteriaState.includeMunicipalityBarangay) labels.push('Municipality and Barangay');
 
         const scoringLabels = [];
-        if (rankedCriteriaState.includeCaseSeverityFactor) scoringLabels.push('Case Severity');
-        if (rankedCriteriaState.includeIncomeVulnerabilityFactor) scoringLabels.push('Income Vulnerability');
-        if (rankedCriteriaState.includeHouseholdVulnerabilityFactor) scoringLabels.push('Household Vulnerability');
-        if (rankedCriteriaState.includeRepeatPenaltyFactor) scoringLabels.push('Repeat Beneficiary Penalty');
+        if (rankedCriteriaState.includeCaseSeverityFactor) scoringLabels.push(`Case Severity (${rankedCriteriaState.caseSeverityWeight}%)`);
+        if (rankedCriteriaState.includeIncomeVulnerabilityFactor) scoringLabels.push(`Income Vulnerability (${rankedCriteriaState.incomeVulnerabilityWeight}%)`);
+        if (rankedCriteriaState.includeHouseholdVulnerabilityFactor) scoringLabels.push(`Household Vulnerability (${rankedCriteriaState.householdVulnerabilityWeight}%)`);
+        if (rankedCriteriaState.includeRepeatPenaltyFactor) scoringLabels.push(`Repeat Beneficiary Penalty (${rankedCriteriaState.repeatPenaltyWeight}%)`);
         if (scoringLabels.length) labels.push('Scoring: ' + scoringLabels.join(', '));
 
         rankedCriteriaSummaryText.textContent = labels.length > 0 ? labels.join(', ') : 'No optional parameters included';
@@ -344,6 +460,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.disabled = !rankedCriteriaState.includeCaseSeverityFactor;
+        if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeIncomeVulnerabilityFactor;
+        if (modalHouseholdVulnerabilityWeightInput) modalHouseholdVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeHouseholdVulnerabilityFactor;
+        if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.disabled = !rankedCriteriaState.includeRepeatPenaltyFactor;
+
         renderRankedCriteriaSummary();
     }
 
@@ -363,6 +484,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modalIncludeIncomeVulnerabilityFactor) modalIncludeIncomeVulnerabilityFactor.checked = rankedCriteriaState.includeIncomeVulnerabilityFactor;
         if (modalIncludeHouseholdVulnerabilityFactor) modalIncludeHouseholdVulnerabilityFactor.checked = rankedCriteriaState.includeHouseholdVulnerabilityFactor;
         if (modalIncludeRepeatPenaltyFactor) modalIncludeRepeatPenaltyFactor.checked = rankedCriteriaState.includeRepeatPenaltyFactor;
+        if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.value = String(rankedCriteriaState.caseSeverityWeight);
+        if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.value = String(rankedCriteriaState.incomeVulnerabilityWeight);
+        if (modalHouseholdVulnerabilityWeightInput) modalHouseholdVulnerabilityWeightInput.value = String(rankedCriteriaState.householdVulnerabilityWeight);
+        if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.value = String(rankedCriteriaState.repeatPenaltyWeight);
+        applyRankedCriteriaStateToInputs();
         $('#rankedParametersSelectionModal').modal('show');
     }
 
@@ -382,6 +508,27 @@ document.addEventListener('DOMContentLoaded', function() {
             rankedCriteriaState.includeHouseholdVulnerabilityFactor = !!(modalIncludeHouseholdVulnerabilityFactor && modalIncludeHouseholdVulnerabilityFactor.checked);
             rankedCriteriaState.includeRepeatPenaltyFactor = !!(modalIncludeRepeatPenaltyFactor && modalIncludeRepeatPenaltyFactor.checked);
 
+            const caseSeverityWeight = Number((modalCaseSeverityWeightInput && modalCaseSeverityWeightInput.value) || 0);
+            const incomeVulnerabilityWeight = Number((modalIncomeVulnerabilityWeightInput && modalIncomeVulnerabilityWeightInput.value) || 0);
+            const householdVulnerabilityWeight = Number((modalHouseholdVulnerabilityWeightInput && modalHouseholdVulnerabilityWeightInput.value) || 0);
+            const repeatPenaltyWeight = Number((modalRepeatPenaltyWeightInput && modalRepeatPenaltyWeightInput.value) || 0);
+
+            const weightValues = [
+                caseSeverityWeight,
+                incomeVulnerabilityWeight,
+                householdVulnerabilityWeight,
+                repeatPenaltyWeight,
+            ];
+            if (weightValues.some(function(weight) { return Number.isNaN(weight) || weight < 0; })) {
+                alert('Scoring weights must be valid non-negative numbers.');
+                return;
+            }
+
+            rankedCriteriaState.caseSeverityWeight = caseSeverityWeight;
+            rankedCriteriaState.incomeVulnerabilityWeight = incomeVulnerabilityWeight;
+            rankedCriteriaState.householdVulnerabilityWeight = householdVulnerabilityWeight;
+            rankedCriteriaState.repeatPenaltyWeight = repeatPenaltyWeight;
+
             const hasScoringFactor = (
                 rankedCriteriaState.includeCaseSeverityFactor ||
                 rankedCriteriaState.includeIncomeVulnerabilityFactor ||
@@ -390,6 +537,16 @@ document.addEventListener('DOMContentLoaded', function() {
             );
             if (!hasScoringFactor) {
                 alert('Select at least one scoring parameter.');
+                return;
+            }
+
+            const enabledWeightTotal =
+                (rankedCriteriaState.includeCaseSeverityFactor ? rankedCriteriaState.caseSeverityWeight : 0) +
+                (rankedCriteriaState.includeIncomeVulnerabilityFactor ? rankedCriteriaState.incomeVulnerabilityWeight : 0) +
+                (rankedCriteriaState.includeHouseholdVulnerabilityFactor ? rankedCriteriaState.householdVulnerabilityWeight : 0) +
+                (rankedCriteriaState.includeRepeatPenaltyFactor ? rankedCriteriaState.repeatPenaltyWeight : 0);
+            if (enabledWeightTotal <= 0) {
+                alert('Enabled scoring factors must have a positive total weight.');
                 return;
             }
 
@@ -411,6 +568,107 @@ document.addEventListener('DOMContentLoaded', function() {
     syncRankedIncomeRangeBoundsFromDropdown();
     renderRankedBarangayOptionsForMunicipality(rankedMunicipalityFilterInput ? (rankedMunicipalityFilterInput.value || '') : '');
     applyRankedCriteriaStateToInputs();
+    updateSaveAndScheduleRankedButton();
+
+    if (saveAndScheduleRankedBtn) {
+        saveAndScheduleRankedBtn.addEventListener('click', function() {
+            if (!latestRankedRecommendations.length) {
+                alert('Generate ranked results first before scheduling payout.');
+                return;
+            }
+
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (rankedPayoutDateInput) {
+                rankedPayoutDateInput.min = tomorrow.toISOString().split('T')[0];
+                rankedPayoutDateInput.value = '';
+            }
+            if (rankedPayoutTimeInput) rankedPayoutTimeInput.value = '09:00';
+            if (rankedPayoutLocationInput) rankedPayoutLocationInput.value = 'MSWD Office, Municipal Building, Mabitac, Laguna';
+            if (rankedPayoutInstructionsInput) rankedPayoutInstructionsInput.value = '';
+            if (rankedScheduleTargetCount) rankedScheduleTargetCount.textContent = String(latestRankedRecommendations.length);
+
+            $('#rankedSchedulePayoutModal').modal('show');
+        });
+    }
+
+    if (confirmSaveAndSchedulePayoutBtn) {
+        confirmSaveAndSchedulePayoutBtn.addEventListener('click', function() {
+            const claimDate = rankedPayoutDateInput ? (rankedPayoutDateInput.value || '') : '';
+            const claimTimeRaw = rankedPayoutTimeInput ? (rankedPayoutTimeInput.value || '') : '';
+            const claimLocation = rankedPayoutLocationInput ? (rankedPayoutLocationInput.value || '').trim() : '';
+            const claimInstructions = rankedPayoutInstructionsInput ? (rankedPayoutInstructionsInput.value || '').trim() : '';
+
+            if (!claimDate || !claimTimeRaw) {
+                alert('Please provide both payout date and payout time.');
+                return;
+            }
+
+            const timeParts = claimTimeRaw.split(':');
+            const hour24 = Number(timeParts[0]);
+            const minute = Number(timeParts[1]);
+            const period = hour24 >= 12 ? 'PM' : 'AM';
+            const hour12 = (hour24 % 12) || 12;
+            const formattedClaimTime = `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+
+            const applicationIds = latestRankedRecommendations
+                .map(function(rec) { return rec.application_id; })
+                .filter(function(id) { return Number.isInteger(id) && id > 0; });
+
+            if (!applicationIds.length) {
+                alert('No valid ranked applications are available for scheduling.');
+                return;
+            }
+
+            confirmSaveAndSchedulePayoutBtn.disabled = true;
+
+            fetch('{{ url_for("admin.save_ranked_list_schedule_payout", program_id=program.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    application_ids: applicationIds,
+                    claim_date: claimDate,
+                    claim_time: formattedClaimTime,
+                    claim_location: claimLocation || 'MSWD Office, Municipal Building, Mabitac, Laguna',
+                    claim_instructions: claimInstructions,
+                })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.success) {
+                    alert(data.message || 'Failed to save and schedule payout.');
+                    return;
+                }
+
+                let summary = data.message || 'Ranked list saved and payout scheduled successfully.';
+                if (Array.isArray(data.skipped) && data.skipped.length) {
+                    summary += `\n\nSkipped applications:\n${data.skipped.slice(0, 5).map(function(item) {
+                        return `- #${item.application_id}: ${item.reason}`;
+                    }).join('\n')}`;
+                    if (data.skipped.length > 5) {
+                        summary += `\n- ...and ${data.skipped.length - 5} more`;
+                    }
+                }
+
+                alert(summary);
+                $('#rankedSchedulePayoutModal').modal('hide');
+
+                if (rankedListForm) {
+                    rankedListForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                }
+            })
+            .catch(function() {
+                alert('An error occurred while scheduling payout for ranked beneficiaries.');
+            })
+            .finally(function() {
+                confirmSaveAndSchedulePayoutBtn.disabled = false;
+            });
+        });
+    }
 
     if (rankedListForm) {
         rankedListForm.addEventListener('submit', function(e) {
@@ -428,9 +686,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 household_vulnerability: rankedCriteriaState.includeHouseholdVulnerabilityFactor,
                 repeat_beneficiary_penalty: rankedCriteriaState.includeRepeatPenaltyFactor,
             };
+            const scoringWeights = {
+                case_severity: rankedCriteriaState.caseSeverityWeight,
+                income_vulnerability: rankedCriteriaState.incomeVulnerabilityWeight,
+                household_vulnerability: rankedCriteriaState.householdVulnerabilityWeight,
+                repeat_beneficiary_penalty: rankedCriteriaState.repeatPenaltyWeight,
+            };
 
             if (!Object.values(scoringParameters).some(Boolean)) {
                 alert('Select at least one scoring parameter.');
+                return;
+            }
+
+            const enabledWeightTotal =
+                (scoringParameters.case_severity ? scoringWeights.case_severity : 0) +
+                (scoringParameters.income_vulnerability ? scoringWeights.income_vulnerability : 0) +
+                (scoringParameters.household_vulnerability ? scoringWeights.household_vulnerability : 0) +
+                (scoringParameters.repeat_beneficiary_penalty ? scoringWeights.repeat_beneficiary_penalty : 0);
+            if (enabledWeightTotal <= 0) {
+                alert('Enabled scoring factors must have a positive total weight.');
                 return;
             }
 
@@ -461,11 +735,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 priority_barangays: municipalityBarangayFilterEnabled ? selectedBarangays : [],
                 completion_date_order: rankedCompletionDateOrderInput ? (rankedCompletionDateOrderInput.value || 'asc') : 'asc',
                 scoring_parameters: scoringParameters,
+                scoring_weights: scoringWeights,
             };
 
             rankedListLoading.style.display = 'block';
             rankedListResults.style.display = 'none';
             rankedListButton.disabled = true;
+            latestRankedRecommendations = [];
+            updateSaveAndScheduleRankedButton();
 
             fetch('{{ url_for("admin.generate_program_ranked_list", program_id=program.id) }}', {
                 method: 'POST',
@@ -486,6 +763,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 rankedListBody.innerHTML = '';
                 const recommendations = data.recommendations || [];
+                latestRankedRecommendations = recommendations;
+                updateSaveAndScheduleRankedButton();
 
                 if (recommendations.length === 0) {
                     rankedListEmpty.style.display = 'block';
@@ -559,6 +838,8 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                 rankedListResults.style.display = 'block';
             })
             .catch(function() {
+                latestRankedRecommendations = [];
+                updateSaveAndScheduleRankedButton();
                 alert('An error occurred while generating the ranked list.');
             })
             .finally(function() {
@@ -584,6 +865,9 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
             </div>
             <div class="modal-body">
                 <h6 id="breakdownBeneficiaryName" class="font-weight-bold mb-3"></h6>
+                <p class="text-muted small mb-3" id="breakdownComputationNote">
+                    Each factor is computed as: contribution = weight x beneficiary value. Penalty factors can reduce the total score.
+                </p>
                 
                 <div class="card border-left-danger mb-3">
                     <div class="card-body">
@@ -592,6 +876,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                             <span id="breakdownCaseContribution" class="badge badge-danger">0.0000</span>
                         </div>
                         <small class="text-muted" id="breakdownCaseValue">Value: 0.0000</small>
+                        <small class="d-block text-muted mt-1" id="breakdownCaseExplanation">Loading factor explanation...</small>
                     </div>
                 </div>
                 
@@ -602,6 +887,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                             <span id="breakdownIncomeContribution" class="badge badge-warning">0.0000</span>
                         </div>
                         <small class="text-muted" id="breakdownIncomeValue">Value: 0.0000</small>
+                        <small class="d-block text-muted mt-1" id="breakdownIncomeExplanation">Loading factor explanation...</small>
                     </div>
                 </div>
                 
@@ -612,6 +898,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                             <span id="breakdownHouseholdContribution" class="badge badge-success">0.0000</span>
                         </div>
                         <small class="text-muted" id="breakdownHouseholdValue">Value: 0.0000</small>
+                        <small class="d-block text-muted mt-1" id="breakdownHouseholdExplanation">Loading factor explanation...</small>
                     </div>
                 </div>
 
@@ -622,6 +909,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                             <span id="breakdownRepeatContribution" class="badge badge-secondary">0.0000</span>
                         </div>
                         <small class="text-muted" id="breakdownRepeatValue">Value: 0.0000</small>
+                        <small class="d-block text-muted mt-1" id="breakdownRepeatExplanation">Loading factor explanation...</small>
                     </div>
                 </div>
                 
@@ -638,6 +926,18 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    function buildFactorExplanation(label, factor, contextMessage) {
+        const weight = Number(factor.weight || 0);
+        const value = Number(factor.beneficiary_value || 0);
+        const contribution = Number(factor.contribution || 0);
+
+        if (weight <= 0) {
+            return `${label} was disabled for this ranking run, so it contributes 0.0000 to the total score.`;
+        }
+
+        return `${contextMessage} Computation: ${weight.toFixed(4)} x ${value.toFixed(4)} = ${contribution.toFixed(4)}.`;
+    }
+
     // Handle score breakdown button clicks
     document.addEventListener('click', function(e) {
         if (e.target.closest('.view-score-breakdown')) {
@@ -674,6 +974,27 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('breakdownHouseholdValue').textContent = `Value: ${Number(householdFactor.beneficiary_value || 0).toFixed(4)}`;
             document.getElementById('breakdownRepeatContribution').textContent = Number(repeatFactor.contribution || 0).toFixed(4);
             document.getElementById('breakdownRepeatValue').textContent = `Value: ${Number(repeatFactor.beneficiary_value || 0).toFixed(4)}`;
+
+            document.getElementById('breakdownCaseExplanation').textContent = buildFactorExplanation(
+                'Case Severity',
+                caseFactor,
+                'Higher assessed severity raises this value and increases prioritization.'
+            );
+            document.getElementById('breakdownIncomeExplanation').textContent = buildFactorExplanation(
+                'Income Vulnerability',
+                incomeFactor,
+                'Lower household income generally maps to a higher vulnerability value.'
+            );
+            document.getElementById('breakdownHouseholdExplanation').textContent = buildFactorExplanation(
+                'Household Vulnerability',
+                householdFactor,
+                'Household risk indicators (e.g., status and employment context) raise this value.'
+            );
+            document.getElementById('breakdownRepeatExplanation').textContent = buildFactorExplanation(
+                'Repeat Beneficiary Penalty',
+                repeatFactor,
+                'More prior applications can produce a negative contribution that lowers total score.'
+            );
             document.getElementById('breakdownTotal').textContent = totalScore.toFixed(4);
             
             $('#scoreBreakdownModal').modal('show');

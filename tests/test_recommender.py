@@ -115,6 +115,26 @@ class TestBeneficiaryRecommender:
             assert factor['weight'] == 0.0
             assert factor['contribution'] == 0.0
 
+    def test_score_beneficiaries_applies_custom_scoring_weights(self, sample_beneficiaries):
+        """Custom scoring weights should be normalized and reflected in breakdown."""
+        recommender = BeneficiaryRecommender()
+        scored = recommender.score_beneficiaries(
+            sample_beneficiaries,
+            scoring_weights={
+                'case_severity': 80,
+                'income_vulnerability': 10,
+                'household_vulnerability': 10,
+                'repeat_beneficiary_penalty': 0,
+            },
+        )
+
+        assert scored
+        breakdown = scored[0]['score_breakdown']
+        assert pytest.approx(breakdown['case_severity_factor']['weight'], rel=1e-6) == 0.8
+        assert pytest.approx(breakdown['income_vulnerability_factor']['weight'], rel=1e-6) == 0.1
+        assert pytest.approx(breakdown['household_vulnerability_factor']['weight'], rel=1e-6) == 0.1
+        assert breakdown['repeat_beneficiary_penalty_factor']['weight'] == 0.0
+
 
 class TestGetRecommendations:
     """Tests for the get_recommendations function"""
@@ -231,3 +251,23 @@ class TestGetRecommendations:
             assert breakdown['income_vulnerability_factor']['contribution'] == 0.0
             assert breakdown['repeat_beneficiary_penalty_factor']['weight'] == 0.0
             assert breakdown['repeat_beneficiary_penalty_factor']['contribution'] == 0.0
+
+    def test_get_recommendations_with_custom_scoring_weights(self, sample_beneficiaries):
+        """get_recommendations should honor custom scoring weights."""
+        results = get_recommendations(
+            sample_beneficiaries,
+            scoring_weights={
+                'case_severity': 50,
+                'income_vulnerability': 50,
+                'household_vulnerability': 0,
+                'repeat_beneficiary_penalty': 0,
+            },
+        )
+
+        assert results
+        for beneficiary in results:
+            breakdown = beneficiary['score_breakdown']
+            assert pytest.approx(breakdown['case_severity_factor']['weight'], rel=1e-6) == 0.5
+            assert pytest.approx(breakdown['income_vulnerability_factor']['weight'], rel=1e-6) == 0.5
+            assert breakdown['household_vulnerability_factor']['weight'] == 0.0
+            assert breakdown['repeat_beneficiary_penalty_factor']['weight'] == 0.0

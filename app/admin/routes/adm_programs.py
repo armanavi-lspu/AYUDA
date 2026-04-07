@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog, ProgramWorkflowSteps, ApplicationWorkflowStatus
 from app.extensions import db
 from app.utils import role_required, manila_strftime
 from app.activity_logger import log_activity
-from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE
+from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE, NEED_FOCUSED_WEIGHTS
 from app.community.routes.profile import get_income_range_display
 from app.location_options import MUNICIPALITY_BARANGAYS, get_municipalities, is_valid_municipality
 import os
@@ -796,8 +796,12 @@ def scheduled_beneficiaries_list():
     per_page = 12
     search = request.args.get('search', '').strip()
     status_filter = request.args.get('status', '').strip().lower()
+    ranked_program_id = request.args.get('ranked_program_id', type=int)
 
     query = SubsidyPayout.query
+
+    if ranked_program_id:
+        query = query.filter(SubsidyPayout.category_key == f'program_ranked_{ranked_program_id}')
 
     if search:
         search_pattern = f'%{search}%'
@@ -816,10 +820,16 @@ def scheduled_beneficiaries_list():
     query = query.order_by(SubsidyPayout.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
+    status_base_query = SubsidyPayout.query
+    if ranked_program_id:
+        status_base_query = status_base_query.filter(
+            SubsidyPayout.category_key == f'program_ranked_{ranked_program_id}'
+        )
+
     status_counts = {
-        'draft': SubsidyPayout.query.filter_by(status='draft').count(),
-        'saved': SubsidyPayout.query.filter_by(status='saved').count(),
-        'announced': SubsidyPayout.query.filter_by(status='announced').count()
+        'draft': status_base_query.filter(SubsidyPayout.status == 'draft').count(),
+        'saved': status_base_query.filter(SubsidyPayout.status == 'saved').count(),
+        'announced': status_base_query.filter(SubsidyPayout.status == 'announced').count()
     }
 
     return render_template(
@@ -828,6 +838,7 @@ def scheduled_beneficiaries_list():
         pagination=pagination,
         search=search,
         status_filter=status_filter,
+        ranked_program_id=ranked_program_id,
         status_counts=status_counts,
         user=current_user
     )
@@ -841,10 +852,26 @@ def scheduled_beneficiaries(payout_id):
     payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
     beneficiaries = payout.snapshot_data
 
+    ranked_application_ids = [
+        int(row.get('application_id'))
+        for row in beneficiaries
+        if isinstance(row, dict) and str(row.get('application_id') or '').isdigit()
+    ]
+    can_schedule_viewed_list = bool(ranked_application_ids)
+
+    pending_ranked_schedule_count = 0
+    if ranked_application_ids:
+        pending_ranked_schedule_count = Applications.query.filter(
+            Applications.id.in_(ranked_application_ids),
+            Applications.claim_status == 'not_scheduled'
+        ).count()
+
     return render_template(
         'admin/scheduled_beneficiaries.html',
         payout=payout,
         beneficiaries=beneficiaries,
+        can_schedule_viewed_list=can_schedule_viewed_list,
+        pending_ranked_schedule_count=pending_ranked_schedule_count,
         user=current_user
     )
 
@@ -869,6 +896,262 @@ def save_scheduled_beneficiaries(payout_id):
 
     flash('Beneficiary list saved in system successfully.', 'success')
     return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout.payout_id))
+
+
+def _parse_ranked_program_id(category_key):
+    """Extract a program id from category keys like 'program_ranked_12'."""
+    if not category_key:
+        return None
+
+    prefix = 'program_ranked_'
+    value = str(category_key).strip().lower()
+    if not value.startswith(prefix):
+        return None
+
+    suffix = value[len(prefix):]
+    if not suffix.isdigit():
+        return None
+
+    return int(suffix)
+
+
+def _normalize_ranked_claim_schedule(claim_date_str, claim_time_raw):
+    """Validate and normalize claim date/time into storage-friendly values."""
+    claim_date = datetime.strptime(claim_date_str, '%Y-%m-%d')
+    raw_time = (claim_time_raw or '').strip()
+    if not raw_time:
+        raise ValueError('Claim time is required')
+
+    parsed_time = None
+    upper_time = raw_time.upper()
+    for fmt, value in (('%I:%M %p', upper_time), ('%H:%M', raw_time)):
+        try:
+            parsed_time = datetime.strptime(value, fmt)
+            break
+        except ValueError:
+            continue
+
+    if parsed_time is None:
+        raise ValueError('Invalid claim time format')
+
+    payout_datetime = claim_date.replace(hour=parsed_time.hour, minute=parsed_time.minute)
+    normalized_claim_time = parsed_time.strftime('%I:%M %p').lstrip('0')
+    return claim_date, normalized_claim_time, payout_datetime
+
+
+def _build_ranked_snapshot_rows(program, ordered_application_ids):
+    """Build snapshot payload rows for a ranked beneficiary list."""
+    app_rows = Applications.query.filter(
+        Applications.program_id == program.id,
+        Applications.id.in_(ordered_application_ids)
+    ).all()
+    applications_by_id = {app.id: app for app in app_rows}
+
+    snapshot_rows = []
+    beneficiary_text_parts = [f'Program Ranked List: {program.program_name}']
+    beneficiary_html_parts = [f'<strong class="text-primary">Program Ranked List: {program.program_name}</strong><br>']
+
+    rank_counter = 0
+    for app_id in ordered_application_ids:
+        application = applications_by_id.get(app_id)
+        if not application:
+            continue
+
+        rank_counter += 1
+        applicant = application.applicant
+        profile = applicant.community_profile if applicant else None
+        full_name = f"{(applicant.first_name if applicant else '').strip()} {(applicant.last_name if applicant else '').strip()}".strip() or f'Applicant #{application.user_id}'
+        municipality = (profile.municipality if profile and profile.municipality else 'Not specified')
+        barangay = (profile.barangay if profile and profile.barangay else 'Not specified')
+
+        snapshot_rows.append({
+            'rank': rank_counter,
+            'application_id': application.id,
+            'user_id': application.user_id,
+            'name': full_name,
+            'municipality': municipality,
+            'barangay': barangay,
+            'category': f'Ranked List - {program.program_name}',
+        })
+
+        beneficiary_text_parts.append(f'{rank_counter}. {full_name} - {barangay}, {municipality}')
+        beneficiary_html_parts.append(
+            f"{rank_counter}. {full_name} - <small class='text-muted'>{barangay}, {municipality}</small><br>"
+        )
+
+    return snapshot_rows, '\n'.join(beneficiary_text_parts), ''.join(beneficiary_html_parts)
+
+
+def _schedule_ranked_applications(program, ordered_application_ids, claim_date, claim_time, claim_location, claim_instructions):
+    """Apply payout scheduling to ranked applications and update workflow scheduling step."""
+    app_rows = Applications.query.filter(
+        Applications.program_id == program.id,
+        Applications.id.in_(ordered_application_ids)
+    ).all()
+    applications_by_id = {app.id: app for app in app_rows}
+
+    scheduling_step = ProgramWorkflowSteps.query.filter_by(
+        program_id=program.id,
+        step_type='scheduling'
+    ).order_by(ProgramWorkflowSteps.step_order.asc()).first()
+
+    now = datetime.utcnow()
+    scheduled_count = 0
+    skipped = []
+
+    for app_id in ordered_application_ids:
+        application = applications_by_id.get(app_id)
+        if not application:
+            skipped.append({'application_id': app_id, 'reason': 'Application not found for this program.'})
+            continue
+
+        if application.application_status not in ['active', 'approved', 'completed']:
+            skipped.append({'application_id': app_id, 'reason': 'Application is not eligible for scheduling.'})
+            continue
+
+        if application.claim_status in ['scheduled', 'claimed']:
+            skipped.append({'application_id': app_id, 'reason': 'Application already has a claim schedule or is already claimed.'})
+            continue
+
+        if not application.documents_complete:
+            skipped.append({'application_id': app_id, 'reason': 'Required documents are not yet complete.'})
+            continue
+
+        was_already_completed = (application.application_status == 'completed')
+
+        application.claim_date = claim_date
+        application.claim_time = claim_time
+        application.claim_location = claim_location
+        application.claim_instructions = claim_instructions
+        application.claim_status = 'scheduled'
+        application.claim_scheduled_by = current_user.id
+        application.claim_scheduled_at = now
+        application.application_status = 'completed'
+        application.updated_at = now
+
+        if scheduling_step:
+            workflow_status = ApplicationWorkflowStatus.query.filter_by(
+                application_id=application.id,
+                workflow_step_id=scheduling_step.id
+            ).first()
+            if not workflow_status:
+                workflow_status = ApplicationWorkflowStatus(
+                    application_id=application.id,
+                    workflow_step_id=scheduling_step.id,
+                )
+                db.session.add(workflow_status)
+
+            workflow_status.step_status = 'approved'
+            workflow_status.started_at = workflow_status.started_at or now
+            workflow_status.completed_at = now
+            workflow_status.reviewed_at = now
+            workflow_status.reviewed_by = current_user.id
+            workflow_status.admin_feedback = 'Release scheduled from Ranked Beneficiary List.'
+            workflow_status.updated_at = now
+
+        if was_already_completed:
+            notif_title = 'Release Date Scheduled'
+            notif_message = (
+                f'📅 Release Date Scheduled!\n\n'
+                f'Your financial assistance for {program.program_name} has been scheduled for release:\n\n'
+                f'📅 Date: {manila_strftime(claim_date, "%A, %B %d, %Y", "N/A")}\n'
+                f'🕐 Time: {claim_time}\n'
+                f'📍 Location: {claim_location}\n'
+            )
+        else:
+            notif_title = 'Application Completed - Release Scheduled'
+            notif_message = (
+                f'🎉 Great news! Your application for {program.program_name} is now COMPLETED!\n\n'
+                f'Your financial assistance release has been scheduled:\n\n'
+                f'📅 Date: {manila_strftime(claim_date, "%A, %B %d, %Y", "N/A")}\n'
+                f'🕐 Time: {claim_time}\n'
+                f'📍 Location: {claim_location}\n'
+            )
+
+        if claim_instructions:
+            notif_message += f'📝 Instructions: {claim_instructions}\n'
+
+        notif_message += '\nPlease be present on the scheduled date and time to claim your assistance. Bring your valid ID and application slip.'
+
+        db.session.add(Notifications(
+            user_id=application.user_id,
+            notif_title=notif_title,
+            notif_message=notif_message,
+            is_read=False,
+            created_at=now,
+        ))
+
+        scheduled_count += 1
+
+    return scheduled_count, skipped
+
+
+@admin_bp.route('/subsidy/scheduled/<string:payout_id>/schedule', methods=['POST'], endpoint='schedule_saved_ranked_list')
+@login_required
+@role_required('admin')
+def schedule_saved_ranked_list(payout_id):
+    """Schedule beneficiaries from a saved ranked list snapshot."""
+    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+
+    program_id = _parse_ranked_program_id(payout.category_key)
+    if not program_id:
+        flash('This saved list does not support ranked scheduling.', 'warning')
+        return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
+
+    program = Programs.query.get(program_id)
+    if not program:
+        flash('Linked program for this saved list could not be found.', 'danger')
+        return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
+
+    snapshot_rows = payout.snapshot_data
+    application_ids = [
+        int(row.get('application_id'))
+        for row in snapshot_rows
+        if isinstance(row, dict) and str(row.get('application_id') or '').isdigit()
+    ]
+
+    if not application_ids:
+        flash('No application IDs were found in this saved list snapshot.', 'warning')
+        return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
+
+    ordered_application_ids = list(dict.fromkeys(application_ids))
+    claim_date = payout.payout_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+    claim_time = payout.payout_datetime.strftime('%I:%M %p').lstrip('0')
+    claim_location = (payout.payout_location or 'MSWD Office, Municipal Building, Mabitac, Laguna').strip()
+    claim_instructions = (payout.payout_notes or '').strip()
+
+    try:
+        scheduled_count, skipped = _schedule_ranked_applications(
+            program=program,
+            ordered_application_ids=ordered_application_ids,
+            claim_date=claim_date,
+            claim_time=claim_time,
+            claim_location=claim_location,
+            claim_instructions=claim_instructions,
+        )
+
+        if scheduled_count <= 0:
+            db.session.rollback()
+            flash('No beneficiaries were scheduled from this saved list. They may already be scheduled or currently ineligible.', 'warning')
+            return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
+
+        if payout.status == 'draft':
+            payout.status = 'saved'
+        if not payout.saved_in_system:
+            payout.saved_in_system = True
+        payout.saved_at = payout.saved_at or datetime.utcnow()
+
+        db.session.commit()
+
+        message = f'Successfully scheduled {scheduled_count} beneficiary(ies) from this saved list.'
+        if skipped:
+            message += f' Skipped {len(skipped)} ineligible record(s).'
+        flash(message, 'success')
+    except Exception as exc:
+        db.session.rollback()
+        flash(f'Error scheduling saved ranked list: {str(exc)}', 'danger')
+
+    return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
 
 
 @admin_bp.route('/programs/add', endpoint='add_program', methods=['GET', 'POST'])
@@ -1755,6 +2038,32 @@ def generate_program_ranked_list(program_id):
     if not any(scoring_parameters.values()):
         return jsonify({'success': False, 'message': 'Select at least one scoring parameter.'}), 400
 
+    raw_scoring_weights = data.get('scoring_weights') or {}
+    if not isinstance(raw_scoring_weights, dict):
+        return jsonify({'success': False, 'message': 'Invalid scoring weights payload.'}), 400
+
+    default_scoring_weights = {
+        key: NEED_FOCUSED_WEIGHTS[key] * 100
+        for key in NEED_FOCUSED_WEIGHTS.keys()
+    }
+    scoring_weights = {}
+    for factor_key in NEED_FOCUSED_WEIGHTS.keys():
+        try:
+            raw_weight = float(raw_scoring_weights.get(factor_key, default_scoring_weights[factor_key]))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': f'Invalid weight for {factor_key}.'}), 400
+        if raw_weight < 0:
+            return jsonify({'success': False, 'message': 'Scoring weights cannot be negative.'}), 400
+        scoring_weights[factor_key] = raw_weight / 100.0
+
+    enabled_total_weight = sum(
+        scoring_weights[factor_key]
+        for factor_key in NEED_FOCUSED_WEIGHTS.keys()
+        if scoring_parameters.get(factor_key)
+    )
+    if enabled_total_weight <= 0:
+        return jsonify({'success': False, 'message': 'Enabled scoring factors must have a positive total weight.'}), 400
+
     if priority_municipality:
         valid_municipalities = {m for m in get_municipalities() if m}
         valid_municipalities.update(
@@ -1884,6 +2193,7 @@ def generate_program_ranked_list(program_id):
         max_income=max_income,
         case_severity_prioritization=bool(case_severity),
         scoring_parameters=scoring_parameters,
+        scoring_weights=scoring_weights,
     )
 
     # Stable two-pass sorting: completion date order is used only as tie-breaker for equal scores.
@@ -1947,6 +2257,131 @@ def generate_program_ranked_list(program_id):
         'completion_date_order': completion_date_order,
         'message': 'Ranked list generated from completed and unscheduled applications only.'
     })
+
+
+@admin_bp.route('/programs/<int:program_id>/save-ranked-list-schedule', methods=['POST'], endpoint='save_ranked_list_schedule_payout')
+@login_required
+@role_required('admin')
+def save_ranked_list_schedule_payout(program_id):
+    """Save ranked selection by scheduling payout for all included application IDs."""
+    program = Programs.query.get_or_404(program_id)
+    data = request.get_json() or {}
+
+    application_ids_raw = data.get('application_ids') or []
+    if not isinstance(application_ids_raw, list) or not application_ids_raw:
+        return jsonify({'success': False, 'message': 'No ranked applications were provided for scheduling.'}), 400
+
+    application_ids = []
+    for raw_id in application_ids_raw:
+        try:
+            parsed_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if parsed_id > 0:
+            application_ids.append(parsed_id)
+
+    if not application_ids:
+        return jsonify({'success': False, 'message': 'No valid application IDs were provided.'}), 400
+
+    # Preserve order from ranked results while removing duplicates.
+    ordered_application_ids = list(dict.fromkeys(application_ids))
+
+    claim_date_str = (data.get('claim_date') or '').strip()
+    claim_time_raw = (data.get('claim_time') or '').strip()
+    claim_location = (data.get('claim_location') or 'MSWD Office, Municipal Building, Mabitac, Laguna').strip()
+    claim_instructions = (data.get('claim_instructions') or '').strip()
+
+    if not claim_date_str or not claim_time_raw:
+        return jsonify({'success': False, 'message': 'Claim date and time are required.'}), 400
+
+    try:
+        claim_date, claim_time, payout_datetime = _normalize_ranked_claim_schedule(
+            claim_date_str=claim_date_str,
+            claim_time_raw=claim_time_raw,
+        )
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+
+    if claim_date.date() <= datetime.now().date():
+        return jsonify({'success': False, 'message': 'Claim date must be in the future.'}), 400
+
+    snapshot_rows, beneficiary_list_text, beneficiary_list_html = _build_ranked_snapshot_rows(
+        program=program,
+        ordered_application_ids=ordered_application_ids,
+    )
+    if not snapshot_rows:
+        return jsonify({'success': False, 'message': 'No valid ranked applications were found for this program.'}), 400
+
+    payout_id = f'RANKED-{program.id}-{datetime.utcnow().strftime("%Y%m%d-%H%M%S-%f")}'
+    suggested_title = f'Ranked Beneficiary List - {program.program_name}'
+    suggested_content = (
+        f'Ranked beneficiary list generated for {program.program_name}.\n\n'
+        f'Payout Date: {manila_strftime(claim_date, "%B %d, %Y", "N/A")}\n'
+        f'Payout Time: {claim_time}\n'
+        f'Location: {claim_location}\n\n'
+        f'Total Beneficiaries: {len(snapshot_rows)}\n\n'
+        f'{beneficiary_list_text}'
+    )
+
+    try:
+        payout_record = SubsidyPayout(
+            payout_id=payout_id,
+            payout_datetime=payout_datetime,
+            payout_location=claim_location,
+            payout_notes=claim_instructions,
+            category_key=f'program_ranked_{program.id}',
+            category_label=f'Ranked List - {program.program_name}',
+            beneficiary_count=len(snapshot_rows),
+            beneficiary_snapshot=json.dumps(snapshot_rows),
+            beneficiary_list_text=beneficiary_list_text,
+            beneficiary_list_html=beneficiary_list_html,
+            suggested_title=suggested_title,
+            suggested_content=suggested_content,
+            status='saved',
+            saved_in_system=True,
+            saved_at=datetime.utcnow(),
+            scheduled_by=current_user.id,
+        )
+        db.session.add(payout_record)
+
+        scheduled_count, skipped = _schedule_ranked_applications(
+            program=program,
+            ordered_application_ids=ordered_application_ids,
+            claim_date=claim_date,
+            claim_time=claim_time,
+            claim_location=claim_location,
+            claim_instructions=claim_instructions,
+        )
+
+        if scheduled_count <= 0:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'message': 'No ranked beneficiaries were scheduled. Please review eligibility and claim status.',
+                'scheduled_count': 0,
+                'skipped_count': len(skipped),
+                'skipped': skipped,
+            }), 400
+
+        db.session.commit()
+
+        message = f'Successfully scheduled payout for {scheduled_count} ranked beneficiaries.'
+        if skipped:
+            message += f' Skipped {len(skipped)} application(s) that were no longer eligible.'
+
+        return jsonify({
+            'success': True,
+            'message': message,
+            'scheduled_count': scheduled_count,
+            'skipped_count': len(skipped),
+            'skipped': skipped,
+            'saved_payout_id': payout_id,
+            'saved_list_url': url_for('admin.scheduled_beneficiaries', payout_id=payout_id),
+        })
+
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error scheduling ranked payout: {str(exc)}'}), 500
 
 @admin_bp.route('/programs/<int:id>/requirements', methods=['GET'])
 @login_required

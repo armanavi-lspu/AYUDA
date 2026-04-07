@@ -194,6 +194,18 @@
                                 {% if payout.saved_in_system %}Saved in System{% else %}Save in System{% endif %}
                             </button>
                         </form>
+                        {% if can_schedule_viewed_list %}
+                        <form method="POST" action="{{ url_for('admin.schedule_saved_ranked_list', payout_id=payout.payout_id) }}" class="mr-2 mb-2" onsubmit="return confirm('Schedule all beneficiaries in this saved list using its stored payout date/time and location?');">
+                            <button type="submit" class="btn btn-warning" {% if pending_ranked_schedule_count <= 0 %}disabled{% endif %}>
+                                <i class="fas fa-calendar-check mr-2"></i>
+                                {% if pending_ranked_schedule_count > 0 %}
+                                    Schedule Viewed List ({{ pending_ranked_schedule_count }} pending)
+                                {% else %}
+                                    Already Scheduled
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
                         <button type="button" class="btn btn-outline-primary mr-2 mb-2" id="saveAsPictureBtn">
                             <i class="fas fa-image mr-2"></i>Save as Picture
                         </button>
