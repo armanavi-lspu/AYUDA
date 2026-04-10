@@ -1,7 +1,7 @@
 """Add dummy test data for analytics
 
 Revision ID: dummy_data_001
-Revises: 936217dd0e15
+Revises: add_cancellation_request
 Create Date: 2026-03-17 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'dummy_data_001'
-down_revision = '936217dd0e15'
+down_revision = 'add_cancellation_request'
 branch_labels = None
 depends_on = None
 
