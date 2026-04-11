@@ -981,8 +981,6 @@ def municipality_detail(municipality_name):
 @role_required('super_admin')
 def admin_logs():
     """Super admin view for all admin activity logs."""
-    page = request.args.get('page', 1, type=int)
-    per_page = 30
     search = (request.args.get('search') or '').strip()
     action_filter = (request.args.get('action') or '').strip()
     role_filter = (request.args.get('role') or '').strip().lower()
@@ -1028,18 +1026,13 @@ def admin_logs():
     ]
 
     order_clause = AdminActivityLog.created_at.asc() if sort_order == 'oldest' else AdminActivityLog.created_at.desc()
-
-    pagination = query.order_by(order_clause).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False,
-    )
+    activities = query.order_by(order_clause).all()
 
     return render_template(
         'super_admin/admin_logs.html',
         user=current_user,
-        activities=pagination.items,
-        pagination=pagination,
+        activities=activities,
+        pagination=None,
         action_options=action_options,
         role_options=role_options,
         selected_action=action_filter,
@@ -1053,8 +1046,6 @@ def admin_logs():
 @role_required('super_admin')
 def user_logs():
     """Super admin view for all community user activity logs."""
-    page = request.args.get('page', 1, type=int)
-    per_page = 30
     search = (request.args.get('search') or '').strip()
     action_filter = (request.args.get('action') or '').strip()
     role_filter = (request.args.get('role') or '').strip().lower()
@@ -1100,18 +1091,13 @@ def user_logs():
     ]
 
     order_clause = UserActivityLog.created_at.asc() if sort_order == 'oldest' else UserActivityLog.created_at.desc()
-
-    pagination = query.order_by(order_clause).paginate(
-        page=page,
-        per_page=per_page,
-        error_out=False,
-    )
+    activities = query.order_by(order_clause).all()
 
     return render_template(
         'super_admin/user_logs.html',
         user=current_user,
-        activities=pagination.items,
-        pagination=pagination,
+        activities=activities,
+        pagination=None,
         action_options=action_options,
         role_options=role_options,
         selected_action=action_filter,
@@ -1125,8 +1111,6 @@ def user_logs():
 @role_required('super_admin')
 def system_logs():
     """Unified, unfiltered system logs including super-admin/admin/user activities."""
-    page = request.args.get('page', 1, type=int)
-    per_page = 40
     search = (request.args.get('search') or '').strip()
     action_filter = (request.args.get('action') or '').strip()
     role_filter = (request.args.get('role') or '').strip().lower()
@@ -1195,27 +1179,14 @@ def system_logs():
     ]
 
     total_logs = filtered_query.count()
-    if page < 1:
-        page = 1
-
-    total_pages = max((total_logs + per_page - 1) // per_page, 1)
-    if total_logs > 0 and page > total_pages:
-        page = total_pages
-
     order_clause = combined_logs.c.created_at.asc() if sort_order == 'oldest' else combined_logs.c.created_at.desc()
-
-    logs = filtered_query.order_by(order_clause).offset((page - 1) * per_page).limit(per_page).all()
+    logs = filtered_query.order_by(order_clause).all()
 
     return render_template(
         'super_admin/system_logs.html',
         user=current_user,
         logs=logs,
-        page=page,
-        per_page=per_page,
         total_logs=total_logs,
-        total_pages=total_pages,
-        has_prev=page > 1,
-        has_next=page < total_pages,
         action_options=action_options,
         role_options=role_options,
         selected_action=action_filter,
