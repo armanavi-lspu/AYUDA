@@ -16,10 +16,10 @@ warnings.filterwarnings('ignore', category=UserWarning)
 # Constants for simple linear forecast confidence intervals
 CONFIDENCE_LOWER_MULTIPLIER = 0.8
 CONFIDENCE_UPPER_MULTIPLIER = 1.2
+MIN_FORECAST_DATA_POINTS = 4
 
 # Force ARIMA override (set env var FORECAST_FORCE_ARIMA=true or query param)
 FORCE_ARIMA_MODE = os.environ.get('FORECAST_FORCE_ARIMA', 'false').lower() == 'true'
-MIN_FORECAST_DATA_POINTS = 4
 
 
 def _clamp_non_negative(values, digits=2):
@@ -110,13 +110,13 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
     Returns:
         dict with forecast_labels, forecast_values, confidence_lower, confidence_upper
     """
-    # Check force mode
-    force_mode = force_arima if force_arima is not None else FORCE_ARIMA_MODE
-    
     available_points = len(historical_data) if historical_data else 0
     if available_points < MIN_FORECAST_DATA_POINTS:
         return _unsupported_forecast(available_points)
 
+    # Check force mode
+    force_mode = force_arima if force_arima is not None else FORCE_ARIMA_MODE
+    
     try:
         from statsmodels.tsa.arima.model import ARIMA
         from statsmodels.tools.sm_exceptions import ConvergenceWarning
