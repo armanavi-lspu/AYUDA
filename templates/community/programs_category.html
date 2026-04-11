@@ -465,6 +465,11 @@
                                 <h5 class="font-weight-bold mb-1">{{ program.program_name }}</h5>
                                 <span class="recommended-badge"><i class="fas fa-check-circle mr-1"></i>Recommended</span>
                             </div>
+                            {% set creator_name = ((program.creator.first_name or '') ~ ' ' ~ (program.creator.last_name or ''))|trim if program.creator else '' %}
+                            <small class="text-muted d-block mb-2">
+                                <i class="fas fa-user-shield mr-1"></i>
+                                Created by: {{ creator_name if creator_name else (program.creator.email if program.creator and program.creator.email else 'Admin') }}
+                            </small>
                             <p class="text-muted mb-2">{{ program.description[:160] ~ ('...' if program.description and program.description|length > 160 else '') if program.description else 'No description available.' }}</p>
                             <div class="mb-3">
                                 <span class="badge badge-light border mr-2">{{ program.program_type }}</span>

@@ -787,6 +787,11 @@
                     <div class="row align-items-center">
                         <div class="col-lg-8">
                             <h2 class="mb-1 font-weight-bold">{{ program.program_name }}</h2>
+                            {% set creator_name = ((program.creator.first_name or '') ~ ' ' ~ (program.creator.last_name or ''))|trim if program.creator else '' %}
+                            <p class="mb-2 opacity-75">
+                                <i class="fas fa-user-shield mr-2"></i>
+                                Created by: {{ creator_name if creator_name else (program.creator.email if program.creator and program.creator.email else 'Admin') }}
+                            </p>
                             <p class="mb-0 opacity-75">
                                 <i class="fas fa-tag mr-2"></i>{{ program.program_type }} • 
                                 <i class="fas fa-clock mr-2"></i>{{ program.program_period }}

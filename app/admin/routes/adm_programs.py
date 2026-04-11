@@ -162,6 +162,7 @@ def programs_index():
     
     # Base query
     query = _scoped_programs_query().options(
+        joinedload(Programs.creator),
         db.joinedload(Programs.program_requirements)
         .joinedload(ProgramRequirements.requirement)
     )

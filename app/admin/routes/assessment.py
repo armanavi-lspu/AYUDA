@@ -8,7 +8,7 @@ from sqlalchemy.orm import aliased
 from app.admin import admin_bp
 from app.models import (
     Assessment, AssessmentDocument, Applications, Programs,
-    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog, AdminUsers
+    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog, AdminUsers, CommunityUsers
 )
 from app.extensions import db
 from app.utils import role_required
@@ -31,21 +31,15 @@ def _current_admin_municipality():
 
 
 def _scoped_applications_query():
-    """Applications for programs owned by admins in the current municipality."""
+    """Applications submitted by community users in the current admin municipality."""
     municipality = _current_admin_municipality()
     if not municipality:
         return Applications.query.filter(False)
 
-    owner_user = aliased(User)
     return Applications.query.join(
-        Programs, Applications.program_id == Programs.id
-    ).join(
-        owner_user, Programs.user_id == owner_user.id
-    ).join(
-        AdminUsers, AdminUsers.user_id == owner_user.id
+        CommunityUsers, Applications.user_id == CommunityUsers.user_id
     ).filter(
-        owner_user.role == 'admin',
-        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality.lower()
     )
 
 
@@ -55,18 +49,12 @@ def _scoped_assessments_query():
     if not municipality:
         return Assessment.query.filter(False)
 
-    owner_user = aliased(User)
     return Assessment.query.join(
         Applications, Assessment.application_id == Applications.id
     ).join(
-        Programs, Applications.program_id == Programs.id
-    ).join(
-        owner_user, Programs.user_id == owner_user.id
-    ).join(
-        AdminUsers, AdminUsers.user_id == owner_user.id
+        CommunityUsers, Applications.user_id == CommunityUsers.user_id
     ).filter(
-        owner_user.role == 'admin',
-        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality.lower()
     )
 
 

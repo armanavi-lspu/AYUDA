@@ -43,22 +43,15 @@ def _scoped_programs_query():
 
 
 def _scoped_applications_query():
-    """Applications for programs owned by admins in the current municipality."""
+    """Applications submitted by community users in the current admin municipality."""
     municipality = _current_admin_municipality()
     if not municipality:
         return Applications.query.filter(False)
 
-    owner_user = aliased(User)
-
     return Applications.query.join(
-        Programs, Applications.program_id == Programs.id
-    ).join(
-        owner_user, Programs.user_id == owner_user.id
-    ).join(
-        AdminUsers, AdminUsers.user_id == owner_user.id
+        CommunityUsers, Applications.user_id == CommunityUsers.user_id
     ).filter(
-        owner_user.role == 'admin',
-        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality.lower()
     )
 
 

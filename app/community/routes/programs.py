@@ -8,6 +8,7 @@ from app.extensions import db
 from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility, manila_strftime
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
 from sqlalchemy import desc, func, or_
+from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 import os
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -33,6 +34,8 @@ def _municipality_program_query():
         User, Programs.user_id == User.id
     ).join(
         AdminUsers, AdminUsers.user_id == User.id
+    ).options(
+        joinedload(Programs.creator)
     ).filter(
         User.role == 'admin',
         func.lower(func.trim(AdminUsers.municipality)) == municipality_key

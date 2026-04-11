@@ -190,6 +190,8 @@
             <h1 class="display-5 font-weight-bold mb-3">{{ program.program_name }}</h1>
             <p class="lead mb-2">{{ program.program_type }}</p>
             <p class="mb-0 posted-text"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date|manila('%B %d, %Y', 'N/A') }}</p>
+            {% set creator_name = ((program.creator.first_name or '') ~ ' ' ~ (program.creator.last_name or ''))|trim if program.creator else '' %}
+            <p class="mb-0 posted-text"><i class="fas fa-user-shield mr-2"></i>Created by: {{ creator_name if creator_name else (program.creator.email if program.creator and program.creator.email else 'Admin') }}</p>
         </div>
         <div class="col text-left">
             <div class="program-info-panel">
