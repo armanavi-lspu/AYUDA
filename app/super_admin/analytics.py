@@ -312,9 +312,13 @@ def api_arima_forecast():
         },
         'forecast': forecast_result,
         'model': forecast_result.get('model', 'unknown'),
+        'forecast_supported': forecast_result.get('forecast_supported', True),
+        'forecast_message': forecast_result.get('message'),
         'data_points': len(values),
         'force_arima_mode': force_arima,
         'arima_error': forecast_result.get('arima_error', None),
+        'required_data_points': forecast_result.get('required_data_points'),
+        'available_data_points': forecast_result.get('available_data_points', len(values)),
     })
 
 

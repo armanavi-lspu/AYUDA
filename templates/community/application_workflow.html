@@ -1864,6 +1864,7 @@
 const COMMUNITY_WORKFLOW_APPLICATION_ID = {{ application.id }};
 let communityWorkflowRealtimeRefreshTimer = null;
 let communityWorkflowRefreshInProgress = false;
+let communityWorkflowPendingRealtimePayload = null;
 
 function refreshCommunityWorkflowPage(options = {}) {
     if (communityWorkflowRefreshInProgress) {
@@ -1885,7 +1886,12 @@ function refreshCommunityWorkflowPage(options = {}) {
     document.body.classList.remove('modal-open');
     document.body.style.removeProperty('padding-right');
 
-    fetch(`${window.location.pathname}${window.location.search}`, {
+    const refreshUrl = new URL(window.location.href);
+    if (options.focusActiveStep) {
+        refreshUrl.searchParams.delete('step_id');
+    }
+
+    fetch(`${refreshUrl.pathname}${refreshUrl.search}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         },
@@ -2258,7 +2264,7 @@ function confirmSubmitStep() {
             `;
             document.querySelector('.container-fluid').prepend(successAlert);
             
-            setTimeout(() => refreshCommunityWorkflowPage(), 1200);
+            setTimeout(() => refreshCommunityWorkflowPage({ focusActiveStep: true }), 1200);
         } else {
             // Reset button state
             submitBtn.disabled = false;
@@ -2657,12 +2663,13 @@ function confirmDeletePhoto() {
 }
 
 document.addEventListener('ayuda:application-workflow-update', function(event) {
-    if (document.hidden) {
+    const payload = event && event.detail ? event.detail : {};
+    if (Number(payload.application_id) !== Number(COMMUNITY_WORKFLOW_APPLICATION_ID)) {
         return;
     }
 
-    const payload = event && event.detail ? event.detail : {};
-    if (Number(payload.application_id) !== Number(COMMUNITY_WORKFLOW_APPLICATION_ID)) {
+    if (document.hidden) {
+        communityWorkflowPendingRealtimePayload = payload;
         return;
     }
 
@@ -2673,9 +2680,31 @@ document.addEventListener('ayuda:application-workflow-update', function(event) {
     communityWorkflowRealtimeRefreshTimer = setTimeout(function() {
         const reason = payload.reason ? payload.reason.replace(/_/g, ' ') : 'workflow changes';
         refreshCommunityWorkflowPage({
-            toastMessage: `Workflow updated in realtime (${reason}).`
+            toastMessage: `Workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
         });
     }, 800);
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden || !communityWorkflowPendingRealtimePayload) {
+        return;
+    }
+
+    const pendingPayload = communityWorkflowPendingRealtimePayload;
+    communityWorkflowPendingRealtimePayload = null;
+
+    if (communityWorkflowRealtimeRefreshTimer) {
+        clearTimeout(communityWorkflowRealtimeRefreshTimer);
+    }
+
+    communityWorkflowRealtimeRefreshTimer = setTimeout(function() {
+        const reason = pendingPayload.reason ? pendingPayload.reason.replace(/_/g, ' ') : 'workflow changes';
+        refreshCommunityWorkflowPage({
+            toastMessage: `Workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
+        });
+    }, 180);
 });
 </script>
 {% endblock %}

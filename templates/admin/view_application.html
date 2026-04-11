@@ -1720,15 +1720,6 @@
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div class="flex-grow-1">
                                     <h6 class="font-weight-bold mb-1">{{ req.requirement_name }}</h6>
-                                    {% if req.copy_specs %}
-                                    <div class="small text-muted mb-1">
-                                        <i class="fas fa-copy mr-1"></i>
-                                        <strong>Copy Specification:</strong>
-                                        {% for copy_spec in req.copy_specs %}
-                                            <span class="badge badge-light border mr-1 mb-1">{{ copy_spec.count }} {{ copy_spec.type.replace('_', ' ')|title }}</span>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
                                     {% if req.is_mandatory %}
                                     <span class="badge badge-danger">REQUIRED</span>
                                     {% endif %}
@@ -2971,6 +2962,7 @@
 const ADMIN_WORKFLOW_APPLICATION_ID = {{ application.id }};
 let adminWorkflowRealtimeRefreshTimer = null;
 let adminWorkflowRefreshInProgress = false;
+let adminWorkflowPendingRealtimePayload = null;
 
 // Quick Approve/Reject Functions
 function handleApprove() {
@@ -3790,10 +3782,26 @@ function openWorkflowStepFromElement(stepElement, silent = true) {
     }
 }
 
-function restoreWorkflowStepContent(previousViewState = null) {
+function findActiveWorkflowStepElement(allSteps) {
+    return allSteps.find(step => {
+        const indicator = step.querySelector('.step-indicator');
+        return indicator && (indicator.classList.contains('step-current') || indicator.classList.contains('step-review'));
+    });
+}
+
+function restoreWorkflowStepContent(previousViewState = null, options = {}) {
     const allSteps = Array.from(document.querySelectorAll('.workflow-step.step-link'));
     if (!allSteps.length) {
         return false;
+    }
+
+    const preferActiveStep = !!options.preferActiveStep;
+
+    if (preferActiveStep) {
+        const activeStepFirst = findActiveWorkflowStepElement(allSteps);
+        if (openWorkflowStepFromElement(activeStepFirst, true)) {
+            return true;
+        }
     }
 
     if (previousViewState && previousViewState.viewedStepIndex >= 0) {
@@ -3817,10 +3825,7 @@ function restoreWorkflowStepContent(previousViewState = null) {
         }
     }
 
-    const activeStep = allSteps.find(step => {
-        const indicator = step.querySelector('.step-indicator');
-        return indicator && (indicator.classList.contains('step-current') || indicator.classList.contains('step-review'));
-    });
+    const activeStep = findActiveWorkflowStepElement(allSteps);
 
     if (openWorkflowStepFromElement(activeStep, true)) {
         return true;
@@ -3878,7 +3883,9 @@ function refreshAdminWorkflowView(options = {}) {
                 $('[data-toggle="tooltip"]').tooltip();
             }
 
-            restoreWorkflowStepContent(previousViewState);
+            restoreWorkflowStepContent(previousViewState, {
+                preferActiveStep: !!options.focusActiveStep
+            });
             updateCompleteStepButtonState();
 
             if (options.toastMessage) {
@@ -4976,7 +4983,7 @@ function completeDocUploadStep() {
             showSuccessToast('Document Upload step completed successfully. The next step is now active.');
             
             setTimeout(() => {
-                refreshAdminWorkflowView();
+                refreshAdminWorkflowView({ focusActiveStep: true });
             }, 2000);
         } else {
             alert('Error: ' + data.message);
@@ -5125,7 +5132,7 @@ function executeCompleteDocSubmissionStep() {
             showSuccessToast('Document Submission step completed successfully. The next step is now active.');
             
             setTimeout(() => {
-                refreshAdminWorkflowView();
+                refreshAdminWorkflowView({ focusActiveStep: true });
             }, 2000);
         } else {
             alert('Error: ' + data.message);
@@ -5746,12 +5753,13 @@ $(document).ready(function() {
 {% endif %}
 
 document.addEventListener('ayuda:application-workflow-update', function(event) {
-    if (document.hidden) {
+    const payload = event && event.detail ? event.detail : {};
+    if (Number(payload.application_id) !== Number(ADMIN_WORKFLOW_APPLICATION_ID)) {
         return;
     }
 
-    const payload = event && event.detail ? event.detail : {};
-    if (Number(payload.application_id) !== Number(ADMIN_WORKFLOW_APPLICATION_ID)) {
+    if (document.hidden) {
+        adminWorkflowPendingRealtimePayload = payload;
         return;
     }
 
@@ -5762,9 +5770,31 @@ document.addEventListener('ayuda:application-workflow-update', function(event) {
     adminWorkflowRealtimeRefreshTimer = setTimeout(function() {
         const reason = payload.reason ? payload.reason.replace(/_/g, ' ') : 'workflow changes';
         refreshAdminWorkflowView({
-            toastMessage: `Application workflow updated in realtime (${reason}).`
+            toastMessage: `Application workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
         });
     }, 800);
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden || !adminWorkflowPendingRealtimePayload) {
+        return;
+    }
+
+    const pendingPayload = adminWorkflowPendingRealtimePayload;
+    adminWorkflowPendingRealtimePayload = null;
+
+    if (adminWorkflowRealtimeRefreshTimer) {
+        clearTimeout(adminWorkflowRealtimeRefreshTimer);
+    }
+
+    adminWorkflowRealtimeRefreshTimer = setTimeout(function() {
+        const reason = pendingPayload.reason ? pendingPayload.reason.replace(/_/g, ' ') : 'workflow changes';
+        refreshAdminWorkflowView({
+            toastMessage: `Application workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
+        });
+    }, 180);
 });
 
 // Photo preview modal function

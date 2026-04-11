@@ -74,7 +74,7 @@
                         <th>Description</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="systemLogsTableBody">
                     {% for log in logs %}
                     <tr>
                         <td>{{ log.created_at | manila('%Y-%m-%d %H:%M:%S', 'N/A') }}</td>
@@ -103,7 +103,7 @@
                         <td>{{ log.description }}</td>
                     </tr>
                     {% else %}
-                    <tr>
+                    <tr id="systemLogsEmptyRow">
                         <td colspan="8" class="text-center text-muted py-4">No system logs found.</td>
                     </tr>
                     {% endfor %}
@@ -112,4 +112,169 @@
         </div>
     </div>
 
+    <div id="systemLogsInfiniteLoader" class="text-center py-3 text-muted" style="display: none;">
+        <i class="fas fa-spinner fa-spin mr-2"></i>Loading more logs...
+    </div>
+    <div id="systemLogsInfiniteEnd" class="text-center py-3 text-muted" style="display: none;">
+        No more logs to load.
+    </div>
+    <div id="systemLogsScrollSentinel" style="height: 1px;"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const tableBody = document.getElementById('systemLogsTableBody');
+    const emptyRow = document.getElementById('systemLogsEmptyRow');
+    const loader = document.getElementById('systemLogsInfiniteLoader');
+    const endMarker = document.getElementById('systemLogsInfiniteEnd');
+    const sentinel = document.getElementById('systemLogsScrollSentinel');
+
+    if (!tableBody || !sentinel) {
+        return;
+    }
+
+    let nextPage = {{ next_page if next_page is not none else 'null' }};
+    let hasMore = {{ 'true' if has_more else 'false' }};
+    let isLoading = false;
+    const chunkSize = {{ chunk_size|default(100) }};
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function roleBadge(role) {
+        const normalizedRole = (role || '').toLowerCase();
+        if (normalizedRole === 'super_admin') {
+            return '<span class="badge badge-danger sa-badge-soft">Super Admin</span>';
+        }
+        if (normalizedRole === 'admin') {
+            return '<span class="badge badge-info sa-badge-soft">Admin</span>';
+        }
+        if (normalizedRole === 'community') {
+            return '<span class="badge badge-light sa-badge-soft">Community</span>';
+        }
+        return '<span class="badge badge-light sa-badge-soft">Unknown</span>';
+    }
+
+    function sourceBadge(source) {
+        if (source === 'admin_activity') {
+            return '<span class="badge badge-primary sa-badge-soft">Admin Activity</span>';
+        }
+        return '<span class="badge badge-secondary sa-badge-soft">User Activity</span>';
+    }
+
+    function appendRows(logs) {
+        if (!logs || logs.length === 0) {
+            return;
+        }
+
+        if (emptyRow) {
+            emptyRow.remove();
+        }
+
+        logs.forEach(function (log) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${escapeHtml(log.created_at)}</td>
+                <td>${sourceBadge(log.source)}</td>
+                <td>${escapeHtml((log.first_name || 'Unknown') + ' ' + (log.last_name || 'User'))}</td>
+                <td>${roleBadge(log.actor_role)}</td>
+                <td>${escapeHtml(log.action)}</td>
+                <td>${escapeHtml(log.action_type)}</td>
+                <td>${escapeHtml(log.entity_type)}</td>
+                <td>${escapeHtml(log.description)}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    function buildFetchUrl(page) {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('page');
+        params.set('page', String(page));
+        params.set('per_page', String(chunkSize));
+        params.set('format', 'json');
+        return `{{ url_for('super_admin.system_logs') }}?${params.toString()}`;
+    }
+
+    function showEndState() {
+        if (loader) {
+            loader.style.display = 'none';
+        }
+        if (endMarker) {
+            endMarker.style.display = 'block';
+        }
+    }
+
+    function loadNextPage() {
+        if (!hasMore || isLoading || !nextPage) {
+            if (!hasMore) {
+                showEndState();
+            }
+            return;
+        }
+
+        isLoading = true;
+        if (loader) {
+            loader.style.display = 'block';
+        }
+
+        fetch(buildFetchUrl(nextPage), {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error(`Failed to load logs (${response.status})`);
+                }
+                return response.json();
+            })
+            .then(function (payload) {
+                appendRows(payload.logs || []);
+                hasMore = Boolean(payload.has_more);
+                nextPage = payload.next_page;
+                if (!hasMore) {
+                    showEndState();
+                }
+            })
+            .catch(function (error) {
+                console.error('System logs incremental load failed:', error);
+            })
+            .finally(function () {
+                isLoading = false;
+                if (loader && hasMore) {
+                    loader.style.display = 'none';
+                }
+            });
+    }
+
+    if (!hasMore) {
+        showEndState();
+        return;
+    }
+
+    const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                loadNextPage();
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '200px 0px',
+        threshold: 0
+    });
+
+    observer.observe(sentinel);
+})();
+</script>
 {% endblock %}

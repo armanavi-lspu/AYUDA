@@ -9,6 +9,7 @@ from app.models import Programs, Requirements, ProgramRequirements, Applications
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
 from app.application_logs import build_application_activity_entries
+from app.socketio_events import emit_application_workflow_update
 import re
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -2315,6 +2316,13 @@ def verify_uploaded_document(application_id, upload_id):
             db.session.add(completion_notif)
         
         db.session.commit()
+
+        emit_application_workflow_update({
+            'changed': True,
+            'reason': 'document_uploads',
+            'application_id': application.id,
+            'user_id': application.user_id,
+        })
         
         flash(f'Document {verification_status} successfully!', 'success')
         return jsonify(
@@ -2355,6 +2363,13 @@ def verify_document_status(application_id, doc_id):
         log_document_status_toggle(doc, submission_status)
         
         db.session.commit()
+
+        emit_application_workflow_update({
+            'changed': True,
+            'reason': 'application_documents',
+            'application_id': doc.application_id,
+            'user_id': doc.application.user_id,
+        })
         
         return jsonify(
             success=True,
@@ -2653,6 +2668,8 @@ def confirm_office_submission(application_id, step_id):
     if not workflow_status:
         return jsonify({'success': False, 'message': 'Workflow status not found.'}), 404
 
+    application = _scoped_application_or_404(application_id)
+
     step = workflow_status.workflow_step
     if not step or step.step_type not in ['document_submission', 'document_submission_office', 'physical_submission']:
         return jsonify({'success': False, 'message': 'Invalid workflow step for office submission confirmation.'}), 400
@@ -2665,7 +2682,28 @@ def confirm_office_submission(application_id, step_id):
 
         workflow_status.set_step_data(step_data)
         workflow_status.updated_at = datetime.utcnow()
+
+        notification = Notifications(
+            user_id=application.user_id,
+            notif_title='MSWD Document Submission Confirmed',
+            notif_message=(
+                f'Your document submission at the MSWD Office for {application.program.program_name} '
+                f'has been confirmed. You can now monitor document verification updates in your workflow page.'
+            ),
+            is_read=False,
+            related_id=application_id,
+            related_type='application',
+            created_at=datetime.utcnow(),
+        )
+        db.session.add(notification)
         db.session.commit()
+
+        emit_application_workflow_update({
+            'changed': True,
+            'reason': 'workflow_status',
+            'application_id': application_id,
+            'user_id': application.user_id,
+        })
 
         return jsonify({'success': True, 'message': 'Office submission confirmed.'})
     except Exception as e:

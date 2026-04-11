@@ -115,15 +115,19 @@ class TestArimaForecast:
         assert 'model' in result
     
     def test_arima_with_insufficient_data(self):
-        """Test ARIMA falls back to linear with insufficient data"""
+        """Test ARIMA is marked unsupported with insufficient data"""
         historical_data = [10, 15]
         historical_labels = ['January 2024', 'February 2024']
         
         result = arima_forecast(historical_data, historical_labels, periods=3)
         
-        assert result['success'] is True
-        # Should fall back to linear model
-        assert result['model'] == 'linear'
+        assert result['success'] is False
+        assert result['forecast_supported'] is False
+        assert result['model'] == 'unsupported-insufficient-data'
+        assert result['reason'] == 'insufficient_data'
+        assert result['required_data_points'] == 4
+        assert result['available_data_points'] == 2
+        assert len(result['forecast_values']) == 0
     
     def test_arima_no_negative_forecasts(self):
         """Test that ARIMA forecasts are never negative"""
@@ -143,8 +147,11 @@ class TestArimaForecast:
         """Test ARIMA with empty data"""
         result = arima_forecast([], [], periods=3)
         
-        # Should fall back to linear which handles empty data
-        assert 'forecast_values' in result
+        assert result['success'] is False
+        assert result['forecast_supported'] is False
+        assert result['reason'] == 'insufficient_data'
+        assert result['available_data_points'] == 0
+        assert len(result['forecast_values']) == 0
 
 
 class TestProgramGrowthForecast:

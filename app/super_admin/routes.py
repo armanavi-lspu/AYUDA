@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import secrets
 import string
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import case, desc, func, literal, or_
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -1110,7 +1110,13 @@ def user_logs():
 @login_required
 @role_required('super_admin')
 def system_logs():
-    """Unified, unfiltered system logs including super-admin/admin/user activities."""
+    """Unified system logs loaded in chunks for infinite scrolling."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 100, type=int)
+    if page < 1:
+        page = 1
+    per_page = min(max(per_page, 20), 200)
+
     search = (request.args.get('search') or '').strip()
     action_filter = (request.args.get('action') or '').strip()
     role_filter = (request.args.get('role') or '').strip().lower()
@@ -1180,13 +1186,40 @@ def system_logs():
 
     total_logs = filtered_query.count()
     order_clause = combined_logs.c.created_at.asc() if sort_order == 'oldest' else combined_logs.c.created_at.desc()
-    logs = filtered_query.order_by(order_clause).all()
+    logs = filtered_query.order_by(order_clause).offset((page - 1) * per_page).limit(per_page).all()
+    has_more = (page * per_page) < total_logs
+
+    if request.args.get('format') == 'json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'logs': [
+                {
+                    'created_at': manila_strftime(log.created_at, '%Y-%m-%d %H:%M:%S', 'N/A'),
+                    'source': log.source,
+                    'first_name': log.first_name or 'Unknown',
+                    'last_name': log.last_name or 'User',
+                    'actor_role': log.actor_role or '',
+                    'action': log.action or '',
+                    'action_type': log.action_type or '',
+                    'entity_type': log.entity_type or '',
+                    'description': log.description or '',
+                }
+                for log in logs
+            ],
+            'page': page,
+            'per_page': per_page,
+            'has_more': has_more,
+            'next_page': page + 1 if has_more else None,
+            'total_logs': total_logs,
+        })
 
     return render_template(
         'super_admin/system_logs.html',
         user=current_user,
         logs=logs,
         total_logs=total_logs,
+        has_more=has_more,
+        next_page=(page + 1) if has_more else None,
+        chunk_size=per_page,
         action_options=action_options,
         role_options=role_options,
         selected_action=action_filter,

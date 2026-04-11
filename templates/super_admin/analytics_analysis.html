@@ -170,6 +170,22 @@
         return [...nullsForHistorical, lastValue, ...forecastData];
     }
 
+    function clearForecastStatus(chartContainer) {
+        if (!chartContainer) return;
+        const existing = chartContainer.querySelector('.forecast-status-message');
+        if (existing) existing.remove();
+    }
+
+    function renderForecastStatus(chartContainer, message) {
+        if (!chartContainer) return;
+        clearForecastStatus(chartContainer);
+
+        const note = document.createElement('div');
+        note.className = 'forecast-status-message alert alert-warning mt-3 mb-0';
+        note.textContent = message;
+        chartContainer.appendChild(note);
+    }
+
     const applicantsOverTimeData = parseData('applicants-over-time-data', { labels: [], data: [] });
     const applicationsByTypeData = parseData('applications-by-type-data', { labels: [], data: [] });
     const applicantsByBarangayData = parseData('applicants-by-barangay-data', { labels: [], data: [] });
@@ -301,6 +317,9 @@
         const ctx = document.getElementById('forecastApplicantsChart');
         if (!ctx) return;
 
+        const chartContainer = ctx.parentElement;
+        clearForecastStatus(chartContainer);
+
         fetch('/super-admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
             .then((response) => response.json())
             .then((data) => {
@@ -309,9 +328,39 @@
                 const forecastLabels = (data.forecast && data.forecast.forecast_labels) || [];
                 const forecastData = (data.forecast && data.forecast.forecast_values) || [];
                 const modelType = data.model || 'unknown';
+                const forecastSupported = data.forecast_supported !== false;
+                const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
                 const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
 
                 if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+                if (!forecastSupported) {
+                    applicantsForecastChart = new Chart(ctx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: historicalLabels,
+                            datasets: [
+                                {
+                                    label: 'Historical Data',
+                                    data: historicalData,
+                                    borderColor: 'rgb(78, 115, 223)',
+                                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    borderWidth: 3,
+                                },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                        },
+                    });
+
+                    renderForecastStatus(chartContainer, forecastMessage);
+                    return;
+                }
 
                 applicantsForecastChart = new Chart(ctx.getContext('2d'), {
                     type: 'line',

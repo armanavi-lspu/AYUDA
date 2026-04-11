@@ -1,6 +1,6 @@
 """SQLAlchemy realtime hooks for websocket broadcasts."""
 
-from sqlalchemy import event
+from sqlalchemy import event, select
 
 from app.models import (
     ApplicationDocuments,
@@ -30,7 +30,7 @@ def _emit_admin_data_change(reason):
     emit_admin_analytics_update(payload)
 
 
-def _resolve_workflow_context(target):
+def _resolve_workflow_context(target, connection=None):
     """Resolve application/user identifiers for workflow-scoped realtime events."""
     if isinstance(target, Applications):
         return target.id, target.user_id
@@ -45,11 +45,17 @@ def _resolve_workflow_context(target):
     if application_id is None and isinstance(target, Assessment):
         application_id = target.application_id
 
+    # During mapper events the relationship can be unavailable; fall back to DB lookup.
+    if application_id and user_id is None and connection is not None:
+        user_id = connection.execute(
+            select(Applications.user_id).where(Applications.id == application_id)
+        ).scalar_one_or_none()
+
     return application_id, user_id
 
 
-def _emit_workflow_change(target, reason):
-    application_id, user_id = _resolve_workflow_context(target)
+def _emit_workflow_change(target, reason, connection=None):
+    application_id, user_id = _resolve_workflow_context(target, connection=connection)
     if not application_id:
         return
 
@@ -83,7 +89,7 @@ def on_applications_changed(mapper, connection, target):
     """Broadcast when application data changes."""
     _emit_admin_data_change('applications')
     emit_community_dashboard_update({'changed': True, 'reason': 'applications'})
-    _emit_workflow_change(target, 'applications')
+    _emit_workflow_change(target, 'applications', connection=connection)
 
 
 @event.listens_for(Programs, 'after_insert')
@@ -110,7 +116,7 @@ def on_announcements_changed(mapper, connection, target):
 def on_assessments_changed(mapper, connection, target):
     """Broadcast community schedule/dashboard updates when assessments change."""
     emit_community_dashboard_update({'changed': True, 'reason': 'assessments'})
-    _emit_workflow_change(target, 'assessments')
+    _emit_workflow_change(target, 'assessments', connection=connection)
 
 
 @event.listens_for(ApplicationWorkflowStatus, 'after_insert')
@@ -118,7 +124,7 @@ def on_assessments_changed(mapper, connection, target):
 @event.listens_for(ApplicationWorkflowStatus, 'after_delete')
 def on_workflow_status_changed(mapper, connection, target):
     """Broadcast workflow step progression updates in realtime."""
-    _emit_workflow_change(target, 'workflow_status')
+    _emit_workflow_change(target, 'workflow_status', connection=connection)
 
 
 @event.listens_for(ApplicationDocuments, 'after_insert')
@@ -126,7 +132,7 @@ def on_workflow_status_changed(mapper, connection, target):
 @event.listens_for(ApplicationDocuments, 'after_delete')
 def on_application_documents_changed(mapper, connection, target):
     """Broadcast workflow updates when document checklist statuses change."""
-    _emit_workflow_change(target, 'application_documents')
+    _emit_workflow_change(target, 'application_documents', connection=connection)
 
 
 @event.listens_for(ApplicationDocumentUploads, 'after_insert')
@@ -134,7 +140,7 @@ def on_application_documents_changed(mapper, connection, target):
 @event.listens_for(ApplicationDocumentUploads, 'after_delete')
 def on_document_uploads_changed(mapper, connection, target):
     """Broadcast workflow updates when uploaded files are reviewed/changed."""
-    _emit_workflow_change(target, 'document_uploads')
+    _emit_workflow_change(target, 'document_uploads', connection=connection)
 
 
 @event.listens_for(ShelterPhotos, 'after_insert')
@@ -142,7 +148,7 @@ def on_document_uploads_changed(mapper, connection, target):
 @event.listens_for(ShelterPhotos, 'after_delete')
 def on_shelter_photos_changed(mapper, connection, target):
     """Broadcast workflow updates for shelter photo workflow steps."""
-    _emit_workflow_change(target, 'shelter_photos')
+    _emit_workflow_change(target, 'shelter_photos', connection=connection)
 
 
 @event.listens_for(CALDocuments, 'after_insert')
@@ -150,4 +156,4 @@ def on_shelter_photos_changed(mapper, connection, target):
 @event.listens_for(CALDocuments, 'after_delete')
 def on_cal_documents_changed(mapper, connection, target):
     """Broadcast workflow updates for CAL document workflow steps."""
-    _emit_workflow_change(target, 'cal_documents')
+    _emit_workflow_change(target, 'cal_documents', connection=connection)

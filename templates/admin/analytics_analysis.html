@@ -560,6 +560,24 @@ function initializeAnalyticsAnalysisPage() {
             }
         }
     }
+
+    function clearForecastStatus(chartContainer) {
+        if (!chartContainer) return;
+        const existing = chartContainer.querySelector('.forecast-status-message');
+        if (existing) {
+            existing.remove();
+        }
+    }
+
+    function renderForecastStatus(chartContainer, message) {
+        if (!chartContainer) return;
+        clearForecastStatus(chartContainer);
+
+        const note = document.createElement('div');
+        note.className = 'forecast-status-message alert alert-warning mt-3 mb-0';
+        note.textContent = message;
+        chartContainer.appendChild(note);
+    }
     
     // Parse data from hidden script tags with error handling
     let applicantsOverTimeData, applicationsByTypeData, applicantsByBarangayData, usersByMunicipalityData;
@@ -855,6 +873,7 @@ function initializeAnalyticsAnalysisPage() {
         // Show loading state
         const chartContainer = forecastApplicantsCtx.parentElement;
         chartContainer.style.opacity = '0.5';
+        clearForecastStatus(chartContainer);
         
         fetch('/admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
             .then(response => response.json())
@@ -868,10 +887,58 @@ function initializeAnalyticsAnalysisPage() {
                 const confidenceLower = data.forecast.confidence_lower || [];
                 const confidenceUpper = data.forecast.confidence_upper || [];
                 const modelType = data.model || 'unknown';
+                const forecastSupported = data.forecast_supported !== false;
+                const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
                 
                 // Destroy existing chart if any
                 if (applicantsForecastChart) {
                     applicantsForecastChart.destroy();
+                }
+
+                if (!forecastSupported) {
+                    applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: historicalLabels,
+                            datasets: [
+                                {
+                                    label: 'Historical Data',
+                                    data: historicalData,
+                                    borderColor: 'rgb(78, 115, 223)',
+                                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    borderWidth: 3,
+                                    pointBackgroundColor: 'rgb(78, 115, 223)',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    renderForecastStatus(chartContainer, forecastMessage);
+                    chartContainer.style.opacity = '1';
+                    return;
                 }
                 
                 // Get last historical value for connecting forecast line
@@ -995,6 +1062,9 @@ function initializeAnalyticsAnalysisPage() {
     
     function loadFallbackForecast() {
         if (!forecastApplicantsCtx) return;
+
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        clearForecastStatus(chartContainer);
         
         const historicalData = applicantsOverTimeData.data;
         const historicalLabels = applicantsOverTimeData.labels;
