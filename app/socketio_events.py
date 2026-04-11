@@ -56,7 +56,7 @@ def handle_connect():
     """Handle client connection"""
     if current_user.is_authenticated:
         join_room(f'user_{current_user.id}')
-        if current_user.role == 'admin':
+        if current_user.role in {'admin', 'super_admin'}:
             join_room('admins')
         elif current_user.role == 'community':
             join_room('community_users')
@@ -68,7 +68,7 @@ def handle_disconnect():
     """Handle client disconnection"""
     if current_user.is_authenticated:
         leave_room(f'user_{current_user.id}')
-        if current_user.role == 'admin':
+        if current_user.role in {'admin', 'super_admin'}:
             leave_room('admins')
         elif current_user.role == 'community':
             leave_room('community_users')

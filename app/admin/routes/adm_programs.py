@@ -1,10 +1,10 @@
-from flask import render_template, request, flash, redirect, url_for, jsonify
+from flask import render_template, request, flash, redirect, url_for, jsonify, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import and_, desc, or_, func
 from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
-from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog, ProgramWorkflowSteps, ApplicationWorkflowStatus
+from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog, ProgramWorkflowSteps, ApplicationWorkflowStatus, AdminUsers
 from app.extensions import db
 from app.utils import role_required, manila_strftime
 from app.activity_logger import log_activity
@@ -24,6 +24,87 @@ DEFAULT_TARGET_AGE = 30
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _current_admin_municipality():
+    """Return the authenticated admin's municipality scope."""
+    profile = getattr(current_user, 'admin_profile', None)
+    municipality = (profile.municipality or '').strip() if profile else ''
+    return municipality or None
+
+
+def _scoped_programs_query():
+    """Programs owned by admins in the current municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Programs.query.filter(False)
+
+    return Programs.query.join(
+        User, Programs.user_id == User.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_program_or_404(program_id):
+    """Return one municipality-scoped program or 404."""
+    program = _scoped_programs_query().filter(Programs.id == program_id).first()
+    if not program:
+        abort(404)
+    return program
+
+
+def _scoped_applications_query():
+    """Applications tied to municipality-scoped programs."""
+    return Applications.query.filter(
+        Applications.program_id.in_(_scoped_programs_query().with_entities(Programs.id))
+    )
+
+
+def _scoped_community_users_query():
+    """Community users in the current admin municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return CommunityUsers.query.filter(False)
+
+    return CommunityUsers.query.filter(
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_subsidy_logs_query():
+    """Subsidy request logs from community users in the current municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return UserActivityLog.query.filter(False)
+
+    return UserActivityLog.query.join(
+        User, UserActivityLog.user_id == User.id
+    ).join(
+        CommunityUsers, CommunityUsers.user_id == User.id
+    ).filter(
+        User.role == 'community',
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_subsidy_payouts_query():
+    """Saved/scheduled subsidy payout lists created by admins in scope municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return SubsidyPayout.query.filter(False)
+
+    return SubsidyPayout.query.join(
+        User, SubsidyPayout.scheduled_by == User.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
 
 
 def _parse_program_income_upper_bound(income_range):
@@ -65,6 +146,10 @@ def _parse_program_income_upper_bound(income_range):
 @role_required('admin')
 def programs_index():
     """Display all programs with search and filter"""
+    if not _current_admin_municipality():
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
@@ -76,7 +161,7 @@ def programs_index():
     date_range = request.args.get('date_range', '').strip()
     
     # Base query
-    query = Programs.query.options(
+    query = _scoped_programs_query().options(
         db.joinedload(Programs.program_requirements)
         .joinedload(ProgramRequirements.requirement)
     )
@@ -124,26 +209,31 @@ def programs_index():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Get all program types and periods for filters
-    program_types = db.session.query(Programs.program_type).distinct().all()
-    program_periods = db.session.query(Programs.program_period).distinct().all()
+    program_types = _scoped_programs_query().with_entities(Programs.program_type).distinct().all()
+    program_periods = _scoped_programs_query().with_entities(Programs.program_period).distinct().all()
     
     # Calculate statistics
-    total_programs = Programs.query.count()
+    total_programs = _scoped_programs_query().count()
     
     # Programs with applications
-    programs_with_apps = db.session.query(func.count(func.distinct(Applications.program_id))).scalar()
+    programs_with_apps = db.session.query(func.count(func.distinct(Applications.program_id))).filter(
+        Applications.program_id.in_(_scoped_programs_query().with_entities(Programs.id))
+    ).scalar()
 
     # Active applications across all programs
-    active_applications = Applications.query.filter_by(application_status='active').count()
+    active_applications = _scoped_applications_query().filter_by(application_status='active').count()
     
     # Recent programs count (last 30 days)
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_programs = Programs.query.filter(Programs.date >= thirty_days_ago).count()
+    recent_programs = _scoped_programs_query().filter(Programs.date >= thirty_days_ago).count()
     
     # Add application count to each program
     for program in pagination.items:
-        program.application_count = Applications.query.filter_by(program_id=program.id).count()
-        program.active_application_count = Applications.query.filter_by(program_id=program.id, application_status='active').count()
+        program.application_count = _scoped_applications_query().filter(Applications.program_id == program.id).count()
+        program.active_application_count = _scoped_applications_query().filter(
+            Applications.program_id == program.id,
+            Applications.application_status == 'active'
+        ).count()
         program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
     
     # Get all requirements for the add program modal
@@ -168,7 +258,7 @@ def programs_index():
 # ===================== SUBSIDY MANAGEMENT =====================
 
 def _get_subsidy_request_log(request_id):
-    return UserActivityLog.query.options(joinedload(UserActivityLog.user)).filter(
+    return _scoped_subsidy_logs_query().options(joinedload(UserActivityLog.user)).filter(
         UserActivityLog.id == request_id,
         UserActivityLog.action == 'request_subsidy',
         UserActivityLog.entity_type == 'subsidy'
@@ -295,7 +385,7 @@ def _get_subsidy_member_user_ids(category_key):
     if not normalized_category:
         return set()
 
-    logs = UserActivityLog.query.filter(
+    logs = _scoped_subsidy_logs_query().filter(
         UserActivityLog.action == 'request_subsidy',
         UserActivityLog.entity_type == 'subsidy'
     ).all()
@@ -346,7 +436,7 @@ def subsidy_index():
         Requirements.requirement_name.asc()
     ).all()
 
-    recent_subsidy_logs = UserActivityLog.query.options(
+    recent_subsidy_logs = _scoped_subsidy_logs_query().options(
         joinedload(UserActivityLog.user)
     ).filter(
         UserActivityLog.action == 'request_subsidy',
@@ -594,7 +684,7 @@ def complete_subsidy_request(request_id):
         flash('Subsidy request category is invalid and cannot be completed.', 'warning')
         return redirect(url_for('admin.adm_subsidy'))
 
-    community_user = CommunityUsers.query.filter_by(user_id=request_log.user_id).first()
+    community_user = _scoped_community_users_query().filter_by(user_id=request_log.user_id).first()
     if not _is_user_verified_for_subsidy_category(community_user, category_key):
         flash('User is not verified for this subsidy category yet.', 'warning')
         return redirect(url_for('admin.adm_subsidy'))
@@ -645,7 +735,7 @@ def subsidy_list(category):
         return redirect(url_for('admin.adm_subsidy'))
     
     # Base query with user join
-    query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+    query = _scoped_community_users_query().join(User, CommunityUsers.user_id == User.id)
 
     member_user_ids = _get_subsidy_member_user_ids(category)
     if member_user_ids:
@@ -683,7 +773,7 @@ def subsidy_list(category):
         query = query.filter(CommunityUsers.barangay == barangay_filter)
     
     # Get all barangays for filter dropdown
-    barangays = db.session.query(CommunityUsers.barangay)\
+    barangays = _scoped_community_users_query().with_entities(CommunityUsers.barangay)\
         .filter(CommunityUsers.barangay.isnot(None))\
         .distinct()\
         .order_by(CommunityUsers.barangay)\
@@ -728,12 +818,12 @@ def remove_subsidy_beneficiary():
         flash('Invalid remove request.', 'danger')
         return redirect(url_for('admin.adm_subsidy'))
 
-    community_user = CommunityUsers.query.get(community_user_id)
+    community_user = _scoped_community_users_query().filter(CommunityUsers.id == community_user_id).first()
     if not community_user or not community_user.user:
         flash('Beneficiary record not found.', 'danger')
         return redirect(url_for('admin.subsidy_list', category=category))
 
-    subsidy_logs = UserActivityLog.query.filter(
+    subsidy_logs = _scoped_subsidy_logs_query().filter(
         UserActivityLog.user_id == community_user.user_id,
         UserActivityLog.action == 'request_subsidy',
         UserActivityLog.entity_type == 'subsidy'
@@ -798,7 +888,7 @@ def scheduled_beneficiaries_list():
     status_filter = request.args.get('status', '').strip().lower()
     ranked_program_id = request.args.get('ranked_program_id', type=int)
 
-    query = SubsidyPayout.query
+    query = _scoped_subsidy_payouts_query()
 
     if ranked_program_id:
         query = query.filter(SubsidyPayout.category_key == f'program_ranked_{ranked_program_id}')
@@ -820,7 +910,7 @@ def scheduled_beneficiaries_list():
     query = query.order_by(SubsidyPayout.created_at.desc())
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
-    status_base_query = SubsidyPayout.query
+    status_base_query = _scoped_subsidy_payouts_query()
     if ranked_program_id:
         status_base_query = status_base_query.filter(
             SubsidyPayout.category_key == f'program_ranked_{ranked_program_id}'
@@ -849,7 +939,7 @@ def scheduled_beneficiaries_list():
 @role_required('admin')
 def scheduled_beneficiaries(payout_id):
     """Display a scheduled payout with its beneficiary list and actions."""
-    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+    payout = _scoped_subsidy_payouts_query().filter_by(payout_id=payout_id).first_or_404()
     beneficiaries = payout.snapshot_data
 
     ranked_application_ids = [
@@ -861,7 +951,7 @@ def scheduled_beneficiaries(payout_id):
 
     pending_ranked_schedule_count = 0
     if ranked_application_ids:
-        pending_ranked_schedule_count = Applications.query.filter(
+        pending_ranked_schedule_count = _scoped_applications_query().filter(
             Applications.id.in_(ranked_application_ids),
             Applications.claim_status == 'not_scheduled'
         ).count()
@@ -881,7 +971,7 @@ def scheduled_beneficiaries(payout_id):
 @role_required('admin')
 def save_scheduled_beneficiaries(payout_id):
     """Mark a scheduled payout list as saved in the system."""
-    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+    payout = _scoped_subsidy_payouts_query().filter_by(payout_id=payout_id).first_or_404()
 
     if payout.saved_in_system:
         flash('This beneficiary list is already saved in the system.', 'info')
@@ -941,7 +1031,7 @@ def _normalize_ranked_claim_schedule(claim_date_str, claim_time_raw):
 
 def _build_ranked_snapshot_rows(program, ordered_application_ids):
     """Build snapshot payload rows for a ranked beneficiary list."""
-    app_rows = Applications.query.filter(
+    app_rows = _scoped_applications_query().filter(
         Applications.program_id == program.id,
         Applications.id.in_(ordered_application_ids)
     ).all()
@@ -984,7 +1074,7 @@ def _build_ranked_snapshot_rows(program, ordered_application_ids):
 
 def _schedule_ranked_applications(program, ordered_application_ids, claim_date, claim_time, claim_location, claim_instructions):
     """Apply payout scheduling to ranked applications and update workflow scheduling step."""
-    app_rows = Applications.query.filter(
+    app_rows = _scoped_applications_query().filter(
         Applications.program_id == program.id,
         Applications.id.in_(ordered_application_ids)
     ).all()
@@ -1091,14 +1181,14 @@ def _schedule_ranked_applications(program, ordered_application_ids, claim_date, 
 @role_required('admin')
 def schedule_saved_ranked_list(payout_id):
     """Schedule beneficiaries from a saved ranked list snapshot."""
-    payout = SubsidyPayout.query.filter_by(payout_id=payout_id).first_or_404()
+    payout = _scoped_subsidy_payouts_query().filter_by(payout_id=payout_id).first_or_404()
 
     program_id = _parse_ranked_program_id(payout.category_key)
     if not program_id:
         flash('This saved list does not support ranked scheduling.', 'warning')
         return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
 
-    program = Programs.query.get(program_id)
+    program = _scoped_programs_query().filter(Programs.id == program_id).first()
     if not program:
         flash('Linked program for this saved list could not be found.', 'danger')
         return redirect(url_for('admin.scheduled_beneficiaries', payout_id=payout_id))
@@ -1391,12 +1481,12 @@ def add_program():
 @role_required('admin')
 def edit_program(id):
     """View and edit an existing program"""
-    program = Programs.query.options(
+    program = _scoped_programs_query().options(
         db.joinedload(Programs.program_requirements)
         .joinedload(ProgramRequirements.requirement),
         db.joinedload(Programs.applications),  # Load applications for counting
         db.joinedload(Programs.workflow_steps)  # Load workflow steps
-    ).get_or_404(id)
+    ).filter(Programs.id == id).first_or_404()
     
     if request.method == 'GET':
         # Get all requirements for the form
@@ -1410,7 +1500,7 @@ def edit_program(id):
         
         # Get all barangays for filter dropdown
         barangays = [
-            row[0] for row in db.session.query(CommunityUsers.barangay)
+            row[0] for row in _scoped_community_users_query().with_entities(CommunityUsers.barangay)
             .filter(CommunityUsers.barangay.isnot(None))
             .distinct()
             .order_by(CommunityUsers.barangay)
@@ -1418,14 +1508,14 @@ def edit_program(id):
         ]
         
         # Get count of eligible unscheduled applications
-        eligible_unscheduled_count = Applications.query.filter(
+        eligible_unscheduled_count = _scoped_applications_query().filter(
             Applications.program_id == program.id,
             Applications.application_status == 'completed',
             Applications.claim_status == 'not_scheduled'
         ).count()
         
         # Add application and requirement counts
-        program.application_count = Applications.query.filter_by(program_id=program.id).count()
+        program.application_count = _scoped_applications_query().filter(Applications.program_id == program.id).count()
         program.requirement_count = ProgramRequirements.query.filter_by(program_id=program.id).count()
         
         return render_template('admin/view_edit_program.html',
@@ -1550,7 +1640,7 @@ def edit_program(id):
                 db.session.add(prog_req)
             
             # Update the last modified timestamp
-            Programs.query.filter_by(id=id).update({'updated_at': datetime.utcnow()})
+            program.updated_at = datetime.utcnow()
             
             db.session.commit()
             success_msg = 'Requirements updated successfully!'
@@ -1628,7 +1718,7 @@ def edit_program(id):
                     db.session.add(step)
             
             # Update the last modified timestamp
-            Programs.query.filter_by(id=id).update({'updated_at': datetime.utcnow()})
+                    program.updated_at = datetime.utcnow()
             
             db.session.commit()
             success_msg = 'Workflow steps updated successfully!'
@@ -1840,11 +1930,11 @@ def edit_program(id):
 @role_required('admin')
 def delete_program(id):
     """Delete a program"""
-    program = Programs.query.get_or_404(id)
+    program = _scoped_program_or_404(id)
     program_name = program.program_name
     
     # Check if program has applications
-    app_count = Applications.query.filter_by(program_id=id).count()
+    app_count = _scoped_applications_query().filter(Applications.program_id == id).count()
     if app_count > 0:
         flash(f'Cannot delete program "{program_name}" because it has {app_count} application(s).', 'danger')
         return redirect(url_for('admin.adm_programs'))
@@ -1877,7 +1967,7 @@ def delete_program(id):
 @role_required('admin')
 def view_program(id):
     """View program details"""
-    program = Programs.query.get_or_404(id)
+    program = _scoped_program_or_404(id)
     
     # Get program requirements
     requirements = db.session.query(
@@ -1890,19 +1980,19 @@ def view_program(id):
     ).all()
     
     # Get application statistics
-    total_applications = Applications.query.filter_by(program_id=id).count()
-    pending_apps = Applications.query.filter_by(
-        program_id=id,
-        application_status='pending'
+    total_applications = _scoped_applications_query().filter(Applications.program_id == id).count()
+    pending_apps = _scoped_applications_query().filter(
+        Applications.program_id == id,
+        Applications.application_status == 'pending'
     ).count()
-    approved_apps = Applications.query.filter(
+    approved_apps = _scoped_applications_query().filter(
         Applications.program_id == id,
         Applications.application_status.in_(['approved', 'active', 'completed'])
     ).count()
     
     # Get recent applications
-    recent_applications = Applications.query.filter_by(
-        program_id=id
+    recent_applications = _scoped_applications_query().filter(
+        Applications.program_id == id
     ).order_by(desc(Applications.application_date)).limit(5).all()
     
     return render_template(
@@ -1922,7 +2012,7 @@ def view_program(id):
 @role_required('admin')
 def program_ranked_list(program_id):
     """Dedicated page for generating ranked beneficiaries for a program."""
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
 
     # Start from the canonical municipality-barangay reference list,
     # then merge additional values seen in existing community records.
@@ -1959,7 +2049,7 @@ def program_ranked_list(program_id):
         for municipality in municipalities
     }
 
-    eligible_unscheduled_count = Applications.query.filter(
+    eligible_unscheduled_count = _scoped_applications_query().filter(
         Applications.program_id == program_id,
         Applications.application_status == 'completed',
         Applications.claim_status == 'not_scheduled'
@@ -1980,7 +2070,7 @@ def program_ranked_list(program_id):
 @role_required('admin')
 def generate_program_ranked_list(program_id):
     """Generate ranked beneficiaries for a specific program from completed/unscheduled applications only."""
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     data = request.get_json() or {}
 
     try:
@@ -2264,7 +2354,7 @@ def generate_program_ranked_list(program_id):
 @role_required('admin')
 def save_ranked_list_schedule_payout(program_id):
     """Save ranked selection by scheduling payout for all included application IDs."""
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     data = request.get_json() or {}
 
     application_ids_raw = data.get('application_ids') or []
@@ -2649,7 +2739,7 @@ def add_workflow_step(program_id):
     """Add a new workflow step to a program"""
     from app.models import ProgramWorkflowSteps
     
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     
     try:
         data = request.get_json() if request.is_json else request.form
@@ -2709,6 +2799,7 @@ def update_workflow_step(program_id, step_id):
     """Update a workflow step"""
     from app.models import ProgramWorkflowSteps
     
+    _scoped_program_or_404(program_id)
     step = ProgramWorkflowSteps.query.filter_by(id=step_id, program_id=program_id).first_or_404()
     
     try:
@@ -2760,6 +2851,7 @@ def delete_workflow_step(program_id, step_id):
     """Delete a workflow step"""
     from app.models import ProgramWorkflowSteps
     
+    _scoped_program_or_404(program_id)
     step = ProgramWorkflowSteps.query.filter_by(id=step_id, program_id=program_id).first_or_404()
     deleted_order = step.step_order
     
@@ -2794,7 +2886,7 @@ def reorder_workflow_steps(program_id):
     """Reorder workflow steps"""
     from app.models import ProgramWorkflowSteps
     
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     
     try:
         data = request.get_json()
@@ -2827,7 +2919,7 @@ def save_all_workflow_steps(program_id):
     """Save all workflow steps for a program (used when creating/editing program)"""
     from app.models import ProgramWorkflowSteps
     
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     
     try:
         data = request.get_json()
@@ -2871,7 +2963,7 @@ def get_workflow_steps(program_id):
     """Get all workflow steps for a program"""
     from app.models import ProgramWorkflowSteps
     
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     steps = ProgramWorkflowSteps.query.filter_by(program_id=program_id).order_by(ProgramWorkflowSteps.step_order).all()
     
     return jsonify({
@@ -2947,7 +3039,7 @@ def apply_workflow_template(program_id):
     """Apply a workflow template to a program"""
     from app.models import ProgramWorkflowSteps
     
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_program_or_404(program_id)
     
     try:
         data = request.get_json()
@@ -3067,7 +3159,7 @@ def schedule_subsidy_payout():
         if not member_user_ids:
             return subsidy_error(f'No beneficiaries found for selected category: {category_label}', 400)
 
-        query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id).filter(User.role == 'community')
+        query = _scoped_community_users_query().join(User, CommunityUsers.user_id == User.id).filter(User.role == 'community')
         query = query.filter(CommunityUsers.user_id.in_(list(member_user_ids)))
             
         query = query.order_by(User.last_name, User.first_name)
@@ -3199,7 +3291,7 @@ def create_subsidy_announcement():
             flash('Please fill in all required fields', 'error')
             return redirect(url_for('admin.adm_subsidy'))
 
-        payout_record = SubsidyPayout.query.filter_by(payout_id=payout_id).first()
+        payout_record = _scoped_subsidy_payouts_query().filter_by(payout_id=payout_id).first()
         if not payout_record:
             flash('Scheduled payout record not found.', 'error')
             return redirect(url_for('admin.adm_subsidy'))
@@ -3253,7 +3345,7 @@ def search_eligible_users():
     
     try:
         # Base query for community users with user details
-        base_query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+        base_query = _scoped_community_users_query().join(User, CommunityUsers.user_id == User.id)
         
         # Search filter
         search_filter = or_(
@@ -3335,12 +3427,21 @@ def notify_subsidy_eligibility():
         return jsonify({'success': False, 'message': 'Missing required parameters'})
     
     try:
+        try:
+            target_user_id = int(user_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid user ID'}), 400
+
         # Get the user and their community profile
-        user = User.query.get(user_id)
-        if not user or not user.community_profile:
+        community_user = _scoped_community_users_query().filter(
+            CommunityUsers.user_id == target_user_id
+        ).first()
+        if not community_user:
             return jsonify({'success': False, 'message': 'User not found or no community profile'})
-        
-        community_user = user.community_profile
+
+        user = community_user.user
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found or no community profile'})
         
         if not _is_user_verified_for_subsidy_category(community_user, category):
             return jsonify({'success': False, 'message': 'User is not verified for this subsidy category yet.'})
@@ -3372,4 +3473,5 @@ def notify_subsidy_eligibility():
         db.session.rollback()
         print(f"Error notifying subsidy eligibility: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
 

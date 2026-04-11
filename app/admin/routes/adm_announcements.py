@@ -1,11 +1,12 @@
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
+from sqlalchemy.orm import aliased
 from werkzeug.utils import secure_filename
 import os
 from app.admin import admin_bp
-from app.models import Announcements, User, AnnouncementImages, Programs
+from app.models import Announcements, User, AnnouncementImages, Programs, AdminUsers
 from app.extensions import db
 from app.utils import role_required
 from app.activity_logger import log_announcement
@@ -14,6 +15,55 @@ from app.activity_logger import log_announcement
 UPLOAD_FOLDER = 'static/uploads/announcements'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _current_admin_municipality():
+    """Return the authenticated admin's municipality scope."""
+    profile = getattr(current_user, 'admin_profile', None)
+    municipality = (profile.municipality or '').strip() if profile else ''
+    return municipality or None
+
+
+def _scoped_announcements_query():
+    """Announcements authored by admins in the current admin municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Announcements.query.filter(False)
+
+    author_user = aliased(User)
+    return Announcements.query.join(
+        author_user, Announcements.author_id == author_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == author_user.id
+    ).filter(
+        author_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_programs_query():
+    """Programs owned by admins in the current admin municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Programs.query.filter(False)
+
+    owner_user = aliased(User)
+    return Programs.query.join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == owner_user.id
+    ).filter(
+        owner_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_announcement_or_404(announcement_id):
+    """Return one municipality-scoped announcement or 404."""
+    announcement = _scoped_announcements_query().filter(Announcements.id == announcement_id).first()
+    if not announcement:
+        abort(404)
+    return announcement
 
 def allowed_file(filename):
     """Check if file extension is allowed"""
@@ -24,6 +74,10 @@ def allowed_file(filename):
 @role_required('admin')
 def announcements():
     """Display all announcements with search and filter"""
+    if not _current_admin_municipality():
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
     page = request.args.get('page', 1, type=int)
     per_page = 10
     
@@ -34,7 +88,7 @@ def announcements():
     date_range = request.args.get('date_range', '').strip()
     
     # Base query
-    query = Announcements.query
+    query = _scoped_announcements_query()
     
     # Apply search filter
     if search:
@@ -78,15 +132,15 @@ def announcements():
     today = datetime.utcnow()
     start_of_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
-    total_announcements = Announcements.query.count()
-    published_count = Announcements.query.filter_by(status='published').count()
-    draft_count = Announcements.query.filter_by(status='draft').count()
-    this_month_count = Announcements.query.filter(
+    total_announcements = _scoped_announcements_query().count()
+    published_count = _scoped_announcements_query().filter(Announcements.status == 'published').count()
+    draft_count = _scoped_announcements_query().filter(Announcements.status == 'draft').count()
+    this_month_count = _scoped_announcements_query().filter(
         Announcements.created_at >= start_of_month
     ).count()
     
     # Get all active programs for linking
-    programs = Programs.query.filter_by(is_active=True).order_by(Programs.program_name).all()
+    programs = _scoped_programs_query().filter(Programs.is_active.is_(True)).order_by(Programs.program_name).all()
     
     return render_template(
         'admin/adm_announcements.html',
@@ -118,8 +172,11 @@ def add_announcement():
             flash('Title and content are required.', 'danger')
             return redirect(url_for('admin.adm_announcements'))
         
-        # Convert program_id to integer or None
+        # Convert program_id to integer or None and enforce municipality scope.
         program_id = int(program_id) if program_id and program_id != '' else None
+        if program_id and not _scoped_programs_query().filter(Programs.id == program_id).first():
+            flash('Selected program is not available in your municipality scope.', 'danger')
+            return redirect(url_for('admin.adm_announcements'))
         
         # Create new announcement
         new_announcement = Announcements(
@@ -188,7 +245,7 @@ def add_announcement():
 @role_required('admin')
 def edit_announcement(id):
     """Edit an existing announcement and manage images"""
-    announcement = Announcements.query.get_or_404(id)
+    announcement = _scoped_announcement_or_404(id)
     
     title = request.form.get('title', '').strip()
     content = request.form.get('content', '').strip()
@@ -202,8 +259,11 @@ def edit_announcement(id):
         flash('Title and content are required.', 'danger')
         return redirect(url_for('admin.adm_announcements'))
     
-    # Convert program_id to integer or None
+    # Convert program_id to integer or None and enforce municipality scope.
     program_id = int(program_id) if program_id and program_id != '' else None
+    if program_id and not _scoped_programs_query().filter(Programs.id == program_id).first():
+        flash('Selected program is not available in your municipality scope.', 'danger')
+        return redirect(url_for('admin.adm_announcements'))
     
     # Update announcement
     announcement.announcement_title = title
@@ -278,7 +338,7 @@ def edit_announcement(id):
 @role_required('admin')
 def delete_announcement(id):
     """Delete an announcement and its images"""
-    announcement = Announcements.query.get_or_404(id)
+    announcement = _scoped_announcement_or_404(id)
     title = announcement.announcement_title
     
     try:
@@ -315,6 +375,8 @@ def delete_announcement(id):
 def delete_announcement_image(image_id):
     """Delete a single announcement image"""
     image = AnnouncementImages.query.get_or_404(image_id)
+    if not _scoped_announcements_query().filter(Announcements.id == image.announcement_id).first():
+        abort(404)
     announcement_id = image.announcement_id
     
     try:
@@ -335,7 +397,7 @@ def delete_announcement_image(image_id):
 @role_required('admin')
 def publish_announcement(id):
     """Publish a draft announcement"""
-    announcement = Announcements.query.get_or_404(id)
+    announcement = _scoped_announcement_or_404(id)
     
     if announcement.status == 'draft':
         announcement.status = 'published'
@@ -357,7 +419,7 @@ def publish_announcement(id):
 @role_required('admin')
 def unpublish_announcement(id):
     """Unpublish an announcement (set to draft)"""
-    announcement = Announcements.query.get_or_404(id)
+    announcement = _scoped_announcement_or_404(id)
     
     if announcement.status == 'published':
         announcement.status = 'draft'

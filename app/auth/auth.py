@@ -82,12 +82,14 @@ def login():
             db.session.rollback()
 
         if is_ajax_request():
-            if user.role == 'admin':
+            if user.role == 'super_admin':
+                redirect_url = url_for('super_admin.dashboard')
+            elif user.role == 'admin':
                 redirect_url = url_for('admin.dashboard')
             elif user.role == 'community':
                 redirect_url = url_for('community.dashboard')
             else:
-                redirect_url = url_for('views.home')
+                redirect_url = url_for('main.about')
             return jsonify({'success': True, 'redirect_url': redirect_url}), 200
         
         flash('Logged in successfully!', category='success')

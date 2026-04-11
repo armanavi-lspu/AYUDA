@@ -1529,13 +1529,14 @@
                         Analytics
                     </a>
                 </li>
-
                 <li class="nav-item">
-                    <a class="nav-link{% if request.path.startswith('/admin/admin_management') %} active{% endif %}" href="{{ url_for('admin.admin_management') }}">
+                    {% set has_admins_endpoint = request.url_rule and ('admin.admins' in request.url_rule.map._rules_by_endpoint) %}
+                    <a class="nav-link{% if request.path.startswith('/admin/admins') %} active{% endif %}" href="{{ url_for('admin.admins') if has_admins_endpoint else url_for('admin.admin_profile') }}">
                         <i class="fas fa-user-shield mr-2"></i>
-                        Admin Management
+                        Admins
                     </a>
                 </li>
+
                 <li class="nav-item">
                     <a class="nav-link d-flex justify-content-between align-items-center{% if comm_active %} active{% endif %}" href="#" data-toggle="collapse" data-target="#communitySubmenu" aria-expanded="{{ 'true' if comm_active else 'false' }}">
                         <span>

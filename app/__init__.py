@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify, flash, redirect, url_for
+from flask import Flask, request, jsonify, flash, redirect, url_for, template_rendered
 from pathlib import Path
 from flask_login import LoginManager, current_user
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFError
 from urllib.parse import urlparse
+from werkzeug.exceptions import Forbidden
 
 # Load environment variables for all app entry points (CLI, tests, WSGI, scripts)
 load_dotenv()
@@ -20,13 +21,50 @@ def create_app():
                 static_folder=str(root_path / "static"))
     
     app.config.from_object(Config)
+
+    ROLE_BLUEPRINT_MAP = {
+        'super_admin': 'super_admin',
+        'admin': 'admin',
+        'community': 'community',
+    }
+    ROLE_BLUEPRINTS = set(ROLE_BLUEPRINT_MAP.values())
+    ROLE_TEMPLATE_PREFIX_MAP = {
+        'super_admin': 'super_admin/',
+        'admin': 'admin/',
+        'community': 'community/',
+    }
+
+    def _is_api_or_ajax_request():
+        accept_header = (request.headers.get('Accept') or '').lower()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        accepts_json = request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html
+        is_api_like = '/api/' in request.path
+        return is_ajax or accepts_json or is_api_like or 'application/json' in accept_header
     
     # Set timezone in app config
     import pytz
     app.config['TZ'] = pytz.timezone(app.config.get('TIMEZONE', 'Asia/Manila'))
 
-    from app.utils import manila_strftime
+    from app.utils import manila_strftime, redirect_user_by_role
     app.jinja_env.filters['manila'] = manila_strftime
+
+    @template_rendered.connect_via(app)
+    def enforce_role_template_rendering(sender, template, context, **extra):
+        """Block cross-role template rendering from protected role blueprints."""
+        blueprint_name = request.blueprint
+        if blueprint_name not in ROLE_BLUEPRINTS:
+            return
+
+        if not current_user.is_authenticated:
+            return
+
+        expected_prefix = ROLE_TEMPLATE_PREFIX_MAP.get(current_user.role)
+        template_name = (getattr(template, 'name', None) or '').replace('\\', '/')
+        if not expected_prefix or not template_name:
+            return
+
+        if not template_name.startswith(expected_prefix):
+            raise Forbidden('Cross-role template access is not allowed.')
     
     # Initialize extensions
     db.init_app(app)
@@ -47,6 +85,18 @@ def create_app():
 
         flash('Security token validation failed. Please try again.', category='error')
         return redirect(request.referrer or url_for('auth.login'))
+
+    @app.errorhandler(403)
+    def handle_forbidden(error):
+        message = 'Access denied. You are not authorized to view this page.'
+
+        if _is_api_or_ajax_request():
+            return jsonify({'success': False, 'message': message}), 403
+
+        flash(message, category='danger')
+        if current_user.is_authenticated:
+            return redirect_user_by_role(current_user)
+        return redirect(url_for('auth.login'))
 
     @app.errorhandler(404)
     def handle_not_found(error):
@@ -71,6 +121,8 @@ def create_app():
 
         flash(message, category='warning')
         if current_user.is_authenticated:
+            if current_user.role == 'super_admin':
+                return redirect(url_for('super_admin.dashboard'))
             if current_user.role == 'admin':
                 return redirect(url_for('admin.dashboard'))
             if current_user.role == 'community':
@@ -81,11 +133,13 @@ def create_app():
     # Import and register blueprints
     from .auth.auth import auth_bp
     from .admin import admin_bp
+    from .super_admin import super_admin_bp
     from .community import community_bp  
     from .home.routes import home_bp
     
     app.register_blueprint(auth_bp, url_prefix='/')
     app.register_blueprint(admin_bp)
+    app.register_blueprint(super_admin_bp)
     app.register_blueprint(community_bp)  
     app.register_blueprint(home_bp)
     
@@ -109,13 +163,34 @@ def create_app():
     @app.context_processor
     def inject_notification_count():
         from flask_login import current_user
-        if current_user.is_authenticated and current_user.role == 'admin':
+        if current_user.is_authenticated and current_user.role in {'admin', 'super_admin'}:
             from app.models import Notifications
             count = Notifications.query.filter_by(
                 user_id=current_user.id, is_read=False
             ).count()
             return {'admin_unread_count': count}
         return {'admin_unread_count': 0}
+
+    @app.before_request
+    def enforce_role_blueprint_access():
+        """Prevent authenticated users from entering another role's blueprint."""
+        blueprint_name = request.blueprint
+        if blueprint_name not in ROLE_BLUEPRINTS:
+            return
+
+        if not current_user.is_authenticated:
+            return
+
+        expected_blueprint = ROLE_BLUEPRINT_MAP.get(current_user.role)
+        if expected_blueprint == blueprint_name:
+            return
+
+        message = 'Access denied. This section is restricted for your role.'
+        if _is_api_or_ajax_request():
+            return jsonify({'success': False, 'message': message}), 403
+
+        flash(message, category='danger')
+        return redirect_user_by_role(current_user)
 
     @app.before_request
     def update_last_activity():

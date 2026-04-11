@@ -97,13 +97,29 @@ def evaluate_program_profile_eligibility(priority_group, community_profile):
         'matched_groups': matched_groups,
     }
 
+def _normalize_allowed_roles(allowed_role):
+    """Return a set of allowed roles from a string or iterable input."""
+    if isinstance(allowed_role, str):
+        return {allowed_role}
+    if allowed_role is None:
+        return set()
+
+    normalized = set()
+    for role_name in allowed_role:
+        if role_name:
+            normalized.add(str(role_name))
+    return normalized
+
+
 def redirect_user_by_role(user):
     """Redirect user to appropriate dashboard based on their role."""
+    if user.role == 'super_admin':
+        return redirect(url_for('super_admin.dashboard'))
     if user.role == 'admin':
         return redirect(url_for('admin.dashboard'))
     if user.role == 'community':
         return redirect(url_for('community.dashboard'))
-    return redirect(url_for('views.home'))
+    return redirect(url_for('main.about'))
 
 def role_required(allowed_role):
     """
@@ -113,18 +129,25 @@ def role_required(allowed_role):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            allowed_roles = _normalize_allowed_roles(allowed_role)
+
             # Debug information
             print(f"Current user authenticated: {current_user.is_authenticated}")
             if current_user.is_authenticated:
                 print(f"Current user role: {current_user.role}")
-                print(f"Required roles: {allowed_role}")
+                print(f"Required roles: {allowed_roles}")
                 
             if not current_user.is_authenticated:
                 flash('Please login to access this page.', 'warning')
                 return redirect(url_for('auth.login'))
             
-            if current_user.role not in allowed_role:
-                flash(f'Access denied. This page is for {allowed_role} users only.', 'danger')
+            if not allowed_roles:
+                flash('Access denied. No roles are configured for this page.', 'danger')
+                return redirect_user_by_role(current_user)
+
+            if current_user.role not in allowed_roles:
+                roles_label = ', '.join(sorted(allowed_roles))
+                flash(f'Access denied. This page is for {roles_label} users only.', 'danger')
                 return redirect_user_by_role(current_user)
                 
             return f(*args, **kwargs)

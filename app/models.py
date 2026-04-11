@@ -56,7 +56,7 @@ class User(db.Model, UserMixin):
     first_name = db.Column(db.String(50), nullable=False)
     middle_name = db.Column(db.String(50))
     last_name = db.Column(db.String(50), nullable=False)
-    role = db.Column(db.String(20), nullable=False, index=True) # 'admin' or 'community'
+    role = db.Column(db.String(20), nullable=False, index=True) # 'super_admin', 'admin', or 'community'
     profile_pic = db.Column(db.String(255))
     last_activity = db.Column(db.DateTime)
     profile_complete_alert_dismissed = db.Column(db.Boolean, default=False)
@@ -618,6 +618,18 @@ class Notifications(db.Model):
     
     def __repr__(self):
         return f'<Notification {self.notif_title}>'
+
+
+class Municipality(db.Model):
+    __tablename__ = 'municipalities'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, onupdate=get_utc_now)
+
+    def __repr__(self):
+        return f'<Municipality {self.name}>'
 
 class CommunityUsers(db.Model):
     __tablename__ = 'community_users'

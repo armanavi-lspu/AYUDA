@@ -1,12 +1,28 @@
 from flask import render_template, jsonify, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from app.community import community_bp
-from app.models import Applications, Announcements, Programs, User, Assessment
+from app.models import Applications, Announcements, Programs, User, Assessment, AdminUsers
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion
 from sqlalchemy import desc, func
 from datetime import datetime, timedelta, date
 import pytz
+
+
+def _municipality_announcements_query():
+    """Announcements authored by admins assigned to the current community user's municipality."""
+    municipality = (current_user.community_profile.municipality or '').strip() if current_user.community_profile else ''
+    if not municipality:
+        return Announcements.query.filter(False)
+
+    return Announcements.query.join(
+        User, Announcements.author_id == User.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
 
 @community_bp.route('/dashboard')
 @login_required
@@ -26,12 +42,23 @@ def dashboard():
         user_id=current_user.id
     ).filter(Applications.application_status == 'rejected').count()
     
-    # Get available programs count
-    available_programs = Programs.query.count()
+    # Get available programs count scoped to admins in the user's municipality
+    municipality = (current_user.community_profile.municipality or '').strip() if current_user.community_profile else ''
+    if municipality:
+        available_programs = Programs.query.join(
+            User, Programs.user_id == User.id
+        ).join(
+            AdminUsers, AdminUsers.user_id == User.id
+        ).filter(
+            User.role == 'admin',
+            func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+        ).count()
+    else:
+        available_programs = 0
     
     # Get new announcements (last 30 days)
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    new_announcements = Announcements.query.filter(
+    new_announcements = _municipality_announcements_query().filter(
         Announcements.status == 'published',
         Announcements.created_at >= thirty_days_ago
     ).count()
@@ -42,8 +69,8 @@ def dashboard():
     ).order_by(desc(Applications.application_date)).limit(3).all()
     
     # Get recent announcements (last 3)
-    recent_announcements = Announcements.query.filter_by(
-        status='published'
+    recent_announcements = _municipality_announcements_query().filter(
+        Announcements.status == 'published'
     ).order_by(desc(Announcements.created_at)).limit(3).all()
     
     # Get upcoming schedule events

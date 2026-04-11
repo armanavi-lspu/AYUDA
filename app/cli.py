@@ -461,6 +461,63 @@ def fix_migration():
         db.session.rollback()
 
 
+def _set_default_super_admin_credentials():
+    """Create or reset the default super admin account to fixed credentials."""
+    email = 'super_admin26@email.com'
+    password = 'AYUDASuper_2026*'
+
+    user = User.query.filter(func.lower(User.email) == email.lower()).first()
+
+    if user:
+        user.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        user.role = 'super_admin'
+
+        # Ensure basic profile fields are populated for templates/audit views.
+        if not user.first_name:
+            user.first_name = 'Super'
+        if not user.last_name:
+            user.last_name = 'Admin'
+
+        click.echo('✅ Super admin account found and reset.')
+    else:
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(password, method='pbkdf2:sha256'),
+            first_name='Super',
+            middle_name='',
+            last_name='Admin',
+            role='super_admin',
+        )
+        db.session.add(user)
+        click.echo('✅ Super admin account created.')
+
+    db.session.commit()
+    click.echo(f'Email: {email}')
+    click.echo(f'Password: {password}')
+
+
+@click.command('add-super-admin')
+@with_appcontext
+def add_super_admin():
+    """Create the default super admin account, or reset it if it already exists."""
+    try:
+        _set_default_super_admin_credentials()
+    except Exception as e:
+        db.session.rollback()
+        click.echo(f'❌ Error adding super admin account: {e}')
+
+
+@click.command('reset-super-admin')
+@with_appcontext
+def reset_super_admin():
+    """Reset the default super admin account credentials (creates it if missing)."""
+    try:
+        _set_default_super_admin_credentials()
+    except Exception as e:
+        db.session.rollback()
+        click.echo(f'❌ Error resetting super admin account: {e}')
+
+
 def init_app(app):
     """Register CLI commands with Flask app."""
     app.cli.add_command(init_db)
@@ -468,3 +525,5 @@ def init_app(app):
     app.cli.add_command(populate_dummy_data)
     app.cli.add_command(reset_migrations)
     app.cli.add_command(fix_migration)
+    app.cli.add_command(add_super_admin)
+    app.cli.add_command(reset_super_admin)

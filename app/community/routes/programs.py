@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.community import community_bp
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram, ProgramWorkflowSteps, ApplicationWorkflowStatus
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram, ProgramWorkflowSteps, ApplicationWorkflowStatus, AdminUsers, User
 from app.extensions import db
 from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility, manila_strftime
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
@@ -12,6 +12,36 @@ from werkzeug.utils import secure_filename
 import os
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+
+def _get_current_user_municipality():
+    """Return the logged-in community user's municipality."""
+    profile = getattr(current_user, 'community_profile', None)
+    if not profile or not profile.municipality:
+        return None
+    return profile.municipality.strip()
+
+
+def _municipality_program_query():
+    """Programs created by admins assigned to the current user's municipality."""
+    municipality = _get_current_user_municipality()
+    if not municipality:
+        return db.session.query(Programs).filter(False)
+
+    municipality_key = municipality.lower()
+    return db.session.query(Programs).select_from(Programs).join(
+        User, Programs.user_id == User.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality_key
+    )
+
+
+def _get_scoped_program_or_none(program_id):
+    """Return a program only if it belongs to an admin in the user's municipality."""
+    return _municipality_program_query().filter(Programs.id == program_id).first()
 
 
 def _build_user_profile_document(profile, activity_signals=None):
@@ -128,7 +158,7 @@ def _get_content_based_recommended_programs(user, limit=4):
         Applications.user_id == user.id
     ).all()
 
-    saved_rows = Programs.query.filter(Programs.id.in_(saved_ids)).all() if saved_ids else []
+    saved_rows = _municipality_program_query().filter(Programs.id.in_(saved_ids)).all() if saved_ids else []
 
     activity_signals = {
         'saved_program_text': ' '.join(
@@ -144,7 +174,7 @@ def _get_content_based_recommended_programs(user, limit=4):
     if not user_document:
         return []
 
-    active_programs = Programs.query.filter_by(is_active=True).all()
+    active_programs = _municipality_program_query().filter(Programs.is_active.is_(True)).all()
 
     candidate_programs = [
         p for p in active_programs
@@ -300,7 +330,7 @@ def programs():
     total_programs = 0
     
     for category_key, category_name in categories.items():
-        count = Programs.query.filter_by(program_type=category_key).count()
+        count = _municipality_program_query().filter(Programs.program_type == category_key).count()
         program_stats[category_key] = {
             'name': category_name,
             'count': count
@@ -336,7 +366,7 @@ def programs_by_category(category):
         return redirect(url_for('community.programs'))
     
     # Get programs for this category
-    programs = Programs.query.filter_by(program_type=category).order_by(desc(Programs.date)).all()
+    programs = _municipality_program_query().filter(Programs.program_type == category).order_by(desc(Programs.date)).all()
     
     return render_template('community/programs_list.html',
                          programs=programs,
@@ -350,7 +380,10 @@ def programs_by_category(category):
 @role_required('community')
 def program_detail(program_id):
     """Display detailed information about a specific program"""
-    program = Programs.query.get_or_404(program_id)
+    program = _get_scoped_program_or_none(program_id)
+    if not program:
+        flash('This program is not available for your municipality.', 'warning')
+        return redirect(url_for('community.programs'))
     
     # Get user's community profile
     user_profile = current_user.community_profile
@@ -494,7 +527,10 @@ def program_detail(program_id):
 @role_required('community')
 def submit_application(program_id):
     """Create an application for a program"""
-    program = Programs.query.get_or_404(program_id)
+    program = _get_scoped_program_or_none(program_id)
+    if not program:
+        flash('This program is not available for your municipality.', 'warning')
+        return redirect(url_for('community.programs'))
     
     # Check if program application period has ended
     if program.end_date and program.end_date < datetime.utcnow().date():
@@ -608,7 +644,9 @@ def submit_application(program_id):
 @role_required('community')
 def save_program(program_id):
     """Save/bookmark a program."""
-    program = Programs.query.get_or_404(program_id)
+    program = _get_scoped_program_or_none(program_id)
+    if not program:
+        return jsonify({'status': 'error', 'message': 'Program is not available for your municipality'}), 404
     existing = SavedProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first()
     
     if existing:
@@ -631,7 +669,9 @@ def save_program(program_id):
 @role_required('community')
 def hide_program(program_id):
     """Hide/mark a program as not interested."""
-    program = Programs.query.get_or_404(program_id)
+    program = _get_scoped_program_or_none(program_id)
+    if not program:
+        return jsonify({'status': 'error', 'message': 'Program is not available for your municipality'}), 404
     existing = HiddenProgram.query.filter_by(user_id=current_user.id, program_id=program_id).first()
     
     if existing:
@@ -661,7 +701,7 @@ def search_programs():
     if category:
         filters['category'] = category
     
-    programs_query = Programs.query
+    programs_query = _municipality_program_query()
     
     if query_text:
         programs_query = programs_query.filter(
@@ -672,7 +712,7 @@ def search_programs():
         )
     
     if category:
-        programs_query = programs_query.filter_by(program_type=category)
+        programs_query = programs_query.filter(Programs.program_type == category)
     
     results = programs_query.order_by(desc(Programs.date)).all()
     

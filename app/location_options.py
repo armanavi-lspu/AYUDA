@@ -1,5 +1,10 @@
 """Standardized municipality and barangay options for Laguna coverage."""
 
+from flask import has_app_context
+from sqlalchemy import inspect
+
+from app.extensions import db
+
 MUNICIPALITY_BARANGAYS = {
     "Santa Maria": [
         "Adia",
@@ -133,18 +138,62 @@ MUNICIPALITY_BARANGAYS = {
 
 
 def get_municipalities():
+    db_municipalities = _get_municipalities_from_db()
+    if db_municipalities:
+        return db_municipalities
     return list(MUNICIPALITY_BARANGAYS.keys())
 
 
+def _get_municipalities_from_db():
+    if not has_app_context():
+        return []
+
+    try:
+        if 'municipalities' not in inspect(db.engine).get_table_names():
+            return []
+
+        from app.models import Municipality
+
+        return [
+            row[0]
+            for row in db.session.query(Municipality.name)
+            .filter(Municipality.name.isnot(None))
+            .order_by(Municipality.name)
+            .all()
+            if row[0]
+        ]
+    except Exception:
+        return []
+
+
 def get_barangays_by_municipality(municipality):
-    return MUNICIPALITY_BARANGAYS.get(municipality, [])
+    if municipality in MUNICIPALITY_BARANGAYS:
+        return MUNICIPALITY_BARANGAYS.get(municipality, [])
+
+    # For custom municipalities, infer known barangays from existing user profiles.
+    if has_app_context():
+        try:
+            from app.models import CommunityUsers
+
+            rows = db.session.query(CommunityUsers.barangay).filter(
+                CommunityUsers.municipality == municipality,
+                CommunityUsers.barangay.isnot(None),
+                CommunityUsers.barangay != '',
+            ).distinct().all()
+            return sorted({row[0] for row in rows if row[0]})
+        except Exception:
+            return []
+
+    return []
 
 
 def is_valid_municipality(municipality):
-    return municipality in MUNICIPALITY_BARANGAYS
+    return municipality in get_municipalities()
 
 
 def is_valid_barangay(municipality, barangay):
-    if municipality not in MUNICIPALITY_BARANGAYS:
-        return False
-    return barangay in MUNICIPALITY_BARANGAYS[municipality]
+    if municipality in MUNICIPALITY_BARANGAYS:
+        return barangay in MUNICIPALITY_BARANGAYS[municipality]
+
+    # Allow non-empty barangays for custom municipalities without a canonical list.
+    return bool((barangay or '').strip())

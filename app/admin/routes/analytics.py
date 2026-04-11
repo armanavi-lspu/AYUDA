@@ -6,6 +6,7 @@ from app.utils import role_required, manila_strftime
 from app.models import (
     Applications,
     Programs,
+    AdminUsers,
     CommunityUsers,
     User,
     Notifications,
@@ -25,6 +26,7 @@ from app.ml.weight_optimizer import WeightOptimizer
 from app.activity_logger import log_recommendation_saved, log_activity
 from app.location_options import get_municipalities, get_barangays_by_municipality
 from sqlalchemy import func, extract, or_
+from sqlalchemy.orm import aliased
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import csv
@@ -124,6 +126,92 @@ VALID_LOG_SCOPES = {'all', 'admin', 'community'}
 VALID_ACTIVITY_FOCUS = {'all', 'sessions', 'applications'}
 
 
+def _current_admin_municipality_key():
+    """Return normalized municipality key for the current admin, or None."""
+    admin_profile = getattr(current_user, 'admin_profile', None)
+    municipality = (getattr(admin_profile, 'municipality', None) or '').strip().lower()
+    return municipality or None
+
+
+def _current_admin_municipality_display():
+    """Return display municipality for the current admin, if available."""
+    admin_profile = getattr(current_user, 'admin_profile', None)
+    municipality = (getattr(admin_profile, 'municipality', None) or '').strip()
+    return municipality or None
+
+
+def _scoped_programs_query():
+    municipality_key = _current_admin_municipality_key()
+    if not municipality_key:
+        return Programs.query.filter(False)
+
+    owner_user = aliased(User)
+    owner_admin = aliased(AdminUsers)
+    return Programs.query.join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        owner_admin, owner_admin.user_id == owner_user.id
+    ).filter(
+        func.lower(func.trim(owner_admin.municipality)) == municipality_key
+    )
+
+
+def _scoped_applications_query():
+    municipality_key = _current_admin_municipality_key()
+    if not municipality_key:
+        return Applications.query.filter(False)
+
+    owner_user = aliased(User)
+    owner_admin = aliased(AdminUsers)
+    return Applications.query.join(
+        Programs, Applications.program_id == Programs.id
+    ).join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        owner_admin, owner_admin.user_id == owner_user.id
+    ).filter(
+        func.lower(func.trim(owner_admin.municipality)) == municipality_key
+    )
+
+
+def _scoped_community_users_query():
+    municipality_key = _current_admin_municipality_key()
+    if not municipality_key:
+        return CommunityUsers.query.filter(False)
+
+    return CommunityUsers.query.filter(
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality_key
+    )
+
+
+def _scoped_admin_activity_logs_query():
+    municipality_key = _current_admin_municipality_key()
+    if not municipality_key:
+        return AdminActivityLog.query.filter(False)
+
+    actor_user = aliased(User)
+    actor_admin = aliased(AdminUsers)
+    return AdminActivityLog.query.join(
+        actor_user, AdminActivityLog.admin_id == actor_user.id
+    ).join(
+        actor_admin, actor_admin.user_id == actor_user.id
+    ).filter(
+        func.lower(func.trim(actor_admin.municipality)) == municipality_key
+    )
+
+
+def _scoped_user_activity_logs_query():
+    municipality_key = _current_admin_municipality_key()
+    if not municipality_key:
+        return UserActivityLog.query.filter(False)
+
+    return UserActivityLog.query.join(
+        CommunityUsers, UserActivityLog.user_id == CommunityUsers.user_id
+    ).filter(
+        func.lower(func.trim(CommunityUsers.municipality)) == municipality_key
+    )
+
+
 def _default_report_form_values(preset_slug=None):
     """Build default form values for the analytics report configuration page."""
     defaults = {
@@ -195,19 +283,18 @@ def _build_applications_report(start_dt, end_dt, filters):
     status_filter = (filters.get('application_status') or '').strip().lower()
     program_type_filter = (filters.get('program_type') or '').strip()
 
-    query = db.session.query(
+    applicant_user = aliased(User)
+    query = _scoped_applications_query().join(
+        applicant_user, Applications.user_id == applicant_user.id
+    ).with_entities(
         Applications.id,
         Applications.application_status,
         Applications.application_date,
-        User.first_name,
-        User.last_name,
-        User.email,
+        applicant_user.first_name,
+        applicant_user.last_name,
+        applicant_user.email,
         Programs.program_name,
         Programs.program_type,
-    ).join(
-        User, Applications.user_id == User.id
-    ).join(
-        Programs, Applications.program_id == Programs.id
     ).filter(
         Applications.application_date >= start_dt,
         Applications.application_date <= end_dt,
@@ -268,13 +355,7 @@ def _build_activity_logs_report(start_dt, end_dt, filters):
     entries = []
 
     if log_scope in {'all', 'admin'}:
-        admin_query = db.session.query(
-            AdminActivityLog,
-            User.first_name,
-            User.last_name,
-        ).join(
-            User, AdminActivityLog.admin_id == User.id
-        ).filter(
+        admin_query = _scoped_admin_activity_logs_query().filter(
             AdminActivityLog.created_at >= start_dt,
             AdminActivityLog.created_at <= end_dt,
         )
@@ -284,13 +365,17 @@ def _build_activity_logs_report(start_dt, end_dt, filters):
         elif activity_focus == 'sessions':
             admin_query = admin_query.filter(AdminActivityLog.entity_type == 'session')
 
-        for log, first_name, last_name in admin_query.all():
+        for log in admin_query.all():
+            actor_name = (log.admin_name or '').strip()
+            if not actor_name:
+                actor_name = f'Admin #{log.admin_id}' if log.admin_id else 'Admin'
+
             entries.append({
                 'created_at': log.created_at or datetime.min,
                 'role': 'Admin',
                 'row': [
                     manila_strftime(log.created_at, '%Y-%m-%d %H:%M:%S', ''),
-                    f'{first_name} {last_name}'.strip(),
+                    actor_name,
                     'Admin',
                     log.action,
                     log.action_type,
@@ -301,13 +386,7 @@ def _build_activity_logs_report(start_dt, end_dt, filters):
             })
 
     if log_scope in {'all', 'community'}:
-        community_query = db.session.query(
-            UserActivityLog,
-            User.first_name,
-            User.last_name,
-        ).join(
-            User, UserActivityLog.user_id == User.id
-        ).filter(
+        community_query = _scoped_user_activity_logs_query().filter(
             UserActivityLog.created_at >= start_dt,
             UserActivityLog.created_at <= end_dt,
         )
@@ -322,13 +401,28 @@ def _build_activity_logs_report(start_dt, end_dt, filters):
                 )
             )
 
-        for log, first_name, last_name in community_query.all():
+        community_logs = community_query.all()
+        community_user_ids = sorted({log.user_id for log in community_logs if log.user_id})
+        community_names = {}
+        if community_user_ids:
+            for user_id, first_name, last_name in db.session.query(
+                User.id, User.first_name, User.last_name
+            ).filter(
+                User.id.in_(community_user_ids)
+            ).all():
+                community_names[user_id] = f'{(first_name or "").strip()} {(last_name or "").strip()}'.strip()
+
+        for log in community_logs:
+            actor_name = community_names.get(log.user_id)
+            if not actor_name:
+                actor_name = f'User #{log.user_id}' if log.user_id else 'Community User'
+
             entries.append({
                 'created_at': log.created_at or datetime.min,
                 'role': 'Community',
                 'row': [
                     manila_strftime(log.created_at, '%Y-%m-%d %H:%M:%S', ''),
-                    f'{first_name} {last_name}'.strip(),
+                    actor_name,
                     'Community',
                     log.action,
                     log.action_type,
@@ -379,9 +473,7 @@ def _build_summary_report(start_dt, end_dt, filters):
     status_filter = (filters.get('application_status') or '').strip().lower()
     program_type_filter = (filters.get('program_type') or '').strip()
 
-    application_query = db.session.query(Applications).join(
-        Programs, Applications.program_id == Programs.id
-    ).filter(
+    application_query = _scoped_applications_query().filter(
         Applications.application_date >= start_dt,
         Applications.application_date <= end_dt,
     )
@@ -403,11 +495,9 @@ def _build_summary_report(start_dt, end_dt, filters):
         func.count(Applications.id),
     ).group_by(Applications.application_status).all()
 
-    top_programs = db.session.query(
+    top_programs = _scoped_applications_query().with_entities(
         Programs.program_name,
         func.count(Applications.id).label('application_count'),
-    ).join(
-        Applications, Programs.id == Applications.program_id
     ).filter(
         Applications.application_date >= start_dt,
         Applications.application_date <= end_dt,
@@ -422,11 +512,11 @@ def _build_summary_report(start_dt, end_dt, filters):
         func.count(Applications.id).desc()
     ).limit(5).all()
 
-    admin_activity_count = AdminActivityLog.query.filter(
+    admin_activity_count = _scoped_admin_activity_logs_query().filter(
         AdminActivityLog.created_at >= start_dt,
         AdminActivityLog.created_at <= end_dt,
     ).count()
-    community_activity_count = UserActivityLog.query.filter(
+    community_activity_count = _scoped_user_activity_logs_query().filter(
         UserActivityLog.created_at >= start_dt,
         UserActivityLog.created_at <= end_dt,
     ).count()
@@ -850,9 +940,10 @@ def analytics_analysis():
     # Get date range for filtering (default: last 12 months)
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=365)
+    admin_municipality_key = _current_admin_municipality_key()
     
     # 1. Applicants count over time (monthly aggregation)
-    applicants_over_time_raw = db.session.query(
+    applicants_over_time_raw = _scoped_applications_query().with_entities(
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
     ).filter(
@@ -866,11 +957,9 @@ def analytics_analysis():
     }
     
     # 2. Applications per program type
-    applications_by_type_raw = db.session.query(
+    applications_by_type_raw = _scoped_applications_query().with_entities(
         Programs.program_type,
         func.count(Applications.id).label('count')
-    ).join(
-        Applications, Programs.id == Applications.program_id
     ).group_by(Programs.program_type).all()
     
     applications_by_type = {
@@ -879,16 +968,18 @@ def analytics_analysis():
     }
     
     # 3. Applicants per barangay
-    applicants_by_barangay_raw = db.session.query(
-        CommunityUsers.barangay,
+    applicant_user = aliased(User)
+    applicant_profile = aliased(CommunityUsers)
+    applicants_by_barangay_raw = _scoped_applications_query().join(
+        applicant_user, Applications.user_id == applicant_user.id
+    ).join(
+        applicant_profile, applicant_profile.user_id == applicant_user.id
+    ).with_entities(
+        applicant_profile.barangay,
         func.count(Applications.id).label('count')
-    ).join(
-        User, CommunityUsers.user_id == User.id
-    ).join(
-        Applications, User.id == Applications.user_id
     ).filter(
-        CommunityUsers.barangay.isnot(None)
-    ).group_by(CommunityUsers.barangay).order_by(func.count(Applications.id).desc()).limit(10).all()
+        applicant_profile.barangay.isnot(None)
+    ).group_by(applicant_profile.barangay).order_by(func.count(Applications.id).desc()).limit(10).all()
     
     applicants_by_barangay = {
         'labels': [row.barangay for row in applicants_by_barangay_raw],
@@ -928,7 +1019,7 @@ def analytics_analysis():
         func.nullif(func.trim(CommunityUsers.municipality), ''),
         'Not Specified'
     )
-    users_by_municipality_raw = db.session.query(
+    users_by_municipality_raw = _scoped_community_users_query().with_entities(
         municipality_expr.label('municipality'),
         func.count(CommunityUsers.id).label('count')
     ).group_by(municipality_expr).all()
@@ -939,16 +1030,21 @@ def analytics_analysis():
         if normalized_name:
             users_by_municipality_counts[normalized_name] += int(row.count or 0)
 
+    if admin_municipality_key:
+        scoped_counts = {name: count for name, count in users_by_municipality_counts.items() if name.lower() == admin_municipality_key}
+        users_by_municipality_counts = {name: 0 for name in registered_municipalities}
+        users_by_municipality_counts.update(scoped_counts)
+
     users_by_municipality = {
         'labels': registered_municipalities,
         'data': [users_by_municipality_counts[name] for name in registered_municipalities]
     }
     
     # Summary statistics
-    total_applications = Applications.query.count()
-    total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar()
-    total_programs = Programs.query.count()
-    total_community_users = CommunityUsers.query.count()
+    total_applications = _scoped_applications_query().count()
+    total_applicants = _scoped_applications_query().with_entities(func.count(func.distinct(Applications.user_id))).scalar() or 0
+    total_programs = _scoped_programs_query().count()
+    total_community_users = _scoped_community_users_query().count()
     municipalities_represented = sum(1 for count in users_by_municipality_counts.values() if count > 0)
 
     top_municipality_name = 'No registered users yet'
@@ -960,7 +1056,7 @@ def analytics_analysis():
         )
     
     # Application status breakdown
-    status_breakdown = db.session.query(
+    status_breakdown = _scoped_applications_query().with_entities(
         Applications.application_status,
         func.count(Applications.id).label('count')
     ).group_by(Applications.application_status).all()
@@ -1005,7 +1101,7 @@ def analytics_reports():
 
     application_status_options = [
         row[0]
-        for row in db.session.query(Applications.application_status)
+        for row in _scoped_applications_query().with_entities(Applications.application_status)
         .filter(Applications.application_status.isnot(None))
         .distinct()
         .order_by(Applications.application_status)
@@ -1014,7 +1110,7 @@ def analytics_reports():
 
     program_type_options = [
         row[0]
-        for row in db.session.query(Programs.program_type)
+        for row in _scoped_programs_query().with_entities(Programs.program_type)
         .filter(Programs.program_type.isnot(None))
         .distinct()
         .order_by(Programs.program_type)
@@ -1111,12 +1207,16 @@ def analytics_recommend():
     """Recommendation page for beneficiary selection"""
     # Exclude ESA and Emergency-period programs — they are crisis-response programs
     # that do not benefit from predictive beneficiary selection.
-    programs = Programs.query.filter(
+    programs = _scoped_programs_query().filter(
         Programs.program_type != 'ESA',
         Programs.program_period != 'Emergency'
     ).all()
-    
-    municipalities = get_municipalities()
+
+    admin_municipality = _current_admin_municipality_display()
+    municipalities = [admin_municipality] if admin_municipality else []
+    if not municipalities:
+        municipalities = get_municipalities()
+
     municipality_barangays = {
         municipality: get_barangays_by_municipality(municipality)
         for municipality in municipalities
@@ -1135,7 +1235,7 @@ def analytics_recommend():
 @role_required('admin')
 def api_get_program_parameters(program_id):
     """API endpoint to fetch program parameters for auto-fill"""
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_programs_query().filter(Programs.id == program_id).first_or_404()
     
     return jsonify({
         'success': True,
@@ -1155,7 +1255,7 @@ def api_applicants_timeseries():
     # undershoots by ~5 days/year and can exclude the earliest data point.
     start_date = end_date - relativedelta(months=months)
     
-    data = db.session.query(
+    data = _scoped_applications_query().with_entities(
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
     ).filter(
@@ -1189,15 +1289,35 @@ def api_generate_recommendations():
     Returns:
         JSON with success status, count, recommendations list, and message
     """
-    data = request.get_json()
-    
-    # Extract parameters with validation
-    program_id = data.get('program_id')
+    data = request.get_json() or {}
+    admin_municipality_key = _current_admin_municipality_key()
+    admin_municipality_display = _current_admin_municipality_display()
 
-    # Reject requests for ESA or Emergency-period programs
-    if program_id:
-        _prog = Programs.query.get(program_id)
-        if _prog and (_prog.program_type == 'ESA' or _prog.program_period == 'Emergency'):
+    if not admin_municipality_key:
+        return jsonify({
+            'success': False,
+            'message': 'Admin municipality is not configured for this account.'
+        }), 403
+
+    # Extract parameters with validation
+    scoped_program = None
+    raw_program_id = data.get('program_id')
+    program_id = None
+    if raw_program_id not in (None, ''):
+        try:
+            program_id = int(raw_program_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid program ID supplied.'}), 400
+
+        scoped_program = _scoped_programs_query().filter(Programs.id == program_id).first()
+        if not scoped_program:
+            return jsonify({
+                'success': False,
+                'message': 'Selected program was not found for your municipality.'
+            }), 404
+
+        # Reject requests for ESA or Emergency-period programs
+        if scoped_program.program_type == 'ESA' or scoped_program.program_period == 'Emergency':
             return jsonify({
                 'success': False,
                 'message': 'Recommendations are not available for ESA or Emergency-type programs.'
@@ -1214,11 +1334,14 @@ def api_generate_recommendations():
     
     # priority_barangays is a list of barangay names; empty list means include all barangays
     priority_barangays = data.get('priority_barangays', [])
-    priority_municipality = (data.get('priority_municipality') or '').strip()
+    if not isinstance(priority_barangays, list):
+        priority_barangays = []
 
-    valid_municipalities = set(get_municipalities())
-    if priority_municipality and priority_municipality not in valid_municipalities:
-        return jsonify({'success': False, 'message': 'Invalid municipality filter selected'}), 400
+    requested_priority_municipality = (data.get('priority_municipality') or '').strip()
+    if requested_priority_municipality and requested_priority_municipality.lower() != admin_municipality_key:
+        return jsonify({'success': False, 'message': 'Municipality filter must match your assigned municipality.'}), 403
+
+    priority_municipality = admin_municipality_display or requested_priority_municipality
     
     # Validate income range with comprehensive error handling
     try:
@@ -1247,6 +1370,7 @@ def api_generate_recommendations():
     # If a config_type is supplied, load defaults from the config framework
     # and let explicit request parameters override them.
     config_type = data.get('config_type')
+    preset = None
     if config_type:
         try:
             preset = ConfigFactory.get_config(config_type)
@@ -1266,7 +1390,7 @@ def api_generate_recommendations():
     solo_parent_priority = False
     student_priority = False
     pwd_priority = False
-    senior_citizen_priority = data.get('senior_citizen_priority', preset.senior_citizen_priority if config_type else False)
+    senior_citizen_priority = data.get('senior_citizen_priority', preset.senior_citizen_priority if preset else False)
     
     # Query all community users with their profiles
     query = db.session.query(
@@ -1285,14 +1409,15 @@ def api_generate_recommendations():
         CommunityUsers.occupation
     ).join(
         CommunityUsers, User.id == CommunityUsers.user_id
+    ).filter(
+        func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
     )
     
     all_users = query.all()
 
     # Build per-user application history map: user_id -> space-separated program names/types
     app_history_rows = (
-        db.session.query(Applications.user_id, Programs.program_name, Programs.program_type)
-        .join(Programs, Applications.program_id == Programs.id)
+        _scoped_applications_query().with_entities(Applications.user_id, Programs.program_name, Programs.program_type)
         .filter(Applications.application_status.in_(['approved', 'active', 'completed']))
         .all()
     )
@@ -1328,7 +1453,7 @@ def api_generate_recommendations():
     # Exclude beneficiaries already enrolled (approved/completed) in the selected program
     if program_id:
         enrolled_user_ids = set(
-            row[0] for row in db.session.query(Applications.user_id).filter(
+            row[0] for row in _scoped_applications_query().with_entities(Applications.user_id).filter(
                 Applications.program_id == program_id,
                 Applications.application_status.in_(['approved', 'completed'])
             ).all()
@@ -1340,61 +1465,60 @@ def api_generate_recommendations():
     # plain rule-based scoring.
     target_profile = None
     effective_priority_groups = data.get('priority_groups')
-    if program_id:
-        program = Programs.query.get(program_id)
-        if program:
-            if not effective_priority_groups and program.priority_group:
-                effective_priority_groups = program.priority_group
+    if scoped_program:
+        program = scoped_program
+        if not effective_priority_groups and program.priority_group:
+            effective_priority_groups = program.priority_group
 
-            # Gather qualification requirements to build a rich text feature
-            requirements = db.session.query(Requirements).join(
-                ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
-            ).filter(
-                ProgramRequirements.program_id == program_id,
-                Requirements.requirement_type == 'qualification'
-            ).all()
+        # Gather qualification requirements to build a rich text feature.
+        requirements = db.session.query(Requirements).join(
+            ProgramRequirements, Requirements.id == ProgramRequirements.requirement_id
+        ).filter(
+            ProgramRequirements.program_id == program_id,
+            Requirements.requirement_type == 'qualification'
+        ).all()
 
-            req_text = ' '.join([
-                r.requirement_name + ' ' + (r.description or '')
-                for r in requirements
-            ])
-            priority_group = (program.priority_group or '').lower()
-            priority_tokens = [token.strip() for token in priority_group.split(',') if token.strip()]
-            senior_targeted = any(
-                token in {'senior', 'senior citizen', 'senior citizens', 'seniors', 'elderly'} or
-                'senior' in token
-                for token in priority_tokens
-            )
+        req_text = ' '.join([
+            r.requirement_name + ' ' + (r.description or '')
+            for r in requirements
+        ])
+        priority_group = (program.priority_group or '').lower()
+        priority_tokens = [token.strip() for token in priority_group.split(',') if token.strip()]
+        senior_targeted = any(
+            token in {'senior', 'senior citizen', 'senior citizens', 'seniors', 'elderly'} or
+            'senior' in token
+            for token in priority_tokens
+        )
 
-            # Parse income range if available (e.g., "0-250000" or "Below 250,000")
-            # sensible default for low-income programs
-            max_inc = 250000
-            if program.income_range:
-                try:
-                    parts = str(program.income_range).replace(',', '').replace(' ', '').split('-')
-                    if len(parts) == 2:
-                        max_inc = float(parts[1])
-                except (ValueError, IndexError):
-                    pass
+        # Parse income range if available (e.g., "0-250000" or "Below 250,000")
+        # sensible default for low-income programs.
+        max_inc = 250000
+        if program.income_range:
+            try:
+                parts = str(program.income_range).replace(',', '').replace(' ', '').split('-')
+                if len(parts) == 2:
+                    max_inc = float(parts[1])
+            except (ValueError, IndexError):
+                pass
 
-            target_profile = {
-                # Use a representative age aligned with recommender configuration
-                'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
-                'family_annual_income': max_inc / 2,  # midpoint of target income range
-                'barangay': 'Unknown',
-                'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
-                'is_student': 'student' in priority_group,
-                'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
-                'is_currently_employed': False,
-                'occupation': req_text or program.description or '',
-                # Represent the program itself as a past-application signal so that
-                # beneficiaries who have applied to similar programs score higher.
-                'past_applications': ' '.join(filter(None, [
-                    program.program_name,
-                    program.program_type,
-                    program.priority_group or '',
-                ])),
-            }
+        target_profile = {
+            # Use a representative age aligned with recommender configuration.
+            'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
+            'family_annual_income': max_inc / 2,  # midpoint of target income range
+            'barangay': 'Unknown',
+            'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
+            'is_student': 'student' in priority_group,
+            'is_pwd': 'pwd' in priority_group or 'disability' in priority_group,
+            'is_currently_employed': False,
+            'occupation': req_text or program.description or '',
+            # Represent the program itself as a past-application signal so that
+            # beneficiaries who have applied to similar programs score higher.
+            'past_applications': ' '.join(filter(None, [
+                program.program_name,
+                program.program_type,
+                program.priority_group or '',
+            ])),
+        }
     
     # Use content-based filtering (CBF) when a target_profile is available;
     # otherwise fall back to rule-based priority scoring.
@@ -1498,6 +1622,15 @@ def api_save_recommendations():
     raw_user_ids = data.get('recommendation_user_ids', [])
     recommendation_user_ids = _parse_positive_int_list(raw_user_ids)
 
+    if recommendation_user_ids:
+        scoped_user_ids = {
+            row[0]
+            for row in _scoped_community_users_query().with_entities(CommunityUsers.user_id).filter(
+                CommunityUsers.user_id.in_(recommendation_user_ids)
+            ).all()
+        }
+        recommendation_user_ids = [user_id for user_id in recommendation_user_ids if user_id in scoped_user_ids]
+
     recommendation_count_raw = data.get('count', len(recommendation_user_ids))
     try:
         recommendation_count = max(0, int(recommendation_count_raw))
@@ -1506,9 +1639,9 @@ def api_save_recommendations():
 
     recommendation_count = max(recommendation_count, len(recommendation_user_ids))
 
-    program = Programs.query.get(program_id) if program_id else None
+    program = _scoped_programs_query().filter(Programs.id == program_id).first() if program_id else None
     if program_id and not program:
-        return jsonify({'success': False, 'message': 'Selected program was not found.'}), 404
+        return jsonify({'success': False, 'message': 'Selected program was not found for your municipality.'}), 404
 
     program_name = program.program_name if program else 'Unknown Program'
 
@@ -1551,7 +1684,7 @@ def api_saved_recommendations():
     limit = request.args.get('limit', 30, type=int)
     limit = max(1, min(limit, 100))
 
-    logs = AdminActivityLog.query.filter(
+    logs = _scoped_admin_activity_logs_query().filter(
         AdminActivityLog.action == 'save_recommendation',
         AdminActivityLog.entity_type == 'recommendation'
     ).order_by(
@@ -1573,7 +1706,7 @@ def api_saved_recommendations():
 
     programs_map = {}
     if program_ids:
-        programs = Programs.query.filter(Programs.id.in_(program_ids)).all()
+        programs = _scoped_programs_query().filter(Programs.id.in_(program_ids)).all()
         programs_map = {program.id: program.program_name for program in programs}
 
     saved_lists = []
@@ -1632,7 +1765,7 @@ def api_saved_recommendations():
 @role_required('admin')
 def api_saved_recommendation_detail(saved_list_id):
     """Return one saved recommendation list with beneficiary details."""
-    log = AdminActivityLog.query.filter(
+    log = _scoped_admin_activity_logs_query().filter(
         AdminActivityLog.id == saved_list_id,
         AdminActivityLog.action == 'save_recommendation',
         AdminActivityLog.entity_type == 'recommendation'
@@ -1651,7 +1784,7 @@ def api_saved_recommendation_detail(saved_list_id):
     except (TypeError, ValueError):
         program_id = None
 
-    program = Programs.query.get(program_id) if program_id else None
+    program = _scoped_programs_query().filter(Programs.id == program_id).first() if program_id else None
     program_name = program.program_name if program else (details.get('program_name') or 'Unknown Program')
 
     filters_payload = details.get('filters', {})
@@ -1674,6 +1807,7 @@ def api_saved_recommendation_detail(saved_list_id):
 
     beneficiary_rows = []
     if recommended_user_ids:
+        admin_municipality_key = _current_admin_municipality_key()
         beneficiary_rows = db.session.query(
             User.id,
             User.first_name,
@@ -1685,11 +1819,12 @@ def api_saved_recommendation_detail(saved_list_id):
             CommunityUsers.is_solo_parent,
             CommunityUsers.is_student,
             CommunityUsers.is_pwd,
-        ).outerjoin(
+        ).join(
             CommunityUsers, CommunityUsers.user_id == User.id
         ).filter(
             User.id.in_(recommended_user_ids),
-            User.role == 'community'
+            User.role == 'community',
+            func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
         ).all()
 
     row_map = {row.id: row for row in beneficiary_rows}
@@ -1747,20 +1882,22 @@ def api_notify_recommendations():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'message': 'A valid program ID is required.'}), 400
 
-    program = Programs.query.get(program_id)
+    program = _scoped_programs_query().filter(Programs.id == program_id).first()
     if not program:
-        return jsonify({'success': False, 'message': 'Selected program was not found.'}), 404
+        return jsonify({'success': False, 'message': 'Selected program was not found for your municipality.'}), 404
 
     raw_user_ids = data.get('user_ids') or data.get('recommendation_user_ids') or []
     user_ids = _parse_positive_int_list(raw_user_ids)
     if not user_ids:
         return jsonify({'success': False, 'message': 'No valid beneficiaries were provided for notification.'}), 400
 
+    admin_municipality_key = _current_admin_municipality_key()
     target_rows = db.session.query(User.id).join(
         CommunityUsers, CommunityUsers.user_id == User.id
     ).filter(
         User.id.in_(user_ids),
-        User.role == 'community'
+        User.role == 'community',
+        func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
     ).all()
 
     target_user_ids = [row[0] for row in target_rows]
@@ -1831,7 +1968,7 @@ def api_arima_forecast():
     start_date = end_date - relativedelta(months=months)
     
     # Query historical data
-    historical_data = db.session.query(
+    historical_data = _scoped_applications_query().with_entities(
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
     ).filter(
@@ -1865,11 +2002,9 @@ def api_program_forecast():
     growth_rate = request.args.get('growth_rate', type=float)
     
     # Query current program applications
-    applications_by_type = db.session.query(
+    applications_by_type = _scoped_applications_query().with_entities(
         Programs.program_type,
         func.count(Applications.id).label('count')
-    ).join(
-        Applications, Programs.id == Applications.program_id
     ).group_by(Programs.program_type).all()
     
     program_data = {
@@ -1888,7 +2023,7 @@ def api_program_forecast():
 def api_test_arima():
     """Test endpoint to validate ARIMA model performance"""
     # Get all historical data
-    all_data = db.session.query(
+    all_data = _scoped_applications_query().with_entities(
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
     ).group_by('month').order_by('month').all()
@@ -1951,12 +2086,10 @@ def api_program_timeseries_forecast():
     start_date = end_date - relativedelta(months=months)
 
     # Query per-program-type monthly counts
-    raw = db.session.query(
+    raw = _scoped_applications_query().with_entities(
         Programs.program_type,
         func.date_trunc('month', Applications.application_date).label('month'),
         func.count(Applications.id).label('count')
-    ).join(
-        Applications, Programs.id == Applications.program_id
     ).filter(
         Applications.application_date >= start_date
     ).group_by(Programs.program_type, 'month').order_by(Programs.program_type, 'month').all()
@@ -1984,11 +2117,11 @@ def api_program_timeseries_forecast():
 @role_required('admin')
 def api_explain_recommendation(user_id):
     """Explain recommendation score for a specific beneficiary."""
-    cu = CommunityUsers.query.filter_by(user_id=user_id).first()
+    cu = _scoped_community_users_query().filter_by(user_id=user_id).first()
     if not cu:
         return jsonify({'success': False, 'message': 'Beneficiary not found'}), 404
 
-    user = User.query.get(user_id)
+    user = cu.user
     beneficiary = {
         'user_id': cu.user_id,
         'first_name': user.first_name if user else '',
@@ -2004,7 +2137,7 @@ def api_explain_recommendation(user_id):
     }
 
     # Load population for comparison
-    all_cu = CommunityUsers.query.all()
+    all_cu = _scoped_community_users_query().all()
     population = [
         {
             'family_annual_income': float(c.family_annual_income) if c.family_annual_income else 0,
@@ -2030,10 +2163,14 @@ def api_explain_recommendation(user_id):
 @role_required('admin')
 def api_recommendations_with_explanations():
     """Generate recommendations with explanations attached."""
-    data = request.get_json()
+    data = request.get_json() or {}
 
     program_id = data.get('program_id')
     max_beneficiaries = int(data.get('max_beneficiaries', 50))
+    admin_municipality_key = _current_admin_municipality_key()
+
+    if not admin_municipality_key:
+        return jsonify({'success': False, 'message': 'Admin municipality is not configured for this account.'}), 403
 
     # Reuse the main recommendation logic
     all_users = db.session.query(
@@ -2043,7 +2180,11 @@ def api_recommendations_with_explanations():
         CommunityUsers.is_solo_parent, CommunityUsers.is_student,
         CommunityUsers.is_pwd, CommunityUsers.is_currently_employed,
         CommunityUsers.occupation,
-    ).join(CommunityUsers, User.id == CommunityUsers.user_id).all()
+    ).join(
+        CommunityUsers, User.id == CommunityUsers.user_id
+    ).filter(
+        func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
+    ).all()
 
     beneficiaries_data = [
         {
@@ -2103,7 +2244,11 @@ def api_fairness_audit():
     Expects a JSON body with ``recommendations`` (list of scored dicts)
     or ``program_id`` to generate recommendations first.
     """
-    data = request.get_json()
+    data = request.get_json() or {}
+    admin_municipality_key = _current_admin_municipality_key()
+
+    if not admin_municipality_key:
+        return jsonify({'success': False, 'message': 'Admin municipality is not configured for this account.'}), 403
 
     # Either use provided recommendations or generate them
     recommendations = data.get('recommendations')
@@ -2117,7 +2262,11 @@ def api_fairness_audit():
             CommunityUsers.is_solo_parent, CommunityUsers.is_student,
             CommunityUsers.is_pwd, CommunityUsers.is_currently_employed,
             CommunityUsers.occupation,
-        ).join(CommunityUsers, User.id == CommunityUsers.user_id).all()
+        ).join(
+            CommunityUsers, User.id == CommunityUsers.user_id
+        ).filter(
+            func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
+        ).all()
 
         beneficiaries_data = [
             {
@@ -2146,7 +2295,7 @@ def api_fairness_audit():
         auditor = FairnessAuditor(beneficiaries_data, recommendations)
     else:
         # Use all community users as the population baseline
-        all_cu = CommunityUsers.query.all()
+        all_cu = _scoped_community_users_query().all()
         population = [
             {
                 'barangay': c.barangay,
@@ -2171,7 +2320,7 @@ def api_fairness_audit():
 @role_required('admin')
 def api_program_compatibility(program_id):
     """Score beneficiary compatibility for a specific program."""
-    program = Programs.query.get_or_404(program_id)
+    program = _scoped_programs_query().filter(Programs.id == program_id).first_or_404()
     user_id = request.args.get('user_id', type=int)
 
     program_dict = {
@@ -2194,11 +2343,11 @@ def api_program_compatibility(program_id):
             })
 
     # Load historical data for approval rate calculation
-    historical_raw = db.session.query(
+    historical_raw = _scoped_applications_query().join(
+        CommunityUsers, Applications.user_id == CommunityUsers.user_id
+    ).with_entities(
         Applications.user_id, Applications.program_id,
         Applications.application_status, CommunityUsers.age,
-    ).join(
-        CommunityUsers, Applications.user_id == CommunityUsers.user_id
     ).filter(
         Applications.program_id == program_id
     ).all()
@@ -2216,7 +2365,7 @@ def api_program_compatibility(program_id):
     scorer = ProgramCompatibilityScorer(historical_data=historical_data)
 
     if user_id:
-        cu = CommunityUsers.query.filter_by(user_id=user_id).first()
+        cu = _scoped_community_users_query().filter_by(user_id=user_id).first()
         if not cu:
             return jsonify({'success': False, 'message': 'Beneficiary not found'}), 404
 
@@ -2234,7 +2383,7 @@ def api_program_compatibility(program_id):
         return jsonify({'success': True, 'compatibility': result})
 
     # Score all community users
-    all_cu = CommunityUsers.query.limit(200).all()
+    all_cu = _scoped_community_users_query().limit(200).all()
     beneficiaries = [
         {
             'user_id': c.user_id,
@@ -2275,9 +2424,13 @@ def api_optimize_weights():
     """Run weight optimization to find the best configuration."""
     data = request.get_json() or {}
     objectives = data.get('objectives', ['coverage', 'equity', 'efficiency'])
+    admin_municipality_key = _current_admin_municipality_key()
+
+    if not admin_municipality_key:
+        return jsonify({'success': False, 'message': 'Admin municipality is not configured for this account.'}), 403
 
     # Load all beneficiaries
-    all_cu = CommunityUsers.query.all()
+    all_cu = _scoped_community_users_query().all()
     beneficiaries = [
         {
             'user_id': c.user_id,
@@ -2296,7 +2449,11 @@ def api_optimize_weights():
     ground_truth = None
     program_id = data.get('program_id')
     if program_id:
-        approved = db.session.query(Applications.user_id).filter(
+        scoped_program = _scoped_programs_query().filter(Programs.id == program_id).first()
+        if not scoped_program:
+            return jsonify({'success': False, 'message': 'Selected program was not found for your municipality.'}), 404
+
+        approved = _scoped_applications_query().with_entities(Applications.user_id).filter(
             Applications.program_id == program_id,
             Applications.application_status.in_(['approved', 'completed']),
         ).all()

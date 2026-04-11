@@ -1,10 +1,11 @@
-from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session
+from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import asc, desc, or_, func
+from sqlalchemy.orm import aliased
 from app.admin import admin_bp
 from app.utils import role_required, manila_strftime
-from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument
+from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument, AdminUsers
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
 from app.application_logs import build_application_activity_entries
@@ -14,6 +15,64 @@ import io
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _current_admin_municipality():
+    """Return the authenticated admin's municipality scope."""
+    profile = getattr(current_user, 'admin_profile', None)
+    municipality = (profile.municipality or '').strip() if profile else ''
+    return municipality or None
+
+
+def _scoped_programs_query():
+    """Programs created by admins in the current admin's municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Programs.query.filter(False)
+
+    owner_user = aliased(User)
+
+    return Programs.query.join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == owner_user.id
+    ).filter(
+        owner_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_applications_query():
+    """Applications for programs owned by admins in the current municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Applications.query.filter(False)
+
+    owner_user = aliased(User)
+
+    return Applications.query.join(
+        Programs, Applications.program_id == Programs.id
+    ).join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == owner_user.id
+    ).filter(
+        owner_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_application_or_404(application_id):
+    """Return one municipality-scoped application or 404."""
+    application = _scoped_applications_query().filter(Applications.id == application_id).first()
+    if not application:
+        abort(404)
+    return application
+
+
+def _application_is_in_scope(application_id):
+    """Fast boolean check for municipality application scope."""
+    return _scoped_applications_query().filter(Applications.id == application_id).count() > 0
 
 
 def check_qualification(requirement, user_profile):
@@ -110,6 +169,10 @@ def check_all_qualifications(application):
 @role_required('admin')
 def applications():
     """Display all applications with filters"""
+    if not _current_admin_municipality():
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
     page = request.args.get('page', 1, type=int)
     per_page = 15
     
@@ -130,7 +193,7 @@ def applications():
             sort_order = 'desc'
     
     # Base query
-    query = Applications.query
+    query = _scoped_applications_query()
     user_joined = False
     
     # Apply status filter
@@ -311,15 +374,15 @@ def applications():
                 app.meets_all_qualifications = False if app.met_qualifications < app.total_qualifications else True
     
     # Get statistics
-    total_apps = Applications.query.count()
-    pending_apps = Applications.query.filter_by(application_status='pending').count()
-    approved_apps = Applications.query.filter_by(application_status='approved').count()
-    rejected_apps = Applications.query.filter_by(application_status='rejected').count()
-    active_apps = Applications.query.filter_by(application_status='active').count()
-    completed_apps = Applications.query.filter_by(application_status='completed').count()
+    total_apps = _scoped_applications_query().count()
+    pending_apps = _scoped_applications_query().filter(Applications.application_status == 'pending').count()
+    approved_apps = _scoped_applications_query().filter(Applications.application_status == 'approved').count()
+    rejected_apps = _scoped_applications_query().filter(Applications.application_status == 'rejected').count()
+    active_apps = _scoped_applications_query().filter(Applications.application_status == 'active').count()
+    completed_apps = _scoped_applications_query().filter(Applications.application_status == 'completed').count()
     
     # Get all programs for filter dropdown
-    programs = Programs.query.filter_by(is_active=True).order_by(Programs.program_name).all()
+    programs = _scoped_programs_query().filter(Programs.is_active.is_(True)).order_by(Programs.program_name).all()
     
     return render_template(
         'admin/adm_applications.html',
@@ -343,7 +406,7 @@ def applications():
 @role_required('admin')
 def view_application(application_id):
     """View detailed application information"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Get program-specific requirements with their application document status
     # Join ProgramRequirements with Requirements and left join with ApplicationDocuments
@@ -671,7 +734,7 @@ def view_application(application_id):
 @role_required('admin')
 def application_logs(application_id):
     """Display a consolidated activity timeline for one application."""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     activity_entries = build_application_activity_entries(
         application,
         include_admin_activity=True,
@@ -691,7 +754,7 @@ def application_logs(application_id):
 @role_required('admin')
 def update_application_status(application_id):
     """Update application status (approve, reject, hold)"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     new_status = request.form.get('status')  # 'pending', 'approved', 'rejected', 'active', 'completed'
     remarks = request.form.get('remarks', '').strip()
@@ -848,7 +911,7 @@ def bulk_approve_applications():
         
         for app_id in application_ids:
             try:
-                application = Applications.query.get(app_id)
+                application = _scoped_applications_query().filter(Applications.id == app_id).first()
                 
                 if not application:
                     errors.append(f'Application #{app_id} not found')
@@ -932,7 +995,13 @@ def bulk_approve_applications():
         
         # Notify all admins about unqualified applicants
         if unqualified_applicants:
-            admin_users = User.query.filter_by(role='admin').all()
+            admin_municipality = _current_admin_municipality() or ''
+            admin_users = User.query.join(
+                AdminUsers, AdminUsers.user_id == User.id
+            ).filter(
+                User.role == 'admin',
+                func.lower(func.trim(AdminUsers.municipality)) == admin_municipality.lower()
+            ).all()
             
             # Build notification message
             unqualified_summary = []
@@ -1006,7 +1075,7 @@ def undo_bulk_approve():
         
         # Revert applications to previous state
         for item in undo_data:
-            application = Applications.query.get(item['id'])
+            application = _scoped_applications_query().filter(Applications.id == item['id']).first()
             if application:
                 application.application_status = item['previous_status']
                 application.reviewed_by = item['previous_reviewed_by']
@@ -1052,6 +1121,8 @@ def undo_bulk_approve():
 @role_required('admin')
 def admin_update_document(application_id, doc_id):
     """Update document status"""
+    _scoped_application_or_404(application_id)
+
     data = request.json or {}
     is_complete = data.get('is_complete', False)  # True/False for complete/incomplete
     notes = data.get('notes', '').strip()
@@ -1139,7 +1210,7 @@ def admin_update_document(application_id, doc_id):
 @role_required('admin')
 def verify_all_shelter_photos(application_id):
     """Verify or reject all shelter photos for an application"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     action = request.form.get('action')  # 'approve' or 'reject'
     admin_notes = request.form.get('admin_notes', '').strip()
@@ -1280,6 +1351,8 @@ def verify_all_shelter_photos(application_id):
 def verify_shelter_photo(photo_id):
     """Verify or reject a shelter photo"""
     photo = ShelterPhotos.query.get_or_404(photo_id)
+    if not _application_is_in_scope(photo.application_id):
+        abort(404)
     
     action = request.form.get('action')  # 'approve' or 'reject'
     admin_notes = request.form.get('admin_notes', '').strip()
@@ -1339,7 +1412,7 @@ from app.models import CALDocuments
 @role_required('admin')
 def verify_all_ca_documents(application_id):
     """Verify or reject both CA documents (Certificate and Proposal)"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     action = request.form.get('action')  # 'approve' or 'reject'
     admin_notes = request.form.get('admin_notes', '').strip()
@@ -1432,6 +1505,8 @@ def verify_ca_document(doc_id):
     """Verify or reject a single CA document"""
     cal_doc = CALDocuments.query.get_or_404(doc_id)
     application = cal_doc.application
+    if not _application_is_in_scope(application.id):
+        abort(404)
     
     action = request.form.get('action')  # 'approve' or 'reject'
     admin_notes = request.form.get('admin_notes', '').strip()
@@ -1522,7 +1597,7 @@ def export_applications():
     program_filter = request.args.get('program', '').strip()
     
     # Base query
-    query = Applications.query
+    query = _scoped_applications_query()
     
     if status_filter:
         query = query.filter_by(application_status=status_filter)
@@ -1582,7 +1657,7 @@ def export_applications():
 @role_required('admin')
 def schedule_claim(application_id):
     """Schedule claim date for approved/completed financial assistance application"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Verify that application is eligible for scheduling (active or completed without schedule)
     if application.application_status not in ['active', 'approved', 'completed']:
@@ -1677,7 +1752,7 @@ def schedule_claim(application_id):
 @role_required('admin')
 def remove_schedule(application_id):
     """Remove the scheduled release date and revert application status to active"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Verify that application has a schedule
     if not application.claim_date:
@@ -1740,7 +1815,7 @@ def remove_schedule(application_id):
 @role_required('admin')
 def send_approval_notification(application_id):
     """Send notification to applicant that their application is approved and ready for release"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Verify that application is approved or active
     if application.application_status not in ['approved', 'active']:
@@ -1783,7 +1858,7 @@ def send_approval_notification(application_id):
 @role_required('admin')
 def update_claim_status(application_id):
     """Update claim status (claimed, missed, etc.)"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     data = request.json or {}
     new_status = data.get('claim_status')
@@ -1839,7 +1914,7 @@ def update_claim_status(application_id):
 @role_required('admin')
 def mark_claimed_without_schedule(application_id):
     """Mark application as claimed and completed without setting a schedule - also closes the scheduling workflow step"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     data = request.json or {}
     workflow_step_id = data.get('workflow_step_id')
@@ -1896,7 +1971,7 @@ def mark_claimed_without_schedule(application_id):
 @role_required('admin')
 def application_slip(application_id):
     """Display printable application slip with verification code - Admin only"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Check if application slip is enabled for this program
     if not application.program.enable_application_slip:
@@ -1985,7 +2060,7 @@ def bulk_update_status():
         
         for app_id in application_ids:
             try:
-                application = Applications.query.get(app_id)
+                application = _scoped_applications_query().filter(Applications.id == app_id).first()
                 
                 if not application:
                     errors.append(f'Application #{app_id} not found')
@@ -2067,7 +2142,7 @@ def send_bulk_notification():
         
         for app_id in application_ids:
             try:
-                application = Applications.query.get(app_id)
+                application = _scoped_applications_query().filter(Applications.id == app_id).first()
                 
                 if not application:
                     errors.append(f'Application #{app_id} not found')
@@ -2109,6 +2184,8 @@ def send_bulk_notification():
 @role_required('admin')
 def verify_uploaded_document(application_id, upload_id):
     """Verify or reject an uploaded document"""
+    _scoped_application_or_404(application_id)
+
     upload = ApplicationDocumentUploads.query.filter_by(
         id=upload_id,
         application_id=application_id
@@ -2263,6 +2340,8 @@ def verify_uploaded_document(application_id, upload_id):
 @role_required('admin')
 def verify_document_status(application_id, doc_id):
     """Toggle doc  ument verification status (verified/pending)"""
+    _scoped_application_or_404(application_id)
+
     doc = ApplicationDocuments.query.filter_by(
         id=doc_id,
         application_id=application_id
@@ -2304,7 +2383,7 @@ def preview_beneficiaries_list():
     program_type = request.args.get('program_type', '').strip()
 
     # Strict policy: generated beneficiaries list may only include completed applications.
-    query = Applications.query.filter(
+    query = _scoped_applications_query().filter(
         Applications.application_status == 'completed'
     ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
 
@@ -2344,7 +2423,7 @@ def generate_beneficiaries_list():
         program_type = request.args.get('program_type', '').strip()
 
         # Strict policy: generated beneficiaries list may only include completed applications.
-        query = Applications.query.filter(
+        query = _scoped_applications_query().filter(
             Applications.application_status == 'completed'
         ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
 
@@ -2471,7 +2550,7 @@ def generate_beneficiaries_list():
 @role_required('admin')
 def approve_workflow_step(application_id, step_id):
     """Approve a specific workflow step"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Get workflow status
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
@@ -2606,7 +2685,7 @@ def confirm_office_submission(application_id, step_id):
 @role_required('admin')
 def reject_workflow_step(application_id, step_id):
     """Reject a specific workflow step"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Get workflow status
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
@@ -2656,7 +2735,7 @@ def reject_workflow_step(application_id, step_id):
 @role_required('admin')
 def approve_workflow_approval_step(application_id):
     """Approve an application through the workflow approval step - updates both workflow status and application status"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     feedback = request.form.get('feedback', '').strip()
     submission_deadline = request.form.get('submission_deadline', '').strip()
@@ -2737,7 +2816,7 @@ def approve_workflow_approval_step(application_id):
 @role_required('admin')
 def decline_workflow_approval_step(application_id):
     """Decline an application through the workflow approval step - updates both workflow status and application status"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     feedback = request.form.get('feedback', '').strip()
     
@@ -2915,7 +2994,7 @@ def _check_and_enable_next_step(application, completed_step_id):
 @role_required('admin')
 def reset_workflow_step(application_id, step_id):
     """Reset a workflow step to allow resubmission"""
-    application = Applications.query.get_or_404(application_id)
+    application = _scoped_application_or_404(application_id)
     
     # Get workflow status
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
@@ -2967,7 +3046,7 @@ def reset_workflow_step(application_id, step_id):
 def review_cancellation_request(application_id):
     """Approve or reject a cancellation request from a community user"""
     try:
-        application = Applications.query.get_or_404(application_id)
+        application = _scoped_application_or_404(application_id)
         
         # Verify cancellation is pending
         if not application.cancellation_requested or application.cancellation_status != 'pending':
@@ -3025,3 +3104,4 @@ def review_cancellation_request(application_id):
         db.session.rollback()
         flash(f'Error processing cancellation request: {str(e)}', 'danger')
         return redirect(url_for('admin.view_application', application_id=application_id))
+

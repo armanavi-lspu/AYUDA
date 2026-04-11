@@ -4,10 +4,11 @@ from datetime import datetime
 import json
 import uuid
 from sqlalchemy import desc, or_, func
+from sqlalchemy.orm import aliased
 from app.admin import admin_bp
 from app.models import (
     Assessment, AssessmentDocument, Applications, Programs,
-    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog
+    User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog, AdminUsers
 )
 from app.extensions import db
 from app.utils import role_required
@@ -20,6 +21,62 @@ from mimetypes import guess_type
 ASSESSMENT_UPLOAD_FOLDER = 'static/uploads/assessments'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+def _current_admin_municipality():
+    """Return the authenticated admin's municipality scope."""
+    profile = getattr(current_user, 'admin_profile', None)
+    municipality = (profile.municipality or '').strip() if profile else ''
+    return municipality or None
+
+
+def _scoped_applications_query():
+    """Applications for programs owned by admins in the current municipality."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Applications.query.filter(False)
+
+    owner_user = aliased(User)
+    return Applications.query.join(
+        Programs, Applications.program_id == Programs.id
+    ).join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == owner_user.id
+    ).filter(
+        owner_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_assessments_query():
+    """Assessments linked to municipality-scoped applications."""
+    municipality = _current_admin_municipality()
+    if not municipality:
+        return Assessment.query.filter(False)
+
+    owner_user = aliased(User)
+    return Assessment.query.join(
+        Applications, Assessment.application_id == Applications.id
+    ).join(
+        Programs, Applications.program_id == Programs.id
+    ).join(
+        owner_user, Programs.user_id == owner_user.id
+    ).join(
+        AdminUsers, AdminUsers.user_id == owner_user.id
+    ).filter(
+        owner_user.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower()
+    )
+
+
+def _scoped_assessment_or_404(assessment_id):
+    """Return one municipality-scoped assessment or 404."""
+    assessment = _scoped_assessments_query().filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        from flask import abort
+        abort(404)
+    return assessment
 
 SEVERITY_RUBRIC_FACTORS = (
     {'key': 'urgency', 'label': 'Urgency of Need', 'weight': 0.30},
@@ -301,10 +358,10 @@ def assessments_index():
     if sort_order not in ('asc', 'desc'):
         sort_order = 'desc' if sort_by == 'date' else 'asc'
 
-    query = Assessment.query
+    query = _scoped_assessments_query()
 
     if search_query:
-        query = query.join(Assessment.application).join(Applications.applicant).filter(
+        query = query.join(User, Applications.user_id == User.id).filter(
             or_(
                 Assessment.title.ilike(f'%{search_query}%'),
                 User.first_name.ilike(f'%{search_query}%'),
@@ -374,14 +431,14 @@ def assessments_index():
             }
 
     # Statistics for summary cards
-    total_assessments = Assessment.query.count()
-    requested_assessments = Assessment.query.filter_by(status='requested').count()
-    scheduled_assessments = Assessment.query.filter_by(status='scheduled').count()
-    completed_assessments = Assessment.query.filter_by(status='completed').count()
-    cancelled_assessments = Assessment.query.filter_by(status='cancelled').count()
+    total_assessments = _scoped_assessments_query().count()
+    requested_assessments = _scoped_assessments_query().filter(Assessment.status == 'requested').count()
+    scheduled_assessments = _scoped_assessments_query().filter(Assessment.status == 'scheduled').count()
+    completed_assessments = _scoped_assessments_query().filter(Assessment.status == 'completed').count()
+    cancelled_assessments = _scoped_assessments_query().filter(Assessment.status == 'cancelled').count()
 
     # Get all approved applications for the schedule form dropdown
-    approved_applications = Applications.query.filter(
+    approved_applications = _scoped_applications_query().filter(
         Applications.application_status == 'approved'
     ).order_by(desc(Applications.application_date)).all()
 
@@ -436,7 +493,7 @@ def create_assessment():
         flash(msg, 'danger')
         return redirect(url_for('admin.assessments'))
 
-    application = Applications.query.get(application_id)
+    application = _scoped_applications_query().filter(Applications.id == application_id).first()
     if not application:
         msg = 'Application not found.'
         if is_ajax:
@@ -492,7 +549,7 @@ def create_assessment():
 @role_required('admin')
 def view_assessment(assessment_id):
     """View a single assessment with its documents"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
 
     severity_rubric_factors, severity_factors_data, severity_enabled = _load_assessment_rubric(assessment)
 
@@ -511,7 +568,7 @@ def view_assessment(assessment_id):
 @role_required('admin')
 def update_assessment(assessment_id):
     """Update assessment details (findings, status, etc.)"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
 
     title = request.form.get('title', '').strip()
     description = request.form.get('description', '').strip()
@@ -727,7 +784,7 @@ def update_assessment(assessment_id):
 @role_required('admin')
 def upload_assessment_document(assessment_id):
     """Upload a document / SCSR output for an assessment"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
 
     if 'document' not in request.files:
         flash('No file selected.', 'danger')
@@ -785,7 +842,7 @@ def upload_assessment_document(assessment_id):
 @role_required('admin')
 def view_assessment_document(assessment_id, document_id):
     """View/preview an assessment document"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
     doc = AssessmentDocument.query.get_or_404(document_id)
     
     # Verify the document belongs to this assessment
@@ -819,7 +876,7 @@ def view_assessment_document(assessment_id, document_id):
 @role_required('admin')
 def download_assessment_document(assessment_id, document_id):
     """Download an assessment document"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
     doc = AssessmentDocument.query.get_or_404(document_id)
     
     # Verify the document belongs to this assessment
@@ -841,7 +898,7 @@ def download_assessment_document(assessment_id, document_id):
 @role_required('admin')
 def delete_assessment_document(assessment_id, document_id):
     """Delete an assessment document"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
     doc = AssessmentDocument.query.get_or_404(document_id)
     
     # Verify the document belongs to this assessment
@@ -869,7 +926,7 @@ def delete_assessment_document(assessment_id, document_id):
 @role_required('admin')
 def reupload_assessment_document(assessment_id, document_id):
     """Reupload/replace an assessment document"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
     doc = AssessmentDocument.query.get_or_404(document_id)
     
     # Verify the document belongs to this assessment
@@ -938,9 +995,9 @@ def reupload_assessment_document(assessment_id, document_id):
 @role_required('admin')
 def complete_assessment(assessment_id):
     """Mark assessment as complete and advance workflow to next step"""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
     application_id = assessment.application_id
-    application = Applications.query.get_or_404(application_id)
+    application = assessment.application
     
     # Mark assessment as completed
     assessment.status = 'completed'
@@ -959,7 +1016,7 @@ def complete_assessment(assessment_id):
 @role_required('admin')
 def schedule_requested_assessment(assessment_id):
     """Schedule a community-requested assessment from the assessments list modal."""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
 
     if assessment.status != 'requested':
         flash('Only assessment requests can be scheduled from this action.', 'warning')
@@ -1024,7 +1081,7 @@ def schedule_requested_assessment(assessment_id):
 @role_required('admin')
 def decline_requested_assessment(assessment_id):
     """Decline a community-requested assessment from the assessments list modal."""
-    assessment = Assessment.query.get_or_404(assessment_id)
+    assessment = _scoped_assessment_or_404(assessment_id)
 
     if assessment.status != 'requested':
         flash('Only assessment requests can be declined from this action.', 'warning')
@@ -1058,3 +1115,4 @@ def decline_requested_assessment(assessment_id):
     db.session.commit()
     flash('Assessment request declined.', 'success')
     return redirect(url_for('admin.assessments'))
+

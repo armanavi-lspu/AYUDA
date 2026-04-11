@@ -15,6 +15,32 @@ from app.utils import role_required, manila_strftime
 from app.activity_logger import log_verification_request, log_user_modification
 from app.community.routes.profile import get_income_range_display
 
+
+def _current_admin_municipality():
+    """Return the authenticated admin's municipality scope."""
+    admin_profile = getattr(current_user, 'admin_profile', None)
+    if not admin_profile or not admin_profile.municipality:
+        return None
+    return admin_profile.municipality.strip()
+
+
+def _enforce_user_municipality_scope(user, fallback_endpoint='admin.community'):
+    """Ensure the target community user belongs to the current admin municipality."""
+    admin_municipality = _current_admin_municipality()
+    user_municipality = None
+    if user and getattr(user, 'community_profile', None):
+        user_municipality = (user.community_profile.municipality or '').strip() or None
+
+    if not admin_municipality:
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for(fallback_endpoint))
+
+    if not user_municipality or user_municipality.lower() != admin_municipality.lower():
+        flash('Access denied. You can only manage community users in your municipality.', 'danger')
+        return redirect(url_for(fallback_endpoint))
+
+    return None
+
 @admin_bp.route('/community')
 @login_required
 @role_required('admin')
@@ -34,8 +60,15 @@ def community():
     sort_by = request.args.get('sort_by', 'date').strip()  # 'date' or 'name'
     sort_order = request.args.get('sort_order', 'desc').strip()  # 'asc' or 'desc'
     
-    # Base query - only community users
-    query = User.query.filter_by(role='community')
+    admin_municipality = _current_admin_municipality()
+    if not admin_municipality:
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
+    # Base query - community users scoped to current admin municipality
+    query = User.query.filter_by(role='community').filter(
+        User.community_profile.has(municipality=admin_municipality)
+    )
     
     # Apply search filter (name and email only)
     if search:
@@ -65,9 +98,10 @@ def community():
     if barangay_filter:
         query = query.filter(User.community_profile.has(barangay=barangay_filter))
 
-    # Apply municipality filter
-    if municipality_filter:
-        query = query.filter(User.community_profile.has(municipality=municipality_filter))
+    # Municipality is strictly scoped to admin municipality.
+    if municipality_filter and municipality_filter.lower() != admin_municipality.lower():
+        flash('You can only filter by your assigned municipality.', 'warning')
+    municipality_filter = admin_municipality
     
     # Apply date range filter
     if date_range:
@@ -101,14 +135,17 @@ def community():
     # Paginate results
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
-    # Get statistics
-    total_users = User.query.filter_by(role='community').count()
+    # Get statistics (municipality-scoped)
+    total_users = User.query.filter_by(role='community').filter(
+        User.community_profile.has(municipality=admin_municipality)
+    ).count()
     
     # Active users (last 7 days): consider both users.last_activity and activity logs.
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
     active_users = db.session.query(func.count(func.distinct(User.id)))\
         .outerjoin(UserActivityLog, UserActivityLog.user_id == User.id)\
         .filter(User.role == 'community')\
+        .filter(User.community_profile.has(municipality=admin_municipality))\
         .filter(
             or_(
                 User.last_activity >= seven_days_ago,
@@ -119,12 +156,14 @@ def community():
     # Users with applications - FIX: Specify the join condition explicitly
     users_with_apps = db.session.query(func.count(func.distinct(Applications.user_id)))\
         .join(User, Applications.user_id == User.id)\
-        .filter(User.role == 'community').scalar()
+        .filter(User.role == 'community')\
+        .filter(User.community_profile.has(municipality=admin_municipality)).scalar()
     
     # New users this month
     start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     new_this_month = User.query.filter(
         User.role == 'community',
+        User.community_profile.has(municipality=admin_municipality),
         User.created_at >= start_of_month
     ).count()
     
@@ -132,13 +171,11 @@ def community():
     from app.models import CommunityUsers
     barangays = db.session.query(CommunityUsers.barangay)\
         .filter(CommunityUsers.barangay.isnot(None))\
+        .filter(CommunityUsers.municipality == admin_municipality)\
         .distinct().order_by(CommunityUsers.barangay).all()
     barangays = [b[0] for b in barangays if b[0]]
 
-    municipalities = db.session.query(CommunityUsers.municipality)\
-        .filter(CommunityUsers.municipality.isnot(None))\
-        .distinct().order_by(CommunityUsers.municipality).all()
-    municipalities = [m[0] for m in municipalities if m[0]]
+    municipalities = [admin_municipality]
     
     # Add application counts to each user
     for user in pagination.items:
@@ -173,6 +210,9 @@ def community():
 def view_community_user(user_id):
     """View detailed information about a community user"""
     community_user = User.query.options(joinedload(User.community_profile)).filter_by(id=user_id, role='community').first_or_404()
+    scope_violation = _enforce_user_municipality_scope(community_user)
+    if scope_violation:
+        return scope_violation
     
     # Get application statistics
     total_apps = Applications.query.filter_by(user_id=user_id).count()
@@ -216,6 +256,9 @@ def view_community_user(user_id):
 def reset_user_password(user_id):
     """Reset a community user's password"""
     community_user = User.query.filter_by(id=user_id, role='community').first_or_404()
+    scope_violation = _enforce_user_municipality_scope(community_user)
+    if scope_violation:
+        return scope_violation
     
     # Generate temporary reset code
     reset_code = ''.join(secrets.choice(string.digits) for _ in range(8))
@@ -263,6 +306,9 @@ def reset_user_password(user_id):
 def toggle_user_status(user_id):
     """Enable or disable a community user's account"""
     community_user = User.query.filter_by(id=user_id, role='community').first_or_404()
+    scope_violation = _enforce_user_municipality_scope(community_user)
+    if scope_violation:
+        return scope_violation
     
     action = request.form.get('action', 'disable')
     
@@ -313,6 +359,9 @@ def toggle_user_status(user_id):
 def delete_community_user(user_id):
     """Delete a community user"""
     community_user = User.query.filter_by(id=user_id, role='community').first_or_404()
+    scope_violation = _enforce_user_municipality_scope(community_user)
+    if scope_violation:
+        return scope_violation
     
     # Check if user has applications
     app_count = Applications.query.filter_by(user_id=user_id).count()
@@ -366,8 +415,15 @@ def export_community_users():
     from io import StringIO
     from flask import Response
     
-    # Get all community users
-    users = User.query.filter_by(role='community').all()
+    admin_municipality = _current_admin_municipality()
+    if not admin_municipality:
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.community'))
+
+    # Get municipality-scoped community users
+    users = User.query.filter_by(role='community').filter(
+        User.community_profile.has(municipality=admin_municipality)
+    ).all()
     
     # Create CSV
     si = StringIO()
@@ -434,8 +490,14 @@ def community_verify():
     barangay_filter = request.args.get('barangay', '').strip()
     municipality_filter = request.args.get('municipality', '').strip()
     
-    # Base query - users with verification requests
+    admin_municipality = _current_admin_municipality()
+    if not admin_municipality:
+        flash('Your admin account has no municipality assigned. Please update your profile.', 'danger')
+        return redirect(url_for('admin.admin_profile'))
+
+    # Base query - users with verification requests, scoped to admin municipality
     query = CommunityUsers.query.join(User, CommunityUsers.user_id == User.id)
+    query = query.filter(CommunityUsers.municipality == admin_municipality)
     
     # Filter by verification type and status
     if verification_type == 'senior_citizen':
@@ -503,8 +565,8 @@ def community_verify():
     if barangay_filter:
         query = query.filter(CommunityUsers.barangay == barangay_filter)
 
-    if municipality_filter:
-        query = query.filter(CommunityUsers.municipality == municipality_filter)
+    if municipality_filter and municipality_filter.lower() != admin_municipality.lower():
+        flash('You can only filter by your assigned municipality.', 'warning')
     
     # Order: Pending requests first, then by creation date (newest first)
     query = query.order_by(
@@ -523,31 +585,29 @@ def community_verify():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Get statistics
-    pending_senior = CommunityUsers.query.filter_by(senior_citizen_verification='pending').count()
-    pending_pwd = CommunityUsers.query.filter_by(pwd_verification='pending').count()
-    pending_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='pending').count()
+    pending_senior = CommunityUsers.query.filter_by(senior_citizen_verification='pending').filter(CommunityUsers.municipality == admin_municipality).count()
+    pending_pwd = CommunityUsers.query.filter_by(pwd_verification='pending').filter(CommunityUsers.municipality == admin_municipality).count()
+    pending_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='pending').filter(CommunityUsers.municipality == admin_municipality).count()
     total_pending = pending_senior + pending_pwd + pending_solo_parent
     
-    approved_senior = CommunityUsers.query.filter_by(senior_citizen_verification='approved').count()
-    approved_pwd = CommunityUsers.query.filter_by(pwd_verification='approved').count()
-    approved_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='approved').count()
+    approved_senior = CommunityUsers.query.filter_by(senior_citizen_verification='approved').filter(CommunityUsers.municipality == admin_municipality).count()
+    approved_pwd = CommunityUsers.query.filter_by(pwd_verification='approved').filter(CommunityUsers.municipality == admin_municipality).count()
+    approved_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='approved').filter(CommunityUsers.municipality == admin_municipality).count()
     total_approved = approved_senior + approved_pwd + approved_solo_parent
     
-    rejected_senior = CommunityUsers.query.filter_by(senior_citizen_verification='rejected').count()
-    rejected_pwd = CommunityUsers.query.filter_by(pwd_verification='rejected').count()
-    rejected_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='rejected').count()
+    rejected_senior = CommunityUsers.query.filter_by(senior_citizen_verification='rejected').filter(CommunityUsers.municipality == admin_municipality).count()
+    rejected_pwd = CommunityUsers.query.filter_by(pwd_verification='rejected').filter(CommunityUsers.municipality == admin_municipality).count()
+    rejected_solo_parent = CommunityUsers.query.filter_by(solo_parent_verification='rejected').filter(CommunityUsers.municipality == admin_municipality).count()
     total_rejected = rejected_senior + rejected_pwd + rejected_solo_parent
     
     # Get unique barangays
     barangays = db.session.query(CommunityUsers.barangay)\
         .filter(CommunityUsers.barangay.isnot(None))\
+        .filter(CommunityUsers.municipality == admin_municipality)\
         .distinct().order_by(CommunityUsers.barangay).all()
     barangays = [b[0] for b in barangays if b[0]]
 
-    municipalities = db.session.query(CommunityUsers.municipality)\
-        .filter(CommunityUsers.municipality.isnot(None))\
-        .distinct().order_by(CommunityUsers.municipality).all()
-    municipalities = [m[0] for m in municipalities if m[0]]
+    municipalities = [admin_municipality]
     
     return render_template(
         'admin/community_verify.html',
@@ -578,6 +638,9 @@ def process_verification(user_id, verification_type):
     """Process a verification request (approve, return, or decline)."""
     community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
     user = User.query.get(user_id)
+    scope_violation = _enforce_user_municipality_scope(user, fallback_endpoint='admin.community_verify')
+    if scope_violation:
+        return scope_violation
 
     action = (request.form.get('action') or '').strip().lower()
     rejection_reason = request.form.get('rejection_reason', '').strip()
@@ -766,6 +829,9 @@ def view_verification_details(user_id):
     """View detailed verification information for a user"""
     community_user = CommunityUsers.query.filter_by(user_id=user_id).first_or_404()
     user = User.query.get(user_id)
+    scope_violation = _enforce_user_municipality_scope(user, fallback_endpoint='admin.community_verify')
+    if scope_violation:
+        return scope_violation
     
     return render_template(
         'admin/view_verification.html',

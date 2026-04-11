@@ -1,0 +1,271 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}User Accounts - AYUDA{% endblock %}
+
+{% block super_admin_content %}
+    <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1">User Accounts</h1>
+            <p class="subtitle">Manage community user accounts across all municipalities.</p>
+        </div>
+        <a href="{{ url_for('super_admin.admin_management') }}" class="btn btn-outline-custom btn-sm mt-3 mt-md-0">Go to Admin Management</a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card sa-stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Total Community Users</div>
+                            <div class="sa-stat-value">{{ total_users }}</div>
+                        </div>
+                        <div class="sa-stat-icon icon-primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card sa-stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Active Last 7 Days</div>
+                            <div class="sa-stat-value">{{ active_users }}</div>
+                        </div>
+                        <div class="sa-stat-icon icon-success">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card sa-stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">New This Month</div>
+                            <div class="sa-stat-value">{{ new_this_month }}</div>
+                        </div>
+                        <div class="sa-stat-icon icon-warning">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card sa-panel mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold"><i class="fas fa-filter mr-2"></i>Filter Users</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('super_admin.accounts') }}" class="form-row align-items-end">
+                <div class="form-group col-md-7">
+                    <label class="sa-filter-label">Search</label>
+                    <input type="text" class="form-control" name="search" value="{{ request.args.get('search', '') }}" placeholder="Name, email, municipality, or barangay">
+                </div>
+                <div class="form-group col-md-3">
+                    <label class="sa-filter-label">Municipality</label>
+                    <select class="form-control" name="municipality">
+                        <option value="">All municipalities</option>
+                        {% for municipality in municipalities %}
+                        <option value="{{ municipality }}" {% if request.args.get('municipality') == municipality %}selected{% endif %}>{{ municipality }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group col-md-2 d-flex">
+                    <button type="submit" class="btn btn-gradient-primary btn-block mr-2">Filter</button>
+                    <a href="{{ url_for('super_admin.accounts') }}" class="btn btn-outline-custom btn-block">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card sa-panel">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Community User Accounts</h6>
+            <span class="badge badge-light">{{ users|length }} records</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover sa-table mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Barangay</th>
+                        <th>Municipality</th>
+                        <th>Applications</th>
+                        <th>Created</th>
+                        <th>Last Activity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in users %}
+                    <tr>
+                        <td>{{ account.first_name }} {{ account.last_name }}</td>
+                        <td>{{ account.email }}</td>
+                        <td>{{ account.community_profile.barangay if account.community_profile else 'N/A' }}</td>
+                        <td>
+                            {% if account.community_profile and account.community_profile.municipality %}
+                                {{ account.community_profile.municipality }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ account.application_count }}</td>
+                        <td>{{ account.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                        <td>{{ account.last_activity | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                        <td>
+                            <div class="d-flex flex-wrap" style="gap: 0.35rem;">
+                                <button type="button" class="btn btn-sm btn-outline-custom" title="Reset Password" data-toggle="modal" data-target="#resetPasswordModal{{ account.id }}">
+                                        <i class="fas fa-key"></i>
+                                </button>
+
+                                <button type="button" class="btn btn-sm btn-outline-warning" title="Restrict Account" data-toggle="modal" data-target="#restrictUserModal{{ account.id }}">
+                                        <i class="fas fa-user-slash"></i>
+                                </button>
+
+                                <button type="button" class="btn btn-sm btn-outline-success" title="Restore Account" data-toggle="modal" data-target="#restoreUserModal{{ account.id }}">
+                                        <i class="fas fa-user-check"></i>
+                                </button>
+
+                                <button type="button" class="btn btn-sm btn-outline-danger" title="Delete User" data-toggle="modal" data-target="#deleteUserModal{{ account.id }}">
+                                        <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">No user accounts matched your filters.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination and pagination.pages > 1 %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="small text-muted">Page {{ pagination.page }} of {{ pagination.pages }}</div>
+            <ul class="pagination pagination-sm mb-0">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('super_admin.accounts', page=pagination.prev_num, search=request.args.get('search', ''), municipality=request.args.get('municipality', '')) }}">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('super_admin.accounts', page=pagination.next_num, search=request.args.get('search', ''), municipality=request.args.get('municipality', '')) }}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+
+    {% for account in users %}
+    <div class="modal fade" id="resetPasswordModal{{ account.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Password Reset</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Reset password for <strong>{{ account.first_name }} {{ account.last_name }}</strong>? A temporary code will be generated.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ url_for('super_admin.reset_community_user_password', user_id=account.id) }}" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-custom">Confirm Reset</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="restrictUserModal{{ account.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Restriction</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Restrict account for <strong>{{ account.first_name }} {{ account.last_name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ url_for('super_admin.toggle_community_user_status', user_id=account.id) }}" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="disable">
+                        <button type="submit" class="btn btn-warning">Confirm Restrict</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="restoreUserModal{{ account.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Restore</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Restore account for <strong>{{ account.first_name }} {{ account.last_name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ url_for('super_admin.toggle_community_user_status', user_id=account.id) }}" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="enable">
+                        <button type="submit" class="btn btn-success">Confirm Restore</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteUserModal{{ account.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Delete account permanently for <strong>{{ account.first_name }} {{ account.last_name }}</strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form method="post" action="{{ url_for('super_admin.delete_community_user_account', user_id=account.id) }}" class="mb-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endblock %}
