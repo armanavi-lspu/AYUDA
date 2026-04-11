@@ -304,8 +304,10 @@ def api_arima_forecast():
     values = [d.count for d in historical_data]
 
     forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
-    forecast_supported = forecast_result.get('forecast_supported', True)
-    forecast_message = forecast_result.get('message')
+    fallback_reason = forecast_result.get('fallback_reason')
+    forecast_note = forecast_result.get('forecast_note')
+    forecast_supported = forecast_result.get('forecast_supported', forecast_result.get('model') != 'none')
+    forecast_message = forecast_note or forecast_result.get('message')
     if forecast_supported is False and not forecast_message:
         forecast_message = 'Forecasting is not supported because there is not enough data.'
 
@@ -317,12 +319,14 @@ def api_arima_forecast():
         'forecast': forecast_result,
         'model': forecast_result.get('model', 'unknown'),
         'forecast_supported': forecast_supported,
-        'forecast_message': forecast_message,
         'data_points': len(values),
         'force_arima_mode': force_arima,
         'arima_error': forecast_result.get('arima_error', None),
         'required_data_points': forecast_result.get('required_data_points'),
         'available_data_points': forecast_result.get('available_data_points', len(values)),
+        'fallback_reason': fallback_reason,
+        'forecast_note': forecast_note,
+        'forecast_message': forecast_message,
     })
 
 

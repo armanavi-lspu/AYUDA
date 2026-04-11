@@ -887,8 +887,17 @@ function initializeAnalyticsAnalysisPage() {
                 const confidenceLower = data.forecast.confidence_lower || [];
                 const confidenceUpper = data.forecast.confidence_upper || [];
                 const modelType = data.model || 'unknown';
+                const fallbackReason = data.fallback_reason || data.forecast.fallback_reason || null;
+                const fallbackNote = data.forecast_note || data.forecast.forecast_note || null;
                 const forecastSupported = data.forecast_supported !== false;
                 const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
+                const hasLinearInsufficientDataFallback = modelType === 'linear' && fallbackReason === 'insufficient_data';
+                const hasInsufficientDataUnsupported = !forecastSupported && (
+                    fallbackReason === 'insufficient_data' ||
+                    data.forecast.reason === 'insufficient_data'
+                );
+                const linearFallbackMessage = fallbackNote ||
+                    'Not enough historical data to fit the ARIMA model. Forecasts are using linear regression fallback, and additional monthly data will support stronger and more reliable forecasts.';
                 
                 // Destroy existing chart if any
                 if (applicantsForecastChart) {
@@ -896,6 +905,12 @@ function initializeAnalyticsAnalysisPage() {
                 }
 
                 if (!forecastSupported) {
+                    if (hasInsufficientDataUnsupported) {
+                        loadFallbackForecast(forecastMessage);
+                        chartContainer.style.opacity = '1';
+                        return;
+                    }
+
                     applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
                         type: 'line',
                         data: {
@@ -960,7 +975,9 @@ function initializeAnalyticsAnalysisPage() {
                         pointRadius: 4
                     },
                     {
-                        label: `ARIMA Forecast (${modelType})`,
+                        label: hasLinearInsufficientDataFallback
+                            ? 'Forecast (Linear Regression Fallback)'
+                            : `ARIMA Forecast (${modelType})`,
                         // Connect forecast to last historical point, then show forecast values
                         data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
                         borderColor: 'rgb(246, 194, 62)',
@@ -1048,6 +1065,10 @@ function initializeAnalyticsAnalysisPage() {
                         }
                     }
                 });
+
+                if (hasLinearInsufficientDataFallback) {
+                    renderForecastStatus(chartContainer, linearFallbackMessage);
+                }
                 
                 chartContainer.style.opacity = '1';
             })
@@ -1060,7 +1081,7 @@ function initializeAnalyticsAnalysisPage() {
             });
     }
     
-    function loadFallbackForecast() {
+    function loadFallbackForecast(noteMessage = null) {
         if (!forecastApplicantsCtx) return;
 
         const chartContainer = forecastApplicantsCtx.parentElement;
@@ -1134,6 +1155,10 @@ function initializeAnalyticsAnalysisPage() {
                 }
             }
         });
+
+        if (noteMessage) {
+            renderForecastStatus(chartContainer, noteMessage);
+        }
     }
     
     // Load ARIMA forecast on page load

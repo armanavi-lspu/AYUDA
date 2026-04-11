@@ -27,10 +27,19 @@ def _clamp_non_negative(values, digits=2):
     return [round(max(0.0, float(v)), digits) for v in values]
 
 
+def _build_insufficient_data_note(required_points, available_points):
+    """Build a consistent user-facing note for low-data fallback scenarios."""
+    return (
+        f"Not enough historical data to fit the ARIMA model "
+        f"({available_points}/{required_points} data points available). "
+        "Forecasts are currently using linear regression fallback. "
+        "Adding more monthly data will support stronger and more reliable forecasts."
+    )
+
+
 def _unsupported_forecast(available_points, required_points=MIN_FORECAST_DATA_POINTS):
-    """Return a standard payload when there is not enough data to support forecasting."""
-    plural = '' if available_points == 1 else 's'
-    verb = 'is' if available_points == 1 else 'are'
+    """Return a standard payload when there is not enough data to support ARIMA."""
+    note = _build_insufficient_data_note(required_points, available_points)
     return {
         'forecast_labels': [],
         'forecast_values': [],
@@ -42,10 +51,8 @@ def _unsupported_forecast(available_points, required_points=MIN_FORECAST_DATA_PO
         'reason': 'insufficient_data',
         'available_data_points': int(available_points),
         'required_data_points': int(required_points),
-        'message': (
-            f"Forecasting is not supported because only {available_points} monthly data point{plural} {verb} available. "
-            f"At least {required_points} monthly data points are required."
-        )
+        'message': note,
+        'forecast_note': note
     }
 
 
@@ -116,14 +123,19 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
 
     # Check force mode
     force_mode = force_arima if force_arima is not None else FORCE_ARIMA_MODE
-    
+
     try:
         from statsmodels.tsa.arima.model import ARIMA
         from statsmodels.tools.sm_exceptions import ConvergenceWarning
         warnings.filterwarnings('ignore', category=ConvergenceWarning)
     except ImportError:
         # Fallback to simple linear forecast if statsmodels is not available
-        return simple_linear_forecast(historical_data, historical_labels, periods)
+        return simple_linear_forecast(
+            historical_data,
+            historical_labels,
+            periods,
+            fallback_reason='statsmodels_unavailable'
+        )
     
     # Smart detection: Use exponential smoothing for low-volume, volatile data
     # where ARIMA would just produce flat lines
@@ -145,7 +157,12 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
     series = prepare_time_series_data(historical_labels, historical_data)
     
     if series is None:
-        return simple_linear_forecast(historical_data, historical_labels, periods)
+        return simple_linear_forecast(
+            historical_data,
+            historical_labels,
+            periods,
+            fallback_reason='invalid_time_series_labels'
+        )
     
     try:
         # Determine seasonality: 12 for monthly data (need ≥36 points for 3 cycles)
@@ -250,7 +267,12 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
         
         # Fallback 2: Linear regression if all ARIMA fails
         print("  -> Falling back to linear forecast")
-        fallback = simple_linear_forecast(historical_data, historical_labels, periods)
+        fallback = simple_linear_forecast(
+            historical_data,
+            historical_labels,
+            periods,
+            fallback_reason='arima_failed'
+        )
         fallback['arima_error'] = str(e)
         return fallback
 
@@ -350,9 +372,7 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
             'confidence_upper': [],
             'model': 'none',
             'success': False,
-            'forecast_supported': False,
-            'reason': 'no_data',
-            'message': 'Forecasting is not supported because no historical data is available.'
+            'forecast_supported': False
         }
     
     try:
@@ -418,10 +438,22 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
         }
     except Exception as e:
         print(f"WARN: Exponential smoothing failed: {str(e)}")
-        return simple_linear_forecast(historical_data, historical_labels, periods)
+        return simple_linear_forecast(
+            historical_data,
+            historical_labels,
+            periods,
+            fallback_reason='exponential_smoothing_failed'
+        )
 
 
-def simple_linear_forecast(historical_data, historical_labels, periods=6):
+def simple_linear_forecast(
+    historical_data,
+    historical_labels,
+    periods=6,
+    fallback_reason=None,
+    required_data_points=None,
+    available_data_points=None
+):
     """
     Simple linear trend forecast as fallback when ARIMA is not applicable.
     
@@ -433,6 +465,9 @@ def simple_linear_forecast(historical_data, historical_labels, periods=6):
     Returns:
         dict with forecast_labels, forecast_values, and empty confidence intervals
     """
+    if available_data_points is None:
+        available_data_points = len(historical_data) if historical_data else 0
+
     if not historical_data:
         return {
             'forecast_labels': [],
@@ -442,8 +477,14 @@ def simple_linear_forecast(historical_data, historical_labels, periods=6):
             'model': 'none',
             'success': False,
             'forecast_supported': False,
-            'reason': 'no_data',
-            'message': 'Forecasting is not supported because no historical data is available.'
+            'fallback_reason': fallback_reason,
+            'required_data_points': required_data_points,
+            'available_data_points': available_data_points,
+            'forecast_note': (
+                _build_insufficient_data_note(required_data_points, available_data_points)
+                if fallback_reason == 'insufficient_data' and required_data_points
+                else None
+            )
         }
     
     # Calculate average growth rate
@@ -487,7 +528,15 @@ def simple_linear_forecast(historical_data, historical_labels, periods=6):
         'confidence_upper': confidence_upper,
         'model': 'linear',
         'success': True,
-        'forecast_supported': True
+        'forecast_supported': True,
+        'fallback_reason': fallback_reason,
+        'required_data_points': required_data_points,
+        'available_data_points': available_data_points,
+        'forecast_note': (
+            _build_insufficient_data_note(required_data_points, available_data_points)
+            if fallback_reason == 'insufficient_data' and required_data_points
+            else None
+        )
     }
 
 

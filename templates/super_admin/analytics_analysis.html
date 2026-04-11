@@ -328,13 +328,27 @@
                 const forecastLabels = (data.forecast && data.forecast.forecast_labels) || [];
                 const forecastData = (data.forecast && data.forecast.forecast_values) || [];
                 const modelType = data.model || 'unknown';
+                const fallbackReason = data.fallback_reason || (data.forecast && data.forecast.fallback_reason) || null;
+                const fallbackNote = data.forecast_note || (data.forecast && data.forecast.forecast_note) || null;
                 const forecastSupported = data.forecast_supported !== false;
                 const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
+                const hasLinearInsufficientDataFallback = modelType === 'linear' && fallbackReason === 'insufficient_data';
+                const hasInsufficientDataUnsupported = !forecastSupported && (
+                    fallbackReason === 'insufficient_data' ||
+                    ((data.forecast && data.forecast.reason) === 'insufficient_data')
+                );
+                const linearFallbackMessage = fallbackNote ||
+                    'Not enough historical data to fit the ARIMA model. Forecasts are using linear regression fallback, and additional monthly data will support stronger and more reliable forecasts.';
                 const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
 
                 if (applicantsForecastChart) applicantsForecastChart.destroy();
 
                 if (!forecastSupported) {
+                    if (hasInsufficientDataUnsupported) {
+                        renderLinearFallbackForecast(ctx, chartContainer, historicalData, historicalLabels, forecastMessage);
+                        return;
+                    }
+
                     applicantsForecastChart = new Chart(ctx.getContext('2d'), {
                         type: 'line',
                         data: {
@@ -377,7 +391,9 @@
                                 borderWidth: 3,
                             },
                             {
-                                label: `ARIMA Forecast (${modelType})`,
+                                label: hasLinearInsufficientDataFallback
+                                    ? 'Forecast (Linear Regression Fallback)'
+                                    : `ARIMA Forecast (${modelType})`,
                                 data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
                                 borderColor: 'rgb(246, 194, 62)',
                                 backgroundColor: 'rgba(246, 194, 62, 0.1)',
@@ -394,10 +410,69 @@
                         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                     },
                 });
+
+                if (hasLinearInsufficientDataFallback) {
+                    renderForecastStatus(chartContainer, linearFallbackMessage);
+                }
             })
             .catch((error) => {
                 console.error('Error loading ARIMA forecast:', error);
             });
+    }
+
+    function renderLinearFallbackForecast(ctx, chartContainer, historicalData, historicalLabels, noteMessage) {
+        const avgGrowth = historicalData.length > 1
+            ? (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length
+            : 0;
+        const forecastData = [];
+        const forecastLabels = [];
+        const lastValue = historicalData[historicalData.length - 1] || 0;
+
+        for (let i = 1; i <= 6; i += 1) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + i);
+            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
+            forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
+        }
+
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+        applicantsForecastChart = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalLabels, ...forecastLabels],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(6).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: 'Forecast (Linear Regression Fallback)',
+                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData],
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            },
+        });
+
+        if (noteMessage) {
+            renderForecastStatus(chartContainer, noteMessage);
+        }
     }
 
     function loadProgramForecast() {
