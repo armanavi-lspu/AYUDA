@@ -2,11 +2,11 @@ import json
 from datetime import datetime
 
 from flask import flash, redirect, render_template, request, url_for
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from flask_login import login_required, current_user
 from app.community import community_bp
 from app.extensions import db
-from app.models import Applications, Assessment, User, UserActivityLog
+from app.models import Applications, Assessment, User, UserActivityLog, AdminUsers
 from app.user_activity_logger import log_user_activity
 from app.utils import role_required
 
@@ -181,7 +181,16 @@ def _notify_admins(title, message, related_id=None, related_type=None):
     # Local import avoids circular import issues.
     from app.community.routes.notifications import create_notification
 
-    admins = User.query.filter_by(role='admin').all()
+    municipality = (current_user.community_profile.municipality or '').strip() if current_user.community_profile else ''
+    if not municipality:
+        return
+
+    admins = User.query.join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower(),
+    ).all()
     for admin in admins:
         create_notification(
             user_id=admin.id,

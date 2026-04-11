@@ -3,14 +3,28 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
 from app.utils import role_required, manila_strftime
-from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers, Assessment, AssessmentDocument
+from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers, Assessment, AssessmentDocument, AdminUsers
 from app.extensions import db
 from app.user_activity_logger import log_document_upload
 from app.application_logs import build_application_activity_entries
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, func
 from werkzeug.utils import secure_filename
 from PIL import Image
 import os
+
+
+def _scoped_admin_users_for_current_community_user():
+    """Return admins assigned to the current community user's municipality."""
+    municipality = (current_user.community_profile.municipality or '').strip() if current_user.community_profile else ''
+    if not municipality:
+        return []
+
+    return User.query.join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower(),
+    ).all()
 
 @community_bp.route('/applications')
 @login_required
@@ -678,7 +692,7 @@ def request_cancel_application(application_id):
         application.updated_at = datetime.utcnow()
         
         # Create notifications for admins
-        admin_users = User.query.filter_by(role='admin').all()
+        admin_users = _scoped_admin_users_for_current_community_user()
         for admin in admin_users:
             notification = Notifications(
                 user_id=admin.id,
@@ -1008,7 +1022,7 @@ def submit_documents(application_id):
             application.document_upload_status = 'uploaded'
             
             # Create notifications for all admin users
-            admin_users = User.query.filter_by(role='admin').all()
+            admin_users = _scoped_admin_users_for_current_community_user()
             for admin in admin_users:
                 admin_notification = Notifications(
                     user_id=admin.id,
@@ -1419,7 +1433,7 @@ def submit_workflow_step(application_id):
         # Create notification for admins
         from app.models import Notifications
         
-        admin_users = User.query.filter_by(role='admin').all()
+        admin_users = _scoped_admin_users_for_current_community_user()
         for admin in admin_users:
             notification = Notifications(
                 user_id=admin.id,

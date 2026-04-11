@@ -47,6 +47,20 @@ def _get_scoped_program_or_none(program_id):
     return _municipality_program_query().filter(Programs.id == program_id).first()
 
 
+def _scoped_admin_users_for_current_community_user():
+    """Return admins assigned to the current community user's municipality."""
+    municipality = _get_current_user_municipality()
+    if not municipality:
+        return []
+
+    return User.query.join(
+        AdminUsers, AdminUsers.user_id == User.id
+    ).filter(
+        User.role == 'admin',
+        func.lower(func.trim(AdminUsers.municipality)) == municipality.lower(),
+    ).all()
+
+
 def _build_user_profile_document(profile, activity_signals=None):
     """Build a normalized text profile used for content-based matching."""
     if not profile:
@@ -1075,7 +1089,7 @@ def upload_cal_documents(application_id):
             
             # Create notification for admin
             from app.models import Notifications, User
-            admins = User.query.filter_by(role='admin').all()
+            admins = _scoped_admin_users_for_current_community_user()
             for admin in admins:
                 notif = Notifications(
                     user_id=admin.id,
