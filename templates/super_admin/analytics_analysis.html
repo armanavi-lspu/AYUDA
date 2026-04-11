@@ -318,6 +318,7 @@
         if (!ctx) return;
 
         const chartContainer = ctx.parentElement;
+        chartContainer.style.opacity = '0.5';
         clearForecastStatus(chartContainer);
 
         fetch('/super-admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
@@ -327,6 +328,8 @@
                 const historicalData = data.historical.values || [];
                 const forecastLabels = (data.forecast && data.forecast.forecast_labels) || [];
                 const forecastData = (data.forecast && data.forecast.forecast_values) || [];
+                const confidenceLower = (data.forecast && data.forecast.confidence_lower) || [];
+                const confidenceUpper = (data.forecast && data.forecast.confidence_upper) || [];
                 const modelType = data.model || 'unknown';
                 const fallbackReason = data.fallback_reason || (data.forecast && data.forecast.fallback_reason) || null;
                 const fallbackNote = data.forecast_note || (data.forecast && data.forecast.forecast_note) || null;
@@ -346,6 +349,7 @@
                 if (!forecastSupported) {
                     if (hasInsufficientDataUnsupported) {
                         renderLinearFallbackForecast(ctx, chartContainer, historicalData, historicalLabels, forecastMessage);
+                        chartContainer.style.opacity = '1';
                         return;
                     }
 
@@ -362,51 +366,123 @@
                                     fill: true,
                                     tension: 0.4,
                                     borderWidth: 3,
+                                    pointBackgroundColor: 'rgb(78, 115, 223)',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4,
                                 },
                             ],
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                },
+                            },
                             scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                         },
                     });
 
                     renderForecastStatus(chartContainer, forecastMessage);
+                    chartContainer.style.opacity = '1';
                     return;
+                }
+
+                const datasets = [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                    },
+                    {
+                        label: hasLinearInsufficientDataFallback
+                            ? 'Forecast (Linear Regression Fallback)'
+                            : `ARIMA Forecast (${modelType})`,
+                        data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                    },
+                ];
+
+                if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
+                    datasets.push({
+                        label: '95% Confidence Interval',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceUpper],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: '+1',
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                    });
+                    datasets.push({
+                        label: 'Confidence Lower',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceLower],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        hidden: true,
+                    });
                 }
 
                 applicantsForecastChart = new Chart(ctx.getContext('2d'), {
                     type: 'line',
                     data: {
                         labels: [...historicalLabels, ...forecastLabels],
-                        datasets: [
-                            {
-                                label: 'Historical Data',
-                                data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
-                                borderColor: 'rgb(78, 115, 223)',
-                                backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                                fill: true,
-                                tension: 0.4,
-                                borderWidth: 3,
-                            },
-                            {
-                                label: hasLinearInsufficientDataFallback
-                                    ? 'Forecast (Linear Regression Fallback)'
-                                    : `ARIMA Forecast (${modelType})`,
-                                data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
-                                borderColor: 'rgb(246, 194, 62)',
-                                backgroundColor: 'rgba(246, 194, 62, 0.1)',
-                                fill: true,
-                                tension: 0.4,
-                                borderWidth: 3,
-                                borderDash: [5, 5],
-                            },
-                        ],
+                        datasets: datasets,
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    filter: function (item) {
+                                        return item.text !== 'Confidence Lower';
+                                    },
+                                },
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += Math.round(context.parsed.y);
+                                        }
+                                        return label;
+                                    },
+                                },
+                            },
+                        },
                         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                     },
                 });
@@ -414,9 +490,13 @@
                 if (hasLinearInsufficientDataFallback) {
                     renderForecastStatus(chartContainer, linearFallbackMessage);
                 }
+
+                chartContainer.style.opacity = '1';
             })
             .catch((error) => {
                 console.error('Error loading ARIMA forecast:', error);
+                chartContainer.style.opacity = '1';
+                renderLinearFallbackForecast(ctx, chartContainer, applicantsOverTimeData.data || [], applicantsOverTimeData.labels || []);
             });
     }
 
@@ -450,6 +530,10 @@
                         fill: true,
                         tension: 0.4,
                         borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
                     },
                     {
                         label: 'Forecast (Linear Regression Fallback)',
@@ -460,12 +544,38 @@
                         tension: 0.4,
                         borderWidth: 3,
                         borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
                     },
                 ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += Math.round(context.parsed.y);
+                                }
+                                return label;
+                            },
+                        },
+                    },
+                },
                 scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
             },
         });
