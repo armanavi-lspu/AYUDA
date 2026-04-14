@@ -26,6 +26,219 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _build_default_workflow_steps(program_type):
+    """Return default workflow step payloads for a program type."""
+    if program_type == 'ESA':
+        return [
+            {
+                'step_name': 'Upload Shelter Photos',
+                'step_description': 'Upload at least 3 photos of your current shelter/housing situation',
+                'step_type': 'photo_upload',
+                'is_pre_approval': True,
+                'requires_verification': True,
+                'allowed_file_types': 'jpg,jpeg,png,gif',
+            },
+            {
+                'step_name': 'Submit Required Documents',
+                'step_description': 'Submit all required documents at MSWD Office',
+                'step_type': 'document_submission',
+                'is_pre_approval': False,
+                'requires_verification': True,
+                'allowed_file_types': None,
+            },
+            {
+                'step_name': 'Assessment / SCSR',
+                'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report',
+                'step_type': 'assessment',
+                'is_pre_approval': False,
+                'requires_verification': True,
+                'allowed_file_types': None,
+            },
+            {
+                'step_name': 'Schedule Release',
+                'step_description': 'Schedule your assistance release date',
+                'step_type': 'scheduling',
+                'is_pre_approval': False,
+                'requires_verification': False,
+                'allowed_file_types': None,
+            },
+        ]
+
+    return [
+        {
+            'step_name': 'Application Review',
+            'step_description': '',
+            'step_type': 'approval',
+            'is_pre_approval': True,
+            'requires_verification': False,
+            'allowed_file_types': None,
+        },
+        {
+            'step_name': 'Submit Required Documents',
+            'step_description': 'Submit all required documents at MSWD Office',
+            'step_type': 'document_submission',
+            'is_pre_approval': False,
+            'requires_verification': True,
+            'allowed_file_types': None,
+        },
+        {
+            'step_name': 'Assessment / SCSR',
+            'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report',
+            'step_type': 'assessment',
+            'is_pre_approval': False,
+            'requires_verification': True,
+            'allowed_file_types': None,
+        },
+        {
+            'step_name': 'Schedule Release',
+            'step_description': 'Schedule your assistance release date',
+            'step_type': 'scheduling',
+            'is_pre_approval': False,
+            'requires_verification': False,
+            'allowed_file_types': None,
+        },
+    ]
+
+
+def _sync_program_workflow_steps(program_id, steps_data, program_type=None, apply_defaults_when_empty=False):
+    """Sync workflow steps in-place so existing statuses stay attached to stable step IDs."""
+    existing_steps = ProgramWorkflowSteps.query.filter_by(program_id=program_id).order_by(
+        ProgramWorkflowSteps.step_order.asc()
+    ).all()
+    existing_by_id = {step.id: step for step in existing_steps}
+
+    normalized_steps = []
+    for index, raw_step in enumerate(steps_data or [], start=1):
+        step_name = (raw_step.get('step_name') or '').strip()
+        if not step_name:
+            continue
+
+        raw_id = raw_step.get('id')
+        step_id = None
+        try:
+            if raw_id is not None:
+                step_id = int(raw_id)
+        except (TypeError, ValueError):
+            step_id = None
+
+        normalized_steps.append({
+            'id': step_id,
+            'step_order': index,
+            'step_name': step_name,
+            'step_description': (raw_step.get('step_description') or '').strip() or None,
+            'step_type': raw_step.get('step_type', 'approval'),
+            'is_pre_approval': bool(raw_step.get('is_pre_approval', False)),
+            'requires_verification': bool(raw_step.get('requires_verification', True)),
+            'allowed_file_types': (raw_step.get('allowed_file_types') or '').strip() or None,
+            'step_config': raw_step.get('step_config', None),
+        })
+
+    if not normalized_steps and apply_defaults_when_empty and program_type:
+        defaults = _build_default_workflow_steps(program_type)
+        normalized_steps = []
+        for index, raw_step in enumerate(defaults, start=1):
+            normalized_steps.append({
+                'id': None,
+                'step_order': index,
+                'step_name': raw_step['step_name'],
+                'step_description': raw_step['step_description'],
+                'step_type': raw_step['step_type'],
+                'is_pre_approval': raw_step['is_pre_approval'],
+                'requires_verification': raw_step['requires_verification'],
+                'allowed_file_types': raw_step['allowed_file_types'],
+                'step_config': raw_step.get('step_config', None),
+            })
+
+    # If no steps are provided in a general update, preserve existing workflow as-is.
+    if not normalized_steps:
+        return
+
+    existing_by_signature = {}
+    for step in existing_steps:
+        signature = ((step.step_type or '').strip().lower(), (step.step_name or '').strip().lower())
+        existing_by_signature.setdefault(signature, []).append(step)
+
+    used_existing_ids = set()
+    created_steps = []
+
+    for step_payload in normalized_steps:
+        matched_step = None
+        candidate_id = step_payload['id']
+        if candidate_id and candidate_id in existing_by_id and candidate_id not in used_existing_ids:
+            matched_step = existing_by_id[candidate_id]
+        else:
+            signature = (
+                (step_payload['step_type'] or '').strip().lower(),
+                (step_payload['step_name'] or '').strip().lower(),
+            )
+            for candidate in existing_by_signature.get(signature, []):
+                if candidate.id not in used_existing_ids:
+                    matched_step = candidate
+                    break
+
+        if matched_step:
+            matched_step.step_order = step_payload['step_order']
+            matched_step.step_name = step_payload['step_name']
+            matched_step.step_description = step_payload['step_description']
+            matched_step.step_type = step_payload['step_type']
+            matched_step.is_pre_approval = step_payload['is_pre_approval']
+            matched_step.requires_verification = step_payload['requires_verification']
+            matched_step.allowed_file_types = step_payload['allowed_file_types']
+            matched_step.step_config = step_payload['step_config']
+            used_existing_ids.add(matched_step.id)
+            continue
+
+        new_step = ProgramWorkflowSteps(
+            program_id=program_id,
+            step_order=step_payload['step_order'],
+            step_name=step_payload['step_name'],
+            step_description=step_payload['step_description'],
+            step_type=step_payload['step_type'],
+            is_pre_approval=step_payload['is_pre_approval'],
+            requires_verification=step_payload['requires_verification'],
+            allowed_file_types=step_payload['allowed_file_types'],
+            step_config=step_payload['step_config'],
+        )
+        db.session.add(new_step)
+        db.session.flush()
+        created_steps.append(new_step)
+
+    removed_step_ids = [step.id for step in existing_steps if step.id not in used_existing_ids]
+    if removed_step_ids:
+        ApplicationWorkflowStatus.query.filter(
+            ApplicationWorkflowStatus.workflow_step_id.in_(removed_step_ids)
+        ).delete(synchronize_session='fetch')
+        ProgramWorkflowSteps.query.filter(ProgramWorkflowSteps.id.in_(removed_step_ids)).delete(
+            synchronize_session='fetch'
+        )
+
+    if created_steps:
+        app_ids = [
+            app_id for (app_id,) in db.session.query(Applications.id).filter_by(program_id=program_id).all()
+        ]
+        if app_ids:
+            created_step_ids = [step.id for step in created_steps]
+            existing_pairs = set(
+                db.session.query(
+                    ApplicationWorkflowStatus.application_id,
+                    ApplicationWorkflowStatus.workflow_step_id,
+                ).filter(
+                    ApplicationWorkflowStatus.application_id.in_(app_ids),
+                    ApplicationWorkflowStatus.workflow_step_id.in_(created_step_ids),
+                ).all()
+            )
+            for app_id in app_ids:
+                for step_id in created_step_ids:
+                    if (app_id, step_id) not in existing_pairs:
+                        db.session.add(
+                            ApplicationWorkflowStatus(
+                                application_id=app_id,
+                                workflow_step_id=step_id,
+                                step_status='not_started',
+                            )
+                        )
+
+
 def _current_admin_municipality():
     """Return the authenticated admin's municipality scope."""
     profile = getattr(current_user, 'admin_profile', None)
@@ -1294,6 +1507,17 @@ def add_program():
             beneficiary_limit = None
         if not use_income_range:
             income_range = None
+
+        # Get duration fields
+        start_date_str = request.form.get('start_date', '').strip()
+        end_date_str = request.form.get('end_date', '').strip()
+
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        except ValueError:
+            flash('Invalid date format. Please use YYYY-MM-DD.', 'danger')
+            return redirect(url_for('admin.add_program'))
         
         # Get selected requirements
         requirement_ids = request.form.getlist('requirements')
@@ -1345,9 +1569,7 @@ def add_program():
             program_period=program_period,
             priority_group=priority_group,
             beneficiary_limit=beneficiary_limit,
-            use_beneficiary_limit=use_beneficiary_limit,
             income_range=income_range,
-            use_income_range=use_income_range,
             start_date=start_date,
             end_date=end_date,
             description=description,
@@ -1652,74 +1874,22 @@ def edit_program(id):
             
         elif update_type == 'workflow':
             # Handle workflow-only update
-            from app.models import ProgramWorkflowSteps, ApplicationWorkflowStatus
             import json
             
             workflow_steps_json = request.form.get('workflow_steps_json', '[]')
             try:
                 workflow_steps = json.loads(workflow_steps_json)
-            except:
+            except Exception:
                 workflow_steps = []
-            
-            # Delete dependent application workflow statuses first
-            workflow_step_ids = db.session.query(ProgramWorkflowSteps.id).filter_by(program_id=id).all()
-            if workflow_step_ids:
-                workflow_step_ids = [id[0] for id in workflow_step_ids]
-                ApplicationWorkflowStatus.query.filter(ApplicationWorkflowStatus.workflow_step_id.in_(workflow_step_ids)).delete(synchronize_session='fetch')
-            
-            # Delete existing workflow steps
-            ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
-            
-            # Add workflow steps
-            if workflow_steps:
-                # Add custom workflow steps (non-ESA programs only)
-                for index, step_data in enumerate(workflow_steps, start=1):
-                    if step_data.get('step_name', '').strip():
-                        step = ProgramWorkflowSteps(
-                            program_id=id,
-                            step_order=index,
-                            step_name=step_data.get('step_name', '').strip(),
-                            step_description=step_data.get('step_description', '').strip() or None,
-                            step_type=step_data.get('step_type', 'approval'),
-                            is_pre_approval=step_data.get('is_pre_approval', False),
-                            requires_verification=step_data.get('requires_verification', True),
-                            allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
-                            step_config=step_data.get('step_config', None)
-                        )
-                        db.session.add(step)
-            else:
-                # Add default workflow steps based on program type
-                if program.program_type == 'ESA':
-                    default_steps = [
-                        {'step_name': 'Upload Shelter Photos', 'step_description': 'Upload at least 3 photos of your current shelter/housing situation', 'step_type': 'photo_upload', 'is_pre_approval': True, 'requires_verification': True, 'allowed_file_types': 'jpg,jpeg,png,gif'},
-                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
-                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
-                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
-                    ]
-                else:
-                    # Default steps for other programs (AICS, CA, etc.)
-                    default_steps = [
-                        {'step_name': 'Application Review', 'step_description': '', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': False, 'allowed_file_types': None},
-                        {'step_name': 'Submit Required Documents', 'step_description': 'Submit all required documents at MSWD Office', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
-                        {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'allowed_file_types': None},
-                        {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'allowed_file_types': None}
-                    ]
-                
-                for index, step_data in enumerate(default_steps, start=1):
-                    step = ProgramWorkflowSteps(
-                        program_id=id,
-                        step_order=index,
-                        step_name=step_data['step_name'],
-                        step_description=step_data['step_description'],
-                        step_type=step_data['step_type'],
-                        is_pre_approval=step_data['is_pre_approval'],
-                        requires_verification=step_data['requires_verification'],
-                        allowed_file_types=step_data['allowed_file_types']
-                    )
-                    db.session.add(step)
+            _sync_program_workflow_steps(
+                program_id=id,
+                steps_data=workflow_steps,
+                program_type=program.program_type,
+                apply_defaults_when_empty=True,
+            )
             
             # Update the last modified timestamp
-                    program.updated_at = datetime.utcnow()
+            program.updated_at = datetime.utcnow()
             
             db.session.commit()
             success_msg = 'Workflow steps updated successfully!'
@@ -1790,9 +1960,7 @@ def edit_program(id):
         program.program_period = program_period
         program.priority_group = priority_group
         program.beneficiary_limit = beneficiary_limit
-        program.use_beneficiary_limit = use_beneficiary_limit
         program.income_range = income_range
-        program.use_income_range = use_income_range
         program.start_date = start_date
         program.end_date = end_date
         program.description = description
@@ -1858,39 +2026,22 @@ def edit_program(id):
         
         # Update workflow steps (only for full program updates, not modal-specific updates)
         if update_type != 'workflow':
-            from app.models import ProgramWorkflowSteps, ApplicationWorkflowStatus
             import json
             
-            workflow_steps_json = request.form.get('workflow_steps_json', '[]')
+            workflow_steps_json = request.form.get('workflow_steps_json')
+            workflow_steps = []
             try:
-                workflow_steps = json.loads(workflow_steps_json)
-            except:
+                if workflow_steps_json:
+                    workflow_steps = json.loads(workflow_steps_json)
+            except Exception:
                 workflow_steps = []
-            
-            # Delete dependent application workflow statuses first
-            workflow_step_ids = db.session.query(ProgramWorkflowSteps.id).filter_by(program_id=id).all()
-            if workflow_step_ids:
-                workflow_step_ids = [id[0] for id in workflow_step_ids]
-                ApplicationWorkflowStatus.query.filter(ApplicationWorkflowStatus.workflow_step_id.in_(workflow_step_ids)).delete(synchronize_session='fetch')
-            
-            # Delete existing workflow steps
-            ProgramWorkflowSteps.query.filter_by(program_id=id).delete()
-            
-            # Add new workflow steps
-            for index, step_data in enumerate(workflow_steps, start=1):
-                if step_data.get('step_name', '').strip():
-                    step = ProgramWorkflowSteps(
-                        program_id=id,
-                        step_order=index,
-                        step_name=step_data.get('step_name', '').strip(),
-                        step_description=step_data.get('step_description', '').strip() or None,
-                        step_type=step_data.get('step_type', 'approval'),
-                        is_pre_approval=step_data.get('is_pre_approval', False),
-                        requires_verification=step_data.get('requires_verification', True),
-                        allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
-                        step_config=step_data.get('step_config', None)
-                    )
-                    db.session.add(step)
+
+            _sync_program_workflow_steps(
+                program_id=id,
+                steps_data=workflow_steps,
+                program_type=program.program_type,
+                apply_defaults_when_empty=False,
+            )
         
         # Update the last modified timestamp
         program.updated_at = datetime.utcnow()
@@ -2335,7 +2486,10 @@ def generate_program_ranked_list(program_id):
             'is_solo_parent': row.get('is_solo_parent', False),
             'is_student': row.get('is_student', False),
             'is_pwd': row.get('is_pwd', False),
+            'is_currently_employed': row.get('is_currently_employed', False),
             'is_senior': (row.get('age') or 0) >= SENIOR_CITIZEN_AGE,
+            'past_applications': row.get('past_applications', ''),
+            'past_applications_count': row.get('past_applications_count', 0),
             'score': float(score_value),
             'score_breakdown': row.get('score_breakdown', {}),
         })
@@ -2918,32 +3072,20 @@ def reorder_workflow_steps(program_id):
 @role_required('admin')
 def save_all_workflow_steps(program_id):
     """Save all workflow steps for a program (used when creating/editing program)"""
-    from app.models import ProgramWorkflowSteps
-    
     program = _scoped_program_or_404(program_id)
     
     try:
         data = request.get_json()
         steps_data = data.get('steps', [])
-        
-        # Delete existing steps
-        ProgramWorkflowSteps.query.filter_by(program_id=program_id).delete()
-        
-        # Add new steps
-        for index, step_data in enumerate(steps_data, start=1):
-            step = ProgramWorkflowSteps(
-                program_id=program_id,
-                step_order=index,
-                step_name=step_data.get('step_name', '').strip(),
-                step_description=step_data.get('step_description', '').strip() or None,
-                step_type=step_data.get('step_type', 'approval'),
-                is_pre_approval=step_data.get('is_pre_approval', False),
-                requires_verification=step_data.get('requires_verification', True),
-                min_items=int(step_data.get('min_items', 1)),
-                allowed_file_types=step_data.get('allowed_file_types', '').strip() or None,
-                step_config=step_data.get('step_config', None)
-            )
-            db.session.add(step)
+
+        _sync_program_workflow_steps(
+            program_id=program_id,
+            steps_data=steps_data,
+            program_type=program.program_type,
+            apply_defaults_when_empty=True,
+        )
+
+        program.updated_at = datetime.utcnow()
         
         db.session.commit()
         
@@ -3019,7 +3161,6 @@ def get_workflow_templates():
             'steps': [
                 {'step_name': 'Application Review', 'step_description': 'Admin reviews and approves your application', 'step_type': 'approval', 'is_pre_approval': True, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Documents Online', 'step_description': 'Upload required documents through the online system', 'step_type': 'document_upload', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': 'pdf,jpg,jpeg,png'},
-                {'step_name': 'Document Verification', 'step_description': 'Admin verifies uploaded documents', 'step_type': 'verification', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Submit Physical Documents', 'step_description': 'Submit original documents at MSWD Office for final verification', 'step_type': 'document_submission', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Assessment / SCSR', 'step_description': 'Admin schedules interview or home visit and uploads Social Case Study Report', 'step_type': 'assessment', 'is_pre_approval': False, 'requires_verification': True, 'min_items': 1, 'allowed_file_types': ''},
                 {'step_name': 'Schedule Release', 'step_description': 'Schedule your assistance release date', 'step_type': 'scheduling', 'is_pre_approval': False, 'requires_verification': False, 'min_items': 1, 'allowed_file_types': ''}
@@ -3038,8 +3179,6 @@ def get_workflow_templates():
 @role_required('admin')
 def apply_workflow_template(program_id):
     """Apply a workflow template to a program"""
-    from app.models import ProgramWorkflowSteps
-    
     program = _scoped_program_or_404(program_id)
     
     try:
@@ -3076,24 +3215,15 @@ def apply_workflow_template(program_id):
         }
         
         template_steps = templates.get(template_type, templates['default'])
-        
-        # Delete existing steps
-        ProgramWorkflowSteps.query.filter_by(program_id=program_id).delete()
-        
-        # Add new steps from template
-        for index, step_data in enumerate(template_steps, start=1):
-            step = ProgramWorkflowSteps(
-                program_id=program_id,
-                step_order=index,
-                step_name=step_data['step_name'],
-                step_description=step_data['step_description'],
-                step_type=step_data['step_type'],
-                is_pre_approval=step_data['is_pre_approval'],
-                requires_verification=step_data['requires_verification'],
-                min_items=step_data['min_items'],
-                allowed_file_types=step_data['allowed_file_types'] or None
-            )
-            db.session.add(step)
+
+        _sync_program_workflow_steps(
+            program_id=program_id,
+            steps_data=template_steps,
+            program_type=program.program_type,
+            apply_defaults_when_empty=True,
+        )
+
+        program.updated_at = datetime.utcnow()
         
         db.session.commit()
         

@@ -3,6 +3,7 @@ from flask_login import UserMixin
 from datetime import datetime, timezone
 from sqlalchemy.sql import func
 from sqlalchemy.orm import validates
+import json
 import secrets
 import string
 import re
@@ -129,7 +130,7 @@ class ProgramWorkflowSteps(db.Model):
     step_order = db.Column(db.Integer, nullable=False)  # 1, 2, 3, etc.
     step_name = db.Column(db.String(100), nullable=False)  # e.g., "Upload Shelter Photos", "Submit Certificate"
     step_description = db.Column(db.Text)  # Detailed instructions for this step
-    step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'verification', 'scheduling'
+    step_type = db.Column(db.String(50), nullable=False, default='approval')  # 'photo_upload', 'document_upload', 'approval', 'assessment', 'document_submission', 'scheduling'
     is_pre_approval = db.Column(db.Boolean, default=False)  # True if step must be completed before application approval
     requires_verification = db.Column(db.Boolean, default=True)  # True if admin must verify this step
     allowed_file_types = db.Column(db.String(255))  # Comma-separated file extensions: "jpg,jpeg,png,pdf"
@@ -143,6 +144,18 @@ class ProgramWorkflowSteps(db.Model):
     
     def __repr__(self):
         return f'<WorkflowStep {self.step_order}: {self.step_name} for Program {self.program_id}>'
+
+    @validates('step_config')
+    def _serialize_step_config(self, key, value):
+        """Normalize step config to JSON text for Text-backed storage."""
+        if value is None:
+            return None
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+        if isinstance(value, str):
+            trimmed = value.strip()
+            return trimmed or None
+        return str(value)
     
     def to_dict(self):
         """Convert model to JSON-serializable dictionary"""
@@ -164,7 +177,6 @@ class ProgramWorkflowSteps(db.Model):
         """Return step configuration as dictionary"""
         if self.step_config:
             try:
-                import json
                 return json.loads(self.step_config)
             except:
                 return {}
@@ -173,7 +185,6 @@ class ProgramWorkflowSteps(db.Model):
     def set_config_data(self, config_dict):
         """Set step configuration from dictionary"""
         if config_dict:
-            import json
             self.step_config = json.dumps(config_dict)
         else:
             self.step_config = None

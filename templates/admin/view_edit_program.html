@@ -1234,7 +1234,7 @@
                             </label>
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" name="use_beneficiary_limit" id="editUseBeneficiaryLimit" 
-                                       {% if program.use_beneficiary_limit %}checked{% endif %}>
+                                       {% if program.beneficiary_limit is not none %}checked{% endif %}>
                                 <label class="custom-control-label" for="editUseBeneficiaryLimit">
                                     Enable beneficiary limit for this program
                                 </label>
@@ -1244,7 +1244,7 @@
                             </small>
                         </div>
                         
-                        <div class="form-group" id="editBeneficiaryLimitGroup" style="display: {% if program.use_beneficiary_limit %}block{% else %}none{% endif %};">
+                        <div class="form-group" id="editBeneficiaryLimitGroup" style="display: {% if program.beneficiary_limit is not none %}block{% else %}none{% endif %};">
                             <label>Beneficiary Limit</label>
                             <input type="number" class="form-control" name="beneficiary_limit" min="1" 
                                    value="{{ program.beneficiary_limit if program.beneficiary_limit else '' }}"
@@ -1265,7 +1265,7 @@
                             </label>
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" class="custom-control-input" name="use_income_range" id="editUseIncomeRange" 
-                                       {% if program.use_income_range %}checked{% endif %}>
+                                       {% if program.income_range %}checked{% endif %}>
                                 <label class="custom-control-label" for="editUseIncomeRange">
                                     Enable income range targeting for this program
                                 </label>
@@ -1275,7 +1275,7 @@
                             </small>
                         </div>
                         
-                        <div class="form-group" id="editIncomeRangeGroup" style="display: {% if program.use_income_range %}block{% else %}none{% endif %};">
+                        <div class="form-group" id="editIncomeRangeGroup" style="display: {% if program.income_range %}block{% else %}none{% endif %};">
                             <label>Target Income Range</label>
                             <select class="form-control" name="income_range">
                                 <option value="">Select Income Range</option>
@@ -2789,7 +2789,6 @@
         'photo_upload': { label: 'Photo Upload', icon: 'fas fa-camera', color: 'info' },
         'document_upload': { label: 'Document Upload', icon: 'fas fa-file-upload', color: 'primary' },
         'approval': { label: 'Admin Approval', icon: 'fas fa-check-circle', color: 'success' },
-        'verification': { label: 'Document Verification', icon: 'fas fa-clipboard-check', color: 'warning' },
         'document_submission': { label: 'Physical Submission', icon: 'fas fa-building', color: 'secondary' },
         'assessment': { label: 'Assessment / SCSR', icon: 'fas fa-clipboard-list', color: 'purple' },
         'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
@@ -2962,7 +2961,6 @@
             'photo_upload': '<i class="fas fa-camera text-info mr-2"></i>',
             'document_upload': '<i class="fas fa-file-upload text-primary mr-2"></i>',
             'approval': '<i class="fas fa-check-circle text-success mr-2"></i>',
-            'verification': '<i class="fas fa-clipboard-check text-warning mr-2"></i>',
             'document_submission': '<i class="fas fa-building text-secondary mr-2"></i>',
             'assessment': '<i class="fas fa-clipboard-list mr-2" style="color: #6f42c1;"></i>',
             'scheduling': '<i class="fas fa-calendar-alt text-dark mr-2"></i>'
@@ -3390,7 +3388,6 @@
                     <select class="form-control" id="modalSchedulingPurpose">
                         <option value="release">Document Release/Pickup</option>
                         <option value="interview">Interview/Assessment</option>
-                        <option value="verification">Document Verification</option>
                         <option value="orientation">Program Orientation</option>
                     </select>
                 </div>

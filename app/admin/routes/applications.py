@@ -69,6 +69,52 @@ def _application_is_in_scope(application_id):
     return _scoped_applications_query().filter(Applications.id == application_id).count() > 0
 
 
+def _reconcile_deleted_active_workflow_step(application, workflow_steps):
+    """Recover safely when an application's active workflow step was removed."""
+    step_ids_in_program = {step.id for step in workflow_steps}
+    if not step_ids_in_program:
+        return False
+
+    status_rows = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application.id
+    ).all()
+
+    active_statuses = {'in_progress', 'pending_review', 'rejected'}
+    had_deleted_active_step = any(
+        status.step_status in active_statuses and status.workflow_step_id not in step_ids_in_program
+        for status in status_rows
+    )
+
+    changed = False
+    for status in status_rows:
+        if status.workflow_step_id not in step_ids_in_program:
+            db.session.delete(status)
+            changed = True
+
+    current_status_rows = [
+        status for status in status_rows if status.workflow_step_id in step_ids_in_program
+    ]
+
+    if had_deleted_active_step and not any(status.step_status in active_statuses for status in current_status_rows):
+        status_by_step = {status.workflow_step_id: status for status in current_status_rows}
+        for step in sorted(workflow_steps, key=lambda s: s.step_order):
+            status = status_by_step.get(step.id)
+            if not status:
+                continue
+            if status.step_status not in ['approved', 'completed']:
+                if status.step_status == 'not_started':
+                    status.step_status = 'in_progress'
+                    status.started_at = status.started_at or datetime.utcnow()
+                    status.updated_at = datetime.utcnow()
+                    changed = True
+                break
+
+    if changed:
+        db.session.commit()
+
+    return had_deleted_active_step
+
+
 def check_qualification(requirement, user_profile):
     """Check if user meets a qualification requirement"""
     if not user_profile:
@@ -192,11 +238,15 @@ def applications():
     
     # Apply status filter
     if status_filter:
-        query = query.filter_by(application_status=status_filter)
+        query = query.filter(Applications.application_status == status_filter)
     
     # Apply program filter
     if program_filter:
-        query = query.filter_by(program_id=int(program_filter))
+        try:
+            query = query.filter(Applications.program_id == int(program_filter))
+        except ValueError:
+            flash('Invalid program filter value.', 'warning')
+            return redirect(url_for('admin.applications'))
     
     # Apply search filter (search by applicant name, email, or ID)
     if search:
@@ -563,11 +613,9 @@ def view_application(application_id):
     # Organize content by workflow steps
     workflow_steps_data = []
     workflow_steps_json = []
-    if application.program.workflow_steps:
+    workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order) if application.program.workflow_steps else []
+    if workflow_steps:
         import json
-        
-        # Get all workflow steps sorted by order
-        workflow_steps = sorted(application.program.workflow_steps, key=lambda x: x.step_order)
         
         for step in workflow_steps:
             # Serialize step object to dictionary
@@ -696,6 +744,9 @@ def view_application(application_id):
     today = datetime.utcnow()
     min_date = manila_strftime(today + timedelta(days=1), '%Y-%m-%d', '')
     default_deadline = manila_strftime(today + timedelta(days=30), '%Y-%m-%d', '')
+
+    if workflow_steps and _reconcile_deleted_active_workflow_step(application, workflow_steps):
+        flash('The previously active workflow step for this application was deleted. The workflow was moved to the next valid step.', 'warning')
     
     # Get workflow status for this application
     workflow_status = ApplicationWorkflowStatus.query.filter_by(
@@ -800,7 +851,7 @@ def update_application_status(application_id):
                         workflow_step_id=step.id
                     ).first()
                     if workflow_status:
-                        if step.step_type in ['approval', 'verification'] and step.step_order < 3:
+                        if step.step_type in ['approval'] and step.step_order < 3:
                             workflow_status.step_status = 'approved'
                             workflow_status.completed_at = datetime.utcnow()
                         elif step.step_type == 'document_submission':
@@ -1594,10 +1645,14 @@ def export_applications():
     query = _scoped_applications_query()
     
     if status_filter:
-        query = query.filter_by(application_status=status_filter)
+        query = query.filter(Applications.application_status == status_filter)
     
     if program_filter:
-        query = query.filter_by(program_id=int(program_filter))
+        try:
+            query = query.filter(Applications.program_id == int(program_filter))
+        except ValueError:
+            flash('Invalid program filter value.', 'warning')
+            return redirect(url_for('admin.applications'))
     
     applications = query.order_by(desc(Applications.application_date)).all()
     

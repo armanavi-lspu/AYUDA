@@ -13,6 +13,82 @@
     .ranked-row:hover {
         background-color: #f8f9fc;
     }
+
+    .ranked-score-summary {
+        background: linear-gradient(135deg, #1bb868, #158f4f);
+        color: #fff;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .ranked-score-summary .score-value {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 700;
+        margin: 0.35rem 0;
+    }
+
+    .ranked-detail-section {
+        background: #f8f9fc;
+        border-radius: 0.5rem;
+        padding: 0.9rem;
+        margin-top: 0.85rem;
+    }
+
+    .ranked-detail-section h6 {
+        margin-bottom: 0.6rem;
+    }
+
+    .ranked-score-bar {
+        width: 100%;
+        background: #e9ecef;
+        border-radius: 999px;
+        height: 10px;
+        overflow: hidden;
+    }
+
+    .ranked-score-bar > div {
+        height: 100%;
+    }
+
+    .ranked-badge-chip {
+        display: inline-block;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        margin: 0 0.35rem 0.35rem 0;
+    }
+
+    .ranked-badge-chip-yes {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .ranked-badge-chip-no {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .ranked-modal-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+    }
+
+    .ranked-modal-table th,
+    .ranked-modal-table td {
+        padding: 0.45rem 0.55rem;
+        border-bottom: 1px solid #e3e6f0;
+        vertical-align: top;
+    }
+
+    .ranked-modal-table th {
+        width: 40%;
+        font-weight: 600;
+        color: #5a5c69;
+    }
 </style>
 {% endblock %}
 
@@ -796,6 +872,26 @@ document.addEventListener('DOMContentLoaded', function() {
                             caseSeverity === 'moderate' ? 'info' :
                             caseSeverity === 'low' ? 'success' :
                             'secondary';
+
+                        const explainabilityPayload = encodeURIComponent(JSON.stringify({
+                            name: rec.name || 'N/A',
+                            email: rec.email || '',
+                            municipality: rec.municipality || 'N/A',
+                            barangay: rec.barangay || 'N/A',
+                            income: Number(rec.income || 0),
+                            income_range: rec.income_range || 'Not specified',
+                            case_severity: caseSeverity,
+                            age: rec.age,
+                            is_solo_parent: !!rec.is_solo_parent,
+                            is_student: !!rec.is_student,
+                            is_pwd: !!rec.is_pwd,
+                            is_senior: !!rec.is_senior,
+                            is_currently_employed: !!rec.is_currently_employed,
+                            past_applications: rec.past_applications || '',
+                            past_applications_count: Number(rec.past_applications_count || 0),
+                            score: Number(rec.score || 0),
+                            score_breakdown: breakdown,
+                        }));
                         
                         const scoreTooltip = `Severity: ${severityLabels[caseSeverity] || 'UNRATED'} (${(breakdown.severity_component || 0).toFixed(4)})
 Case Severity Contribution: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}
@@ -820,7 +916,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                                     ${Number(rec.score || 0).toFixed(4)}
                                 </span>
                                 <br/><small class="text-muted">Case: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}</small>
-                                <br/><button type="button" class="btn btn-xs btn-info mt-1 view-score-breakdown" data-user-id="${rec.user_id}" data-name="${rec.name}" data-breakdown="${encodeURIComponent(JSON.stringify(breakdown))}">
+                                <br/><button type="button" class="btn btn-xs btn-info mt-1 view-score-breakdown" data-explain="${explainabilityPayload}">
                                     <i class="fas fa-info-circle"></i> Why?
                                 </button>
                             </td>
@@ -853,7 +949,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
 
 <!-- Score Breakdown Modal -->
 <div class="modal fade" id="scoreBreakdownModal" tabindex="-1" role="dialog" aria-labelledby="scoreBreakdownModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
                 <h5 class="modal-title" id="scoreBreakdownModalLabel">
@@ -865,57 +961,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
             </div>
             <div class="modal-body">
                 <h6 id="breakdownBeneficiaryName" class="font-weight-bold mb-3"></h6>
-                <p class="text-muted small mb-3" id="breakdownComputationNote">
-                    Each factor is computed as: contribution = weight x beneficiary value. Penalty factors can reduce the total score.
-                </p>
-                
-                <div class="card border-left-danger mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span id="breakdownCaseLabel"><strong>Case Severity (60% weight):</strong></span>
-                            <span id="breakdownCaseContribution" class="badge badge-danger">0.0000</span>
-                        </div>
-                        <small class="text-muted" id="breakdownCaseValue">Value: 0.0000</small>
-                        <small class="d-block text-muted mt-1" id="breakdownCaseExplanation">Loading factor explanation...</small>
-                    </div>
-                </div>
-                
-                <div class="card border-left-warning mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span id="breakdownIncomeLabel"><strong>Income Vulnerability (25% weight):</strong></span>
-                            <span id="breakdownIncomeContribution" class="badge badge-warning">0.0000</span>
-                        </div>
-                        <small class="text-muted" id="breakdownIncomeValue">Value: 0.0000</small>
-                        <small class="d-block text-muted mt-1" id="breakdownIncomeExplanation">Loading factor explanation...</small>
-                    </div>
-                </div>
-                
-                <div class="card border-left-success mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span id="breakdownHouseholdLabel"><strong>Household Vulnerability (12% weight):</strong></span>
-                            <span id="breakdownHouseholdContribution" class="badge badge-success">0.0000</span>
-                        </div>
-                        <small class="text-muted" id="breakdownHouseholdValue">Value: 0.0000</small>
-                        <small class="d-block text-muted mt-1" id="breakdownHouseholdExplanation">Loading factor explanation...</small>
-                    </div>
-                </div>
-
-                <div class="card border-left-secondary mb-3">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span id="breakdownRepeatLabel"><strong>Repeat Beneficiary Penalty (3% weight):</strong></span>
-                            <span id="breakdownRepeatContribution" class="badge badge-secondary">0.0000</span>
-                        </div>
-                        <small class="text-muted" id="breakdownRepeatValue">Value: 0.0000</small>
-                        <small class="d-block text-muted mt-1" id="breakdownRepeatExplanation">Loading factor explanation...</small>
-                    </div>
-                </div>
-                
-                <div class="alert alert-success">
-                    <strong>Total Score: <span id="breakdownTotal">0.0000</span></strong>
-                </div>
+                <div id="scoreBreakdownDetailBody"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
@@ -926,76 +972,357 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    function buildFactorExplanation(label, factor, contextMessage) {
-        const weight = Number(factor.weight || 0);
-        const value = Number(factor.beneficiary_value || 0);
-        const contribution = Number(factor.contribution || 0);
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toFiniteNumber(value, fallback) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return fallback;
+        }
+        return parsed;
+    }
+
+    function formatCurrency(value) {
+        const numeric = toFiniteNumber(value, 0);
+        return `P${numeric.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+
+    function getCaseSeverityContext(rawSeverity) {
+        const key = String(rawSeverity || 'unrated').toLowerCase();
+        const labels = {
+            critical: 'Critical',
+            high: 'High',
+            moderate: 'Moderate',
+            medium: 'Moderate',
+            low: 'Low',
+            unrated: 'Unrated',
+        };
+        const valueMap = {
+            critical: 1.0,
+            high: 1.0,
+            moderate: 0.6,
+            medium: 0.6,
+            low: 0.2,
+            unrated: 0.4,
+        };
+        return {
+            key: key,
+            label: labels[key] || 'Unrated',
+            mappedValue: valueMap[key] != null ? valueMap[key] : 0.4,
+        };
+    }
+
+    function getIncomeContext(income) {
+        const annualIncome = toFiniteNumber(income, 0);
+        if (annualIncome <= 0) {
+            return 'No income was recorded, which maps to the highest vulnerability score.';
+        }
+        if (annualIncome < 100000) {
+            return 'Income is below P100,000, so vulnerability remains very high.';
+        }
+        if (annualIncome < 250000) {
+            return 'Income falls in the lower band (P100,000-P249,999), so vulnerability is still elevated.';
+        }
+        if (annualIncome < 400000) {
+            return 'Income is in the mid band (P250,000-P399,999), so vulnerability is moderate.';
+        }
+        if (annualIncome < 600000) {
+            return 'Income is in the upper-mid band (P400,000-P599,999), so vulnerability is lower.';
+        }
+        return 'Income is at the highest band (P600,000+), so vulnerability contribution is minimal.';
+    }
+
+    function getHouseholdIndicators(profile) {
+        const indicators = [];
+        if (profile.is_solo_parent) indicators.push('solo parent');
+        if (profile.is_student) indicators.push('student');
+        if (profile.is_pwd) indicators.push('person with disability');
+        if (profile.is_senior) indicators.push('senior citizen');
+        if (!profile.is_currently_employed) indicators.push('not currently employed');
+        return indicators;
+    }
+
+    function getPriorityBand(score) {
+        const total = toFiniteNumber(score, 0);
+        if (total >= 0.65) {
+            return { label: 'High Priority', className: 'text-success' };
+        }
+        if (total >= 0.40) {
+            return { label: 'Moderate Priority', className: 'text-info' };
+        }
+        if (total >= 0.20) {
+            return { label: 'Eligible - Lower Urgency', className: 'text-warning' };
+        }
+        return { label: 'Low Composite Priority', className: 'text-secondary' };
+    }
+
+    function buildFactorNarrative(factorKey, factor, profile) {
+        const weight = toFiniteNumber(factor.weight, 0);
+        const value = toFiniteNumber(factor.beneficiary_value, 0);
+        const contribution = toFiniteNumber(factor.contribution, 0);
 
         if (weight <= 0) {
-            return `${label} was disabled for this ranking run, so it contributes 0.0000 to the total score.`;
+            return `${factor.label || 'This factor'} was disabled for this ranking run, so it contributes 0.0000.`;
         }
 
-        return `${contextMessage} Computation: ${weight.toFixed(4)} x ${value.toFixed(4)} = ${contribution.toFixed(4)}.`;
+        let context = '';
+        if (factorKey === 'case_severity_factor') {
+            const severity = getCaseSeverityContext(profile.case_severity);
+            context = `Case severity is tagged as ${severity.label}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
+        } else if (factorKey === 'income_vulnerability_factor') {
+            context = getIncomeContext(profile.income);
+        } else if (factorKey === 'household_vulnerability_factor') {
+            const indicators = getHouseholdIndicators(profile);
+            if (indicators.length) {
+                context = `Household vulnerability increased because the profile includes ${indicators.join(', ')}.`;
+            } else {
+                context = 'No vulnerability indicators were detected, so this factor contributes less.';
+            }
+        } else if (factorKey === 'repeat_beneficiary_penalty_factor') {
+            const historyCount = Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)));
+            if (historyCount <= 0) {
+                context = 'No prior approved/active/completed application history was detected, so no penalty was applied.';
+            } else {
+                context = `Application history count is ${historyCount}, so a fairness penalty is applied to balance distribution.`;
+            }
+        }
+
+        return `${context} Computation: ${weight.toFixed(4)} x ${value.toFixed(4)} = ${contribution.toFixed(4)}.`;
+    }
+
+    function buildPlainLanguageExplanation(profile, breakdown, totalScore) {
+        const reasons = [];
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+        const priorityBand = getPriorityBand(totalScore);
+
+        reasons.push(`<p class="mb-2"><strong>${escapeHtml(profile.name)}</strong> is currently classified as <span class="${priorityBand.className}">${priorityBand.label}</span> based on combined urgency, income need, household risk, and repeat-beneficiary fairness adjustment.</p>`);
+
+        if (toFiniteNumber(caseFactor.contribution, 0) > 0) {
+            const severity = getCaseSeverityContext(profile.case_severity);
+            reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case is marked as <strong>${severity.label}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
+        }
+
+        if (toFiniteNumber(incomeFactor.contribution, 0) > 0) {
+            reasons.push(`<p class="mb-2"><strong>Financial Need:</strong> Annual income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}), contributing ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}.</p>`);
+        }
+
+        if (toFiniteNumber(householdFactor.contribution, 0) > 0) {
+            const indicators = getHouseholdIndicators(profile);
+            const indicatorText = indicators.length ? indicators.join(', ') : 'household risk indicators';
+            reasons.push(`<p class="mb-2"><strong>Household Context:</strong> The profile includes ${escapeHtml(indicatorText)}, adding ${toFiniteNumber(householdFactor.contribution, 0).toFixed(4)} to the score.</p>`);
+        }
+
+        if (toFiniteNumber(repeatFactor.contribution, 0) < 0) {
+            const count = Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)));
+            reasons.push(`<p class="mb-0"><strong>Fairness Penalty:</strong> Prior assistance history count (${count}) applied a ${Math.abs(toFiniteNumber(repeatFactor.contribution, 0)).toFixed(4)} deduction to avoid repeatedly prioritizing the same beneficiary.</p>`);
+        }
+
+        return reasons.join('');
+    }
+
+    function renderFactorBars(profile, breakdown) {
+        const factors = [
+            {
+                key: 'case_severity_factor',
+                label: 'Case Severity',
+                color: '#e74a3b',
+                maxMagnitude: toFiniteNumber((breakdown.case_severity_factor || {}).weight, 0),
+            },
+            {
+                key: 'income_vulnerability_factor',
+                label: 'Income Vulnerability',
+                color: '#f6c23e',
+                maxMagnitude: toFiniteNumber((breakdown.income_vulnerability_factor || {}).weight, 0),
+            },
+            {
+                key: 'household_vulnerability_factor',
+                label: 'Household Vulnerability',
+                color: '#1cc88a',
+                maxMagnitude: toFiniteNumber((breakdown.household_vulnerability_factor || {}).weight, 0),
+            },
+            {
+                key: 'repeat_beneficiary_penalty_factor',
+                label: 'Repeat Beneficiary Penalty',
+                color: '#6c757d',
+                maxMagnitude: toFiniteNumber((breakdown.repeat_beneficiary_penalty_factor || {}).weight, 0),
+            },
+        ];
+
+        return factors.map(function(item) {
+            const factor = breakdown[item.key] || {};
+            const contribution = toFiniteNumber(factor.contribution, 0);
+            const maxMagnitude = Math.max(0, item.maxMagnitude);
+            const percent = maxMagnitude > 0
+                ? Math.min((Math.abs(contribution) / maxMagnitude) * 100, 100)
+                : 0;
+            const badgeClass = contribution < 0 ? 'badge-danger' : 'badge-primary';
+
+            return `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong>${escapeHtml(item.label)} (${(maxMagnitude * 100).toFixed(0)}% weight)</strong>
+                        <span class="badge ${badgeClass}">${contribution.toFixed(4)}</span>
+                    </div>
+                    <div class="ranked-score-bar mb-1">
+                        <div style="width:${percent.toFixed(1)}%; background:${item.color};"></div>
+                    </div>
+                    <small class="text-muted d-block">Value: ${toFiniteNumber(factor.beneficiary_value, 0).toFixed(4)}</small>
+                    <small class="text-muted d-block mt-1">${buildFactorNarrative(item.key, factor, profile)}</small>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderAlgorithmTable(profile, breakdown) {
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+        const householdIndicators = getHouseholdIndicators(profile);
+        const severity = getCaseSeverityContext(profile.case_severity);
+
+        return `
+            <table class="ranked-modal-table">
+                <tbody>
+                    <tr>
+                        <th>Case Severity</th>
+                        <td>${escapeHtml(severity.label)} (value ${toFiniteNumber(caseFactor.beneficiary_value, 0).toFixed(4)})</td>
+                        <td>Weighted urgency contribution: ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                    <tr>
+                        <th>Income Vulnerability</th>
+                        <td>${formatCurrency(profile.income)} annual income</td>
+                        <td>Need contribution: ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                    <tr>
+                        <th>Household Indicators</th>
+                        <td>${escapeHtml(householdIndicators.length ? householdIndicators.join(', ') : 'none detected')}</td>
+                        <td>Risk contribution: ${toFiniteNumber(householdFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                    <tr>
+                        <th>Prior Assistance History</th>
+                        <td>${Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)))} prior approved/active/completed records</td>
+                        <td>Fairness adjustment: ${toFiniteNumber(repeatFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    function renderScoreBreakdownModal(profile) {
+        const breakdown = profile.score_breakdown || {};
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+
+        const totalScore = (
+            toFiniteNumber(caseFactor.contribution, 0) +
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0) +
+            toFiniteNumber(repeatFactor.contribution, 0)
+        );
+        const priorityBand = getPriorityBand(totalScore);
+
+        const profileChips = [
+            { label: 'Solo Parent', state: !!profile.is_solo_parent },
+            { label: 'Student', state: !!profile.is_student },
+            { label: 'PWD', state: !!profile.is_pwd },
+            { label: 'Senior Citizen', state: !!profile.is_senior },
+        ];
+
+        const chipsHtml = profileChips.map(function(chip) {
+            return `<span class="ranked-badge-chip ${chip.state ? 'ranked-badge-chip-yes' : 'ranked-badge-chip-no'}">${chip.state ? 'Yes' : 'No'} ${escapeHtml(chip.label)}</span>`;
+        }).join('');
+
+        const profileHistoryText = profile.past_applications
+            ? `<small class="text-muted d-block mt-1"><strong>Program history text:</strong> ${escapeHtml(profile.past_applications)}</small>`
+            : '';
+
+        const html = `
+            <div class="ranked-score-summary">
+                <small>Composite Priority Score</small>
+                <div class="score-value">${totalScore.toFixed(4)}</div>
+                <small class="font-weight-bold">${priorityBand.label}</small>
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-id-card mr-2"></i>Profile Information</h6>
+                <div class="row">
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Full Name</small><strong>${escapeHtml(profile.name || 'N/A')}</strong></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Email</small><span>${escapeHtml(profile.email || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Municipality</small><span>${escapeHtml(profile.municipality || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Barangay</small><span>${escapeHtml(profile.barangay || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Annual Income</small><strong>${formatCurrency(profile.income)}</strong></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Case Severity</small><span>${escapeHtml(getCaseSeverityContext(profile.case_severity).label)}</span></div>
+                </div>
+                <div class="mt-1">${chipsHtml}</div>
+                <small class="text-muted d-block mt-2">Prior assistance history count: ${Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)))} records</small>
+                ${profileHistoryText}
+            </div>
+
+            <div class="ranked-detail-section" style="background:#f0f9ff; border-left:4px solid #1cc88a;">
+                <h6 style="color:#0d5d2a;"><i class="fas fa-lightbulb mr-2"></i>Why Was This Person Ranked This Way?</h6>
+                ${buildPlainLanguageExplanation(profile, breakdown, totalScore)}
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-chart-bar mr-2"></i>Score Breakdown</h6>
+                <p class="text-muted small mb-3">This list uses <strong>Need-Focused Weighted Scoring</strong>. Each factor follows contribution = weight x beneficiary value. Penalty factors can lower the final score.</p>
+                ${renderFactorBars(profile, breakdown)}
+            </div>
+
+            <div class="ranked-detail-section" style="background:#e7f3ff; border-left:4px solid #4e73df;">
+                <h6 style="color:#0066cc;"><i class="fas fa-question-circle mr-2"></i>What Does This Score Mean?</h6>
+                <div class="small">
+                    <div class="mb-2"><strong class="text-success">0.65+</strong> = high urgency and strongest overall priority.</div>
+                    <div class="mb-2"><strong class="text-info">0.40 to 0.64</strong> = meaningful need indicators; moderate priority.</div>
+                    <div class="mb-2"><strong class="text-warning">0.20 to 0.39</strong> = eligible but lower urgency than higher-ranked beneficiaries.</div>
+                    <div><strong class="text-secondary">Below 0.20</strong> = weaker need signals or stronger repeat-beneficiary penalty effect.</div>
+                </div>
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-cogs mr-2"></i>Algorithm Used</h6>
+                <span class="badge badge-primary mb-2">Need-Focused Weighted Scoring</span>
+                <p class="text-muted small mb-2">The algorithm computes a transparent weighted score from severity, income vulnerability, household risk indicators, and repeat-beneficiary fairness penalty.</p>
+                ${renderAlgorithmTable(profile, breakdown)}
+            </div>
+        `;
+
+        document.getElementById('breakdownBeneficiaryName').textContent = `Score breakdown for: ${profile.name || 'N/A'}`;
+        document.getElementById('scoreBreakdownDetailBody').innerHTML = html;
     }
 
     // Handle score breakdown button clicks
     document.addEventListener('click', function(e) {
         if (e.target.closest('.view-score-breakdown')) {
             const btn = e.target.closest('.view-score-breakdown');
-            const userName = btn.getAttribute('data-name');
-            const breakdownStr = decodeURIComponent(btn.getAttribute('data-breakdown'));
-            const breakdown = JSON.parse(breakdownStr);
-            
-            // Update modal with breakdown data
-            document.getElementById('breakdownBeneficiaryName').textContent = 'Score breakdown for: ' + userName;
-            
-            const caseFactor = breakdown.case_severity_factor || {};
-            const incomeFactor = breakdown.income_vulnerability_factor || {};
-            const householdFactor = breakdown.household_vulnerability_factor || {};
-            const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+            const encodedPayload = btn.getAttribute('data-explain') || '';
+            if (!encodedPayload) {
+                alert('No score breakdown data available for this row.');
+                return;
+            }
 
-            const totalScore = (
-                Number(caseFactor.contribution || 0) +
-                Number(incomeFactor.contribution || 0) +
-                Number(householdFactor.contribution || 0) +
-                Number(repeatFactor.contribution || 0)
-            );
+            let profile;
+            try {
+                profile = JSON.parse(decodeURIComponent(encodedPayload));
+            } catch (error) {
+                alert('Unable to parse score breakdown details. Please regenerate the ranked list and try again.');
+                return;
+            }
 
-            document.getElementById('breakdownCaseLabel').innerHTML = `<strong>Case Severity (${(Number(caseFactor.weight || 0) * 100).toFixed(0)}% weight):</strong>`;
-            document.getElementById('breakdownIncomeLabel').innerHTML = `<strong>Income Vulnerability (${(Number(incomeFactor.weight || 0) * 100).toFixed(0)}% weight):</strong>`;
-            document.getElementById('breakdownHouseholdLabel').innerHTML = `<strong>Household Vulnerability (${(Number(householdFactor.weight || 0) * 100).toFixed(0)}% weight):</strong>`;
-            document.getElementById('breakdownRepeatLabel').innerHTML = `<strong>Repeat Beneficiary Penalty (${(Number(repeatFactor.weight || 0) * 100).toFixed(0)}% weight):</strong>`;
-
-            document.getElementById('breakdownCaseContribution').textContent = Number(caseFactor.contribution || 0).toFixed(4);
-            document.getElementById('breakdownCaseValue').textContent = `Value: ${Number(caseFactor.beneficiary_value || 0).toFixed(4)}`;
-            document.getElementById('breakdownIncomeContribution').textContent = Number(incomeFactor.contribution || 0).toFixed(4);
-            document.getElementById('breakdownIncomeValue').textContent = `Value: ${Number(incomeFactor.beneficiary_value || 0).toFixed(4)}`;
-            document.getElementById('breakdownHouseholdContribution').textContent = Number(householdFactor.contribution || 0).toFixed(4);
-            document.getElementById('breakdownHouseholdValue').textContent = `Value: ${Number(householdFactor.beneficiary_value || 0).toFixed(4)}`;
-            document.getElementById('breakdownRepeatContribution').textContent = Number(repeatFactor.contribution || 0).toFixed(4);
-            document.getElementById('breakdownRepeatValue').textContent = `Value: ${Number(repeatFactor.beneficiary_value || 0).toFixed(4)}`;
-
-            document.getElementById('breakdownCaseExplanation').textContent = buildFactorExplanation(
-                'Case Severity',
-                caseFactor,
-                'Higher assessed severity raises this value and increases prioritization.'
-            );
-            document.getElementById('breakdownIncomeExplanation').textContent = buildFactorExplanation(
-                'Income Vulnerability',
-                incomeFactor,
-                'Lower household income generally maps to a higher vulnerability value.'
-            );
-            document.getElementById('breakdownHouseholdExplanation').textContent = buildFactorExplanation(
-                'Household Vulnerability',
-                householdFactor,
-                'Household risk indicators (e.g., status and employment context) raise this value.'
-            );
-            document.getElementById('breakdownRepeatExplanation').textContent = buildFactorExplanation(
-                'Repeat Beneficiary Penalty',
-                repeatFactor,
-                'More prior applications can produce a negative contribution that lowers total score.'
-            );
-            document.getElementById('breakdownTotal').textContent = totalScore.toFixed(4);
+            renderScoreBreakdownModal(profile);
             
             $('#scoreBreakdownModal').modal('show');
         }

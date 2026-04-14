@@ -145,6 +145,10 @@ def application_workflow(application_id):
     
     # Initialize workflow status for all steps if not exists
     _initialize_workflow_status(application, workflow_steps)
+
+    # Recover gracefully if the previously active step was deleted by admin edits.
+    if _reconcile_deleted_active_step(application, workflow_steps):
+        flash('Your previously active workflow step was removed by an admin. We moved you to the next available step.', 'warning')
     
     # Get current workflow status for all steps
     workflow_status = db.session.query(ApplicationWorkflowStatus).filter_by(
@@ -153,6 +157,9 @@ def application_workflow(application_id):
     
     # Check if user is requesting a specific step to view (e.g., from step history)
     requested_step_id = request.args.get('step_id', type=int)
+    if requested_step_id and not any(step.id == requested_step_id for step in workflow_steps):
+        flash('The requested workflow step no longer exists. Showing your current available step instead.', 'warning')
+        requested_step_id = None
     
     # FIRST: Determine the actual active step (strict sequential gating)
     active_step = None
@@ -254,6 +261,53 @@ def _initialize_workflow_status(application, workflow_steps):
             db.session.add(status)
     
     db.session.commit()
+
+
+def _reconcile_deleted_active_step(application, workflow_steps):
+    """Recover safely when the current active workflow step has been removed."""
+    program_step_ids = {step.id for step in workflow_steps}
+    if not program_step_ids:
+        return False
+
+    status_rows = ApplicationWorkflowStatus.query.filter_by(
+        application_id=application.id
+    ).all()
+
+    active_statuses = {'in_progress', 'pending_review', 'rejected'}
+    had_deleted_active_step = any(
+        status.step_status in active_statuses and status.workflow_step_id not in program_step_ids
+        for status in status_rows
+    )
+
+    changed = False
+    for status in status_rows:
+        if status.workflow_step_id not in program_step_ids:
+            db.session.delete(status)
+            changed = True
+
+    current_status_rows = [
+        status for status in status_rows if status.workflow_step_id in program_step_ids
+    ]
+
+    # If the active step was deleted, promote the next incomplete step for continuity.
+    if had_deleted_active_step and not any(status.step_status in active_statuses for status in current_status_rows):
+        status_by_step = {status.workflow_step_id: status for status in current_status_rows}
+        for step in sorted(workflow_steps, key=lambda s: s.step_order):
+            status = status_by_step.get(step.id)
+            if not status:
+                continue
+            if status.step_status not in ['approved', 'completed']:
+                if status.step_status == 'not_started':
+                    status.step_status = 'in_progress'
+                    status.started_at = status.started_at or datetime.utcnow()
+                    status.updated_at = datetime.utcnow()
+                    changed = True
+                break
+
+    if changed:
+        db.session.commit()
+
+    return had_deleted_active_step
 
 
 def _get_step_content(application, step, step_status):
