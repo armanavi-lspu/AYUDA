@@ -1,10 +1,11 @@
-from flask import render_template, request, redirect, url_for, flash, abort
+from flask import render_template, request, redirect, url_for, flash, abort, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import desc, or_, func
 from sqlalchemy.orm import aliased
 from werkzeug.utils import secure_filename
 import os
+import shutil
 from app.admin import admin_bp
 from app.models import Announcements, User, AnnouncementImages, Programs, AdminUsers
 from app.extensions import db
@@ -68,6 +69,28 @@ def _scoped_announcement_or_404(announcement_id):
 def allowed_file(filename):
     """Check if file extension is allowed"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _is_valid_generated_beneficiaries_image_path(relative_path):
+    """Validate generated beneficiaries image path from trusted static folder."""
+    normalized = str(relative_path or '').strip().replace('\\', '/')
+    if not normalized or '..' in normalized:
+        return False
+    return normalized.startswith('static/uploads/beneficiaries_lists/')
+
+
+def _generated_image_absolute_path(relative_path):
+    """Resolve static-relative generated image path to absolute disk path."""
+    if not _is_valid_generated_beneficiaries_image_path(relative_path):
+        return None
+
+    static_relative = relative_path[len('static/'):].replace('/', os.sep)
+    abs_path = os.path.normpath(os.path.join(current_app.static_folder, static_relative))
+    static_root = os.path.normpath(current_app.static_folder)
+
+    if not abs_path.startswith(static_root):
+        return None
+    return abs_path
 
 @admin_bp.route('/announcements', endpoint='adm_announcements')
 @login_required
@@ -141,6 +164,32 @@ def announcements():
     
     # Get all active programs for linking
     programs = _scoped_programs_query().filter(Programs.is_active.is_(True)).order_by(Programs.program_name).all()
+
+    prefill_program_id_raw = request.args.get('prefill_program_id', '').strip()
+    prefill_program_id = None
+    try:
+        if prefill_program_id_raw:
+            parsed_program_id = int(prefill_program_id_raw)
+            if _scoped_programs_query().filter(Programs.id == parsed_program_id).first():
+                prefill_program_id = parsed_program_id
+    except (TypeError, ValueError):
+        prefill_program_id = None
+
+    generated_image_path = request.args.get('generated_image_path', '').strip().replace('\\', '/')
+    generated_image_abs = _generated_image_absolute_path(generated_image_path)
+    if not generated_image_abs or not os.path.exists(generated_image_abs):
+        generated_image_path = ''
+
+    announcement_prefill = {
+        'open_add_modal': request.args.get('open_add_modal', '0') == '1',
+        'title': request.args.get('prefill_title', '').strip(),
+        'content': request.args.get('prefill_content', '').strip(),
+        'category': request.args.get('prefill_category', '').strip() or 'General',
+        'program_id': prefill_program_id,
+        'attachment_url': request.args.get('prefill_attachment_url', '').strip(),
+        'generated_image_path': generated_image_path,
+        'generated_image_caption': request.args.get('generated_image_caption', '').strip() or 'Generated beneficiaries list image',
+    }
     
     return render_template(
         'admin/adm_announcements.html',
@@ -151,6 +200,7 @@ def announcements():
         draft_count=draft_count,
         this_month_count=this_month_count,
         programs=programs,
+        announcement_prefill=announcement_prefill,
         user=current_user
     )
 
@@ -166,6 +216,8 @@ def add_announcement():
         status = request.form.get('status', 'draft').strip()
         program_id = request.form.get('program_id', '').strip()
         attachment_url = request.form.get('attachment_url', '').strip()
+        generated_image_path = request.form.get('generated_image_path', '').strip().replace('\\', '/')
+        generated_image_caption = request.form.get('generated_image_caption', '').strip() or 'Generated beneficiaries list image'
         
         # Validation
         if not title or not content:
@@ -223,6 +275,29 @@ def add_announcement():
                         display_order=idx
                     )
                     db.session.add(announcement_image)
+
+            generated_image_abs_path = _generated_image_absolute_path(generated_image_path)
+            if generated_image_abs_path and os.path.exists(generated_image_abs_path):
+                upload_path = os.path.join('static', 'uploads', 'announcements', str(new_announcement.id))
+                os.makedirs(upload_path, exist_ok=True)
+
+                source_name = os.path.basename(generated_image_abs_path)
+                source_stem, source_ext = os.path.splitext(source_name)
+                copied_name = secure_filename(f'{source_stem}_announcement{source_ext}')
+                destination_path = os.path.join(upload_path, copied_name)
+                shutil.copyfile(generated_image_abs_path, destination_path)
+
+                max_order = db.session.query(func.max(AnnouncementImages.display_order)).filter_by(
+                    announcement_id=new_announcement.id
+                ).scalar()
+                next_order = (max_order or -1) + 1
+
+                db.session.add(AnnouncementImages(
+                    announcement_id=new_announcement.id,
+                    image_path=destination_path.replace('\\', '/'),
+                    caption=generated_image_caption,
+                    display_order=next_order,
+                ))
             
             db.session.commit()
             

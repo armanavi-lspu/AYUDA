@@ -6,6 +6,7 @@ finding similar beneficiaries based on their profiles.
 
 import numpy as np
 import pandas as pd
+import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import RobustScaler, OneHotEncoder
@@ -37,6 +38,25 @@ NEED_FOCUSED_WEIGHTS = {
 }
 
 NEED_FOCUSED_FACTOR_KEYS = tuple(NEED_FOCUSED_WEIGHTS.keys())
+REPEAT_PENALTY_RERANK_WEIGHT = 0.35
+
+# Community profile income dropdown stores the range minimum value.
+# Example: selecting "10,000 - 20,000" saves 10000.
+PROFILE_INCOME_RANGE_BANDS = (
+    {'min': 0, 'max': 9999, 'label': 'Below 10,000'},
+    {'min': 10000, 'max': 20000, 'label': '10,000 - 20,000'},
+    {'min': 20001, 'max': 30000, 'label': '20,001 - 30,000'},
+    {'min': 30001, 'max': 40000, 'label': '30,001 - 40,000'},
+    {'min': 40001, 'max': 50000, 'label': '40,001 - 50,000'},
+    {'min': 50001, 'max': 75000, 'label': '50,001 - 75,000'},
+    {'min': 75001, 'max': 100000, 'label': '75,001 - 100,000'},
+    {'min': 100001, 'max': 150000, 'label': '100,001 - 150,000'},
+    {'min': 150001, 'max': 200000, 'label': '150,001 - 200,000'},
+    {'min': 200001, 'max': 300000, 'label': '200,001 - 300,000'},
+    {'min': 300001, 'max': 400000, 'label': '300,001 - 400,000'},
+    {'min': 400001, 'max': 500000, 'label': '400,001 - 500,000'},
+    {'min': 500001, 'max': None, 'label': '500,001 and above'},
+)
 
 
 def _coerce_bool(value):
@@ -89,24 +109,83 @@ def _case_severity_score(raw_severity):
     return 0.4
 
 
-def _income_vulnerability_score(raw_income):
-    """Return vulnerability score where lower income means higher need."""
+def _resolve_income_for_scoring(raw_income):
+    """Return normalized income plus metadata for scoring.
+
+    If the stored value matches a known dropdown minimum, treat it as a range
+    selection and use a representative midpoint for scoring.
+    """
     try:
         income = float(raw_income or 0)
     except (TypeError, ValueError):
         income = 0.0
 
     if income <= 0:
-        return 1.0
-    if income < 100_000:
-        return 1.0
-    if income < 250_000:
-        return 0.75
-    if income < 400_000:
-        return 0.50
-    if income < 600_000:
-        return 0.25
-    return 0.10
+        return 0.0, None, 'exact_income'
+
+    for band in PROFILE_INCOME_RANGE_BANDS:
+        band_min = float(band['min'])
+        if abs(income - band_min) < 0.01:
+            band_max = band['max']
+            if band_max is None:
+                # Open-ended top bucket: use a conservative representative value.
+                representative_income = 650_000.0
+            else:
+                representative_income = (band_min + float(band_max)) / 2.0
+            return representative_income, band['label'], 'range_midpoint'
+
+    return income, None, 'exact_income'
+
+
+def _income_vulnerability_components(raw_income):
+    """Compute income vulnerability score and supporting explainability metadata."""
+    scoring_income, income_band_label, income_value_source = _resolve_income_for_scoring(raw_income)
+
+    if scoring_income <= 0:
+        return 1.0, scoring_income, income_band_label, income_value_source
+
+    # PSA poverty references for a family of five (annualized from monthly figures):
+    # - Food threshold (subsistence poor): 8,379/month -> 100,548/year
+    # - Poverty threshold (poor/indigent): 12,030/month -> 144,360/year
+    # - Low-income vulnerable upper band: 24,060/month -> 288,720/year
+    food_threshold = 100_548.0
+    poverty_threshold = 144_360.0
+    low_income_vulnerable_threshold = 288_720.0
+    upper_vulnerability_threshold = 600_000.0
+    high_income_threshold = 1_000_000.0
+
+    def _interpolate_desc(value, lower, upper, lower_score, upper_score):
+        """Linearly interpolate descending scores across an income range."""
+        if upper <= lower:
+            return upper_score
+        ratio = (value - lower) / (upper - lower)
+        ratio = min(max(ratio, 0.0), 1.0)
+        return lower_score + ratio * (upper_score - lower_score)
+
+    if scoring_income <= food_threshold:
+        # Keep highest vulnerability for subsistence-poor households.
+        score = _interpolate_desc(scoring_income, 0.0, food_threshold, 1.0, 0.95)
+    elif scoring_income <= poverty_threshold:
+        # Poor/indigent range: still very high vulnerability.
+        score = _interpolate_desc(scoring_income, food_threshold, poverty_threshold, 0.95, 0.85)
+    elif scoring_income <= low_income_vulnerable_threshold:
+        # Low-income but economically vulnerable households.
+        score = _interpolate_desc(scoring_income, poverty_threshold, low_income_vulnerable_threshold, 0.85, 0.55)
+    elif scoring_income <= upper_vulnerability_threshold:
+        # Vulnerability decreases gradually but remains present.
+        score = _interpolate_desc(scoring_income, low_income_vulnerable_threshold, upper_vulnerability_threshold, 0.55, 0.20)
+    elif scoring_income <= high_income_threshold:
+        score = _interpolate_desc(scoring_income, upper_vulnerability_threshold, high_income_threshold, 0.20, 0.10)
+    else:
+        score = 0.10
+
+    return round(score, 4), round(scoring_income, 2), income_band_label, income_value_source
+
+
+def _income_vulnerability_score(raw_income):
+    """Return vulnerability score where lower income means higher need."""
+    score, _, _, _ = _income_vulnerability_components(raw_income)
+    return score
 
 
 def _household_vulnerability_score(beneficiary):
@@ -166,16 +245,56 @@ def _parse_past_applications_count(past_apps):
     return 1
 
 
-def _repeat_beneficiary_penalty(raw_past_applications):
-    """Return repeat-beneficiary penalty in [-1.0, 0.0]."""
-    past_apps = _parse_past_applications_count(raw_past_applications)
-    if past_apps <= 0:
+def _coerce_non_negative_int(value):
+    """Convert nullable values into non-negative integers."""
+    try:
+        parsed = int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+    return max(parsed, 0)
+
+
+def _repeat_beneficiary_penalty(raw_past_applications, total_applications_count=None,
+                                received_program_count=None, completed_program_count=None):
+    """Return repeat-beneficiary penalty in [-1.0, 0.0].
+
+    Penalizes profiles that repeatedly apply and repeatedly receive/complete
+    assistance so recommendations are distributed more equitably.
+    """
+    history_count = _parse_past_applications_count(raw_past_applications)
+    total_count = max(history_count, _coerce_non_negative_int(total_applications_count))
+    received_count = _coerce_non_negative_int(received_program_count)
+    completed_count = _coerce_non_negative_int(completed_program_count)
+
+    if total_count <= 0 and received_count <= 0 and completed_count <= 0:
         return 0.0
-    if past_apps == 1:
-        return -0.3
-    if past_apps == 2:
-        return -0.6
-    return -1.0
+
+    # Frequency pressure: more total applications indicates repeated participation.
+    frequency_penalty = min(1.0, max(total_count - 1, 0) * 0.18)
+
+    # Benefit pressure: approved/active/completed statuses indicate repeated receipt.
+    received_penalty = min(1.0, received_count * 0.22)
+
+    # Completion pressure: completed programs increase priority for first-time recipients.
+    completed_penalty = min(1.0, completed_count * 0.25)
+
+    success_ratio_penalty = 0.0
+    if total_count > 0:
+        success_ratio = received_count / total_count
+        if total_count >= 2 and success_ratio >= 0.75:
+            success_ratio_penalty = 0.40
+        elif total_count >= 2 and success_ratio >= 0.50:
+            success_ratio_penalty = 0.25
+        elif total_count >= 2 and success_ratio >= 0.30:
+            success_ratio_penalty = 0.12
+
+    combined = (
+        frequency_penalty * 0.45
+        + received_penalty * 0.30
+        + completed_penalty * 0.15
+        + success_ratio_penalty * 0.10
+    )
+    return -min(1.0, round(combined, 4))
 
 
 def _build_need_focused_breakdown(beneficiary, weights=None):
@@ -189,10 +308,20 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
                 active_weights[factor_key] = 0.0
 
     case_value = _case_severity_score(beneficiary.get('case_severity'))
-    income_value = _income_vulnerability_score(beneficiary.get('family_annual_income'))
+    income_value, scoring_income, income_band_label, income_value_source = _income_vulnerability_components(
+        beneficiary.get('family_annual_income')
+    )
     household_value = _household_vulnerability_score(beneficiary)
+    history_count = beneficiary.get('past_applications_count', beneficiary.get('past_applications'))
+    total_count = beneficiary.get('total_applications_count', history_count)
+    received_count = beneficiary.get('received_program_count', 0)
+    completed_count = beneficiary.get('completed_program_count', 0)
+
     repeat_value = _repeat_beneficiary_penalty(
-        beneficiary.get('past_applications_count', beneficiary.get('past_applications'))
+        beneficiary.get('past_applications'),
+        total_applications_count=total_count,
+        received_program_count=received_count,
+        completed_program_count=completed_count,
     )
 
     case_contrib = active_weights['case_severity'] * case_value
@@ -212,6 +341,9 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
             'weight': active_weights['income_vulnerability'],
             'beneficiary_value': round(income_value, 4),
             'contribution': round(income_contrib, 4),
+            'income_for_scoring': round(scoring_income, 2),
+            'income_band_label': income_band_label,
+            'income_value_source': income_value_source,
         },
         'household_vulnerability_factor': {
             'label': 'Household Vulnerability',
@@ -224,6 +356,9 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
             'weight': active_weights['repeat_beneficiary_penalty'],
             'beneficiary_value': round(repeat_value, 4),
             'contribution': round(repeat_contrib, 4),
+            'total_applications_count': _coerce_non_negative_int(total_count),
+            'received_program_count': _coerce_non_negative_int(received_count),
+            'completed_program_count': _coerce_non_negative_int(completed_count),
         },
         # Legacy flat keys retained for compatibility with existing consumers.
         'severity_component': round(case_contrib, 4),
@@ -459,22 +594,19 @@ class BeneficiaryRecommender:
             # was matched, mirroring the rule-based breakdown structure.
             income = float(rec.get('family_annual_income', 0) or 0)
             target_income = float(target_profile.get('family_annual_income', 0) or 0)
-            
-            # Case severity score mapper
-            severity = (rec.get('case_severity') or 'unrated').lower()
-            severity_scores = {
-                'critical': 1.0,
-                'high': 0.8,
-                'moderate': 0.6,
-                'low': 0.4,
-                'unrated': 0.0,
-            }
-            severity_score = severity_scores.get(severity, 0.0)
+            similarity_score = max(0.0, float(sim))
+            income_proximity = 0.0
+            if target_income > 0:
+                income_proximity = max(0.0, 1 - abs(income - target_income) / max(target_income, 1))
             
             rec['score_breakdown'] = {
-                'severity_component': round(severity_score * 0.5, 4),  # 50% weight
-                'similarity_score': round(float(sim), 4),
-                'income_score': round(max(0, 1 - abs(income - target_income) / max(target_income, 1)) * 0.2, 4) if target_income > 0 else 0,
+                # Not part of CBF similarity scoring; kept for legacy UI compatibility.
+                'severity_component': 0.0,
+                'similarity_score': round(similarity_score, 4),
+                # Raw 0-1 closeness of beneficiary income to target income.
+                'income_proximity': round(income_proximity, 4),
+                # Legacy weighted field retained for older consumers.
+                'income_score': round(income_proximity * 0.2, 4),
                 # Identity-group bonuses are intentionally disabled; priority groups are enforced via filters.
                 'solo_parent_bonus': 0.0,
                 'student_bonus': 0.0,
@@ -738,6 +870,34 @@ def _beneficiary_matches_priority_groups(beneficiary, priority_groups):
     return True
 
 
+def _parse_area_of_concern_tokens(raw_values):
+    """Normalize area-of-concern inputs into lowercase token list."""
+    values = []
+    if isinstance(raw_values, (list, tuple, set)):
+        values = list(raw_values)
+    elif isinstance(raw_values, str):
+        text = raw_values.strip()
+        if text:
+            if text.startswith('['):
+                try:
+                    parsed = json.loads(text)
+                    if isinstance(parsed, list):
+                        values = parsed
+                    else:
+                        values = [text]
+                except (TypeError, ValueError):
+                    values = [part for part in text.split(',') if part.strip()]
+            else:
+                values = [part for part in text.split(',') if part.strip()]
+
+    parsed_tokens = []
+    for value in values:
+        token = str(value or '').strip().lower()
+        if token and token not in parsed_tokens:
+            parsed_tokens.append(token)
+    return parsed_tokens
+
+
 def _apply_severity_boost(recommendations, case_severity_prioritization):
     """
     Severity is now integrated into base scoring (50% weight).
@@ -758,7 +918,8 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                        min_income=0, max_income=10000000,
                        case_severity_prioritization=False,
                        scoring_parameters=None,
-                       scoring_weights=None):
+                       scoring_weights=None,
+                       area_of_concerns=None):
     """
     Main function to generate beneficiary recommendations.
 
@@ -785,6 +946,8 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD")
                         Overrides individual priority flags if provided and acts as
                         a hard profile filter on returned beneficiaries
+        area_of_concerns: Optional list of area-of-concern values. When provided,
+                only beneficiaries matching at least one selected area are included.
         min_income: Minimum income filter (default: 0, max: 10,000,000)
         max_income: Maximum income filter (default: 10,000,000)
         case_severity_prioritization: If True, boost scores for higher severity cases
@@ -815,6 +978,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         for barangay in (priority_barangays or [])
         if str(barangay).strip()
     }
+    normalized_area_of_concerns = set(_parse_area_of_concern_tokens(area_of_concerns))
     
     # Apply basic filters
     filtered = []
@@ -843,6 +1007,11 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
         if normalized_priority_barangays:
             barangay = str(b.get('barangay') or '').strip().lower()
             if barangay not in normalized_priority_barangays:
+                continue
+
+        if normalized_area_of_concerns:
+            beneficiary_areas = set(_parse_area_of_concern_tokens(b.get('areas_of_concern')))
+            if not beneficiary_areas or beneficiary_areas.isdisjoint(normalized_area_of_concerns):
                 continue
 
         # Priority-group profile filter - enforce only matching profiles when configured
@@ -898,6 +1067,44 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                         rec for rec in cbf_results
                         if str(rec.get('barangay') or '').strip().lower() in normalized_priority_barangays
                     ]
+
+                if normalized_area_of_concerns:
+                    cbf_results = [
+                        rec for rec in cbf_results
+                        if not set(_parse_area_of_concern_tokens(rec.get('areas_of_concern'))).isdisjoint(normalized_area_of_concerns)
+                    ]
+
+                # Re-rank by adjusted similarity so repeat beneficiaries are less likely
+                # to dominate top slots in content-based recommendations.
+                for rec in cbf_results:
+                    repeat_penalty_value = _repeat_beneficiary_penalty(
+                        rec.get('past_applications'),
+                        total_applications_count=rec.get('total_applications_count', rec.get('past_applications_count')),
+                        received_program_count=rec.get('received_program_count'),
+                        completed_program_count=rec.get('completed_program_count'),
+                    )
+
+                    raw_similarity = float(rec.get('similarity_score', 0.0) or 0.0)
+                    adjusted_similarity = max(0.0, raw_similarity + (repeat_penalty_value * REPEAT_PENALTY_RERANK_WEIGHT))
+
+                    rec['repeat_beneficiary_penalty'] = round(repeat_penalty_value, 4)
+                    rec['adjusted_similarity_score'] = round(adjusted_similarity, 4)
+                    rec['score'] = round(adjusted_similarity, 4)
+
+                    breakdown = rec.get('score_breakdown')
+                    if isinstance(breakdown, dict):
+                        breakdown['repeat_penalty_component'] = round(
+                            repeat_penalty_value * REPEAT_PENALTY_RERANK_WEIGHT,
+                            4,
+                        )
+
+                cbf_results.sort(
+                    key=lambda rec: (
+                        float(rec.get('adjusted_similarity_score', 0.0) or 0.0),
+                        float(rec.get('similarity_score', 0.0) or 0.0),
+                    ),
+                    reverse=True,
+                )
 
                 # Apply severity boost if enabled
                 if case_severity_prioritization:

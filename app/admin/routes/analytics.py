@@ -24,8 +24,8 @@ from app.ml.fairness_auditor import FairnessAuditor
 from app.ml.program_compatibility import ProgramCompatibilityScorer
 from app.ml.weight_optimizer import WeightOptimizer
 from app.activity_logger import log_recommendation_saved, log_activity
-from app.location_options import get_municipalities, get_barangays_by_municipality
-from sqlalchemy import func, extract, or_
+from app.location_options import get_barangays_by_municipality, MUNICIPALITY_BARANGAYS
+from sqlalchemy import func, extract, or_, case
 from sqlalchemy.orm import aliased
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -124,6 +124,64 @@ VALID_DATE_PRESETS = {option['value'] for option in DATE_PRESET_OPTIONS}
 VALID_EXPORT_FORMATS = {option['value'] for option in EXPORT_FORMAT_OPTIONS}
 VALID_LOG_SCOPES = {'all', 'admin', 'community'}
 VALID_ACTIVITY_FOCUS = {'all', 'sessions', 'applications'}
+AREA_OF_CONCERN_OPTIONS = ('Business', 'Education', 'Medical', 'Emergency')
+AREA_OF_CONCERN_OPTION_MAP = {
+    option.lower(): option
+    for option in AREA_OF_CONCERN_OPTIONS
+}
+AREA_OF_CONCERN_KEYWORDS = {
+    'Business': ('business', 'livelihood', 'entrepreneur', 'enterprise', 'capital', 'employment', 'job'),
+    'Education': ('education', 'student', 'scholar', 'school', 'tuition', 'training', 'learning'),
+    'Medical': ('medical', 'health', 'hospital', 'medicine', 'illness', 'surgery', 'treatment'),
+    'Emergency': ('emergency', 'disaster', 'calamity', 'crisis', 'relief', 'urgent'),
+}
+
+
+def _parse_community_areas_of_concern(raw_value):
+    """Parse a stored community profile areas_of_concern JSON payload."""
+    if raw_value in (None, ''):
+        return []
+
+    if isinstance(raw_value, list):
+        values = raw_value
+    else:
+        try:
+            values = json.loads(raw_value)
+        except (TypeError, ValueError):
+            return []
+
+    if not isinstance(values, list):
+        return []
+
+    parsed = []
+    for raw_entry in values:
+        normalized = str(raw_entry or '').strip().lower()
+        canonical = AREA_OF_CONCERN_OPTION_MAP.get(normalized)
+        if canonical and canonical not in parsed:
+            parsed.append(canonical)
+    return parsed
+
+
+def _infer_program_area_of_concerns(program):
+    """Infer area-of-concern signals from program metadata."""
+    if not program:
+        return []
+
+    haystack = ' '.join([
+        str(getattr(program, 'program_name', '') or ''),
+        str(getattr(program, 'description', '') or ''),
+        str(getattr(program, 'priority_group', '') or ''),
+        str(getattr(program, 'program_type', '') or ''),
+    ]).lower()
+
+    inferred = []
+    for area_name in AREA_OF_CONCERN_OPTIONS:
+        area_token = area_name.lower()
+        keyword_tokens = AREA_OF_CONCERN_KEYWORDS.get(area_name, ())
+        if area_token in haystack or any(keyword in haystack for keyword in keyword_tokens):
+            inferred.append(area_name)
+
+    return inferred
 
 
 def _current_admin_municipality_key():
@@ -209,6 +267,25 @@ def _scoped_user_activity_logs_query():
         CommunityUsers, UserActivityLog.user_id == CommunityUsers.user_id
     ).filter(
         func.lower(func.trim(CommunityUsers.municipality)) == municipality_key
+    )
+
+
+def _is_emergency_program_snapshot(program_type=None, program_name=None, description=None, priority_group=None, program_period=None):
+    """Return True when a program snapshot should be treated as emergency/crisis-response."""
+    type_text = str(program_type or '').strip().lower()
+    name_text = str(program_name or '').strip().lower()
+    desc_text = str(description or '').strip().lower()
+    priority_text = str(priority_group or '').strip().lower()
+    period_text = str(program_period or '').strip().lower()
+    haystack = ' '.join([type_text, name_text, desc_text, priority_text, period_text])
+    return (
+        type_text == 'esa'
+        or period_text == 'emergency'
+        or 'emergency' in haystack
+        or 'burial assistance' in haystack
+        or 'funeral assistance' in haystack
+        or 'burial' in name_text
+        or 'funeral' in name_text
     )
 
 
@@ -967,7 +1044,31 @@ def analytics_analysis():
         'data': [row.count for row in applications_by_type_raw]
     }
     
-    # 3. Applicants per barangay
+    # 3. Applicants per barangay (include all barangays, even with zero applicants)
+    admin_municipality_display = _current_admin_municipality_display() or ''
+
+    canonical_barangays = list(get_barangays_by_municipality(admin_municipality_display) or [])
+    if not canonical_barangays and admin_municipality_display:
+        normalized_admin_municipality = admin_municipality_display.strip().lower().replace('.', '')
+        for municipality_name, barangays in MUNICIPALITY_BARANGAYS.items():
+            normalized_reference = municipality_name.strip().lower().replace('.', '')
+            if normalized_reference == normalized_admin_municipality:
+                canonical_barangays = list(barangays or [])
+                break
+
+    barangays_from_profiles = sorted({
+        (row.barangay or '').strip()
+        for row in _scoped_community_users_query().with_entities(CommunityUsers.barangay).filter(
+            CommunityUsers.barangay.isnot(None),
+            func.trim(CommunityUsers.barangay) != ''
+        ).distinct().all()
+        if (row.barangay or '').strip()
+    })
+
+    canonical_set = set(canonical_barangays)
+    extra_barangays = [barangay for barangay in barangays_from_profiles if barangay not in canonical_set]
+    ordered_barangays = canonical_barangays + extra_barangays if canonical_barangays else barangays_from_profiles
+
     applicant_user = aliased(User)
     applicant_profile = aliased(CommunityUsers)
     applicants_by_barangay_raw = _scoped_applications_query().join(
@@ -979,14 +1080,75 @@ def analytics_analysis():
         func.count(Applications.id).label('count')
     ).filter(
         applicant_profile.barangay.isnot(None)
-    ).group_by(applicant_profile.barangay).order_by(func.count(Applications.id).desc()).limit(10).all()
+    ).group_by(applicant_profile.barangay).all()
+
+    applicants_by_barangay_counts = {barangay: 0 for barangay in ordered_barangays}
+    for row in applicants_by_barangay_raw:
+        barangay_name = (row.barangay or '').strip()
+        if not barangay_name:
+            continue
+        if barangay_name not in applicants_by_barangay_counts:
+            ordered_barangays.append(barangay_name)
+            applicants_by_barangay_counts[barangay_name] = 0
+        applicants_by_barangay_counts[barangay_name] += int(row.count or 0)
+
+    sorted_applicants_by_barangay = sorted(
+        applicants_by_barangay_counts.items(),
+        key=lambda item: (-item[1], item[0].lower())
+    )
     
     applicants_by_barangay = {
-        'labels': [row.barangay for row in applicants_by_barangay_raw],
-        'data': [row.count for row in applicants_by_barangay_raw]
+        'labels': [item[0] for item in sorted_applicants_by_barangay],
+        'data': [item[1] for item in sorted_applicants_by_barangay]
     }
 
-    # 4. Community users by municipality (always include all registered municipalities)
+    # 4. Application completion rate per barangay (top 10 by total applications)
+    completion_rate_by_barangay_raw = _scoped_applications_query().join(
+        applicant_user, Applications.user_id == applicant_user.id
+    ).join(
+        applicant_profile, applicant_profile.user_id == applicant_user.id
+    ).with_entities(
+        applicant_profile.barangay.label('barangay'),
+        func.count(Applications.id).label('total_count'),
+        func.sum(
+            case((Applications.application_status == 'completed', 1), else_=0)
+        ).label('completed_count')
+    ).filter(
+        applicant_profile.barangay.isnot(None),
+        func.trim(applicant_profile.barangay) != ''
+    ).group_by(
+        applicant_profile.barangay
+    ).order_by(
+        func.count(Applications.id).desc(),
+        applicant_profile.barangay.asc()
+    ).limit(10).all()
+
+    completion_rate_by_barangay_rows = []
+    for row in completion_rate_by_barangay_raw:
+        total_count = int(row.total_count or 0)
+        completed_count = int(row.completed_count or 0)
+        completion_rate = round((completed_count / total_count) * 100, 2) if total_count > 0 else 0.0
+
+        completion_rate_by_barangay_rows.append({
+            'barangay': (row.barangay or '').strip(),
+            'rate': completion_rate,
+            'completed_count': completed_count,
+            'total_count': total_count,
+        })
+
+    # Keep the selected top-10 barangays, but display them highest-to-lowest by completion rate.
+    completion_rate_by_barangay_rows.sort(
+        key=lambda item: (-item['rate'], -item['total_count'], item['barangay'].lower())
+    )
+
+    completion_rate_by_barangay = {
+        'labels': [item['barangay'] for item in completion_rate_by_barangay_rows],
+        'rates': [item['rate'] for item in completion_rate_by_barangay_rows],
+        'completed_counts': [item['completed_count'] for item in completion_rate_by_barangay_rows],
+        'total_counts': [item['total_count'] for item in completion_rate_by_barangay_rows],
+    }
+
+    # 5. Community users by municipality (always include all registered municipalities)
     registered_municipalities = [
         'Mabitac',
         'Siniloan',
@@ -1067,6 +1229,7 @@ def analytics_analysis():
         applicants_over_time_json=json.dumps(applicants_over_time),
         applications_by_type_json=json.dumps(applications_by_type),
         applicants_by_barangay_json=json.dumps(applicants_by_barangay),
+        completion_rate_by_barangay_json=json.dumps(completion_rate_by_barangay),
         users_by_municipality_json=json.dumps(users_by_municipality),
         total_applications=total_applications,
         total_applicants=total_applicants,
@@ -1205,6 +1368,8 @@ def analytics_generate_report():
 @role_required('admin')
 def analytics_recommend():
     """Recommendation page for beneficiary selection"""
+    requested_program_id = request.args.get('program_id', type=int)
+
     # Exclude ESA and Emergency-period programs — they are crisis-response programs
     # that do not benefit from predictive beneficiary selection.
     programs = _scoped_programs_query().filter(
@@ -1212,22 +1377,31 @@ def analytics_recommend():
         Programs.program_period != 'Emergency'
     ).all()
 
+    available_program_ids = {program.id for program in programs}
+    preselected_program_id = (
+        requested_program_id
+        if requested_program_id in available_program_ids
+        else None
+    )
+
     admin_municipality = _current_admin_municipality_display()
     municipalities = [admin_municipality] if admin_municipality else []
-    if not municipalities:
-        municipalities = get_municipalities()
-
-    municipality_barangays = {
-        municipality: get_barangays_by_municipality(municipality)
-        for municipality in municipalities
-    }
+    municipality_barangays = (
+        {
+            admin_municipality: get_barangays_by_municipality(admin_municipality)
+        }
+        if admin_municipality
+        else {}
+    )
     
     return render_template(
         'admin/analytics_recommend.html',
         user=current_user,
         programs=programs,
+        preselected_program_id=preselected_program_id,
         municipalities=municipalities,
-        municipality_barangays_json=json.dumps(municipality_barangays)
+        admin_municipality=admin_municipality,
+        municipality_barangays_json=json.dumps(municipality_barangays),
     )
 
 @admin_bp.route('/api/program/<int:program_id>/parameters')
@@ -1282,8 +1456,10 @@ def api_generate_recommendations():
         priority_municipality: Municipality name to strictly filter recommendations.
         priority_groups: Comma-separated string of priority groups (e.g., "Solo Parent, Student, PWD, Senior Citizen")
                         Takes precedence over individual priority flags if provided.
-        min_income: Minimum annual income filter (default: 0)
-        max_income: Maximum annual income filter (default: 999999999)
+        area_of_concerns: Applied automatically from selected program context and
+                  matched against beneficiary profile selections.
+        min_income: Minimum Family Monthly Income filter (default: 0)
+        max_income: Maximum Family Monthly Income filter (default: 999999999)
         senior_citizen_priority: Boolean to prioritize senior citizens in scoring (default: False)
     
     Returns:
@@ -1336,6 +1512,8 @@ def api_generate_recommendations():
     priority_barangays = data.get('priority_barangays', [])
     if not isinstance(priority_barangays, list):
         priority_barangays = []
+
+    area_of_concerns = _infer_program_area_of_concerns(scoped_program)
 
     requested_priority_municipality = (data.get('priority_municipality') or '').strip()
     if requested_priority_municipality and requested_priority_municipality.lower() != admin_municipality_key:
@@ -1406,16 +1584,36 @@ def api_generate_recommendations():
         CommunityUsers.is_student,
         CommunityUsers.is_pwd,
         CommunityUsers.is_currently_employed,
-        CommunityUsers.occupation
+        CommunityUsers.occupation,
+        CommunityUsers.areas_of_concern,
     ).join(
         CommunityUsers, User.id == CommunityUsers.user_id
     ).filter(
-        func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key
+        func.lower(func.trim(CommunityUsers.municipality)) == admin_municipality_key,
+        CommunityUsers.age.isnot(None),
+        CommunityUsers.birth_year.isnot(None),
+        CommunityUsers.birth_month.isnot(None),
+        CommunityUsers.birth_day.isnot(None),
+        CommunityUsers.is_currently_employed.isnot(None),
+        CommunityUsers.is_student.isnot(None),
+        CommunityUsers.family_annual_income.isnot(None),
+        func.length(func.trim(func.coalesce(User.first_name, ''))) > 0,
+        func.length(func.trim(func.coalesce(User.last_name, ''))) > 0,
+        func.length(func.trim(func.coalesce(User.email, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.gender, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.mobile_no, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.barangay, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.address, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.municipality, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.civil_status, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.highest_education_attainment, ''))) > 0,
+        func.length(func.trim(func.coalesce(CommunityUsers.occupation, ''))) > 0,
     )
     
     all_users = query.all()
 
-    # Build per-user application history map: user_id -> space-separated program names/types
+    # Build per-user application history text map for semantic similarity features.
+    # Use a delimiter so downstream parsing can derive stable counts.
     app_history_rows = (
         _scoped_applications_query().with_entities(Applications.user_id, Programs.program_name, Programs.program_type)
         .filter(Applications.application_status.in_(['approved', 'active', 'completed']))
@@ -1423,15 +1621,47 @@ def api_generate_recommendations():
     )
     app_history_map: dict = {}
     for user_id, prog_name, prog_type in app_history_rows:
-        tokens = ' '.join(filter(None, [prog_name, prog_type]))
+        tokens = ' '.join(filter(None, [prog_name, prog_type])).strip()
+        if not tokens:
+            continue
         if user_id in app_history_map:
-            app_history_map[user_id] += ' ' + tokens
+            app_history_map[user_id] += '|' + tokens
         else:
             app_history_map[user_id] = tokens
 
+    # Build repeat-beneficiary pressure metrics.
+    repeat_stats_rows = (
+        _scoped_applications_query().with_entities(
+            Applications.user_id,
+            func.count(Applications.id).label('total_applications_count'),
+            func.sum(
+                case(
+                    (Applications.application_status.in_(['approved', 'active', 'completed']), 1),
+                    else_=0,
+                )
+            ).label('received_program_count'),
+            func.sum(
+                case(
+                    (Applications.application_status == 'completed', 1),
+                    else_=0,
+                )
+            ).label('completed_program_count'),
+        ).group_by(Applications.user_id).all()
+    )
+
+    repeat_stats_map = {}
+    for row in repeat_stats_rows:
+        repeat_stats_map[row.user_id] = {
+            'total_applications_count': int(row.total_applications_count or 0),
+            'received_program_count': int(row.received_program_count or 0),
+            'completed_program_count': int(row.completed_program_count or 0),
+        }
+
     # Convert to list of dictionaries for the recommender with income validation
-    beneficiaries_data = [
-        {
+    beneficiaries_data = []
+    for u in all_users:
+        repeat_stats = repeat_stats_map.get(u.id, {})
+        beneficiaries_data.append({
             'user_id': u.id,
             'first_name': u.first_name,
             'last_name': u.last_name,
@@ -1445,20 +1675,17 @@ def api_generate_recommendations():
             'is_pwd': u.is_pwd,
             'is_currently_employed': u.is_currently_employed,
             'occupation': u.occupation,
+            'areas_of_concern': _parse_community_areas_of_concern(u.areas_of_concern),
             'past_applications': app_history_map.get(u.id, ''),
-        }
-        for u in all_users
-    ]
+            'past_applications_count': int(repeat_stats.get('total_applications_count', 0)),
+            'total_applications_count': int(repeat_stats.get('total_applications_count', 0)),
+            'received_program_count': int(repeat_stats.get('received_program_count', 0)),
+            'completed_program_count': int(repeat_stats.get('completed_program_count', 0)),
+        })
 
-    # Exclude beneficiaries already enrolled (approved/completed) in the selected program
-    if program_id:
-        enrolled_user_ids = set(
-            row[0] for row in _scoped_applications_query().with_entities(Applications.user_id).filter(
-                Applications.program_id == program_id,
-                Applications.application_status.in_(['approved', 'completed'])
-            ).all()
-        )
-        beneficiaries_data = [b for b in beneficiaries_data if b['user_id'] not in enrolled_user_ids]
+    # Keep all scoped beneficiaries in the recommendation pool. Eligibility constraints
+    # such as active applications and cooldowns are surfaced as non-blocking flags
+    # in the response so admins can still review these users.
 
     # Build a target_profile from the program's priority group and requirements so
     # that the CBF (content-based filtering) KNN pipeline can be used instead of
@@ -1533,10 +1760,111 @@ def api_generate_recommendations():
         priority_barangays=priority_barangays if priority_barangays else None,
         priority_municipality=priority_municipality or None,
         priority_groups=effective_priority_groups,
+        area_of_concerns=area_of_concerns,
         min_income=min_income,
         max_income=max_income
     )
     
+    recommendation_user_ids = []
+    for recommendation in recommendations:
+        try:
+            parsed_user_id = int(recommendation.get('user_id'))
+        except (TypeError, ValueError):
+            continue
+        if parsed_user_id > 0:
+            recommendation_user_ids.append(parsed_user_id)
+
+    active_application_flags = {}
+    if program_id and recommendation_user_ids:
+        active_rows = _scoped_applications_query().with_entities(
+            Applications.user_id,
+            Applications.id,
+            Applications.application_status,
+            Applications.application_date,
+        ).filter(
+            Applications.program_id == program_id,
+            Applications.user_id.in_(recommendation_user_ids),
+            Applications.application_status.in_(['pending', 'approved', 'active'])
+        ).order_by(
+            Applications.user_id.asc(),
+            Applications.application_date.desc()
+        ).all()
+
+        for user_id, application_id, application_status, application_date in active_rows:
+            if user_id in active_application_flags:
+                continue
+            active_application_flags[user_id] = {
+                'application_id': application_id,
+                'status': application_status,
+                'application_date': application_date.isoformat() if application_date else None,
+            }
+
+    cooldown_flags = {}
+    target_is_emergency = _is_emergency_program_snapshot(
+        scoped_program.program_type if scoped_program else None,
+        scoped_program.program_name if scoped_program else None,
+        scoped_program.description if scoped_program else None,
+        scoped_program.priority_group if scoped_program else None,
+        scoped_program.program_period if scoped_program else None,
+    )
+
+    if recommendation_user_ids and not target_is_emergency:
+        cooldown_reference = datetime.utcnow() - relativedelta(months=3)
+        cooldown_rows = _scoped_applications_query().with_entities(
+            Applications.user_id,
+            Applications.id,
+            Applications.application_status,
+            Applications.claim_date,
+            Applications.updated_at,
+            Applications.review_date,
+            Applications.application_date,
+            Programs.program_name,
+            Programs.program_type,
+            Programs.program_period,
+            Programs.priority_group,
+            Programs.description,
+        ).filter(
+            Applications.user_id.in_(recommendation_user_ids),
+            or_(
+                Applications.application_status == 'completed',
+                Applications.claim_date.isnot(None)
+            )
+        ).order_by(
+            Applications.user_id.asc(),
+            Applications.updated_at.desc(),
+            Applications.application_date.desc()
+        ).all()
+
+        for row in cooldown_rows:
+            user_id = row.user_id
+            if user_id in cooldown_flags:
+                continue
+
+            reference_date = row.claim_date or row.updated_at or row.review_date or row.application_date
+            if not reference_date or reference_date < cooldown_reference:
+                continue
+
+            if _is_emergency_program_snapshot(
+                row.program_type,
+                row.program_name,
+                row.description,
+                row.priority_group,
+                row.program_period,
+            ):
+                continue
+
+            lock_until_date = (reference_date + relativedelta(months=3)).date()
+            cooldown_flags[user_id] = {
+                'application_id': row.id,
+                'status': row.application_status,
+                'program_name': row.program_name or 'previous program',
+                'reference_date': reference_date.isoformat(),
+                'lock_until': lock_until_date.isoformat(),
+            }
+
+    active_application_flags_by_user = {str(user_id): payload for user_id, payload in active_application_flags.items()}
+    cooldown_flags_by_user = {str(user_id): payload for user_id, payload in cooldown_flags.items()}
+
     return jsonify({
         'success': True,
         'count': len(recommendations),
@@ -1559,12 +1887,17 @@ def api_generate_recommendations():
                 'score_breakdown': r.get('score_breakdown', {}),
                 'similarity_score': r.get('similarity_score', None),
                 'past_applications': r.get('past_applications', ''),
+                'has_active_application': bool(active_application_flags_by_user.get(str(r.get('user_id')))),
+                'active_application': active_application_flags_by_user.get(str(r.get('user_id'))),
+                'has_active_cooldown': bool(cooldown_flags_by_user.get(str(r.get('user_id')))),
+                'active_cooldown': cooldown_flags_by_user.get(str(r.get('user_id'))),
             }
             for r in recommendations
         ],
         'algorithm': 'content-based-knn' if target_profile else 'rule-based-scoring',
         'program_matched': program_id is not None,
         'priority_groups': effective_priority_groups or '',
+        'area_of_concerns': area_of_concerns,
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
 
@@ -1604,6 +1937,115 @@ def _parse_positive_int_list(raw_values):
             except (TypeError, ValueError):
                 continue
     return sorted(set(values))
+
+
+def _sanitize_export_token(value, fallback='program'):
+    """Return a filesystem-safe token for exported filenames."""
+    raw = str(value or '').strip().lower()
+    cleaned = ''.join(ch if ch.isalnum() else '_' for ch in raw).strip('_')
+    return cleaned or fallback
+
+
+def _coerce_export_rows(raw_rows):
+    """Normalize recommendation rows payload from API request JSON."""
+    if not isinstance(raw_rows, list):
+        return []
+    return [row for row in raw_rows if isinstance(row, dict)]
+
+
+def _build_recommendation_export_payload(data):
+    """Build report-payload structure for recommendation list exports."""
+    recommendations = _coerce_export_rows(data.get('recommendations'))
+
+    generated_raw = str(data.get('generated_at') or '').strip()
+    generated_date = None
+    if generated_raw:
+        normalized = generated_raw.replace('Z', '+00:00')
+        try:
+            generated_date = datetime.fromisoformat(normalized)
+        except ValueError:
+            generated_date = None
+
+    date_label = (
+        manila_strftime(generated_date, '%B %d, %Y %I:%M %p', 'N/A')
+        if generated_date
+        else 'N/A'
+    )
+
+    program_name = str(data.get('program_name') or 'Unknown Program').strip() or 'Unknown Program'
+    algorithm = str(data.get('algorithm') or 'N/A').strip() or 'N/A'
+    priority_groups = str(data.get('priority_groups') or 'N/A').strip() or 'N/A'
+
+    filters = data.get('filters', {})
+    if not isinstance(filters, dict):
+        filters = {}
+
+    municipality_filter = str(filters.get('priority_municipality') or 'All').strip() or 'All'
+    min_income = filters.get('min_income', 0)
+    max_income = filters.get('max_income', 0)
+    try:
+        min_income = float(min_income or 0)
+    except (TypeError, ValueError):
+        min_income = 0.0
+    try:
+        max_income = float(max_income or 0)
+    except (TypeError, ValueError):
+        max_income = 0.0
+
+    rows = []
+    for index, rec in enumerate(recommendations, start=1):
+        try:
+            income_value = float(rec.get('income', 0) or 0)
+        except (TypeError, ValueError):
+            income_value = 0.0
+
+        score_type = 'Similarity' if rec.get('similarity_score') is not None else 'Priority Score'
+        try:
+            score_value = float(rec.get('score', 0) or 0)
+        except (TypeError, ValueError):
+            score_value = 0.0
+
+        rows.append([
+            index,
+            rec.get('user_id') or '',
+            rec.get('name') or '',
+            rec.get('email') or '',
+            rec.get('municipality') or '',
+            rec.get('barangay') or '',
+            rec.get('age') if rec.get('age') is not None else '',
+            round(income_value, 2),
+            'Yes' if rec.get('is_student') else 'No',
+            'Yes' if rec.get('is_solo_parent') else 'No',
+            'Yes' if rec.get('is_pwd') else 'No',
+            'Yes' if rec.get('is_senior') else 'No',
+            'Yes' if rec.get('has_active_application') else 'No',
+            'Yes' if rec.get('has_active_cooldown') else 'No',
+            score_type,
+            round(score_value, 4),
+        ])
+
+    report_payload = {
+        'title': 'Beneficiary Recommendation Export',
+        'columns': [
+            'Rank', 'User ID', 'Name', 'Email', 'Municipality', 'Barangay', 'Age',
+            'Family Monthly Income', 'Student', 'Solo Parent', 'PWD', 'Senior Citizen',
+            'Active Application', 'Cooldown Active', 'Score Type', 'Score'
+        ],
+        'rows': rows,
+        'summary_lines': [
+            f'Program: {program_name}',
+            f'Generated At: {date_label}',
+            f'Algorithm: {algorithm}',
+            f'Priority Groups: {priority_groups}',
+            f'Municipality Filter: {municipality_filter}',
+            f'Income Range: PHP {min_income:,.0f} - PHP {max_income:,.0f}',
+            f'Recommended Beneficiaries: {len(rows)}',
+        ],
+    }
+
+    timestamp_token = datetime.utcnow().strftime('%Y%m%dT%H%M%S')
+    filename = f"recommendations_{_sanitize_export_token(program_name)}_{timestamp_token}"
+    return report_payload, filename, date_label
 
 
 @admin_bp.route('/api/analytics/save-recommendations', methods=['POST'])
@@ -1649,6 +2091,8 @@ def api_save_recommendations():
     if not isinstance(filters_payload, dict):
         filters_payload = {}
 
+    generated_at = str(data.get('generated_at') or '').strip() or datetime.utcnow().isoformat()
+
     max_ids_to_store = 300
     stored_user_ids = recommendation_user_ids[:max_ids_to_store]
 
@@ -1658,6 +2102,7 @@ def api_save_recommendations():
             recommendation_count=recommendation_count,
             details_extra={
                 'program_id': program_id,
+                'generated_at': generated_at,
                 'filters': filters_payload,
                 'recommended_user_ids': stored_user_ids,
                 'recommended_user_count': len(recommendation_user_ids),
@@ -1739,9 +2184,12 @@ def api_saved_recommendations():
         except (TypeError, ValueError):
             recommendation_count = recommended_user_count
 
+        generated_at = str(details.get('generated_at') or '').strip() or (log.created_at.isoformat() if log.created_at else None)
+
         saved_lists.append({
             'id': log.id,
             'created_at': log.created_at.isoformat() if log.created_at else None,
+            'generated_at': generated_at,
             'admin_id': log.admin_id,
             'admin_name': log.admin_name,
             'program_id': program_id,
@@ -1805,6 +2253,8 @@ def api_saved_recommendation_detail(saved_list_id):
     except (TypeError, ValueError):
         recommendation_count = recommended_user_count
 
+    generated_at = str(details.get('generated_at') or '').strip() or (log.created_at.isoformat() if log.created_at else None)
+
     beneficiary_rows = []
     if recommended_user_ids:
         admin_municipality_key = _current_admin_municipality_key()
@@ -1850,6 +2300,7 @@ def api_saved_recommendation_detail(saved_list_id):
     saved_list_payload = {
         'id': log.id,
         'created_at': log.created_at.isoformat() if log.created_at else None,
+        'generated_at': generated_at,
         'admin_id': log.admin_id,
         'admin_name': log.admin_name,
         'program_id': program_id,
@@ -1867,6 +2318,65 @@ def api_saved_recommendation_detail(saved_list_id):
         'beneficiaries': beneficiaries,
         'beneficiary_count': len(beneficiaries),
     })
+
+
+@admin_bp.route('/api/analytics/saved-recommendations/<int:saved_list_id>/delete', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_delete_saved_recommendation(saved_list_id):
+    """Delete one saved recommendation list within the admin's municipality scope."""
+    log = _scoped_admin_activity_logs_query().filter(
+        AdminActivityLog.id == saved_list_id,
+        AdminActivityLog.action == 'save_recommendation',
+        AdminActivityLog.entity_type == 'recommendation'
+    ).first()
+
+    if not log:
+        return jsonify({'success': False, 'message': 'Saved recommendation list not found.'}), 404
+
+    try:
+        db.session.delete(log)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Saved recommendation list deleted successfully.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/api/analytics/export-recommendations', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_export_recommendations():
+    """Export generated recommendation list as CSV, Excel, or PDF."""
+    data = request.get_json() or {}
+    export_format = str(data.get('export_format') or 'csv').strip().lower()
+
+    if export_format not in {'csv', 'excel', 'pdf'}:
+        return jsonify({'success': False, 'message': 'Invalid export format.'}), 400
+
+    report_payload, filename, date_label = _build_recommendation_export_payload(data)
+
+    if export_format == 'csv':
+        return _build_delimited_response(
+            report_payload,
+            filename,
+            date_label,
+            delimiter=',',
+            mimetype='text/csv',
+            extension='csv',
+        )
+
+    if export_format == 'excel':
+        return _build_delimited_response(
+            report_payload,
+            filename,
+            date_label,
+            delimiter='\t',
+            mimetype='application/vnd.ms-excel',
+            extension='xls',
+        )
+
+    return _build_pdf_response(report_payload, filename, date_label)
 
 
 @admin_bp.route('/api/analytics/notify-recommendations', methods=['POST'])
@@ -2010,24 +2520,103 @@ def api_arima_forecast():
 @login_required
 @role_required('admin')
 def api_program_forecast():
-    """API endpoint for program category growth forecast"""
-    growth_rate = request.args.get('growth_rate', type=float)
-    
-    # Query current program applications
-    applications_by_type = _scoped_applications_query().with_entities(
-        Programs.program_type,
+    """API endpoint for ARIMA-based monthly program-category forecast."""
+    months = request.args.get('months', 18, type=int)
+    forecast_periods = request.args.get('forecast_periods', 6, type=int)
+
+    months = min(max(months or 18, 6), 60)
+    forecast_periods = min(max(forecast_periods or 6, 1), 12)
+
+    now = datetime.utcnow()
+    end_month = datetime(now.year, now.month, 1)
+    start_month = end_month - relativedelta(months=months - 1)
+    end_exclusive = end_month + relativedelta(months=1)
+
+    historical_months = []
+    cursor = start_month
+    while cursor <= end_month:
+        historical_months.append(cursor)
+        cursor = cursor + relativedelta(months=1)
+
+    historical_labels = [month.strftime('%b %Y') for month in historical_months]
+
+    rows = _scoped_applications_query().with_entities(
+        func.date_trunc('month', Applications.application_date).label('month'),
+        func.coalesce(Programs.program_type, 'Unspecified').label('program_type'),
         func.count(Applications.id).label('count')
-    ).group_by(Programs.program_type).all()
-    
-    program_data = {
-        'labels': [row.program_type for row in applications_by_type],
-        'data': [row.count for row in applications_by_type]
+    ).filter(
+        Applications.application_date >= start_month,
+        Applications.application_date < end_exclusive,
+    ).group_by(
+        'month', 'program_type'
+    ).order_by(
+        'month', 'program_type'
+    ).all()
+
+    program_types = sorted({(row.program_type or 'Unspecified') for row in rows})
+    if not program_types:
+        return jsonify({
+            'success': False,
+            'message': 'No program-category history available for forecasting.',
+            'historical_labels': historical_labels,
+            'forecast_labels': [],
+            'categories': [],
+            'historical_months': months,
+            'forecast_periods': forecast_periods,
+        })
+
+    month_category_counts = {}
+    for row in rows:
+        if not row.month:
+            continue
+        month_label = row.month.strftime('%b %Y')
+        program_type = row.program_type or 'Unspecified'
+        month_category_counts[(program_type, month_label)] = int(row.count or 0)
+
+    program_histories = {
+        program_type: {
+            'labels': historical_labels,
+            'values': [month_category_counts.get((program_type, label), 0) for label in historical_labels],
+        }
+        for program_type in program_types
     }
-    
-    # Generate program growth forecast
-    forecast_result = forecast_program_growth(program_data, growth_rate)
-    
-    return jsonify(forecast_result)
+
+    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods)
+
+    forecast_labels = []
+    for program_type in program_types:
+        labels = (forecast_by_program.get(program_type) or {}).get('forecast_labels', [])
+        if labels:
+            forecast_labels = labels
+            break
+
+    if not forecast_labels:
+        forecast_labels = [
+            (end_month + relativedelta(months=i)).strftime('%b %Y')
+            for i in range(1, forecast_periods + 1)
+        ]
+
+    categories = []
+    for program_type in program_types:
+        forecast_result = forecast_by_program.get(program_type, {})
+        categories.append({
+            'program_type': program_type,
+            'historical_values': program_histories[program_type]['values'],
+            'forecast_values': forecast_result.get('forecast_values', []),
+            'model': forecast_result.get('model', 'unknown'),
+            'forecast_supported': forecast_result.get('forecast_supported', forecast_result.get('success', False)),
+            'fallback_reason': forecast_result.get('fallback_reason'),
+            'forecast_note': forecast_result.get('forecast_note'),
+        })
+
+    return jsonify({
+        'success': True,
+        'historical_labels': historical_labels,
+        'forecast_labels': forecast_labels,
+        'categories': categories,
+        'historical_months': months,
+        'forecast_periods': forecast_periods,
+    })
 
 @admin_bp.route('/api/analytics/test-arima')
 @login_required

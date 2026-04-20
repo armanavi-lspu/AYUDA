@@ -8,7 +8,7 @@ from sqlalchemy import func
 
 from app.admin.routes import analytics as admin_analytics
 from app.extensions import db
-from app.forecasting import arima_forecast, forecast_program_growth
+from app.forecasting import arima_forecast, forecast_program_timeseries
 from app.location_options import get_municipalities
 from app.models import Applications, CommunityUsers, Programs
 from app.super_admin import super_admin_bp
@@ -334,20 +334,102 @@ def api_arima_forecast():
 @login_required
 @role_required('super_admin')
 def api_program_forecast():
-    """API endpoint for program category growth forecast."""
-    growth_rate = request.args.get('growth_rate', type=float)
+    """API endpoint for ARIMA-based monthly program-category forecast."""
+    months = request.args.get('months', 18, type=int)
+    forecast_periods = request.args.get('forecast_periods', 6, type=int)
 
-    applications_by_type = db.session.query(
-        Programs.program_type,
+    months = min(max(months or 18, 6), 60)
+    forecast_periods = min(max(forecast_periods or 6, 1), 12)
+
+    now = datetime.utcnow()
+    end_month = datetime(now.year, now.month, 1)
+    start_month = end_month - relativedelta(months=months - 1)
+    end_exclusive = end_month + relativedelta(months=1)
+
+    historical_months = []
+    cursor = start_month
+    while cursor <= end_month:
+        historical_months.append(cursor)
+        cursor = cursor + relativedelta(months=1)
+
+    historical_labels = [month.strftime('%b %Y') for month in historical_months]
+
+    rows = db.session.query(
+        func.date_trunc('month', Applications.application_date).label('month'),
+        func.coalesce(Programs.program_type, 'Unspecified').label('program_type'),
         func.count(Applications.id).label('count')
     ).join(
-        Applications, Programs.id == Applications.program_id
-    ).group_by(Programs.program_type).all()
+        Programs, Programs.id == Applications.program_id
+    ).filter(
+        Applications.application_date >= start_month,
+        Applications.application_date < end_exclusive,
+    ).group_by(
+        'month', 'program_type'
+    ).order_by(
+        'month', 'program_type'
+    ).all()
 
-    program_data = {
-        'labels': [row.program_type for row in applications_by_type],
-        'data': [row.count for row in applications_by_type],
+    program_types = sorted({(row.program_type or 'Unspecified') for row in rows})
+    if not program_types:
+        return jsonify({
+            'success': False,
+            'message': 'No program-category history available for forecasting.',
+            'historical_labels': historical_labels,
+            'forecast_labels': [],
+            'categories': [],
+            'historical_months': months,
+            'forecast_periods': forecast_periods,
+        })
+
+    month_category_counts = {}
+    for row in rows:
+        if not row.month:
+            continue
+        month_label = row.month.strftime('%b %Y')
+        program_type = row.program_type or 'Unspecified'
+        month_category_counts[(program_type, month_label)] = int(row.count or 0)
+
+    program_histories = {
+        program_type: {
+            'labels': historical_labels,
+            'values': [month_category_counts.get((program_type, label), 0) for label in historical_labels],
+        }
+        for program_type in program_types
     }
 
-    forecast_result = forecast_program_growth(program_data, growth_rate)
-    return jsonify(forecast_result)
+    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods)
+
+    forecast_labels = []
+    for program_type in program_types:
+        labels = (forecast_by_program.get(program_type) or {}).get('forecast_labels', [])
+        if labels:
+            forecast_labels = labels
+            break
+
+    if not forecast_labels:
+        forecast_labels = [
+            (end_month + relativedelta(months=i)).strftime('%b %Y')
+            for i in range(1, forecast_periods + 1)
+        ]
+
+    categories = []
+    for program_type in program_types:
+        forecast_result = forecast_by_program.get(program_type, {})
+        categories.append({
+            'program_type': program_type,
+            'historical_values': program_histories[program_type]['values'],
+            'forecast_values': forecast_result.get('forecast_values', []),
+            'model': forecast_result.get('model', 'unknown'),
+            'forecast_supported': forecast_result.get('forecast_supported', forecast_result.get('success', False)),
+            'fallback_reason': forecast_result.get('fallback_reason'),
+            'forecast_note': forecast_result.get('forecast_note'),
+        })
+
+    return jsonify({
+        'success': True,
+        'historical_labels': historical_labels,
+        'forecast_labels': forecast_labels,
+        'categories': categories,
+        'historical_months': months,
+        'forecast_periods': forecast_periods,
+    })

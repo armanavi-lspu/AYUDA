@@ -89,6 +89,11 @@
         font-weight: 600;
         color: #5a5c69;
     }
+
+    /* Page-level override so tooltips stay above high-z-index modals */
+    .tooltip {
+        z-index: 3000 !important;
+    }
 </style>
 {% endblock %}
 
@@ -128,69 +133,43 @@
             <form id="programRankedListForm">
                 <div class="border rounded p-2 mb-3 bg-light">
                     <small class="font-weight-bold">Included parameters:</small>
-                    <small class="d-block text-muted" id="rankedCriteriaSummaryText">Maximum Beneficiaries, Family Annual Income, Municipality and Barangay</small>
+                    <small class="d-block text-muted" id="rankedCriteriaSummaryText">Maximum Beneficiaries, Family Monthly Income, Priority Barangays</small>
                 </div>
 
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-group">
                             <label class="font-weight-bold">Maximum Beneficiaries</label>
                             <input type="number" class="form-control" id="rankedMaxBeneficiaries" min="1" max="1000" value="{{ program.beneficiary_limit if program.beneficiary_limit else 50 }}">
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="form-group">
-                            <label class="font-weight-bold">Family Annual Income</label>
+                            <label class="font-weight-bold">Family Monthly Income</label>
                             <select class="form-control" id="rankedIncomeRangeFilter">
-                                <option value="0|10000000" selected>Any Income (0 - 10,000,000)</option>
-                                <option value="0|10000">Below 10,000</option>
-                                <option value="10000|20000">10,000 - 20,000</option>
-                                <option value="20001|30000">20,001 - 30,000</option>
-                                <option value="30001|40000">30,001 - 40,000</option>
-                                <option value="40001|50000">40,001 - 50,000</option>
-                                <option value="50001|75000">50,001 - 75,000</option>
-                                <option value="75001|100000">75,001 - 100,000</option>
-                                <option value="100001|150000">100,001 - 150,000</option>
-                                <option value="150001|200000">150,001 - 200,000</option>
-                                <option value="200001|300000">200,001 - 300,000</option>
-                                <option value="300001|400000">300,001 - 400,000</option>
-                                <option value="400001|500000">400,001 - 500,000</option>
-                                <option value="500001|10000000">500,001 and above</option>
+                                <option value="0|150000" selected>Below 150,000</option>
+                                <option value="0|100000">Below 100,000</option>
+                                <option value="0|75000">Below 75,000</option>
+                                <option value="0|50000">Below 50,000</option>
+                                <option value="0|40000">Below 40,000</option>
+                                <option value="0|30000">Below 30,000</option>
                             </select>
                             <input type="hidden" id="rankedMinIncome" value="0">
-                            <input type="hidden" id="rankedMaxIncome" value="10000000">
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label class="font-weight-bold">Municipality</label>
-                            <select class="form-control" id="rankedMunicipalityFilter">
-                                <option value="" selected>All Municipalities</option>
-                                {% for municipality in municipalities %}
-                                <option value="{{ municipality }}">{{ municipality }}</option>
-                                {% endfor %}
-                            </select>
+                            <input type="hidden" id="rankedMaxIncome" value="150000">
                         </div>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-12">
-                        <label class="font-weight-bold mb-2">Barangays</label>
-                        <div class="border rounded p-2" id="rankedBarangayContainer" style="max-height: 180px; overflow-y: auto;">
-                            <small class="text-muted">Select a municipality first to view available barangays.</small>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="font-weight-bold mb-0">Priority Barangays {% if admin_municipality %}({{ admin_municipality }}){% endif %}</label>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="rankedSelectAllBarangaysBtn">
+                                <i class="fas fa-check-square mr-1"></i>Select All
+                            </button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="row mt-3">
-                    <div class="col-md-4">
-                        <div class="form-group mb-0">
-                            <label class="font-weight-bold">Completion Date Tie-Break</label>
-                            <select class="form-control" id="rankedCompletionDateOrder">
-                                <option value="asc" selected>ASC (Earlier Completed First)</option>
-                                <option value="desc">DESC (Latest Completed First)</option>
-                            </select>
+                        <div class="border rounded p-2" id="rankedBarangayContainer" style="max-height: 180px; overflow-y: auto;">
+                            <small class="text-muted">Loading available barangays...</small>
                         </div>
                     </div>
                 </div>
@@ -230,7 +209,7 @@
                             <th>Beneficiary</th>
                             <th style="width: 130px;">Municipality</th>
                             <th style="width: 130px;">Barangay</th>
-                            <th style="width: 130px;">Annual Income</th>
+                            <th style="width: 130px;">Family Monthly Income</th>
                             <th style="width: 160px;">Completion Date</th>
                             <th style="width: 100px;">Score</th>
                             <th style="width: 140px;">Action</th>
@@ -238,6 +217,20 @@
                     </thead>
                     <tbody id="programRankedListBody"></tbody>
                 </table>
+            </div>
+            <div class="alert alert-warning mt-3 mb-0" id="rankedFilteredApplicantsSection" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <i class="fas fa-filter mr-2"></i>
+                        <strong id="rankedFilteredApplicantsCount">0</strong> applicant(s) were filtered out.
+                    </div>
+                    <button type="button" class="btn btn-outline-warning btn-sm mt-2 mt-md-0" data-toggle="collapse" data-target="#rankedFilteredApplicantsCollapse" aria-expanded="false" aria-controls="rankedFilteredApplicantsCollapse">
+                        <i class="fas fa-chevron-down mr-1"></i>Show Filtered Applicants
+                    </button>
+                </div>
+                <div class="collapse mt-3" id="rankedFilteredApplicantsCollapse">
+                    <div id="rankedFilteredApplicantsList"></div>
+                </div>
             </div>
             <p id="programRankedListEmpty" class="text-muted text-center py-3 mb-0" style="display: none;">
                 No eligible beneficiaries matched the selected filters.
@@ -303,63 +296,36 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p class="text-muted mb-3">Select which parameters should be included when generating the ranked list.</p>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeMaxBeneficiariesCriteria" checked>
-                    <label class="custom-control-label" for="modalIncludeMaxBeneficiariesCriteria">Include Maximum Beneficiaries</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeIncomeCriteria" checked>
-                    <label class="custom-control-label" for="modalIncludeIncomeCriteria">Include Income Range Filter</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeMunicipalityBarangayCriteria" checked>
-                    <label class="custom-control-label" for="modalIncludeMunicipalityBarangayCriteria">Include Municipality and Barangay Filter</label>
-                </div>
-
-                <hr>
-                <p class="text-muted mb-2">Scoring parameters used for ranking:</p>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeCaseSeverityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeCaseSeverityFactor">
+                <p class="text-muted mb-3">Configure scoring parameters used for ranking.</p>
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Measures urgency from the assessed case severity. More urgent cases receive higher ranking weight.">
                         Case Severity
-                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Measures urgency based on assessed case severity. Higher severity increases rank."></i>
+                        <i class="fas fa-info-circle text-info ml-1"></i>
                     </label>
-                </div>
-                <div class="form-group ml-4 mb-2">
                     <label class="small text-muted mb-1" for="modalCaseSeverityWeight">Weight (%)</label>
                     <input type="number" class="form-control form-control-sm" id="modalCaseSeverityWeight" min="0" step="0.01" value="60">
                 </div>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeIncomeVulnerabilityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeIncomeVulnerabilityFactor">
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Prioritizes lower-income households. Lower Family Monthly Income corresponds to higher vulnerability.">
                         Income Vulnerability
-                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Prioritizes lower-income households. Lower annual income maps to higher vulnerability value."></i>
+                        <i class="fas fa-info-circle text-info ml-1"></i>
                     </label>
-                </div>
-                <div class="form-group ml-4 mb-2">
                     <label class="small text-muted mb-1" for="modalIncomeVulnerabilityWeight">Weight (%)</label>
                     <input type="number" class="form-control form-control-sm" id="modalIncomeVulnerabilityWeight" min="0" step="0.01" value="25">
                 </div>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeHouseholdVulnerabilityFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeHouseholdVulnerabilityFactor">
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Adds risk indicators from profile flags such as solo parent, student, PWD, senior status, and employment context.">
                         Household Vulnerability
-                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Combines household risk indicators such as solo parent, student, PWD, senior status, and employment context."></i>
+                        <i class="fas fa-info-circle text-info ml-1"></i>
                     </label>
-                </div>
-                <div class="form-group ml-4 mb-2">
                     <label class="small text-muted mb-1" for="modalHouseholdVulnerabilityWeight">Weight (%)</label>
                     <input type="number" class="form-control form-control-sm" id="modalHouseholdVulnerabilityWeight" min="0" step="0.01" value="12">
                 </div>
-                <div class="custom-control custom-checkbox mb-2">
-                    <input type="checkbox" class="custom-control-input" id="modalIncludeRepeatPenaltyFactor" checked>
-                    <label class="custom-control-label" for="modalIncludeRepeatPenaltyFactor">
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Applies a deduction when there is prior assistance history to help distribute support more fairly.">
                         Repeat Beneficiary Penalty
-                        <i class="fas fa-info-circle text-info ml-1" data-toggle="tooltip" title="Applies a negative adjustment when there are multiple prior applications to support fairer distribution."></i>
+                        <i class="fas fa-info-circle text-info ml-1"></i>
                     </label>
-                </div>
-                <div class="form-group ml-4 mb-2">
                     <label class="small text-muted mb-1" for="modalRepeatPenaltyWeight">Weight (%)</label>
                     <input type="number" class="form-control form-control-sm" id="modalRepeatPenaltyWeight" min="0" step="0.01" value="3">
                 </div>
@@ -382,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const municipalityBarangays = JSON.parse(
         (document.getElementById('municipalityBarangaysData') || { textContent: '{}' }).textContent || '{}'
     );
+    const rankedScopedMunicipality = {{ admin_municipality | tojson }} || '';
 
     const rankedListForm = document.getElementById('programRankedListForm');
     const rankedListLoading = document.getElementById('programRankedListLoading');
@@ -400,13 +367,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const rankedCriteriaSummaryText = document.getElementById('rankedCriteriaSummaryText');
     const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
     const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
-    const modalIncludeMaxBeneficiariesCriteria = document.getElementById('modalIncludeMaxBeneficiariesCriteria');
-    const modalIncludeIncomeCriteria = document.getElementById('modalIncludeIncomeCriteria');
-    const modalIncludeMunicipalityBarangayCriteria = document.getElementById('modalIncludeMunicipalityBarangayCriteria');
-    const modalIncludeCaseSeverityFactor = document.getElementById('modalIncludeCaseSeverityFactor');
-    const modalIncludeIncomeVulnerabilityFactor = document.getElementById('modalIncludeIncomeVulnerabilityFactor');
-    const modalIncludeHouseholdVulnerabilityFactor = document.getElementById('modalIncludeHouseholdVulnerabilityFactor');
-    const modalIncludeRepeatPenaltyFactor = document.getElementById('modalIncludeRepeatPenaltyFactor');
     const modalCaseSeverityWeightInput = document.getElementById('modalCaseSeverityWeight');
     const modalIncomeVulnerabilityWeightInput = document.getElementById('modalIncomeVulnerabilityWeight');
     const modalHouseholdVulnerabilityWeightInput = document.getElementById('modalHouseholdVulnerabilityWeight');
@@ -415,12 +375,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
     const rankedMinIncomeInput = document.getElementById('rankedMinIncome');
     const rankedMaxIncomeInput = document.getElementById('rankedMaxIncome');
-    const rankedMunicipalityFilterInput = document.getElementById('rankedMunicipalityFilter');
     const rankedBarangayContainer = document.getElementById('rankedBarangayContainer');
-    const rankedCompletionDateOrderInput = document.getElementById('rankedCompletionDateOrder');
+    const rankedSelectAllBarangaysBtn = document.getElementById('rankedSelectAllBarangaysBtn');
+    const rankedFilteredApplicantsSection = document.getElementById('rankedFilteredApplicantsSection');
+    const rankedFilteredApplicantsCount = document.getElementById('rankedFilteredApplicantsCount');
+    const rankedFilteredApplicantsList = document.getElementById('rankedFilteredApplicantsList');
+    const rankedFilteredApplicantsCollapse = document.getElementById('rankedFilteredApplicantsCollapse');
+
+    function initRankedParameterTooltips() {
+        if (!(window.$ && $.fn.tooltip)) {
+            return;
+        }
+
+        const $tooltips = $('#rankedParametersSelectionModal [data-toggle="tooltip"]');
+        $tooltips.tooltip('dispose');
+        $tooltips.tooltip({
+            container: 'body',
+            trigger: 'hover focus',
+            boundary: 'window'
+        });
+    }
 
     if (window.$ && $.fn.tooltip) {
         $('[data-toggle="tooltip"]').tooltip({ container: 'body' });
+        initRankedParameterTooltips();
+        $('#rankedParametersSelectionModal').on('shown.bs.modal', function() {
+            initRankedParameterTooltips();
+        });
     }
 
     const rankedCriteriaState = {
@@ -439,10 +420,74 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let latestRankedRecommendations = [];
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderFilteredApplicants(filteredApplicants) {
+        const list = Array.isArray(filteredApplicants) ? filteredApplicants : [];
+        if (!rankedFilteredApplicantsSection || !rankedFilteredApplicantsCount || !rankedFilteredApplicantsList) {
+            return;
+        }
+
+        if (!list.length) {
+            rankedFilteredApplicantsSection.style.display = 'none';
+            rankedFilteredApplicantsCount.textContent = '0';
+            rankedFilteredApplicantsList.innerHTML = '';
+            if (window.$ && rankedFilteredApplicantsCollapse) {
+                $(rankedFilteredApplicantsCollapse).collapse('hide');
+            }
+            return;
+        }
+
+        rankedFilteredApplicantsSection.style.display = 'block';
+        rankedFilteredApplicantsCount.textContent = String(list.length);
+        rankedFilteredApplicantsList.innerHTML = '';
+
+        list.forEach(function(applicant, index) {
+            const card = document.createElement('div');
+            card.className = 'border rounded bg-white p-3 mb-2';
+            const scoreText = Number.isFinite(Number(applicant.score))
+                ? `Score: ${Number(applicant.score).toFixed(4)}`
+                : 'Score: n/a';
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="font-weight-bold">${index + 1}. ${escapeHtml(applicant.name || 'N/A')}</div>
+                        <small class="text-muted d-block"><i class="fas fa-envelope mr-1"></i>${escapeHtml(applicant.email || 'N/A')}</small>
+                        <small class="text-muted d-block"><i class="fas fa-map-marker-alt mr-1"></i>${escapeHtml(applicant.barangay || 'N/A')}, ${escapeHtml(applicant.municipality || 'N/A')}</small>
+                    </div>
+                    <div class="text-right">
+                        <small class="text-muted d-block">${scoreText}</small>
+                        <small class="text-muted d-block">${escapeHtml(applicant.income_range || 'Not specified')}</small>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="badge badge-warning">${escapeHtml(applicant.reason || 'Filtered out by current criteria.')}</span>
+                </div>
+            `;
+
+            rankedFilteredApplicantsList.appendChild(card);
+        });
+    }
+
     function getSelectedRankedBarangays() {
         return Array.from(document.querySelectorAll('.ranked-barangay:checked')).map(function(el) {
             return el.value;
         });
+    }
+
+    function getScopedRankedBarangays() {
+        if (!rankedScopedMunicipality || !municipalityBarangays[rankedScopedMunicipality]) {
+            return [];
+        }
+        return municipalityBarangays[rankedScopedMunicipality] || [];
     }
 
     function updateSaveAndScheduleRankedButton() {
@@ -459,21 +504,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function renderRankedBarangayOptionsForMunicipality(municipality) {
+    function renderRankedBarangayOptions() {
         if (!rankedBarangayContainer) {
             return;
         }
 
         rankedBarangayContainer.innerHTML = '';
 
-        if (!municipality) {
-            rankedBarangayContainer.innerHTML = '<small class="text-muted">Select a municipality first to view available barangays.</small>';
-            return;
-        }
-
-        const barangays = municipalityBarangays[municipality] || [];
+        const barangays = getScopedRankedBarangays();
         if (!barangays.length) {
-            rankedBarangayContainer.innerHTML = '<small class="text-muted">No barangays found for the selected municipality.</small>';
+            if (!rankedScopedMunicipality) {
+                rankedBarangayContainer.innerHTML = '<small class="text-muted">No municipality scope is assigned to this admin account.</small>';
+            } else {
+                rankedBarangayContainer.innerHTML = `<small class="text-muted">No barangays available for ${rankedScopedMunicipality}.</small>`;
+            }
+            updateSelectAllRankedBarangaysButtonState();
             return;
         }
 
@@ -493,6 +538,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 input.disabled = true;
             });
         }
+
+        updateSelectAllRankedBarangaysButtonState();
+    }
+
+    function updateSelectAllRankedBarangaysButtonState() {
+        if (!rankedSelectAllBarangaysBtn) {
+            return;
+        }
+
+        const checkboxes = Array.from(document.querySelectorAll('.ranked-barangay'));
+        if (!checkboxes.length) {
+            rankedSelectAllBarangaysBtn.disabled = true;
+            rankedSelectAllBarangaysBtn.innerHTML = '<i class="fas fa-check-square mr-1"></i>Select All';
+            return;
+        }
+
+        rankedSelectAllBarangaysBtn.disabled = !rankedCriteriaState.includeMunicipalityBarangay;
+        const allChecked = checkboxes.every(function(input) { return input.checked; });
+        rankedSelectAllBarangaysBtn.innerHTML = allChecked
+            ? '<i class="fas fa-times-circle mr-1"></i>Clear All'
+            : '<i class="fas fa-check-square mr-1"></i>Select All';
     }
 
     function renderRankedCriteriaSummary() {
@@ -502,8 +568,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const labels = [];
         if (rankedCriteriaState.includeMaxBeneficiaries) labels.push('Maximum Beneficiaries');
-        if (rankedCriteriaState.includeIncome) labels.push('Income Range');
-        if (rankedCriteriaState.includeMunicipalityBarangay) labels.push('Municipality and Barangay');
+        if (rankedCriteriaState.includeIncome) labels.push('Family Monthly Income Range');
+        if (rankedCriteriaState.includeMunicipalityBarangay) labels.push('Priority Barangays');
 
         const scoringLabels = [];
         if (rankedCriteriaState.includeCaseSeverityFactor) scoringLabels.push(`Case Severity (${rankedCriteriaState.caseSeverityWeight}%)`);
@@ -519,22 +585,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (rankedMaxBeneficiariesInput) rankedMaxBeneficiariesInput.disabled = !rankedCriteriaState.includeMaxBeneficiaries;
         if (rankedIncomeRangeFilterInput) rankedIncomeRangeFilterInput.disabled = !rankedCriteriaState.includeIncome;
 
-        if (rankedMunicipalityFilterInput) {
-            rankedMunicipalityFilterInput.disabled = !rankedCriteriaState.includeMunicipalityBarangay;
-            if (!rankedCriteriaState.includeMunicipalityBarangay) {
-                rankedMunicipalityFilterInput.value = '';
-                renderRankedBarangayOptionsForMunicipality('');
-            } else {
-                renderRankedBarangayOptionsForMunicipality(rankedMunicipalityFilterInput.value || '');
-            }
-        }
-
         Array.from(document.querySelectorAll('.ranked-barangay')).forEach(function(input) {
             input.disabled = !rankedCriteriaState.includeMunicipalityBarangay;
             if (!rankedCriteriaState.includeMunicipalityBarangay) {
                 input.checked = false;
             }
         });
+
+        updateSelectAllRankedBarangaysButtonState();
 
         if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.disabled = !rankedCriteriaState.includeCaseSeverityFactor;
         if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeIncomeVulnerabilityFactor;
@@ -545,21 +603,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function syncRankedIncomeRangeBoundsFromDropdown() {
-        const selected = (rankedIncomeRangeFilterInput && rankedIncomeRangeFilterInput.value ? rankedIncomeRangeFilterInput.value : '0|10000000').split('|');
+        const selected = (rankedIncomeRangeFilterInput && rankedIncomeRangeFilterInput.value ? rankedIncomeRangeFilterInput.value : '0|150000').split('|');
         const minIncome = parseFloat(selected[0]) || 0;
-        const maxIncome = parseFloat(selected[1]) || 10000000;
+        const maxIncome = parseFloat(selected[1]) || 150000;
         if (rankedMinIncomeInput) rankedMinIncomeInput.value = String(minIncome);
         if (rankedMaxIncomeInput) rankedMaxIncomeInput.value = String(maxIncome);
     }
 
     function openRankedParametersSelectionModal() {
-        if (modalIncludeMaxBeneficiariesCriteria) modalIncludeMaxBeneficiariesCriteria.checked = rankedCriteriaState.includeMaxBeneficiaries;
-        if (modalIncludeIncomeCriteria) modalIncludeIncomeCriteria.checked = rankedCriteriaState.includeIncome;
-        if (modalIncludeMunicipalityBarangayCriteria) modalIncludeMunicipalityBarangayCriteria.checked = rankedCriteriaState.includeMunicipalityBarangay;
-        if (modalIncludeCaseSeverityFactor) modalIncludeCaseSeverityFactor.checked = rankedCriteriaState.includeCaseSeverityFactor;
-        if (modalIncludeIncomeVulnerabilityFactor) modalIncludeIncomeVulnerabilityFactor.checked = rankedCriteriaState.includeIncomeVulnerabilityFactor;
-        if (modalIncludeHouseholdVulnerabilityFactor) modalIncludeHouseholdVulnerabilityFactor.checked = rankedCriteriaState.includeHouseholdVulnerabilityFactor;
-        if (modalIncludeRepeatPenaltyFactor) modalIncludeRepeatPenaltyFactor.checked = rankedCriteriaState.includeRepeatPenaltyFactor;
         if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.value = String(rankedCriteriaState.caseSeverityWeight);
         if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.value = String(rankedCriteriaState.incomeVulnerabilityWeight);
         if (modalHouseholdVulnerabilityWeightInput) modalHouseholdVulnerabilityWeightInput.value = String(rankedCriteriaState.householdVulnerabilityWeight);
@@ -576,13 +627,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (saveRankedParametersBtn) {
         saveRankedParametersBtn.addEventListener('click', function() {
-            rankedCriteriaState.includeMaxBeneficiaries = !!(modalIncludeMaxBeneficiariesCriteria && modalIncludeMaxBeneficiariesCriteria.checked);
-            rankedCriteriaState.includeIncome = !!(modalIncludeIncomeCriteria && modalIncludeIncomeCriteria.checked);
-            rankedCriteriaState.includeMunicipalityBarangay = !!(modalIncludeMunicipalityBarangayCriteria && modalIncludeMunicipalityBarangayCriteria.checked);
-            rankedCriteriaState.includeCaseSeverityFactor = !!(modalIncludeCaseSeverityFactor && modalIncludeCaseSeverityFactor.checked);
-            rankedCriteriaState.includeIncomeVulnerabilityFactor = !!(modalIncludeIncomeVulnerabilityFactor && modalIncludeIncomeVulnerabilityFactor.checked);
-            rankedCriteriaState.includeHouseholdVulnerabilityFactor = !!(modalIncludeHouseholdVulnerabilityFactor && modalIncludeHouseholdVulnerabilityFactor.checked);
-            rankedCriteriaState.includeRepeatPenaltyFactor = !!(modalIncludeRepeatPenaltyFactor && modalIncludeRepeatPenaltyFactor.checked);
+            rankedCriteriaState.includeCaseSeverityFactor = true;
+            rankedCriteriaState.includeIncomeVulnerabilityFactor = true;
+            rankedCriteriaState.includeHouseholdVulnerabilityFactor = true;
+            rankedCriteriaState.includeRepeatPenaltyFactor = true;
 
             const caseSeverityWeight = Number((modalCaseSeverityWeightInput && modalCaseSeverityWeightInput.value) || 0);
             const incomeVulnerabilityWeight = Number((modalIncomeVulnerabilityWeightInput && modalIncomeVulnerabilityWeightInput.value) || 0);
@@ -635,14 +683,33 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rankedIncomeRangeFilterInput) {
         rankedIncomeRangeFilterInput.addEventListener('change', syncRankedIncomeRangeBoundsFromDropdown);
     }
-    if (rankedMunicipalityFilterInput) {
-        rankedMunicipalityFilterInput.addEventListener('change', function() {
-            renderRankedBarangayOptionsForMunicipality(this.value || '');
+
+    if (rankedSelectAllBarangaysBtn) {
+        rankedSelectAllBarangaysBtn.addEventListener('click', function() {
+            const checkboxes = Array.from(document.querySelectorAll('.ranked-barangay'));
+            if (!checkboxes.length) {
+                return;
+            }
+
+            const allChecked = checkboxes.every(function(input) { return input.checked; });
+            checkboxes.forEach(function(input) {
+                input.checked = !allChecked;
+            });
+
+            updateSelectAllRankedBarangaysButtonState();
+        });
+    }
+
+    if (rankedBarangayContainer) {
+        rankedBarangayContainer.addEventListener('change', function(event) {
+            if (event.target && event.target.classList.contains('ranked-barangay')) {
+                updateSelectAllRankedBarangaysButtonState();
+            }
         });
     }
 
     syncRankedIncomeRangeBoundsFromDropdown();
-    renderRankedBarangayOptionsForMunicipality(rankedMunicipalityFilterInput ? (rankedMunicipalityFilterInput.value || '') : '');
+    renderRankedBarangayOptions();
     applyRankedCriteriaStateToInputs();
     updateSaveAndScheduleRankedButton();
 
@@ -794,22 +861,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const selectedMunicipality = municipalityBarangayFilterEnabled && rankedMunicipalityFilterInput
-                ? (rankedMunicipalityFilterInput.value || '')
-                : '';
             let selectedBarangays = municipalityBarangayFilterEnabled ? getSelectedRankedBarangays() : [];
 
-            if (municipalityBarangayFilterEnabled && selectedMunicipality && selectedBarangays.length === 0) {
-                selectedBarangays = municipalityBarangays[selectedMunicipality] || [];
+            if (municipalityBarangayFilterEnabled && selectedBarangays.length === 0) {
+                selectedBarangays = getScopedRankedBarangays();
             }
 
             const payload = {
                 max_beneficiaries: rankedCriteriaState.includeMaxBeneficiaries ? maxBeneficiaries : 50,
                 min_income: incomeFilterEnabled ? minIncome : 0,
-                max_income: incomeFilterEnabled ? maxIncome : 10000000,
-                priority_municipality: municipalityBarangayFilterEnabled ? selectedMunicipality : '',
+                max_income: incomeFilterEnabled ? maxIncome : 150000,
+                priority_municipality: '',
                 priority_barangays: municipalityBarangayFilterEnabled ? selectedBarangays : [],
-                completion_date_order: rankedCompletionDateOrderInput ? (rankedCompletionDateOrderInput.value || 'asc') : 'asc',
+                completion_date_order: 'asc',
                 scoring_parameters: scoringParameters,
                 scoring_weights: scoringWeights,
             };
@@ -819,6 +883,7 @@ document.addEventListener('DOMContentLoaded', function() {
             rankedListButton.disabled = true;
             latestRankedRecommendations = [];
             updateSaveAndScheduleRankedButton();
+            renderFilteredApplicants([]);
 
             fetch('{{ url_for("admin.generate_program_ranked_list", program_id=program.id) }}', {
                 method: 'POST',
@@ -836,6 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const applicationViewBaseUrl = '{{ url_for("admin.view_application", application_id=0) }}'.replace(/0$/, '');
                 document.getElementById('eligiblePoolBadge').textContent = String(data.eligible_pool_count || 0);
+                renderFilteredApplicants(data.filtered_applicants || []);
 
                 rankedListBody.innerHTML = '';
                 const recommendations = data.recommendations || [];
@@ -917,7 +983,7 @@ Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_
                                 </span>
                                 <br/><small class="text-muted">Case: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}</small>
                                 <br/><button type="button" class="btn btn-xs btn-info mt-1 view-score-breakdown" data-explain="${explainabilityPayload}">
-                                    <i class="fas fa-info-circle"></i> Why?
+                                    <i class="fas fa-info-circle"></i>
                                 </button>
                             </td>
                             <td>
@@ -1113,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (toFiniteNumber(incomeFactor.contribution, 0) > 0) {
-            reasons.push(`<p class="mb-2"><strong>Financial Need:</strong> Annual income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}), contributing ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}.</p>`);
+            reasons.push(`<p class="mb-2"><strong>Financial Need:</strong> Family Monthly Income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}), contributing ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}.</p>`);
         }
 
         if (toFiniteNumber(householdFactor.contribution, 0) > 0) {
@@ -1201,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                     <tr>
                         <th>Income Vulnerability</th>
-                        <td>${formatCurrency(profile.income)} annual income</td>
+                        <td>${formatCurrency(profile.income)} Family Monthly Income</td>
                         <td>Need contribution: ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}</td>
                     </tr>
                     <tr>
@@ -1263,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Email</small><span>${escapeHtml(profile.email || 'N/A')}</span></div>
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Municipality</small><span>${escapeHtml(profile.municipality || 'N/A')}</span></div>
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Barangay</small><span>${escapeHtml(profile.barangay || 'N/A')}</span></div>
-                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Annual Income</small><strong>${formatCurrency(profile.income)}</strong></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Family Monthly Income</small><strong>${formatCurrency(profile.income)}</strong></div>
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Case Severity</small><span>${escapeHtml(getCaseSeverityContext(profile.case_severity).label)}</span></div>
                 </div>
                 <div class="mt-1">${chipsHtml}</div>

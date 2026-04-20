@@ -176,7 +176,7 @@ def init_db():
         qualification_requirements_data = [
             ('Student', 'Currently enrolled in any educational institution'),
             ('Solo Parent', 'Registered solo parent with valid ID'),
-            ('Low Income Family', 'Family annual income below poverty threshold'),
+            ('Low Income Family', 'Family Monthly Income below poverty threshold'),
             ('Indigent Family', 'Family identified as indigent by barangay'),
             ('Person with Disability (PWD)', 'Registered PWD with valid ID'),
             ('Senior Citizen', '60 years old and above with valid ID'),

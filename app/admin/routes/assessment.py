@@ -565,6 +565,7 @@ def update_assessment(assessment_id):
     location = request.form.get('location', '').strip()
     status = request.form.get('status', '').strip()
     findings = request.form.get('findings', '').strip()
+    problems_identified = request.form.get('problems_identified', '').strip()
     recommendations = request.form.get('recommendations', '').strip()
     case_severity = request.form.get('case_severity', '').strip().lower()
     severity_score_value = request.form.get('severity_score', '').strip()
@@ -710,6 +711,8 @@ def update_assessment(assessment_id):
             assessment.completed_at = datetime.utcnow()
     if findings is not None:
         assessment.findings = findings
+    if problems_identified is not None:
+        assessment.problems_identified = problems_identified
     if recommendations is not None:
         assessment.recommendations = recommendations
 

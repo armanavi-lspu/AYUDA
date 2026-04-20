@@ -703,7 +703,7 @@ class CommunityUsers(db.Model):
     
     def calculate_income_category(self):
         """
-        Calculate and return the income category based on family annual income.
+        Calculate and return the income category based on Family Monthly Income.
         Categories:
         - ≤ 10,000: "Indigent Families"
         - 10,001 - 20,000: "Low Income Families"
@@ -981,6 +981,7 @@ class Assessment(db.Model):
     location = db.Column(db.String(255))
     status = db.Column(db.String(20), nullable=False, default='scheduled', index=True)  # 'scheduled', 'completed', 'cancelled'
     findings = db.Column(db.Text)  # SCSR output / assessment findings
+    problems_identified = db.Column(db.Text)
     recommendations = db.Column(db.Text)
     case_severity = db.Column(db.String(20), nullable=False, default='unrated', index=True)
     severity_score = db.Column(db.Integer, index=True)  # 0 to 100

@@ -242,6 +242,18 @@
         </ul>
     </div>
 
+    <div id="analyticsUpdateNotice" class="alert alert-info d-none" role="status">
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="mr-3 mb-2 mb-md-0">
+                <i class="fas fa-sync-alt mr-2"></i>
+                <span id="analyticsUpdateNoticeMessage">A new analytics update is available.</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="refreshAnalyticsGraphsBtn">
+                <i class="fas fa-redo mr-1"></i>Refresh Graphs
+            </button>
+        </div>
+    </div>
+
     <!-- Summary Statistics -->
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-3">
@@ -378,8 +390,28 @@
             </div>
         </div>
 
-        <!-- Applicants by Barangay -->
+        <!-- Completion Rate by Barangay (Top 10) -->
         <div class="col-lg-6 mb-4 chart-card">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-check-circle mr-2"></i>Application Completion Rate per Barangay (Top 10)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="completionRateBarangayContainer" style="height: 350px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="completionRateBarangayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicants by Barangay -->
+        <div class="col-12 mb-4 chart-card">
             <div class="card shadow h-100">
                 <div class="card-header bg-white py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
@@ -387,32 +419,12 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container" id="barangayContainer" style="height: 350px;">
+                    <div class="chart-container" id="barangayContainer" style="height: 620px;">
                         <div class="chart-loading">
                             <div class="spinner"></div>
                             <p class="mt-3 text-muted">Loading chart...</p>
                         </div>
                         <canvas id="barangayChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Users by Municipality -->
-        <div class="col-12 mb-4 chart-card">
-            <div class="card shadow">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-city mr-2"></i>Users Count by Municipality
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" id="municipalityUsersContainer" style="height: 380px;">
-                        <div class="chart-loading">
-                            <div class="spinner"></div>
-                            <p class="mt-3 text-muted">Loading chart...</p>
-                        </div>
-                        <canvas id="municipalityUsersChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -457,8 +469,8 @@
 <!-- Hidden data elements for JavaScript -->
 <script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
 <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
+<script type="application/json" id="completion-rate-by-barangay-data">{{ completion_rate_by_barangay_json | safe }}</script>
 <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
-<script type="application/json" id="users-by-municipality-data">{{ users_by_municipality_json | safe }}</script>
 </div>
 
 {% endblock %}
@@ -476,9 +488,9 @@ if (typeof Chart === 'undefined') {
     console.log('✅ Chart.js loaded successfully, version:', Chart.version);
 }
 
-let analyticsRealtimeReloadTimer = null;
 let analyticsRealtimeListenerBound = false;
 let analyticsRefreshInProgress = false;
+let analyticsPendingUpdateMessage = '';
 
 function refreshAnalyticsAnalysisPage(message) {
     if (analyticsRefreshInProgress) {
@@ -532,6 +544,40 @@ function refreshAnalyticsAnalysisPage(message) {
 
 function initializeAnalyticsAnalysisPage() {
     console.log('📊 Analytics page loaded');
+
+    function showAnalyticsUpdateNotice(message) {
+        const notice = document.getElementById('analyticsUpdateNotice');
+        const messageNode = document.getElementById('analyticsUpdateNoticeMessage');
+        if (!notice || !messageNode) {
+            return;
+        }
+
+        if (message) {
+            analyticsPendingUpdateMessage = message;
+        }
+
+        messageNode.textContent = analyticsPendingUpdateMessage || 'A new analytics update is available.';
+        notice.classList.remove('d-none');
+    }
+
+    function hideAnalyticsUpdateNotice() {
+        const notice = document.getElementById('analyticsUpdateNotice');
+        if (!notice) {
+            return;
+        }
+
+        notice.classList.add('d-none');
+        analyticsPendingUpdateMessage = '';
+    }
+
+    const refreshGraphsBtn = document.getElementById('refreshAnalyticsGraphsBtn');
+    if (refreshGraphsBtn && !refreshGraphsBtn.dataset.bound) {
+        refreshGraphsBtn.dataset.bound = '1';
+        refreshGraphsBtn.addEventListener('click', function() {
+            hideAnalyticsUpdateNotice();
+            refreshAnalyticsAnalysisPage('Analytics graphs refreshed with latest updates.');
+        });
+    }
     
     /**
      * Helper function to build forecast data array for Chart.js
@@ -580,28 +626,29 @@ function initializeAnalyticsAnalysisPage() {
     }
     
     // Parse data from hidden script tags with error handling
-    let applicantsOverTimeData, applicationsByTypeData, applicantsByBarangayData, usersByMunicipalityData;
+    let applicantsOverTimeData, applicationsByTypeData, completionRateByBarangayData, applicantsByBarangayData;
     
     try {
         const timeDataElement = document.getElementById('applicants-over-time-data');
         const typeDataElement = document.getElementById('applications-by-type-data');
+        const completionRateBarangayDataElement = document.getElementById('completion-rate-by-barangay-data');
         const barangayDataElement = document.getElementById('applicants-by-barangay-data');
-        const municipalityDataElement = document.getElementById('users-by-municipality-data');
         
         console.log('🔍 Checking for data elements...');
         console.log('   Time element:', timeDataElement ? '✅ Found' : '❌ Missing');
         console.log('   Type element:', typeDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Completion rate element:', completionRateBarangayDataElement ? '✅ Found' : '❌ Missing');
         console.log('   Barangay element:', barangayDataElement ? '✅ Found' : '❌ Missing');
-        console.log('   Municipality element:', municipalityDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Municipality chart removed from this page');
         
-        if (!timeDataElement || !typeDataElement || !barangayDataElement || !municipalityDataElement) {
+        if (!timeDataElement || !typeDataElement || !completionRateBarangayDataElement || !barangayDataElement) {
             console.error('❌ ERROR: Required data elements not found in DOM!');
             console.error('   This means data is not being passed from Flask backend.');
             console.error('   Check that analytics_analysis route is passing all JSON variables:');
             console.error('   - applicants_over_time_json');
             console.error('   - applications_by_type_json');
+            console.error('   - completion_rate_by_barangay_json');
             console.error('   - applicants_by_barangay_json');
-            console.error('   - users_by_municipality_json');
             alert('Error: Chart data not found. Please check server logs.');
             return;
         }
@@ -609,14 +656,14 @@ function initializeAnalyticsAnalysisPage() {
         console.log('📦 Parsing JSON data...');
         applicantsOverTimeData = JSON.parse(timeDataElement.textContent);
         applicationsByTypeData = JSON.parse(typeDataElement.textContent);
+        completionRateByBarangayData = JSON.parse(completionRateBarangayDataElement.textContent);
         applicantsByBarangayData = JSON.parse(barangayDataElement.textContent);
-        usersByMunicipalityData = JSON.parse(municipalityDataElement.textContent);
         
         console.log('✅ Data loaded successfully');
         console.log('Applicants Over Time:', applicantsOverTimeData);
         console.log('Applications By Type:', applicationsByTypeData);
+        console.log('Completion Rate By Barangay:', completionRateByBarangayData);
         console.log('Applicants By Barangay:', applicantsByBarangayData);
-        console.log('Users By Municipality:', usersByMunicipalityData);
         
         // Show debug panel with data
         const debugPanel = document.getElementById('debugData');
@@ -636,15 +683,14 @@ function initializeAnalyticsAnalysisPage() {
             console.error('ERROR: Invalid applicationsByTypeData structure');
             return;
         }
+        if (!completionRateByBarangayData.labels || !completionRateByBarangayData.rates) {
+            console.error('ERROR: Invalid completionRateByBarangayData structure');
+            return;
+        }
         if (!applicantsByBarangayData.labels || !applicantsByBarangayData.data) {
             console.error('ERROR: Invalid applicantsByBarangayData structure');
             return;
         }
-        if (!usersByMunicipalityData.labels || !usersByMunicipalityData.data) {
-            console.error('ERROR: Invalid usersByMunicipalityData structure');
-            return;
-        }
-        
     } catch (error) {
         console.error('ERROR parsing data:', error);
         return;
@@ -765,11 +811,75 @@ function initializeAnalyticsAnalysisPage() {
         console.error('❌ Program Type Chart canvas not found');
     }
     
-    // 3. Barangay Bar Chart
+    // 3. Completion Rate per Barangay (Top 10)
+    const completionRateBarangayCtx = document.getElementById('completionRateBarangayChart');
+    if (completionRateBarangayCtx) {
+        console.log('Creating Completion Rate by Barangay Chart...');
+        try {
+            new Chart(completionRateBarangayCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: completionRateByBarangayData.labels,
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: completionRateByBarangayData.rates,
+                        backgroundColor: 'rgba(28, 200, 138, 0.6)',
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const rate = Number(context.parsed.x || 0).toFixed(2);
+                                    const completed = (completionRateByBarangayData.completed_counts || [])[idx] || 0;
+                                    const total = (completionRateByBarangayData.total_counts || [])[idx] || 0;
+                                    return `Completion Rate: ${rate}% (${completed}/${total})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return `${value}%`; }
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Completion Rate by Barangay Chart created');
+            showChart('completionRateBarangayContainer');
+        } catch (error) {
+            console.error('❌ Error creating Completion Rate by Barangay Chart:', error);
+        }
+    } else {
+        console.error('❌ Completion Rate by Barangay Chart canvas not found');
+    }
+
+    // 4. Barangay Bar Chart
     const barangayCtx = document.getElementById('barangayChart');
     if (barangayCtx) {
         console.log('Creating Barangay Bar Chart...');
         try {
+            const barangayContainer = document.getElementById('barangayContainer');
+            if (barangayContainer) {
+                const labelCount = (applicantsByBarangayData.labels || []).length;
+                const calculatedHeight = Math.max(620, labelCount * 28);
+                barangayContainer.style.height = `${calculatedHeight}px`;
+            }
+
             new Chart(barangayCtx.getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -810,59 +920,6 @@ function initializeAnalyticsAnalysisPage() {
         console.error('❌ Barangay Chart canvas not found');
     }
 
-    // 4. Municipality Users Column Chart
-    const municipalityCtx = document.getElementById('municipalityUsersChart');
-    if (municipalityCtx) {
-        console.log('Creating Municipality Users Column Chart...');
-        try {
-            new Chart(municipalityCtx.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: usersByMunicipalityData.labels,
-                    datasets: [{
-                        label: 'Number of Users',
-                        data: usersByMunicipalityData.data,
-                        backgroundColor: 'rgba(31, 111, 235, 0.65)',
-                        borderColor: 'rgba(31, 111, 235, 1)',
-                        borderWidth: 2,
-                        borderRadius: 6,
-                        maxBarThickness: 48
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: {
-                                autoSkip: false,
-                                maxRotation: 45,
-                                minRotation: 0
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
-            console.log('✅ Municipality Users Chart created');
-            showChart('municipalityUsersContainer');
-        } catch (error) {
-            console.error('❌ Error creating Municipality Users Chart:', error);
-        }
-    } else {
-        console.error('❌ Municipality Users Chart canvas not found');
-    }
-    
     // 5. Forecast: Applicants Over Time - Using ARIMA from backend
     const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
     let applicantsForecastChart = null;
@@ -1167,6 +1224,29 @@ function initializeAnalyticsAnalysisPage() {
     // 6. Forecast: Program Category - Using backend forecast
     const forecastProgramCtx = document.getElementById('forecastProgramCategoryChart');
     let programForecastChart = null;
+
+    const programForecastPalette = [
+        '#4e73df',
+        '#1cc88a',
+        '#36b9cc',
+        '#f6c23e',
+        '#e74a3b',
+        '#858796',
+        '#20c9a6',
+        '#6f42c1',
+    ];
+
+    function colorWithAlpha(hexColor, alpha) {
+        const clean = String(hexColor || '').replace('#', '');
+        if (clean.length !== 6) {
+            return `rgba(78, 115, 223, ${alpha})`;
+        }
+
+        const r = parseInt(clean.slice(0, 2), 16);
+        const g = parseInt(clean.slice(2, 4), 16);
+        const b = parseInt(clean.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
     
     function loadProgramForecast() {
         if (!forecastProgramCtx) return;
@@ -1174,7 +1254,7 @@ function initializeAnalyticsAnalysisPage() {
         const chartContainer = forecastProgramCtx.parentElement;
         chartContainer.style.opacity = '0.5';
         
-        fetch('/admin/api/analytics/program-forecast')
+        fetch('/admin/api/analytics/program-forecast?months=18&forecast_periods=6')
             .then(response => response.json())
             .then(data => {
                 console.log('Program Forecast Data:', data);
@@ -1182,33 +1262,61 @@ function initializeAnalyticsAnalysisPage() {
                 if (programForecastChart) {
                     programForecastChart.destroy();
                 }
-                
-                const programLabels = data.labels || applicationsByTypeData.labels;
-                const currentData = data.current_data || applicationsByTypeData.data;
-                const forecastedData = data.forecast_data || currentData.map(val => Math.round(val * 1.10));
-                const growthRate = data.growth_rate || 0.10;
-                const growthPercent = Math.round(growthRate * 100);
-                
+
+                const historicalLabels = data.historical_labels || [];
+                const forecastLabels = data.forecast_labels || [];
+                const allLabels = [...historicalLabels, ...forecastLabels];
+                const categories = Array.isArray(data.categories) ? data.categories : [];
+
+                const datasets = [];
+                categories.forEach((category, index) => {
+                    const programType = category.program_type || `Category ${index + 1}`;
+                    const color = programForecastPalette[index % programForecastPalette.length];
+                    const historicalValues = Array.isArray(category.historical_values)
+                        ? category.historical_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
+                        : [];
+                    const forecastValues = Array.isArray(category.forecast_values)
+                        ? category.forecast_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
+                        : [];
+
+                    datasets.push({
+                        label: `${programType} (Historical)`,
+                        data: [...historicalValues, ...Array(forecastLabels.length).fill(null)],
+                        borderColor: color,
+                        backgroundColor: colorWithAlpha(color, 0.12),
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.35,
+                        pointRadius: 2,
+                    });
+
+                    if (forecastValues.length > 0 && historicalValues.length > 0) {
+                        const lastHistorical = historicalValues[historicalValues.length - 1];
+                        const forecastSeries = [
+                            ...Array(Math.max(historicalValues.length - 1, 0)).fill(null),
+                            lastHistorical,
+                            ...forecastValues,
+                        ];
+
+                        datasets.push({
+                            label: `${programType} (Forecast)`,
+                            data: forecastSeries,
+                            borderColor: color,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [6, 5],
+                            fill: false,
+                            tension: 0.35,
+                            pointRadius: 2,
+                        });
+                    }
+                });
+
                 programForecastChart = new Chart(forecastProgramCtx.getContext('2d'), {
-                    type: 'bar',
+                    type: 'line',
                     data: {
-                        labels: programLabels,
-                        datasets: [
-                            {
-                                label: 'Current Applications',
-                                data: currentData,
-                                backgroundColor: 'rgba(78, 115, 223, 0.6)',
-                                borderColor: 'rgba(78, 115, 223, 1)',
-                                borderWidth: 2
-                            },
-                            {
-                                label: `Forecasted Applications (+${growthPercent}%)`,
-                                data: forecastedData,
-                                backgroundColor: 'rgba(246, 194, 62, 0.6)',
-                                borderColor: 'rgba(246, 194, 62, 1)',
-                                borderWidth: 2
-                            }
-                        ]
+                        labels: allLabels,
+                        datasets: datasets,
                     },
                     options: {
                         responsive: true,
@@ -1216,7 +1324,23 @@ function initializeAnalyticsAnalysisPage() {
                         plugins: {
                             legend: {
                                 display: true,
-                                position: 'top'
+                                position: 'top',
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += Math.round(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
                             }
                         },
                         scales: {
@@ -1235,56 +1359,6 @@ function initializeAnalyticsAnalysisPage() {
             .catch(error => {
                 console.error('Error loading program forecast:', error);
                 chartContainer.style.opacity = '1';
-                
-                // Fallback to static growth estimate
-                const programLabels = applicationsByTypeData.labels;
-                const currentData = applicationsByTypeData.data;
-                const forecastedData = currentData.map(val => Math.round(val * 1.10));
-                
-                if (programForecastChart) {
-                    programForecastChart.destroy();
-                }
-                
-                programForecastChart = new Chart(forecastProgramCtx.getContext('2d'), {
-                    type: 'bar',
-                    data: {
-                        labels: programLabels,
-                        datasets: [
-                            {
-                                label: 'Current Applications',
-                                data: currentData,
-                                backgroundColor: 'rgba(78, 115, 223, 0.6)',
-                                borderColor: 'rgba(78, 115, 223, 1)',
-                                borderWidth: 2
-                            },
-                            {
-                                label: 'Forecasted Applications (Estimated +10%)',
-                                data: forecastedData,
-                                backgroundColor: 'rgba(246, 194, 62, 0.6)',
-                                borderColor: 'rgba(246, 194, 62, 1)',
-                                borderWidth: 2
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
             });
     }
     
@@ -1311,19 +1385,9 @@ function initializeAnalyticsAnalysisPage() {
     if (!analyticsRealtimeListenerBound) {
         analyticsRealtimeListenerBound = true;
         document.addEventListener('ayuda:admin-analytics-update', function(event) {
-            if (document.hidden) {
-                return;
-            }
-
-            if (analyticsRealtimeReloadTimer) {
-                clearTimeout(analyticsRealtimeReloadTimer);
-            }
-
-            analyticsRealtimeReloadTimer = setTimeout(function() {
-                const detail = event && event.detail ? event.detail : {};
-                const reason = detail.reason ? ` (${detail.reason.replace(/_/g, ' ')})` : '';
-                refreshAnalyticsAnalysisPage(`Analytics refreshed from live updates${reason}.`);
-            }, 1000);
+            const detail = event && event.detail ? event.detail : {};
+            const reason = detail.reason ? ` (${detail.reason.replace(/_/g, ' ')})` : '';
+            showAnalyticsUpdateNotice(`New analytics update available${reason}.`);
         });
     }
 }

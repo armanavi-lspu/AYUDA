@@ -60,7 +60,6 @@ def get_income_range_display(income_value):
 
 
 DEFAULT_NOTIFICATION_SETTINGS = {
-    'email_notifications': True,
     'application_updates': True,
     'announcement_notifications': True,
     'program_notifications': True,
@@ -284,7 +283,7 @@ def edit_profile():
                 community_profile.is_pwd = request.form.get('is_pwd') == 'on'
                 community_profile.disability_type = request.form.get('disability_type', '').strip() if community_profile.is_pwd else None
                 
-                # Handle family annual income from dropdown
+                # Handle Family Monthly Income from dropdown
                 income_min_str = request.form.get('family_annual_income', '').strip()
                 if income_min_str and income_min_str != '':
                     try:
@@ -428,7 +427,6 @@ def update_notification_settings():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     notification_settings = {
-        'email_notifications': request.form.get('email_notifications') == 'on',
         'application_updates': request.form.get('application_updates') == 'on',
         'announcement_notifications': request.form.get('announcement_notifications') == 'on',
         'program_notifications': request.form.get('program_notifications') == 'on',

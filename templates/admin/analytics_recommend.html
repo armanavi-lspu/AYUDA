@@ -251,6 +251,25 @@
         opacity: 0.9;
     }
 
+    /* Saved list item contrast fix */
+    .saved-list-item.active {
+        background-color: var(--dash-blue) !important;
+        color: #fff !important;
+        border-color: var(--dash-blue) !important;
+    }
+
+    .saved-list-item.active .text-muted {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    .saved-list-item.active .font-weight-bold {
+        color: #fff !important;
+    }
+
+    .saved-list-item.active small {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
     @media (max-width: 991.98px) {
         .analytics-hero {
             padding: 1.15rem;
@@ -280,6 +299,9 @@
                 <p class="subtitle">Generate prioritized beneficiary lists using data-driven scoring.</p>
             </div>
             <div class="col-lg-4 text-lg-right">
+                <button type="button" class="btn btn-outline-custom mr-2" data-toggle="modal" data-target="#recommendationInfoModal">
+                    <i class="fas fa-info-circle mr-2"></i>Page Info
+                </button>
                 <a href="{{ url_for('admin.analytics_reports') }}" class="btn btn-outline-custom">
                     <i class="fas fa-file-export mr-2"></i>Generate Report
                 </a>
@@ -327,7 +349,7 @@
                             <select class="form-control" id="program_id" name="program_id" required>
                                 <option value="">Select a program...</option>
                                 {% for program in programs %}
-                                <option value="{{ program.id }}">{{ program.program_name }}</option>
+                                <option value="{{ program.id }}" {% if preselected_program_id == program.id %}selected{% endif %}>{{ program.program_name }}</option>
                                 {% endfor %}
                             </select>
                             <small class="form-text text-muted">Select the program for beneficiary selection</small>
@@ -352,50 +374,44 @@
                             <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
                         </h6>
 
-                        <div class="form-group">
-                            <label class="font-weight-bold">
-                                <i class="fas fa-map-marked-alt mr-2 text-primary"></i>Municipality
+                        <div class="form-group mb-2">
+                            <label class="font-weight-bold mb-1">
+                                <i class="fas fa-map-marked-alt mr-2 text-primary"></i>Municipality Scope
                             </label>
-                            <select class="form-control" id="priority_municipality" name="priority_municipality">
-                                <option value="">Select municipality first...</option>
-                                {% for municipality in municipalities %}
-                                <option value="{{ municipality }}">{{ municipality }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">Choose a municipality to load its barangays</small>
+                            <div class="form-control-plaintext border rounded px-3 py-2 bg-light" id="priorityMunicipalityScope">
+                                Loading municipality scope...
+                            </div>
+                            <small class="form-text text-muted">Recommendations are automatically scoped to your assigned municipality.</small>
                         </div>
 
                         <!-- Barangay Priority - Checkboxes -->
                         <div class="form-group">
-                            <label>Priority Barangays <small class="text-muted">(Select one or more)</small></label>
-                            <div class="barangay-checkbox-container" id="barangayCheckboxContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
-                                <small class="text-muted">Select a municipality first to view available barangays.</small>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="mb-0">Priority Barangays <small class="text-muted">(Select one or more)</small></label>
+                                <button type="button" class="btn btn-outline-custom btn-sm" id="selectAllBarangaysBtn">
+                                    <i class="fas fa-check-square mr-1"></i>Select All
+                                </button>
                             </div>
-                            <small class="form-text text-muted">Leave all unchecked to include all barangays in the selected municipality</small>
+                            <div class="barangay-checkbox-container" id="barangayCheckboxContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
+                                <small class="text-muted">Loading barangays for your municipality...</small>
+                            </div>
+                            <small class="form-text text-muted">Leave all unchecked to include all barangays in your municipality</small>
                         </div>
 
                         <!-- Income Range -->
                         <div class="form-group">
-                            <label>Family Annual Income Range</label>
+                            <label>Family Monthly Income Range</label>
                             <select class="form-control form-control-sm" id="income_range_filter" name="income_range_filter">
-                                <option value="0|10000000" selected>Any Income (0 - 10,000,000)</option>
-                                <option value="0|10000">Below 10,000</option>
-                                <option value="10000|20000">10,000 - 20,000</option>
-                                <option value="20001|30000">20,001 - 30,000</option>
-                                <option value="30001|40000">30,001 - 40,000</option>
-                                <option value="40001|50000">40,001 - 50,000</option>
-                                <option value="50001|75000">50,001 - 75,000</option>
-                                <option value="75001|100000">75,001 - 100,000</option>
-                                <option value="100001|150000">100,001 - 150,000</option>
-                                <option value="150001|200000">150,001 - 200,000</option>
-                                <option value="200001|300000">200,001 - 300,000</option>
-                                <option value="300001|400000">300,001 - 400,000</option>
-                                <option value="400001|500000">400,001 - 500,000</option>
-                                <option value="500001|10000000">500,001 and above</option>
+                                <option value="0|150000" selected>Below 150,000</option>
+                                <option value="0|100000">Below 100,000</option>
+                                <option value="0|75000">Below 75,000</option>
+                                <option value="0|50000">Below 50,000</option>
+                                <option value="0|40000">Below 40,000</option>
+                                <option value="0|30000">Below 30,000</option>
                             </select>
                             <input type="hidden" id="min_income" name="min_income" value="0">
-                            <input type="hidden" id="max_income" name="max_income" value="10000000">
-                            <small class="form-text text-muted">Select an income bracket to filter beneficiaries</small>
+                            <input type="hidden" id="max_income" name="max_income" value="150000">
+                            <small class="form-text text-muted">Selecting a threshold includes all beneficiaries from lower income brackets up to that "Below" value.</small>
                         </div>
 
                         <!-- ML Model Note -->
@@ -473,10 +489,143 @@
                             </div>
                         </div>
 
+                        <div class="alert alert-warning mb-4" id="filteredOutRecommendationsSection" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                <div>
+                                    <i class="fas fa-filter mr-2"></i>
+                                    <strong id="filteredOutRecommendationsCount">0</strong> recommended user(s) were filtered out due to Active Application/Cooldown restrictions.
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-warning btn-sm mt-2 mt-md-0"
+                                    data-toggle="collapse"
+                                    data-target="#filteredOutRecommendationsCollapse"
+                                    aria-expanded="false"
+                                    aria-controls="filteredOutRecommendationsCollapse"
+                                >
+                                    <i class="fas fa-chevron-down mr-1"></i>Show Filtered Out Users
+                                </button>
+                            </div>
+                            <div class="collapse mt-3" id="filteredOutRecommendationsCollapse">
+                                <div id="filteredOutRecommendationsList"></div>
+                            </div>
+                        </div>
+
                         <!-- Results List -->
                         <div id="resultsList"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Beneficiary Recommendation Info Modal -->
+<div class="modal fade" id="recommendationInfoModal" tabindex="-1" role="dialog" aria-labelledby="recommendationInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="recommendationInfoModalLabel">
+                    <i class="fas fa-info-circle mr-2"></i>About Beneficiary Recommendation
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    This page generates a prioritized list of beneficiaries for the selected program using profile matching and need-based scoring.
+                </p>
+
+                <div class="detail-section">
+                    <h6><i class="fas fa-user-check mr-2"></i>Who Is Included</h6>
+                    <ul class="mb-0 pl-3">
+                        <li>Community users under your assigned municipality (<strong>{{ admin_municipality or 'Your municipality scope' }}</strong>).</li>
+                        <li>Users who match the selected filters, including Family Monthly Income threshold and selected priority barangays.</li>
+                        <li>Users ranked by recommendation score/similarity for the selected program.</li>
+                        <li>Only users without active application/cooldown restrictions are included in the main list and notification target.</li>
+                    </ul>
+                </div>
+
+                <div class="detail-section mb-0">
+                    <h6><i class="fas fa-user-times mr-2"></i>Why Some Users Are Not Included</h6>
+                    <ul class="mb-0 pl-3">
+                        <li>They belong to a different municipality than your admin assignment.</li>
+                        <li>They have an active application or are still within an active cooldown period.</li>
+                        <li>Their Family Monthly Income is outside the selected income range.</li>
+                        <li>They are outside selected priority barangays (when barangays are selected).</li>
+                        <li>The recommendation limit is reached (for example, only top <em>Max Beneficiaries</em> are returned).</li>
+                        <li>The selected program is not recommendation-eligible (ESA or Emergency programs are excluded).</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+ </div>
+
+<!-- Notify Recommendations Confirmation Modal -->
+<div class="modal fade" id="notifyRecommendationsModal" tabindex="-1" role="dialog" aria-labelledby="notifyRecommendationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="notifyRecommendationsModalLabel">
+                    <i class="fas fa-bell mr-2"></i>Confirm Notifications
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="notifyRecommendationsSummaryText">Send recommendation notifications to selected users?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-primary" id="confirmNotifyRecommendationsBtn">
+                    <i class="fas fa-paper-plane mr-2"></i>Send Notifications
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendation Export Modal -->
+<div class="modal fade" id="exportRecommendationModal" tabindex="-1" role="dialog" aria-labelledby="exportRecommendationModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="exportRecommendationModalLabel">
+                    <i class="fas fa-file-export mr-2"></i>Export Recommendation List
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3 text-muted" id="exportRecommendationSummaryText">Select the file type for exporting this recommendation list.</p>
+                <div class="form-group mb-0">
+                    <label class="font-weight-bold d-block mb-2">File Type</label>
+                    <div class="custom-control custom-radio mb-2">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportCsv" value="csv" checked>
+                        <label class="custom-control-label" for="recommendationExportCsv">CSV (.csv)</label>
+                    </div>
+                    <div class="custom-control custom-radio mb-2">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportExcel" value="excel">
+                        <label class="custom-control-label" for="recommendationExportExcel">Excel (.xls)</label>
+                    </div>
+                    <div class="custom-control custom-radio">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportPdf" value="pdf">
+                        <label class="custom-control-label" for="recommendationExportPdf">PDF (.pdf)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-primary" id="confirmRecommendationExportBtn">
+                    <i class="fas fa-download mr-2"></i>Export
+                </button>
             </div>
         </div>
     </div>
@@ -498,6 +647,9 @@
                 <!-- Populated dynamically -->
             </div>
             <div class="modal-footer">
+                <a href="#" class="btn btn-outline-custom mr-2" id="viewBeneficiaryProfileBtn" style="display: none;">
+                    <i class="fas fa-user-circle mr-2"></i>View Profile
+                </a>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
@@ -608,17 +760,30 @@
 <script>
 // Store current recommendations for detail view
 let currentRecommendations = [];
+let currentFilteredRecommendations = [];
 let currentAlgorithm = '';
 let currentPriorityGroups = '';  // Store program's priority groups for explanation generation
 let currentProgramId = null;
 let currentProgramName = '';
+let currentGeneratedAt = null;
 let currentRequestFilters = {};
+let pendingNotificationRequest = null;
 const municipalityBarangays = {{ municipality_barangays_json | safe }};
+const priorityMunicipality = Object.keys(municipalityBarangays || {})[0] || '';
 const RECOMMENDATION_STATE_KEY = 'ayuda_admin_recommend_state_v1';
+const queryParams = new URLSearchParams(window.location.search);
+const requestedProgramIdFromQuery = parseInt(queryParams.get('program_id') || '', 10);
+const requestedProgramId = Number.isInteger(requestedProgramIdFromQuery) && requestedProgramIdFromQuery > 0
+    ? requestedProgramIdFromQuery
+    : ({{ preselected_program_id | tojson }} || null);
+const shouldResetRecommendationState = queryParams.get('reset_state') === '1';
 let savedRecommendationSets = [];
 let selectedSavedListId = null;
 let selectedSavedListDetail = null;
 const savedRecommendationDetailUrlTemplate = '{{ url_for("admin.api_saved_recommendation_detail", saved_list_id=0) }}';
+const savedRecommendationDeleteUrlTemplate = '{{ url_for("admin.api_delete_saved_recommendation", saved_list_id=0) }}';
+const communityUserProfileUrlTemplate = '{{ url_for("admin.view_community_user", user_id=0) }}';
+const recommendationExportUrl = '{{ url_for("admin.api_export_recommendations") }}';
 
 function escapeHtml(value) {
     return String(value === null || value === undefined ? '' : value)
@@ -633,6 +798,15 @@ function formatCurrency(value) {
     const parsed = Number(value);
     const safeValue = Number.isFinite(parsed) ? parsed : 0;
     return `₱${safeValue.toLocaleString()}`;
+}
+
+function toFiniteNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clampUnitInterval(value) {
+    return Math.min(1, Math.max(0, toFiniteNumber(value, 0)));
 }
 
 function formatTimestamp(isoValue) {
@@ -699,6 +873,95 @@ function getUniqueRecommendationUserIds() {
     ));
 }
 
+function isRecommendationFilteredOut(rec) {
+    return !!(rec && (rec.has_active_application || rec.has_active_cooldown));
+}
+
+function splitRecommendationCandidates(recommendations) {
+    const included = [];
+    const filteredOut = [];
+
+    (Array.isArray(recommendations) ? recommendations : []).forEach(rec => {
+        if (isRecommendationFilteredOut(rec)) {
+            filteredOut.push(rec);
+        } else {
+            included.push(rec);
+        }
+    });
+
+    return { included, filteredOut };
+}
+
+function getRecommendationFilterReasons(rec) {
+    const reasons = [];
+    if (rec && rec.has_active_application) {
+        reasons.push('Has active application');
+    }
+    if (rec && rec.has_active_cooldown) {
+        reasons.push('Cooldown period active');
+    }
+    return reasons.length ? reasons.join(' | ') : 'Eligibility-restricted';
+}
+
+function renderFilteredOutRecommendationsSection(filteredRecommendations) {
+    const section = document.getElementById('filteredOutRecommendationsSection');
+    const countEl = document.getElementById('filteredOutRecommendationsCount');
+    const listEl = document.getElementById('filteredOutRecommendationsList');
+    const collapseEl = document.getElementById('filteredOutRecommendationsCollapse');
+
+    if (!section || !countEl || !listEl) {
+        return;
+    }
+
+    const filtered = Array.isArray(filteredRecommendations) ? filteredRecommendations : [];
+    if (!filtered.length) {
+        section.style.display = 'none';
+        countEl.textContent = '0';
+        listEl.innerHTML = '';
+        if (window.$ && collapseEl) {
+            $(collapseEl).collapse('hide');
+        }
+        return;
+    }
+
+    countEl.textContent = String(filtered.length);
+    section.style.display = 'block';
+    listEl.innerHTML = '';
+
+    filtered.forEach((rec, index) => {
+        const item = document.createElement('div');
+        item.className = 'recommendation-item p-3 mb-2 border rounded';
+        item.setAttribute('data-index', index);
+        item.addEventListener('click', function() {
+            showBeneficiaryDetail(index, rec, {
+                rankNumber: index + 1,
+                totalCount: filtered.length,
+            });
+        });
+        const safeIncome = Number.isFinite(Number(rec.income)) ? Number(rec.income) : 0;
+
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="font-weight-bold">${index + 1}. ${escapeHtml(rec.name || 'N/A')}</div>
+                    <small class="text-muted d-block"><i class="fas fa-envelope mr-1"></i>${escapeHtml(rec.email || 'N/A')}</small>
+                    <small class="text-muted d-block"><i class="fas fa-map-marker-alt mr-1"></i>${escapeHtml(rec.barangay || 'N/A')}</small>
+                </div>
+                <div class="text-right">
+                    <small class="text-muted d-block">Family Monthly Income</small>
+                    <strong>₱${safeIncome.toLocaleString()}</strong>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="badge badge-danger mr-1">${escapeHtml(getRecommendationFilterReasons(rec))}</span>
+            </div>
+            <small class="text-muted d-block mt-2"><i class="fas fa-eye mr-1"></i>Click to view details</small>
+        `;
+
+        listEl.appendChild(item);
+    });
+}
+
 function persistRecommendationState(generatedAt) {
     try {
         const payload = {
@@ -709,6 +972,7 @@ function persistRecommendationState(generatedAt) {
             priority_groups: currentPriorityGroups,
             filters: currentRequestFilters || {},
             recommendations: currentRecommendations || [],
+            filtered_recommendations: currentFilteredRecommendations || [],
             count: Array.isArray(currentRecommendations) ? currentRecommendations.length : 0,
         };
         sessionStorage.setItem(RECOMMENDATION_STATE_KEY, JSON.stringify(payload));
@@ -729,10 +993,14 @@ function restoreRecommendationState() {
         }
 
         currentRecommendations = payload.recommendations;
+        currentFilteredRecommendations = Array.isArray(payload.filtered_recommendations)
+            ? payload.filtered_recommendations
+            : [];
         currentAlgorithm = payload.algorithm || '';
         currentPriorityGroups = payload.priority_groups || '';
         currentProgramId = payload.program_id ? parseInt(payload.program_id, 10) : null;
         currentProgramName = payload.program_name || '';
+        currentGeneratedAt = payload.generated_at || null;
         currentRequestFilters = payload.filters && typeof payload.filters === 'object' ? payload.filters : {};
 
         const programSelect = document.getElementById('program_id');
@@ -748,21 +1016,20 @@ function restoreRecommendationState() {
             document.getElementById('max_beneficiaries').value = currentRequestFilters.max_beneficiaries;
         }
 
-        if (currentRequestFilters.priority_municipality) {
-            const municipalitySelect = document.getElementById('priority_municipality');
-            municipalitySelect.value = currentRequestFilters.priority_municipality;
-            renderBarangayOptionsForMunicipality(currentRequestFilters.priority_municipality);
+        const scopedMunicipality = currentRequestFilters.priority_municipality || priorityMunicipality;
+        renderBarangayOptionsForMunicipality(scopedMunicipality);
 
-            const selectedBarangays = Array.isArray(currentRequestFilters.priority_barangays)
-                ? currentRequestFilters.priority_barangays
-                : [];
+        const selectedBarangays = Array.isArray(currentRequestFilters.priority_barangays)
+            ? currentRequestFilters.priority_barangays
+            : [];
 
-            if (selectedBarangays.length > 0) {
-                document.querySelectorAll('.barangay-checkbox').forEach(checkbox => {
-                    checkbox.checked = selectedBarangays.includes(checkbox.value);
-                });
-            }
+        if (selectedBarangays.length > 0) {
+            document.querySelectorAll('.barangay-checkbox').forEach(checkbox => {
+                checkbox.checked = selectedBarangays.includes(checkbox.value);
+            });
         }
+
+        updateSelectAllBarangaysButtonState();
 
         if (
             typeof currentRequestFilters.min_income === 'number' &&
@@ -773,9 +1040,14 @@ function restoreRecommendationState() {
             document.getElementById('max_income').value = String(currentRequestFilters.max_income);
         }
 
+        const restoredRecommendations = [
+            ...(Array.isArray(payload.recommendations) ? payload.recommendations : []),
+            ...currentFilteredRecommendations,
+        ];
+
         displayResults({
-            count: payload.count || payload.recommendations.length,
-            recommendations: payload.recommendations,
+            count: payload.count || restoredRecommendations.length,
+            recommendations: restoredRecommendations,
             generated_at: payload.generated_at,
         }, { persistState: false });
 
@@ -788,21 +1060,94 @@ function restoreRecommendationState() {
     }
 }
 
+function clearRecommendationState(options = {}) {
+    const clearStorage = options.clearStorage !== false;
+
+    currentRecommendations = [];
+    currentFilteredRecommendations = [];
+    currentAlgorithm = '';
+    currentPriorityGroups = '';
+    currentGeneratedAt = null;
+    currentRequestFilters = {};
+    pendingNotificationRequest = null;
+
+    const resultsList = document.getElementById('resultsList');
+    if (resultsList) {
+        resultsList.innerHTML = '';
+    }
+
+    document.getElementById('resultCount').textContent = '0';
+    document.getElementById('resultTimestamp').textContent = '';
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('resultsContainer').style.display = 'none';
+    document.getElementById('initialState').style.display = 'block';
+    document.getElementById('notifyUsersBtn').disabled = true;
+    document.getElementById('saveListBtn').disabled = !currentProgramId;
+    setResultActionButtonsVisible(false);
+    clearActionFeedback();
+    renderFilteredOutRecommendationsSection([]);
+
+    if (clearStorage) {
+        sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+    }
+}
+
+function applyRequestedProgramSelection(programId) {
+    if (!Number.isInteger(programId) || programId <= 0) {
+        return false;
+    }
+
+    const programSelect = document.getElementById('program_id');
+    const requestedValue = String(programId);
+    const optionExists = Array.from(programSelect.options).some(option => option.value === requestedValue);
+    if (!optionExists) {
+        return false;
+    }
+
+    programSelect.value = requestedValue;
+    programSelect.dispatchEvent(new Event('change'));
+    return true;
+}
+
+function removeResetFlagFromUrl() {
+    if (!shouldResetRecommendationState) {
+        return;
+    }
+
+    queryParams.delete('reset_state');
+    const queryString = queryParams.toString();
+    const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, document.title, nextUrl);
+}
+
 function renderBarangayOptionsForMunicipality(municipality) {
     const container = document.getElementById('barangayCheckboxContainer');
+    const selectAllBtn = document.getElementById('selectAllBarangaysBtn');
     if (!container) return;
 
     container.innerHTML = '';
 
     if (!municipality) {
-        container.innerHTML = '<small class="text-muted">Select a municipality first to view available barangays.</small>';
+        container.innerHTML = '<small class="text-muted">No municipality scope is assigned to this admin account.</small>';
+        if (selectAllBtn) {
+            selectAllBtn.disabled = true;
+        }
+        updateSelectAllBarangaysButtonState();
         return;
     }
 
     const barangays = municipalityBarangays[municipality] || [];
     if (!barangays.length) {
-        container.innerHTML = '<small class="text-muted">No barangays available for the selected municipality.</small>';
+        container.innerHTML = '<small class="text-muted">No barangays available for your municipality.</small>';
+        if (selectAllBtn) {
+            selectAllBtn.disabled = true;
+        }
+        updateSelectAllBarangaysButtonState();
         return;
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.disabled = false;
     }
 
     barangays.forEach((barangay, index) => {
@@ -815,6 +1160,32 @@ function renderBarangayOptionsForMunicipality(municipality) {
         `;
         container.appendChild(wrapper);
     });
+
+    updateSelectAllBarangaysButtonState();
+}
+
+function updateSelectAllBarangaysButtonState() {
+    const selectAllBtn = document.getElementById('selectAllBarangaysBtn');
+    if (!selectAllBtn) return;
+
+    const checkboxes = Array.from(document.querySelectorAll('.barangay-checkbox'));
+    if (!checkboxes.length) {
+        selectAllBtn.disabled = true;
+        selectAllBtn.innerHTML = '<i class="fas fa-check-square mr-1"></i>Select All';
+        return;
+    }
+
+    selectAllBtn.disabled = false;
+    const allChecked = checkboxes.every(checkbox => checkbox.checked);
+    selectAllBtn.innerHTML = allChecked
+        ? '<i class="fas fa-times-circle mr-1"></i>Clear All'
+        : '<i class="fas fa-check-square mr-1"></i>Select All';
+}
+
+function renderPriorityMunicipalityScope() {
+    const scopeEl = document.getElementById('priorityMunicipalityScope');
+    if (!scopeEl) return;
+    scopeEl.textContent = priorityMunicipality || 'No municipality assigned';
 }
 
 // Auto-fill parameters when program is selected
@@ -850,7 +1221,7 @@ function autofillParameters(programData) {
 
 function parseIncomeRange(incomeRangeStr) {
     // Reset dropdown to defaults
-    document.getElementById('income_range_filter').value = '0|10000000';
+    document.getElementById('income_range_filter').value = '0|150000';
     syncIncomeRangeBoundsFromDropdown();
     
     if (!incomeRangeStr) return;
@@ -885,29 +1256,57 @@ function parseIncomeRange(incomeRangeStr) {
 function setIncomeRangeDropdownFromBounds(minValue, maxValue) {
     const dropdown = document.getElementById('income_range_filter');
     const options = Array.from(dropdown.options);
-    const matched = options.find(option => option.value === `${Math.floor(minValue)}|${Math.floor(maxValue)}`);
-    dropdown.value = matched ? matched.value : '0|10000000';
+    const belowThresholds = [30000, 40000, 50000, 75000, 100000, 150000];
+
+    const normalizedMin = Math.max(0, Number(minValue) || 0);
+    const normalizedMax = Math.max(0, Number(maxValue) || 0);
+
+    if (normalizedMin > 0) {
+        dropdown.value = '0|150000';
+        syncIncomeRangeBoundsFromDropdown();
+        return;
+    }
+
+    const selectedThreshold = belowThresholds.find(threshold => normalizedMax <= threshold) || 150000;
+    const matched = options.find(option => option.value === `0|${selectedThreshold}`);
+    dropdown.value = matched ? matched.value : '0|150000';
     syncIncomeRangeBoundsFromDropdown();
 }
 
 function syncIncomeRangeBoundsFromDropdown() {
-    const selected = (document.getElementById('income_range_filter').value || '0|10000000').split('|');
+    const selected = (document.getElementById('income_range_filter').value || '0|150000').split('|');
     const minIncome = parseFloat(selected[0]) || 0;
-    const maxIncome = parseFloat(selected[1]) || 10000000;
+    const maxIncome = parseFloat(selected[1]) || 150000;
     document.getElementById('min_income').value = String(minIncome);
     document.getElementById('max_income').value = String(maxIncome);
 }
 
 document.getElementById('income_range_filter').addEventListener('change', syncIncomeRangeBoundsFromDropdown);
+document.getElementById('selectAllBarangaysBtn').addEventListener('click', function() {
+    const checkboxes = Array.from(document.querySelectorAll('.barangay-checkbox'));
+    if (!checkboxes.length) {
+        return;
+    }
 
-document.getElementById('priority_municipality').addEventListener('change', function() {
-    renderBarangayOptionsForMunicipality(this.value);
+    const allChecked = checkboxes.every(checkbox => checkbox.checked);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = !allChecked;
+    });
+    updateSelectAllBarangaysButtonState();
+});
+
+document.getElementById('barangayCheckboxContainer').addEventListener('change', function(event) {
+    if (event.target && event.target.classList.contains('barangay-checkbox')) {
+        updateSelectAllBarangaysButtonState();
+    }
 });
 
 document.getElementById('recommendationForm').addEventListener('submit', function(e) {
     e.preventDefault();
     clearActionFeedback();
     setResultActionButtonsVisible(false);
+    currentFilteredRecommendations = [];
+    renderFilteredOutRecommendationsSection([]);
     
     // Show loading state
     document.getElementById('initialState').style.display = 'none';
@@ -920,12 +1319,12 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
         selectedBarangays.push(checkbox.value);
     });
 
-    const selectedMunicipality = document.getElementById('priority_municipality').value;
+    const selectedMunicipality = priorityMunicipality;
     if (selectedMunicipality && selectedBarangays.length === 0) {
         const municipalityOptions = municipalityBarangays[selectedMunicipality] || [];
         selectedBarangays.push(...municipalityOptions);
     }
-    
+
     syncIncomeRangeBoundsFromDropdown();
 
     // Validate income range
@@ -992,10 +1391,12 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            currentRecommendations = data.recommendations;
             currentAlgorithm = data.algorithm || '';
             currentPriorityGroups = data.priority_groups || '';
             currentRequestFilters.priority_groups = currentPriorityGroups;
+            currentRequestFilters.area_of_concerns = Array.isArray(data.area_of_concerns)
+                ? data.area_of_concerns
+                : [];
             const generatedAt = new Date().toISOString();
             displayResults({
                 ...data,
@@ -1016,12 +1417,19 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
 
 function displayResults(data, options = {}) {
     const shouldPersist = options.persistState !== false;
+    const split = splitRecommendationCandidates(data.recommendations || []);
+    const includedRecommendations = split.included;
+    const filteredRecommendations = split.filteredOut;
+
+    currentRecommendations = includedRecommendations;
+    currentFilteredRecommendations = filteredRecommendations;
+    currentGeneratedAt = data.generated_at || new Date().toISOString();
 
     document.getElementById('initialState').style.display = 'none';
     document.getElementById('loadingState').style.display = 'none';
 
     // Update result count
-    document.getElementById('resultCount').textContent = data.count;
+    document.getElementById('resultCount').textContent = includedRecommendations.length;
     const generatedDate = data.generated_at ? new Date(data.generated_at) : new Date();
     document.getElementById('resultTimestamp').textContent = generatedDate.toLocaleString('en-US', {
         month: 'short',
@@ -1036,11 +1444,16 @@ function displayResults(data, options = {}) {
     // Build results HTML
     const resultsList = document.getElementById('resultsList');
     resultsList.innerHTML = '';
+    renderFilteredOutRecommendationsSection(filteredRecommendations);
     
-    if (data.recommendations.length === 0) {
-        resultsList.innerHTML = '<p class="text-muted text-center">No matching beneficiaries found with the specified criteria.</p>';
+    if (includedRecommendations.length === 0) {
+        if (filteredRecommendations.length > 0) {
+            resultsList.innerHTML = '<p class="text-muted text-center">All recommended users are currently filtered out due to Active Application or Cooldown restrictions.</p>';
+        } else {
+            resultsList.innerHTML = '<p class="text-muted text-center">No matching beneficiaries found with the specified criteria.</p>';
+        }
     } else {
-        data.recommendations.forEach((rec, index) => {
+        includedRecommendations.forEach((rec, index) => {
             const item = document.createElement('div');
             item.className = 'recommendation-item p-3 mb-2 border rounded';
             item.setAttribute('data-index', index);
@@ -1067,7 +1480,7 @@ function displayResults(data, options = {}) {
                     </div>
                     <div class="col-md-4 text-md-right">
                         <div class="mb-1">
-                            <small class="text-muted">Annual Income:</small>
+                            <small class="text-muted">Family Monthly Income:</small>
                             <div class="font-weight-bold">₱${rec.income.toLocaleString()}</div>
                         </div>
                         <div class="score-badge">
@@ -1083,8 +1496,8 @@ function displayResults(data, options = {}) {
     
     // Show results
     document.getElementById('resultsContainer').style.display = 'block';
-    setResultActionButtonsVisible(true);
-    document.getElementById('notifyUsersBtn').disabled = data.recommendations.length === 0;
+    setResultActionButtonsVisible(includedRecommendations.length > 0);
+    document.getElementById('notifyUsersBtn').disabled = includedRecommendations.length === 0;
     document.getElementById('saveListBtn').disabled = !currentProgramId;
 
     if (shouldPersist) {
@@ -1092,53 +1505,46 @@ function displayResults(data, options = {}) {
     }
 }
 
-// Export functionality
-document.getElementById('exportBtn').addEventListener('click', function() {
-    if (!currentRecommendations.length) {
-        showActionFeedback('No recommendation list available to export.', 'warning');
-        return;
+function getSelectedRecommendationExportFormat() {
+    const selected = document.querySelector('input[name="recommendation_export_format"]:checked');
+    return selected ? selected.value : 'csv';
+}
+
+function getRecommendationExportPayload(exportFormat) {
+    return {
+        export_format: exportFormat,
+        program_name: currentProgramName,
+        generated_at: currentGeneratedAt || new Date().toISOString(),
+        algorithm: currentAlgorithm,
+        priority_groups: currentPriorityGroups,
+        filters: {
+            ...currentRequestFilters,
+        },
+        recommendations: currentRecommendations,
+    };
+}
+
+function parseDownloadFilenameFromResponse(response, fallbackFilename) {
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utfMatch && utfMatch[1]) {
+        try {
+            return decodeURIComponent(utfMatch[1]);
+        } catch (error) {
+            return utfMatch[1];
+        }
     }
 
-    const generatedAtText = document.getElementById('resultTimestamp').textContent || formatTimestamp(new Date().toISOString());
-    const rows = [
-        ['Program', currentProgramName || 'N/A'],
-        ['Generated At', generatedAtText],
-        ['Algorithm', currentAlgorithm || 'N/A'],
-        ['Priority Groups', currentPriorityGroups || 'N/A'],
-        ['Municipality Filter', (currentRequestFilters.priority_municipality || 'All')],
-        ['Income Range', `${formatCurrency(currentRequestFilters.min_income || 0)} - ${formatCurrency(currentRequestFilters.max_income || 10000000)}`],
-        [],
-        ['Rank', 'User ID', 'Name', 'Email', 'Municipality', 'Barangay', 'Age', 'Annual Income', 'Student', 'Solo Parent', 'PWD', 'Senior Citizen', 'Score Type', 'Score']
-    ];
+    const asciiMatch = disposition.match(/filename="?([^";]+)"?/i);
+    if (asciiMatch && asciiMatch[1]) {
+        return asciiMatch[1];
+    }
 
-    currentRecommendations.forEach((rec, index) => {
-        rows.push([
-            index + 1,
-            rec.user_id || '',
-            rec.name || '',
-            rec.email || '',
-            rec.municipality || '',
-            rec.barangay || '',
-            rec.age != null ? rec.age : '',
-            rec.income || 0,
-            rec.is_student ? 'Yes' : 'No',
-            rec.is_solo_parent ? 'Yes' : 'No',
-            rec.is_pwd ? 'Yes' : 'No',
-            rec.is_senior ? 'Yes' : 'No',
-            rec.similarity_score != null ? 'Similarity' : 'Priority Score',
-            Number(rec.score || 0).toFixed(4)
-        ]);
-    });
+    return fallbackFilename;
+}
 
-    const csvContent = rows
-        .map(row => row.map(csvEscape).join(','))
-        .join('\r\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+function triggerBlobDownload(blob, filename) {
     const url = URL.createObjectURL(blob);
-    const timestamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0];
-    const filename = `recommendations_${sanitizeFilename(currentProgramName)}_${timestamp}.csv`;
-
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
@@ -1146,8 +1552,77 @@ document.getElementById('exportBtn').addEventListener('click', function() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
 
-    showActionFeedback(`<i class="fas fa-file-csv mr-2"></i>Exported recommendation list to ${filename}.`, 'success');
+document.getElementById('exportBtn').addEventListener('click', function() {
+    if (!currentRecommendations.length) {
+        showActionFeedback('No recommendation list available to export.', 'warning');
+        return;
+    }
+
+    const summaryText = document.getElementById('exportRecommendationSummaryText');
+    if (summaryText) {
+        summaryText.textContent = `You are about to export ${currentRecommendations.length} recommended beneficiary record(s). Choose a file type to continue.`;
+    }
+
+    $('#exportRecommendationModal').modal('show');
+});
+
+document.getElementById('confirmRecommendationExportBtn').addEventListener('click', function() {
+    if (!currentRecommendations.length) {
+        showActionFeedback('No recommendation list available to export.', 'warning');
+        $('#exportRecommendationModal').modal('hide');
+        return;
+    }
+
+    const exportBtn = this;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.disabled = true;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+
+    const exportFormat = getSelectedRecommendationExportFormat();
+    const fallbackExt = exportFormat === 'excel' ? 'xls' : exportFormat;
+    const fallbackFilename = `recommendations_${sanitizeFilename(currentProgramName)}.${fallbackExt}`;
+
+    fetch(recommendationExportUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(getRecommendationExportPayload(exportFormat))
+    })
+    .then(async response => {
+        if (!response.ok) {
+            let message = 'Unable to export recommendation list.';
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.message) {
+                    message = errorData.message;
+                }
+            } catch (error) {
+                // Keep default message when non-JSON error payload is returned.
+            }
+            throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const filename = parseDownloadFilenameFromResponse(response, fallbackFilename);
+        triggerBlobDownload(blob, filename);
+        return filename;
+    })
+    .then(filename => {
+        const label = exportFormat === 'excel' ? 'Excel' : exportFormat.toUpperCase();
+        showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>Exported recommendation list as ${label}: ${filename}.`, 'success');
+        $('#exportRecommendationModal').modal('hide');
+    })
+    .catch(error => {
+        console.error('Error exporting recommendation list:', error);
+        showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${error.message || 'An unexpected error occurred while exporting.'}`, 'danger');
+    })
+    .finally(() => {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = originalText;
+    });
 });
 
 function showSavedListFeedback(message, variant) {
@@ -1196,6 +1671,14 @@ function getSavedRecommendationDetailUrl(savedListId) {
     return savedRecommendationDetailUrlTemplate.replace(/0$/, String(savedListId));
 }
 
+function getSavedRecommendationDeleteUrl(savedListId) {
+    return savedRecommendationDeleteUrlTemplate.replace('/0/delete', `/${savedListId}/delete`);
+}
+
+function getCommunityUserProfileUrl(userId) {
+    return communityUserProfileUrlTemplate.replace(/0$/, String(userId));
+}
+
 function buildSavedBeneficiaryTagBadges(beneficiary) {
     const tags = [];
     if (beneficiary.is_student) tags.push('<span class="badge badge-primary mr-1">Student</span>');
@@ -1212,15 +1695,19 @@ function renderSavedBeneficiariesModalContent(savedItem, beneficiaries) {
     const notifyBtn = document.getElementById('notifySavedBeneficiariesBtn');
 
     const filters = savedItem.filters || {};
+    const areaConcerns = Array.isArray(filters.area_of_concerns) ? filters.area_of_concerns : [];
+    const areaConcernLabel = areaConcerns.length ? areaConcerns.join(', ') : 'All areas';
     summaryEl.innerHTML = `
         <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
             <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
             <small class="text-muted">Saved ${escapeHtml(formatTimestamp(savedItem.created_at))} by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
         </div>
+        <div class="text-muted small mb-2">Generated: ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</div>
         <div class="mb-2">
             <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
             <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users saved</span>
             <span class="badge badge-light">Priority: ${escapeHtml(filters.priority_groups || 'Not set')}</span>
+            <span class="badge badge-light">Area: ${escapeHtml(areaConcernLabel)}</span>
         </div>
     `;
 
@@ -1308,16 +1795,20 @@ function renderSavedListSummary(savedItem) {
 
     const filters = savedItem.filters || {};
     const barangays = Array.isArray(filters.priority_barangays) ? filters.priority_barangays : [];
+    const areaConcerns = Array.isArray(filters.area_of_concerns) ? filters.area_of_concerns : [];
     const userIds = Array.isArray(savedItem.recommended_user_ids) ? savedItem.recommended_user_ids : [];
 
     const barangayDisplay = barangays.length ? escapeHtml(barangays.join(', ')) : 'All barangays';
+    const areaConcernDisplay = areaConcerns.length ? escapeHtml(areaConcerns.join(', ')) : 'All areas';
     const minIncome = Number.isFinite(Number(filters.min_income)) ? Number(filters.min_income) : 0;
     const maxIncome = Number.isFinite(Number(filters.max_income)) ? Number(filters.max_income) : 10000000;
+    const generatedAtText = formatTimestamp(savedItem.generated_at || savedItem.created_at);
 
     detailPanel.innerHTML = `
         <div class="mb-3">
             <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
             <div class="text-muted small">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')} on ${escapeHtml(formatTimestamp(savedItem.created_at))}</div>
+            <div class="text-muted small">Generated on ${escapeHtml(generatedAtText)}</div>
         </div>
         <div class="mb-3">
             <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
@@ -1330,11 +1821,28 @@ function renderSavedListSummary(savedItem) {
             <li><strong>Priority Groups:</strong> ${escapeHtml(filters.priority_groups || 'Not set')}</li>
             <li><strong>Municipality:</strong> ${escapeHtml(filters.priority_municipality || 'All municipalities')}</li>
             <li><strong>Priority Barangays:</strong> ${barangayDisplay}</li>
+            <li><strong>Area of Concern:</strong> ${areaConcernDisplay}</li>
             <li><strong>Income Range:</strong> ${escapeHtml(formatCurrency(minIncome))} - ${escapeHtml(formatCurrency(maxIncome))}</li>
             <li><strong>Max Beneficiaries:</strong> ${escapeHtml(filters.max_beneficiaries || 'N/A')}</li>
             <li><strong>Algorithm:</strong> ${escapeHtml(filters.algorithm || 'N/A')}</li>
         </ul>
+        <div class="mt-3 d-flex justify-content-end">
+            <button type="button" class="btn btn-outline-danger btn-sm" data-action="delete-saved-list" data-saved-id="${escapeHtml(savedItem.id)}">
+                <i class="fas fa-trash-alt mr-1"></i>Delete List
+            </button>
+        </div>
     `;
+
+    const deleteBtn = detailPanel.querySelector('[data-action="delete-saved-list"]');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            const targetId = parseInt(this.getAttribute('data-saved-id'), 10);
+            if (!Number.isInteger(targetId) || targetId <= 0) {
+                return;
+            }
+            deleteSavedRecommendationSet(targetId);
+        });
+    }
 
     notifyButton.disabled = !(savedItem.program_id && userIds.length > 0);
 }
@@ -1358,29 +1866,85 @@ function renderSavedRecommendationSets() {
     }
 
     savedRecommendationSets.forEach((savedItem, index) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'list-group-item list-group-item-action saved-list-item';
-        button.setAttribute('data-saved-id', String(savedItem.id));
-        button.innerHTML = `
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action saved-list-item';
+        item.setAttribute('data-saved-id', String(savedItem.id));
+        item.innerHTML = `
             <div class="d-flex w-100 justify-content-between align-items-start">
-                <div>
+                <button type="button" class="btn btn-link p-0 text-left flex-grow-1 saved-list-open-btn">
                     <div class="font-weight-bold">${escapeHtml(savedItem.program_name || 'Unknown Program')}</div>
-                    <small class="text-muted">${escapeHtml(savedItem.recommendation_count)} recommendations</small>
-                </div>
-                <small class="text-muted">${escapeHtml(formatTimestamp(savedItem.created_at))}</small>
+                    <small class="text-muted d-block">${escapeHtml(savedItem.recommendation_count)} recommendations</small>
+                    <small class="text-muted d-block mt-1">Generated ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</small>
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm ml-2 saved-list-delete-btn" title="Delete saved list" aria-label="Delete saved list">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </div>
             <small class="text-muted d-block mt-1">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
         `;
-        button.addEventListener('click', function() {
-            selectSavedRecommendation(savedItem.id);
-            openSavedRecommendationBeneficiariesModal(savedItem.id);
-        });
-        container.appendChild(button);
+
+        const openBtn = item.querySelector('.saved-list-open-btn');
+        if (openBtn) {
+            openBtn.addEventListener('click', function() {
+                selectSavedRecommendation(savedItem.id);
+                openSavedRecommendationBeneficiariesModal(savedItem.id);
+            });
+        }
+
+        const deleteBtn = item.querySelector('.saved-list-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function(event) {
+                event.stopPropagation();
+                deleteSavedRecommendationSet(savedItem.id);
+            });
+        }
+
+        container.appendChild(item);
 
         if (index === 0) {
             selectSavedRecommendation(savedItem.id);
         }
+    });
+}
+
+function deleteSavedRecommendationSet(savedListId) {
+    const savedItem = getSavedListById(savedListId);
+    const listLabel = savedItem ? (savedItem.program_name || `List #${savedListId}`) : `List #${savedListId}`;
+    const confirmed = confirm(`Delete ${listLabel}? This action cannot be undone.`);
+    if (!confirmed) {
+        return;
+    }
+
+    fetch(getSavedRecommendationDeleteUrl(savedListId), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to delete saved list.'}`, 'danger');
+            return;
+        }
+
+        savedRecommendationSets = savedRecommendationSets.filter(item => item.id !== savedListId);
+        if (selectedSavedListId === savedListId) {
+            selectedSavedListId = null;
+        }
+        if (selectedSavedListDetail && selectedSavedListDetail.id === savedListId) {
+            selectedSavedListDetail = null;
+            document.getElementById('notifySavedBeneficiariesBtn').disabled = true;
+            $('#savedListBeneficiariesModal').modal('hide');
+        }
+
+        renderSavedRecommendationSets();
+        showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+        showActionFeedback(`<i class="fas fa-trash-alt mr-2"></i>${data.message}`, 'success');
+    })
+    .catch(error => {
+        console.error('Error deleting saved recommendation list:', error);
+        showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while deleting the saved list.', 'danger');
     });
 }
 
@@ -1550,6 +2114,7 @@ document.getElementById('saveListBtn').addEventListener('click', function() {
 
     const payload = {
         program_id: currentProgramId,
+        generated_at: currentGeneratedAt || new Date().toISOString(),
         count: currentRecommendations.length,
         recommendation_user_ids: getUniqueRecommendationUserIds(),
         filters: {
@@ -1596,30 +2161,46 @@ document.getElementById('notifyUsersBtn').addEventListener('click', function() {
         return;
     }
 
-    const confirmed = confirm(`Send recommendation notifications to ${userIds.length} user(s) for ${currentProgramName || 'the selected program'}?`);
-    if (!confirmed) {
+    pendingNotificationRequest = {
+        program_id: currentProgramId,
+        user_ids: userIds,
+    };
+
+    const summaryText = document.getElementById('notifyRecommendationsSummaryText');
+    if (summaryText) {
+        summaryText.textContent = `Send recommendation notifications to ${userIds.length} user(s) for ${currentProgramName || 'the selected program'}?`;
+    }
+
+    $('#notifyRecommendationsModal').modal('show');
+});
+
+document.getElementById('confirmNotifyRecommendationsBtn').addEventListener('click', function() {
+    if (!pendingNotificationRequest || !Array.isArray(pendingNotificationRequest.user_ids) || !pendingNotificationRequest.user_ids.length) {
+        $('#notifyRecommendationsModal').modal('hide');
         return;
     }
 
-    const notifyBtn = this;
+    const notifyBtn = document.getElementById('notifyUsersBtn');
+    const confirmBtn = this;
     const originalText = notifyBtn.innerHTML;
+    const originalConfirmText = confirmBtn.innerHTML;
     notifyBtn.disabled = true;
     notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
 
     fetch('{{ url_for("admin.api_notify_recommendations") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            program_id: currentProgramId,
-            user_ids: userIds,
-        })
+        body: JSON.stringify(pendingNotificationRequest)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            $('#notifyRecommendationsModal').modal('hide');
         } else {
             showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users.'}`, 'danger');
         }
@@ -1631,7 +2212,13 @@ document.getElementById('notifyUsersBtn').addEventListener('click', function() {
     .finally(() => {
         notifyBtn.disabled = false;
         notifyBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalConfirmText;
     });
+});
+
+$('#notifyRecommendationsModal').on('hidden.bs.modal', function() {
+    pendingNotificationRequest = null;
 });
 
 // Helper function to parse priority groups string into tokens
@@ -1667,6 +2254,70 @@ function beneficiaryMatchesPriorityTokens(rec, tokens) {
     return matchingTokens;
 }
 
+function toTitleCaseWords(value) {
+    return String(value || '')
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(token => token.length > 0)
+        .map(token => {
+            if (token === 'aics') return 'AICS';
+            if (token === 'esa') return 'ESA';
+            if (token === 'ca') return 'CA';
+            if (token === '4ps') return '4Ps';
+            return token.charAt(0).toUpperCase() + token.slice(1);
+        })
+        .join(' ');
+}
+
+function formatProgramHistoryEntries(rec) {
+    const entries = [];
+    const seen = new Set();
+
+    const pushUnique = (label) => {
+        const cleanLabel = String(label || '').trim();
+        if (!cleanLabel) return;
+        const normalized = cleanLabel.toLowerCase();
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        entries.push(cleanLabel);
+    };
+
+    if (Array.isArray(rec.past_applications_readable)) {
+        rec.past_applications_readable.forEach(item => {
+            pushUnique(toTitleCaseWords(item));
+        });
+    }
+
+    if (entries.length > 0) {
+        return entries;
+    }
+
+    const normalized = String(rec.past_applications || '')
+        .replace(/\bhistory_tag\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!normalized) {
+        return [];
+    }
+
+    const pairRegex = /([a-z0-9][a-z0-9\s/&().-]*?)\s+(aics|esa|ca|4ps)\b/gi;
+    let match = pairRegex.exec(normalized);
+    while (match !== null) {
+        const programName = toTitleCaseWords(match[1]);
+        const programTypeRaw = String(match[2] || '').toLowerCase();
+        const programType = programTypeRaw === '4ps' ? '4Ps' : programTypeRaw.toUpperCase();
+        pushUnique(`${programName} (${programType})`);
+        match = pairRegex.exec(normalized);
+    }
+
+    if (!entries.length) {
+        pushUnique(toTitleCaseWords(normalized));
+    }
+
+    return entries.slice(0, 8);
+}
+
 function generatePlainLanguageExplanation(rec, isCBF, bd) {
     let reasons = [];
     
@@ -1675,20 +2326,33 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
     
     if (isCBF) {
         // Content-Based Filtering Path
-        const similarity = bd.similarity_score || rec.score;
+        const similarity = Math.max(
+            0,
+            toFiniteNumber(
+                bd.similarity_score,
+                toFiniteNumber(rec.similarity_score, toFiniteNumber(rec.score, 0))
+            )
+        );
+        const incomeProximity = bd.income_proximity != null
+            ? clampUnitInterval(bd.income_proximity)
+            : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
         
-        if (similarity > 0.6) {
+        if (similarity >= 0.65) {
             reasons.push(`<strong>${rec.name}</strong> has a strong match with this program. Their profile characteristics align very well with what the program is looking for.`);
-        } else if (similarity > 0.35) {
+        } else if (similarity >= 0.35) {
             reasons.push(`<strong>${rec.name}</strong> has a good match with this program. Several aspects of their profile fit what the program is looking for.`);
-        } else if (similarity > 0) {
+        } else if (similarity >= 0.15) {
             reasons.push(`<strong>${rec.name}</strong> has some qualities that match this program, though they may not be a perfect fit.`);
+        } else if (similarity > 0.001) {
+            reasons.push(`<strong>${rec.name}</strong> has limited similarity with this program. Only a few profile features overlap with the target program profile.`);
+        } else {
+            reasons.push(`<strong>${rec.name}</strong> has minimal measurable profile similarity to this program based on current CBF features.`);
         }
         
         // Income proximity explanation
-        if (bd.income_score > 0.1) {
+        if (incomeProximity >= 0.5) {
             const target_income = rec.income || 0;
-            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Match:</strong> Their annual income of ₱${target_income.toLocaleString()} is close to the program's target income range.`);
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Match:</strong> Their Family Annual Income of ₱${target_income.toLocaleString()} is close to the program's target income range.`);
         }
         
         // FIXED: Only list profile characteristics that actually match the program's priority groups
@@ -1712,7 +2376,7 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
         
         // Income explanation
         if (bd.income_score > 0.05) {
-            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With an annual income of ₱${rec.income.toLocaleString()}, they are among those most in need of financial assistance.`);
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With a Family Annual Income of ₱${rec.income.toLocaleString()}, they are among those most in need of financial assistance.`);
         }
         
         // FIXED: Only mention characteristics that match the program's actual priority groups
@@ -1736,8 +2400,10 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
     }
     
     // Add past applications section if available
-    if (rec.past_applications && rec.past_applications.trim().length > 0) {
-        const pastAppsHtml = `<i class="fas fa-history mr-2" style="color: #ff6b6b;"></i><strong>Program History:</strong> They have previously applied to or been approved for assistance programs: <em>${rec.past_applications}</em>. This shows they are an active beneficiary participant.`;
+    const historyEntries = formatProgramHistoryEntries(rec);
+    if (historyEntries.length > 0) {
+        const readableHistory = historyEntries.map(item => escapeHtml(item)).join('; ');
+        const pastAppsHtml = `<i class="fas fa-history mr-2" style="color: #ff6b6b;"></i><strong>Program History:</strong> They have previously applied to or been approved for assistance programs: <em>${readableHistory}</em>. This shows they are an active beneficiary participant.`;
         reasons.push(pastAppsHtml);
     }
     
@@ -1753,29 +2419,51 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
     return html;
 }
 
-function showBeneficiaryDetail(index) {
-    const rec = currentRecommendations[index];
+function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
+    const rec = overrideRec || currentRecommendations[index];
     if (!rec) return;
+
+    const rankNumber = overrideMeta && Number.isFinite(Number(overrideMeta.rankNumber))
+        ? Number(overrideMeta.rankNumber)
+        : (index + 1);
+    const totalCount = overrideMeta && Number.isFinite(Number(overrideMeta.totalCount))
+        ? Number(overrideMeta.totalCount)
+        : currentRecommendations.length;
 
     const isCBF = rec.similarity_score != null;
     const scoreLabel = isCBF ? 'Similarity Score' : 'Priority Score';
     const bd = rec.score_breakdown || {};
+    const historyEntries = formatProgramHistoryEntries(rec);
+    const readableHistoryText = historyEntries.length
+        ? historyEntries.map(item => escapeHtml(item)).join('; ')
+        : '';
 
     // Build score bar items
     const breakdownItems = [];
 
     if (isCBF) {
         // CBF breakdown
-        const cosineSim = bd.similarity_score || rec.score;
+        const cosineSim = Math.max(
+            0,
+            toFiniteNumber(
+                bd.similarity_score,
+                toFiniteNumber(rec.similarity_score, toFiniteNumber(rec.score, 0))
+            )
+        );
+        const incomeProximity = bd.income_proximity != null
+            ? clampUnitInterval(bd.income_proximity)
+            : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
         let cosineDescription = 'How closely this beneficiary\'s profile matches the target program profile. ';
-        if (cosineSim > 0.5) {
+        if (cosineSim >= 0.65) {
             cosineDescription += '<strong class="text-success">✓ Highly similar:</strong> Strong match across features.';
-        } else if (cosineSim > 0) {
+        } else if (cosineSim >= 0.35) {
             cosineDescription += '<strong class="text-info">~ Moderately similar:</strong> Some features match the program profile.';
-        } else if (cosineSim > -0.5) {
-            cosineDescription += '<strong class="text-warning">! Low similarity:</strong> Few features match; opposite direction on some dimensions.';
+        } else if (cosineSim >= 0.15) {
+            cosineDescription += '<strong class="text-warning">! Low similarity:</strong> Limited overlap with the target profile.';
+        } else if (cosineSim > 0.001) {
+            cosineDescription += '<strong class="text-warning">! Very low similarity:</strong> Only a weak overlap with program features.';
         } else {
-            cosineDescription += '<strong class="text-danger">✗ Dissimilar:</strong> Profile is opposite to target program (negative cosine value).';
+            cosineDescription += '<strong class="text-danger">✗ Minimal similarity:</strong> No meaningful feature overlap was detected.';
         }
 
         breakdownItems.push({
@@ -1787,8 +2475,8 @@ function showBeneficiaryDetail(index) {
         });
         breakdownItems.push({
             label: 'Income Proximity',
-            value: bd.income_score || 0,
-            max: 0.3,
+            value: incomeProximity,
+            max: 1,
             color: '#1cc88a',
             description: 'Income closeness to the program\'s target income range'
         });
@@ -1853,8 +2541,8 @@ function showBeneficiaryDetail(index) {
         <!-- Total Score -->
         <div class="total-score-display">
             <div class="score-label">${scoreLabel}</div>
-            <div class="score-value">${rec.score.toFixed(4)}</div>
-            <div class="score-label">Rank #${index + 1} of ${currentRecommendations.length}</div>
+            <div class="score-value">${toFiniteNumber(rec.score, 0).toFixed(4)}</div>
+            <div class="score-label">Rank #${rankNumber} of ${totalCount}</div>
         </div>
 
         <!-- Profile Information -->
@@ -1878,8 +2566,8 @@ function showBeneficiaryDetail(index) {
                     <span>${rec.age != null ? rec.age : 'N/A'}</span>
                 </div>
                 <div class="col-sm-6 mb-2">
-                    <small class="text-muted d-block">Annual Income</small>
-                    <span class="font-weight-bold">₱${rec.income.toLocaleString()}</span>
+                    <small class="text-muted d-block">Family Annual Income</small>
+                    <span class="font-weight-bold">₱${toFiniteNumber(rec.income, 0).toLocaleString()}</span>
                 </div>
             </div>
             <div class="mt-2">
@@ -1895,8 +2583,28 @@ function showBeneficiaryDetail(index) {
                 <span class="detail-badge ${rec.is_senior ? 'detail-badge-yes' : 'detail-badge-no'}">
                     <i class="fas fa-${rec.is_senior ? 'check' : 'times'} mr-1"></i>Senior Citizen
                 </span>
+                ${rec.has_active_application ? '<span class="detail-badge detail-badge-no"><i class="fas fa-exclamation-triangle mr-1"></i>Has Active Application</span>' : ''}
+                ${rec.has_active_cooldown ? '<span class="detail-badge detail-badge-no"><i class="fas fa-clock mr-1"></i>Cooldown Active</span>' : ''}
             </div>
         </div>
+
+        ${(rec.has_active_application || rec.has_active_cooldown) ? `
+        <div class="detail-section" style="background: #fff5f5; border-left: 4px solid #e74a3b; padding: 15px;">
+            <h6 style="color: #c0392b;"><i class="fas fa-shield-alt mr-2"></i>Eligibility Flags</h6>
+            ${rec.has_active_application ? `
+            <p class="mb-2">
+                <i class="fas fa-exclamation-circle mr-2" style="color: #e74a3b;"></i>
+                <strong>Active Application:</strong>
+                This user currently has a ${escapeHtml((rec.active_application && rec.active_application.status) || 'pending')} application for this program.
+            </p>` : ''}
+            ${rec.has_active_cooldown ? `
+            <p class="mb-0">
+                <i class="fas fa-calendar-times mr-2" style="color: #6c757d;"></i>
+                <strong>Cooldown Active:</strong>
+                Last qualifying program: ${escapeHtml((rec.active_cooldown && rec.active_cooldown.program_name) || 'N/A')}. Cooldown until ${escapeHtml(formatTimestamp((rec.active_cooldown && rec.active_cooldown.lock_until) || ''))}.
+            </p>` : ''}
+        </div>
+        ` : ''}
 
         <!-- Plain Language Explanation - Why This Person? -->
         <div class="detail-section" style="background: #f0f9ff; border-left: 4px solid #1cc88a; padding: 15px;">
@@ -1959,7 +2667,7 @@ function showBeneficiaryDetail(index) {
                         <td style="padding: 6px 10px; color:#666;">Representative age (30 general / 60 for seniors)</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 10px; font-weight:600;">Annual Income</td>
+                        <td style="padding: 6px 10px; font-weight:600;">Family Monthly Income</td>
                         <td style="padding: 6px 10px;">₱${rec.income.toLocaleString()}</td>
                         <td style="padding: 6px 10px; color:#666;">Midpoint of program's income range</td>
                     </tr>
@@ -1990,7 +2698,7 @@ function showBeneficiaryDetail(index) {
                     </tr>
                     <tr>
                         <td style="padding: 6px 10px; font-weight:600;">Past Applications</td>
-                        <td style="padding: 6px 10px; color:#666;">${rec.past_applications ? rec.past_applications : '<em>None on record</em>'}</td>
+                        <td style="padding: 6px 10px; color:#666;">${readableHistoryText || '<em>None on record</em>'}</td>
                         <td style="padding: 6px 10px; color:#666;">Program name, type &amp; priority group keywords</td>
                     </tr>
                 </tbody>
@@ -2006,13 +2714,43 @@ function showBeneficiaryDetail(index) {
     document.getElementById('beneficiaryDetailLabel').innerHTML =
         `<i class="fas fa-user mr-2"></i>${rec.name}`;
     document.getElementById('beneficiaryDetailBody').innerHTML = html;
+
+    const profileBtn = document.getElementById('viewBeneficiaryProfileBtn');
+    const profileUserId = parseInt(rec.user_id, 10);
+    if (profileBtn) {
+        if (Number.isInteger(profileUserId) && profileUserId > 0) {
+            profileBtn.href = getCommunityUserProfileUrl(profileUserId);
+            profileBtn.style.display = 'inline-block';
+        } else {
+            profileBtn.href = '#';
+            profileBtn.style.display = 'none';
+        }
+    }
+
     $('#beneficiaryDetailModal').modal('show');
 }
 
 // Restore recommendations after page reload for the same browser session.
 (function initializeRecommendationState() {
+    renderPriorityMunicipalityScope();
+    renderBarangayOptionsForMunicipality(priorityMunicipality);
     syncIncomeRangeBoundsFromDropdown();
-    restoreRecommendationState();
+    updateSelectAllBarangaysButtonState();
+
+    if (shouldResetRecommendationState) {
+        clearRecommendationState();
+    } else {
+        restoreRecommendationState();
+    }
+
+    if (applyRequestedProgramSelection(requestedProgramId) && shouldResetRecommendationState) {
+        showActionFeedback(
+            '<i class="fas fa-info-circle mr-2"></i>Target program pre-selected. Previous generated recommendation list was cleared.',
+            'info'
+        );
+    }
+
+    removeResetFlagFromUrl();
 })();
 </script>
 {% endblock %}

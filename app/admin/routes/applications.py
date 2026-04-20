@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session, abort
+from flask import render_template, jsonify, redirect, url_for, request, flash, send_file, session, abort, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import asc, desc, or_, func
@@ -11,6 +11,7 @@ from app.activity_logger import log_application_status_update, log_bulk_applicat
 from app.application_logs import build_application_activity_entries
 from app.socketio_events import emit_application_workflow_update
 import re
+import os
 from PIL import Image, ImageDraw, ImageFont
 import io
 import logging
@@ -663,6 +664,7 @@ def view_application(application_id):
                             'description': a.description,
                             'location': a.location,
                             'findings': a.findings,
+                            'problems_identified': a.problems_identified,
                             'recommendations': a.recommendations,
                             'scheduled_date': manila_strftime(a.scheduled_date, '%b %d, %Y', None),
                             'scheduled_time': a.scheduled_time,
@@ -2437,40 +2439,168 @@ def verify_document_status(application_id, doc_id):
         return jsonify(success=False, message=str(e)), 500
 
 
+def _beneficiaries_completion_datetime_expr():
+    """Best-effort completion timestamp for filtering/export ordering."""
+    return func.coalesce(
+        Applications.claim_scheduled_at,
+        Applications.updated_at,
+        Applications.review_date,
+        Applications.application_date,
+    )
+
+
+def _parse_beneficiaries_date(raw_date):
+    """Parse YYYY-MM-DD date input from beneficiaries filters."""
+    value = str(raw_date or '').strip()
+    if not value:
+        return None
+
+    try:
+        return datetime.strptime(value, '%Y-%m-%d')
+    except ValueError:
+        return None
+
+
+def _beneficiaries_date_range_label(date_range, date_from=None, date_to=None):
+    normalized = (date_range or 'all').strip().lower()
+
+    if normalized == 'custom':
+        start_dt = _parse_beneficiaries_date(date_from)
+        end_dt = _parse_beneficiaries_date(date_to)
+        if start_dt and end_dt:
+            if start_dt > end_dt:
+                start_dt, end_dt = end_dt, start_dt
+            start_label = manila_strftime(start_dt, '%b %d, %Y', 'N/A')
+            end_label = manila_strftime(end_dt, '%b %d, %Y', 'N/A')
+            return f'{start_label} to {end_label}'
+        return 'Custom Range'
+
+    labels = {
+        'all': 'All Dates',
+        'today': 'Today',
+        'week': 'Last 7 Days',
+        'month': 'Last 30 Days',
+        'year': 'Last 365 Days',
+    }
+    return labels.get(normalized, 'All Dates')
+
+
+def _apply_beneficiaries_date_range_filter(query, date_range, date_from=None, date_to=None):
+    """Filter beneficiaries by derived completion date window."""
+    normalized = (date_range or 'all').strip().lower()
+    today = datetime.utcnow()
+    completion_expr = _beneficiaries_completion_datetime_expr()
+
+    if normalized == 'today':
+        start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif normalized == 'week':
+        start_date = today - timedelta(days=7)
+    elif normalized == 'month':
+        start_date = today - timedelta(days=30)
+    elif normalized == 'year':
+        start_date = today - timedelta(days=365)
+    elif normalized == 'custom':
+        start_dt = _parse_beneficiaries_date(date_from)
+        end_dt = _parse_beneficiaries_date(date_to)
+
+        if not start_dt or not end_dt:
+            return query, _beneficiaries_date_range_label('custom', date_from, date_to)
+
+        if start_dt > end_dt:
+            start_dt, end_dt = end_dt, start_dt
+
+        end_exclusive = end_dt + timedelta(days=1)
+        query = query.filter(
+            completion_expr >= start_dt,
+            completion_expr < end_exclusive,
+        )
+        return query, _beneficiaries_date_range_label('custom', date_from, date_to)
+    else:
+        return query, _beneficiaries_date_range_label('all')
+
+    query = query.filter(completion_expr >= start_date)
+    return query, _beneficiaries_date_range_label(normalized)
+
+
+def _application_completed_at(application):
+    """Resolve display value for date completed in beneficiaries outputs."""
+    return (
+        application.claim_scheduled_at
+        or application.updated_at
+        or application.review_date
+        or application.application_date
+    )
+
+
 @admin_bp.route('/beneficiaries-list/preview')
 @login_required
 @role_required('admin')
 def preview_beneficiaries_list():
     """Return JSON preview of filtered beneficiaries list (completed applications only)."""
-    program_ids = request.args.get('program_ids', '').strip()
+    program_id_raw = request.args.get('program_id', '').strip()
     program_type = request.args.get('program_type', '').strip()
+    date_range = request.args.get('date_range', 'all').strip().lower()
+    date_from = request.args.get('date_from', '').strip()
+    date_to = request.args.get('date_to', '').strip()
+
+    if not program_type or not program_id_raw:
+        return jsonify({
+            'count': 0,
+            'beneficiaries': [],
+            'message': 'Program category and specific program are required.'
+        }), 400
+
+    try:
+        program_id = int(program_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({
+            'count': 0,
+            'beneficiaries': [],
+            'message': 'Invalid specific program selection.'
+        }), 400
+
+    selected_program = _scoped_programs_query().filter(Programs.id == program_id).first()
+    if not selected_program:
+        return jsonify({
+            'count': 0,
+            'beneficiaries': [],
+            'message': 'Selected program was not found in your municipality scope.'
+        }), 404
+
+    if (selected_program.program_type or '').strip() != program_type:
+        return jsonify({
+            'count': 0,
+            'beneficiaries': [],
+            'message': 'Selected category does not match the selected program.'
+        }), 400
 
     # Strict policy: generated beneficiaries list may only include completed applications.
     query = _scoped_applications_query().filter(
         Applications.application_status == 'completed'
-    ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
+    )
 
-    if program_ids:
-        id_list = [int(x) for x in program_ids.split(',') if x.strip().isdigit()]
-        if id_list:
-            query = query.filter(Applications.program_id.in_(id_list))
+    query = query.filter(Applications.program_id == program_id)
 
-    if program_type:
-        query = query.join(Programs, Applications.program_id == Programs.id).filter(Programs.program_type == program_type)
+    query, _ = _apply_beneficiaries_date_range_filter(query, date_range, date_from, date_to)
 
-    apps = query.order_by(Applications.id).all()
+    apps = query.order_by(
+        desc(_beneficiaries_completion_datetime_expr()),
+        desc(Applications.id)
+    ).all()
 
     results = []
     for app in apps:
         full_name = f"{app.applicant.first_name} {app.applicant.middle_name or ''} {app.applicant.last_name}".strip()
         barangay = app.applicant.community_profile.barangay if app.applicant.community_profile else 'N/A'
+        date_completed = manila_strftime(_application_completed_at(app), '%B %d, %Y', 'N/A')
         results.append({
             'id': app.id,
             'name': full_name,
             'barangay': barangay,
             'program': app.program.program_name,
             'program_type': app.program.program_type,
-            'status': app.application_status
+            'status': app.application_status,
+            'date_completed': date_completed,
         })
 
     return jsonify({'count': len(results), 'beneficiaries': results})
@@ -2482,38 +2612,84 @@ def preview_beneficiaries_list():
 def generate_beneficiaries_list():
     """Generate a JPG image of beneficiaries with completed applications only."""
     try:
-        program_ids = request.args.get('program_ids', '').strip()
+        program_id_raw = request.args.get('program_id', '').strip()
         program_type = request.args.get('program_type', '').strip()
+        date_range = request.args.get('date_range', 'all').strip().lower()
+        date_from = request.args.get('date_from', '').strip()
+        date_to = request.args.get('date_to', '').strip()
+        create_announcement = request.args.get('create_announcement', '').strip().lower() in {'1', 'true', 'yes'}
+
+        if not program_type or not program_id_raw:
+            flash('Please select one program category and one specific program before generating the list.', 'warning')
+            return redirect(url_for('admin.applications'))
+
+        try:
+            program_id = int(program_id_raw)
+        except (TypeError, ValueError):
+            flash('Invalid specific program selection.', 'warning')
+            return redirect(url_for('admin.applications'))
+
+        selected_program = _scoped_programs_query().filter(Programs.id == program_id).first()
+        if not selected_program:
+            flash('Selected program was not found in your municipality scope.', 'warning')
+            return redirect(url_for('admin.applications'))
+
+        if (selected_program.program_type or '').strip() != program_type:
+            flash('Selected category does not match the selected program.', 'warning')
+            return redirect(url_for('admin.applications'))
 
         # Strict policy: generated beneficiaries list may only include completed applications.
         query = _scoped_applications_query().filter(
             Applications.application_status == 'completed'
-        ).join(User, Applications.user_id == User.id).join(CommunityUsers, User.id == CommunityUsers.user_id)
+        )
 
-        if program_ids:
-            id_list = [int(x) for x in program_ids.split(',') if x.strip().isdigit()]
-            if id_list:
-                query = query.filter(Applications.program_id.in_(id_list))
+        query = query.filter(Applications.program_id == program_id)
 
-        if program_type:
-            query = query.join(Programs, Applications.program_id == Programs.id).filter(Programs.program_type == program_type)
+        query, date_range_label = _apply_beneficiaries_date_range_filter(query, date_range, date_from, date_to)
 
         # Get all completed applications with user and community profile data
-        completed_applications = query.order_by(Applications.id).all()
+        completed_applications = query.order_by(
+            desc(_beneficiaries_completion_datetime_expr()),
+            desc(Applications.id)
+        ).all()
         
         if not completed_applications:
             flash('No completed applications found.', 'warning')
             return redirect(url_for('admin.applications'))
+
+        generated_at = datetime.utcnow()
+        program_name_label = selected_program.program_name or 'N/A'
+        category_label = selected_program.program_type or program_type
+        mswd_municipality_label = _current_admin_municipality() or 'Not Specified'
+        generated_label = manila_strftime(generated_at, '%B %d, %Y at %I:%M %p', 'N/A')
+
+        def _truncate_cell_text(value, max_length):
+            text = str(value or '').strip() or 'N/A'
+            if len(text) <= max_length:
+                return text
+            return text[:max_length - 3] + '...'
         
         # Create image with table
         # Calculate dimensions based on number of rows
-        row_height = 40
-        header_height = 60
-        padding = 40
+        row_height = 36
+        table_header_height = 40
+        padding = 34
+        title_height = 48
+        metadata_line_height = 22
+        metadata_lines = 5
         num_rows = len(completed_applications)
         
-        img_width = 800
-        img_height = header_height + (num_rows * row_height) + padding * 2
+        img_width = 1420
+        img_height = max(
+            520,
+            (padding * 2)
+            + title_height
+            + (metadata_line_height * metadata_lines)
+            + 18
+            + table_header_height
+            + (num_rows * row_height)
+            + 46,
+        )
         
         # Create white background
         img = Image.new('RGB', (img_width, img_height), color='white')
@@ -2537,21 +2713,36 @@ def generate_beneficiaries_list():
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
         title_width = title_bbox[2] - title_bbox[0]
         draw.text(((img_width - title_width) / 2, padding), title, fill='black', font=title_font)
+
+        metadata_rows = [
+            f"Program Name: {program_name_label}",
+            f"Category: {category_label}",
+            f"MSWD Office Municipality: {mswd_municipality_label}",
+            f"Date List Created: {generated_label}",
+            f"Date Range Selected: {date_range_label}",
+        ]
+
+        metadata_y = padding + title_height
+        for meta_text in metadata_rows:
+            draw.text((40, metadata_y), meta_text, fill='#334155', font=cell_font)
+            metadata_y += metadata_line_height
         
         # Table headers
-        y_offset = padding + 40
-        col_widths = [120, 400, 240]  # Application #, Name, Barangay
-        col_positions = [40, 160, 560]
+        y_offset = metadata_y + 10
+        col_widths = [130, 255, 170, 350, 165, 200]
+        col_positions = [40]
+        for width in col_widths[:-1]:
+            col_positions.append(col_positions[-1] + width)
         
         # Draw header background
-        draw.rectangle([30, y_offset, img_width - 30, y_offset + 40], fill='#0032A0')
+        draw.rectangle([30, y_offset, img_width - 30, y_offset + table_header_height], fill='#0032A0')
         
         # Header text
-        headers = ['Application #', 'Name', 'Barangay']
+        headers = ['Application #', 'Name', 'Barangay', 'Program Name', 'Category', 'Date Completed']
         for i, header in enumerate(headers):
             draw.text((col_positions[i], y_offset + 12), header, fill='white', font=header_font)
         
-        y_offset += 40
+        y_offset += table_header_height
         
         # Draw table rows
         for idx, app in enumerate(completed_applications):
@@ -2564,22 +2755,32 @@ def generate_beneficiaries_list():
             
             # Full name
             full_name = f"{app.applicant.first_name} {app.applicant.middle_name or ''} {app.applicant.last_name}".strip()
-            # Truncate if too long
-            if len(full_name) > 40:
-                full_name = full_name[:37] + "..."
-            draw.text((col_positions[1], y_offset + 12), full_name, fill='black', font=cell_font)
+            draw.text((col_positions[1], y_offset + 10), _truncate_cell_text(full_name, 30), fill='black', font=cell_font)
             
             # Barangay
             barangay = app.applicant.community_profile.barangay if app.applicant.community_profile else 'N/A'
-            draw.text((col_positions[2], y_offset + 12), barangay, fill='black', font=cell_font)
+            draw.text((col_positions[2], y_offset + 10), _truncate_cell_text(barangay, 18), fill='black', font=cell_font)
+
+            # Program name
+            program_name = app.program.program_name if app.program else 'N/A'
+            draw.text((col_positions[3], y_offset + 10), _truncate_cell_text(program_name, 42), fill='black', font=cell_font)
+
+            # Category
+            program_category = app.program.program_type if app.program else 'N/A'
+            draw.text((col_positions[4], y_offset + 10), _truncate_cell_text(program_category, 20), fill='black', font=cell_font)
+
+            # Date completed
+            date_completed_text = manila_strftime(_application_completed_at(app), '%B %d, %Y', 'N/A')
+            draw.text((col_positions[5], y_offset + 10), _truncate_cell_text(date_completed_text, 22), fill='black', font=cell_font)
             
             y_offset += row_height
         
         # Draw table border
-        draw.rectangle([30, padding + 40, img_width - 30, y_offset], outline='#dee2e6', width=2)
+        table_top = metadata_y + 10
+        draw.rectangle([30, table_top, img_width - 30, y_offset], outline='#dee2e6', width=2)
         
         # Add footer with generation date
-        footer_text = f"Generated on: {manila_strftime(datetime.utcnow(), '%B %d, %Y at %I:%M %p', '')}"
+        footer_text = f"Generated on: {generated_label}"
         footer_bbox = draw.textbbox((0, 0), footer_text, font=cell_font)
         footer_width = footer_bbox[2] - footer_bbox[0]
         draw.text(((img_width - footer_width) / 2, y_offset + 20), footer_text, fill='gray', font=cell_font)
@@ -2590,11 +2791,42 @@ def generate_beneficiaries_list():
         img_io.seek(0)
         
         # Generate filename with timestamp
-        filename = f"beneficiaries_list_{manila_strftime(datetime.utcnow(), '%Y%m%d_%H%M%S', '')}.jpg"
+        filename = f"beneficiaries_list_{manila_strftime(generated_at, '%Y%m%d_%H%M%S', '')}.jpg"
         
         # Log activity
         log_beneficiaries_list_generated(len(completed_applications))
         db.session.commit()
+
+        if create_announcement:
+            timestamp_token = generated_at.strftime('%Y%m%d_%H%M%S_%f')
+            generated_image_filename = f'beneficiaries_list_{timestamp_token}.jpg'
+            generated_image_rel_path = f'static/uploads/beneficiaries_lists/{generated_image_filename}'
+
+            generated_dir_abs = os.path.join(current_app.static_folder, 'uploads', 'beneficiaries_lists')
+            os.makedirs(generated_dir_abs, exist_ok=True)
+
+            generated_image_abs_path = os.path.join(generated_dir_abs, generated_image_filename)
+            with open(generated_image_abs_path, 'wb') as generated_image_file:
+                generated_image_file.write(img_io.getvalue())
+
+            prefill_program_id = selected_program.id
+            prefill_title = f'Generated Beneficiaries List - {category_label}'
+            prefill_content = (
+                f'Please see the attached generated beneficiaries list for {category_label} '
+                f'({date_range_label}) under the MSWD Office of {mswd_municipality_label}.\n\n'
+                f'Generated on: {generated_label}'
+            )
+
+            return redirect(url_for(
+                'admin.adm_announcements',
+                open_add_modal='1',
+                prefill_title=prefill_title,
+                prefill_content=prefill_content,
+                prefill_category='Programs',
+                prefill_program_id=prefill_program_id,
+                generated_image_path=generated_image_rel_path,
+                generated_image_caption='Generated beneficiaries list image',
+            ))
         
         return send_file(
             img_io,

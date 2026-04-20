@@ -22,9 +22,12 @@ MIN_FORECAST_DATA_POINTS = 4
 FORCE_ARIMA_MODE = os.environ.get('FORECAST_FORCE_ARIMA', 'false').lower() == 'true'
 
 
-def _clamp_non_negative(values, digits=2):
-    """Clamp numeric forecast outputs to non-negative values while preserving precision."""
-    return [round(max(0.0, float(v)), digits) for v in values]
+def _clamp_non_negative(values, digits=0):
+    """Clamp numeric forecast outputs to non-negative values and optionally round."""
+    clamped = [max(0.0, float(v)) for v in values]
+    if digits <= 0:
+        return [int(round(v)) for v in clamped]
+    return [round(v, digits) for v in clamped]
 
 
 def _build_insufficient_data_note(required_points, available_points):
@@ -199,10 +202,9 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
             next_date = last_date + pd.DateOffset(months=i)
             forecast_labels.append(next_date.strftime('%b %Y'))
         
-        # Keep precision so subtle trend changes remain visible in charts.
-        forecast_values = _clamp_non_negative(forecast_values, digits=2)
-        confidence_lower = _clamp_non_negative(confidence_lower, digits=2)
-        confidence_upper = _clamp_non_negative(confidence_upper, digits=2)
+        forecast_values = _clamp_non_negative(forecast_values, digits=0)
+        confidence_lower = _clamp_non_negative(confidence_lower, digits=0)
+        confidence_upper = _clamp_non_negative(confidence_upper, digits=0)
         
         model_name = f"ARIMA(1,1,1)"
         if seasonal_order != (0, 0, 0, 0):
@@ -247,9 +249,9 @@ def arima_forecast(historical_data, historical_labels, periods=6, force_arima=No
                 next_date = last_date + pd.DateOffset(months=i)
                 forecast_labels.append(next_date.strftime('%b %Y'))
             
-            forecast_values = _clamp_non_negative(forecast_values, digits=2)
-            confidence_lower = _clamp_non_negative(confidence_lower, digits=2)
-            confidence_upper = _clamp_non_negative(confidence_upper, digits=2)
+            forecast_values = _clamp_non_negative(forecast_values, digits=0)
+            confidence_lower = _clamp_non_negative(confidence_lower, digits=0)
+            confidence_upper = _clamp_non_negative(confidence_upper, digits=0)
             
             print("  OK: Fallback ARIMA(1,0,1) succeeded")
             return {
@@ -404,13 +406,13 @@ def exponential_smoothing_forecast(historical_data, historical_labels, periods=6
         
         confidence_lower = _clamp_non_negative(
             [v - 1.96 * residual_std for v in forecast_values],
-            digits=2
+            digits=0
         )
         confidence_upper = _clamp_non_negative(
             [v + 1.96 * residual_std for v in forecast_values],
-            digits=2
+            digits=0
         )
-        forecast_values = _clamp_non_negative(forecast_values, digits=2)
+        forecast_values = _clamp_non_negative(forecast_values, digits=0)
         
         # Generate labels
         forecast_labels = []

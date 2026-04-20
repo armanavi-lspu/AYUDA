@@ -10,7 +10,7 @@ from app.utils import role_required, manila_strftime
 from app.activity_logger import log_activity
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE, NEED_FOCUSED_WEIGHTS
 from app.community.routes.profile import get_income_range_display
-from app.location_options import MUNICIPALITY_BARANGAYS, get_municipalities, is_valid_municipality
+from app.location_options import MUNICIPALITY_BARANGAYS, is_valid_barangay
 import os
 import json
 from werkzeug.utils import secure_filename
@@ -390,15 +390,15 @@ def programs_index():
     
     # Apply type filter
     if type_filter:
-        query = query.filter_by(program_type=type_filter)
+        query = query.filter(Programs.program_type == type_filter)
     
     # Apply category filter
     if category_filter:
-        query = query.filter_by(program_type=category_filter)
+        query = query.filter(Programs.program_type == category_filter)
     
     # Apply period filter
     if period_filter:
-        query = query.filter_by(program_period=period_filter)
+        query = query.filter(Programs.program_period == period_filter)
     
     # Apply date range filter
     if date_range:
@@ -2166,40 +2166,26 @@ def program_ranked_list(program_id):
     """Dedicated page for generating ranked beneficiaries for a program."""
     program = _scoped_program_or_404(program_id)
 
-    # Start from the canonical municipality-barangay reference list,
-    # then merge additional values seen in existing community records.
-    municipality_barangays = {
-        municipality: set(barangays)
-        for municipality, barangays in MUNICIPALITY_BARANGAYS.items()
-    }
+    admin_municipality = _current_admin_municipality()
+    barangay_set = set()
 
-    location_rows = db.session.query(
-        CommunityUsers.municipality,
-        CommunityUsers.barangay
-    ).filter(
-        CommunityUsers.municipality.isnot(None)
-    ).distinct().all()
+    if admin_municipality:
+        barangay_set.update(MUNICIPALITY_BARANGAYS.get(admin_municipality, []))
 
-    for raw_municipality, raw_barangay in location_rows:
-        municipality = (raw_municipality or '').strip()
-        barangay = (raw_barangay or '').strip()
-        if not municipality:
-            continue
-        municipality_barangays.setdefault(municipality, set())
-        if barangay:
-            municipality_barangays[municipality].add(barangay)
+        scoped_barangay_rows = _scoped_community_users_query().with_entities(
+            CommunityUsers.barangay
+        ).filter(
+            CommunityUsers.barangay.isnot(None)
+        ).distinct().all()
 
-    canonical_order = list(get_municipalities())
-    extra_municipalities = sorted(
-        municipality for municipality in municipality_barangays.keys()
-        if municipality not in canonical_order
-    )
-    municipalities = canonical_order + extra_municipalities
+        for (raw_barangay,) in scoped_barangay_rows:
+            barangay = (raw_barangay or '').strip()
+            if barangay and is_valid_barangay(admin_municipality, barangay):
+                barangay_set.add(barangay)
 
     municipality_barangays = {
-        municipality: sorted(set(municipality_barangays.get(municipality, [])))
-        for municipality in municipalities
-    }
+        admin_municipality: sorted(barangay_set)
+    } if admin_municipality else {}
 
     eligible_unscheduled_count = _scoped_applications_query().filter(
         Applications.program_id == program_id,
@@ -2210,7 +2196,7 @@ def program_ranked_list(program_id):
     return render_template(
         'admin/program_ranked_list.html',
         program=program,
-        municipalities=municipalities,
+        admin_municipality=admin_municipality,
         municipality_barangays_json=json.dumps(municipality_barangays),
         eligible_unscheduled_count=eligible_unscheduled_count,
         user=current_user
@@ -2237,21 +2223,28 @@ def generate_program_ranked_list(program_id):
 
     try:
         min_income = float(data.get('min_income', 0) or 0)
-        max_income = float(data.get('max_income', 10000000) or 10000000)
+        max_income = float(data.get('max_income', 150000) or 150000)
     except (ValueError, TypeError):
         return jsonify({'success': False, 'message': 'Invalid income range values.'}), 400
 
-    if min_income < 0 or max_income < 0 or min_income > 10000000 or max_income > 10000000:
-        return jsonify({'success': False, 'message': 'Income range must be between 0 and 10,000,000.'}), 400
+    if min_income < 0 or max_income < 0 or min_income > 150000 or max_income > 150000:
+        return jsonify({'success': False, 'message': 'Income range must be between 0 and 150,000.'}), 400
     if min_income > max_income:
         return jsonify({'success': False, 'message': 'Minimum income cannot be greater than maximum income.'}), 400
 
-    completion_date_order = str(data.get('completion_date_order', 'asc') or 'asc').strip().lower()
-    if completion_date_order not in {'asc', 'desc'}:
-        return jsonify({'success': False, 'message': 'Invalid completion date order. Use asc or desc.'}), 400
+    completion_date_order = 'asc'
 
-    priority_barangays = data.get('priority_barangays', []) or []
-    priority_municipality = (data.get('priority_municipality') or '').strip()
+    raw_priority_barangays = data.get('priority_barangays', []) or []
+    if not isinstance(raw_priority_barangays, list):
+        return jsonify({'success': False, 'message': 'Invalid barangay filter payload.'}), 400
+
+    priority_barangays = []
+    for raw_barangay in raw_priority_barangays:
+        barangay = str(raw_barangay or '').strip()
+        if barangay and barangay not in priority_barangays:
+            priority_barangays.append(barangay)
+
+    priority_municipality = _current_admin_municipality() or ''
     priority_groups = ''
     case_severity = ''
     solo_parent_priority = bool(data.get('solo_parent_priority', False))
@@ -2306,16 +2299,17 @@ def generate_program_ranked_list(program_id):
     if enabled_total_weight <= 0:
         return jsonify({'success': False, 'message': 'Enabled scoring factors must have a positive total weight.'}), 400
 
-    if priority_municipality:
-        valid_municipalities = {m for m in get_municipalities() if m}
-        valid_municipalities.update(
+    if priority_barangays:
+        valid_barangays = set(MUNICIPALITY_BARANGAYS.get(priority_municipality, [])) if priority_municipality else set()
+        valid_barangays.update(
             (row[0] or '').strip()
-            for row in db.session.query(CommunityUsers.municipality)
-            .filter(CommunityUsers.municipality.isnot(None)).distinct().all()
-            if (row[0] or '').strip()
+            for row in _scoped_community_users_query().with_entities(CommunityUsers.barangay)
+            .filter(CommunityUsers.barangay.isnot(None)).distinct().all()
+            if (row[0] or '').strip() and is_valid_barangay(priority_municipality, (row[0] or '').strip())
         )
-        if priority_municipality not in valid_municipalities and not is_valid_municipality(priority_municipality):
-            return jsonify({'success': False, 'message': 'Invalid municipality filter selected.'}), 400
+        invalid_barangays = [barangay for barangay in priority_barangays if barangay not in valid_barangays]
+        if invalid_barangays:
+            return jsonify({'success': False, 'message': 'Invalid barangay filter selected.'}), 400
 
     # Restrict candidate pool to completed applications that are not yet scheduled for claiming.
     query = db.session.query(
@@ -2420,10 +2414,10 @@ def generate_program_ranked_list(program_id):
         for row in eligible_rows
     ]
 
-    ranked = get_recommendations(
+    ranked_all = get_recommendations(
         beneficiaries_data=beneficiaries_data,
         target_profile=None,
-        max_beneficiaries=max_beneficiaries,
+        max_beneficiaries=max(len(beneficiaries_data), max_beneficiaries),
         solo_parent_priority=solo_parent_priority,
         student_priority=student_priority,
         pwd_priority=pwd_priority,
@@ -2440,19 +2434,85 @@ def generate_program_ranked_list(program_id):
 
     # Stable two-pass sorting: completion date order is used only as tie-breaker for equal scores.
     if completion_date_order == 'desc':
-        ranked.sort(
+        ranked_all.sort(
             key=lambda row: application_date_map.get(row.get('user_id')) or datetime.min,
             reverse=True,
         )
     else:
-        ranked.sort(
+        ranked_all.sort(
             key=lambda row: application_date_map.get(row.get('user_id')) or datetime.max,
         )
 
-    ranked.sort(
+    ranked_all.sort(
         key=lambda row: float(row.get('score', 0.0) or 0.0),
         reverse=True,
     )
+
+    ranked = ranked_all[:max_beneficiaries]
+    overflow_ranked = ranked_all[max_beneficiaries:]
+
+    matched_user_ids = {
+        int(row.get('user_id'))
+        for row in ranked_all
+        if str(row.get('user_id') or '').isdigit()
+    }
+
+    filtered_applicants = []
+    beneficiaries_by_user_id = {
+        int(row.get('user_id')): row
+        for row in beneficiaries_data
+        if str(row.get('user_id') or '').isdigit()
+    }
+
+    for user_id, row in beneficiaries_by_user_id.items():
+        if user_id in matched_user_ids:
+            continue
+
+        family_annual_income = row.get('family_annual_income', 0)
+        try:
+            income_numeric = float(family_annual_income) if family_annual_income else 0.0
+        except (ValueError, TypeError):
+            income_numeric = 0.0
+
+        filtered_applicants.append({
+            'application_id': application_id_map.get(user_id),
+            'user_id': user_id,
+            'name': f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+            'email': row.get('email', ''),
+            'municipality': row.get('municipality', 'N/A'),
+            'barangay': row.get('barangay', 'N/A'),
+            'income': family_annual_income,
+            'income_range': get_income_range_display(income_numeric),
+            'application_date': manila_strftime(application_date_map.get(user_id), '%B %d, %Y at %I:%M %p', 'N/A'),
+            'score': None,
+            'reason': 'Did not match current filters (income/barangay scope).',
+        })
+
+    for row in overflow_ranked:
+        user_id = row.get('user_id')
+        if not str(user_id or '').isdigit():
+            continue
+
+        user_id = int(user_id)
+        family_annual_income = row.get('family_annual_income', 0)
+        try:
+            income_numeric = float(family_annual_income) if family_annual_income else 0.0
+        except (ValueError, TypeError):
+            income_numeric = 0.0
+
+        filtered_applicants.append({
+            'application_id': application_id_map.get(user_id),
+            'user_id': user_id,
+            'name': f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+            'email': row.get('email', ''),
+            'municipality': row.get('municipality', 'N/A'),
+            'barangay': row.get('barangay', 'N/A'),
+            'income': family_annual_income,
+            'income_range': get_income_range_display(income_numeric),
+            'application_date': manila_strftime(application_date_map.get(user_id), '%B %d, %Y at %I:%M %p', 'N/A'),
+            'score': float(row.get('score', 0.0) or 0.0),
+            'reason': 'Below score cutoff after applying max beneficiaries.',
+        })
 
     recommendations = []
     for row in ranked:
@@ -2499,6 +2559,7 @@ def generate_program_ranked_list(program_id):
         'count': len(recommendations),
         'eligible_pool_count': len(beneficiaries_data),
         'recommendations': recommendations,
+        'filtered_applicants': filtered_applicants,
         'completion_date_order': completion_date_order,
         'message': 'Ranked list generated from completed and unscheduled applications only.'
     })

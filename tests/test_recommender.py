@@ -4,7 +4,8 @@ Tests for the content-based beneficiary recommendation module.
 import pytest
 from app.recommender import (
     BeneficiaryRecommender,
-    get_recommendations
+    get_recommendations,
+    _income_vulnerability_score,
 )
 
 
@@ -271,3 +272,18 @@ class TestGetRecommendations:
             assert pytest.approx(breakdown['income_vulnerability_factor']['weight'], rel=1e-6) == 0.5
             assert breakdown['household_vulnerability_factor']['weight'] == 0.0
             assert breakdown['repeat_beneficiary_penalty_factor']['weight'] == 0.0
+
+
+class TestIncomeRangeBasedScoring:
+    """Regression tests for range-based income storage in community profiles."""
+
+    def test_income_vulnerability_distinguishes_range_minimum_values(self):
+        # Stored profile values are the selected range minimums.
+        below_10k = _income_vulnerability_score(0)
+        between_10k_20k = _income_vulnerability_score(10000)
+        between_20k_30k = _income_vulnerability_score(20001)
+        between_75k_100k = _income_vulnerability_score(75001)
+
+        assert below_10k > between_10k_20k
+        assert between_10k_20k > between_20k_30k
+        assert between_20k_30k > between_75k_100k

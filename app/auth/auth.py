@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
 from ..utils import redirect_user_by_role
-from ..user_activity_logger import log_login, log_logout
+from ..user_activity_logger import log_login, log_logout, log_user_activity
 from ..location_options import (
     MUNICIPALITY_BARANGAYS,
     get_municipalities,
@@ -188,6 +188,20 @@ def sign_up():
                     address=address
                 )
                 db.session.add(community_profile)
+
+                # Capture successful community account creation in user activity logs.
+                log_user_activity(
+                    action='account_created',
+                    action_type='create',
+                    entity_type='account',
+                    description='Created account',
+                    entity_id=new_user.id,
+                    details={
+                        'municipality': municipality,
+                        'barangay': barangay,
+                    },
+                    user_id=new_user.id,
+                )
                 db.session.commit()
                 
                 login_user(new_user, remember=True)

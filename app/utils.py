@@ -268,7 +268,7 @@ def calculate_profile_completion(user):
         'municipality': 'Municipality', 'occupation': 'Occupation',
         'civil_status': 'Civil Status',
         'highest_education_attainment': 'Highest Education Attainment',
-        'family_annual_income': 'Family Annual Income',
+        'family_annual_income': 'Family Monthly Income',
         'is_currently_employed': 'Employment Status', 'is_student': 'Student Status'
     }
     

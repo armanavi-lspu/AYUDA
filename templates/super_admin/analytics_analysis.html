@@ -15,6 +15,18 @@
         </div>
     </div>
 
+    <div id="superAdminAnalyticsUpdateNotice" class="alert alert-info d-none" role="status">
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="mr-3 mb-2 mb-md-0">
+                <i class="fas fa-sync-alt mr-2"></i>
+                <span id="superAdminAnalyticsUpdateNoticeMessage">A new analytics update is available.</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="refreshSuperAdminAnalyticsGraphsBtn">
+                <i class="fas fa-redo mr-1"></i>Refresh Graphs
+            </button>
+        </div>
+    </div>
+
     <div class="row mb-4">
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="card sa-stats-card h-100">
@@ -156,6 +168,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 <script>
 (function () {
+    let superAdminAnalyticsRealtimeListenerBound = false;
+    let superAdminAnalyticsPendingUpdateMessage = '';
+
     function parseData(id, fallback) {
         const node = document.getElementById(id);
         if (!node) return fallback;
@@ -188,6 +203,53 @@
         chartContainer.appendChild(note);
     }
 
+    function showSuperAdminAnalyticsUpdateNotice(message) {
+        const notice = document.getElementById('superAdminAnalyticsUpdateNotice');
+        const messageNode = document.getElementById('superAdminAnalyticsUpdateNoticeMessage');
+        if (!notice || !messageNode) {
+            return;
+        }
+
+        if (message) {
+            superAdminAnalyticsPendingUpdateMessage = message;
+        }
+
+        messageNode.textContent = superAdminAnalyticsPendingUpdateMessage || 'A new analytics update is available.';
+        notice.classList.remove('d-none');
+    }
+
+    function bindSuperAdminAnalyticsRefreshButton() {
+        const button = document.getElementById('refreshSuperAdminAnalyticsGraphsBtn');
+        const notice = document.getElementById('superAdminAnalyticsUpdateNotice');
+        if (!button || button.dataset.bound) {
+            return;
+        }
+
+        button.dataset.bound = '1';
+        button.addEventListener('click', function () {
+            if (notice) {
+                notice.classList.add('d-none');
+            }
+            superAdminAnalyticsPendingUpdateMessage = '';
+            window.location.reload();
+        });
+    }
+
+    function bindSuperAdminAnalyticsUpdateListener() {
+        if (superAdminAnalyticsRealtimeListenerBound) {
+            return;
+        }
+
+        superAdminAnalyticsRealtimeListenerBound = true;
+        const handleUpdateEvent = function (event) {
+            const detail = event && event.detail ? event.detail : {};
+            const reason = detail.reason ? ` (${String(detail.reason).replace(/_/g, ' ')})` : '';
+            showSuperAdminAnalyticsUpdateNotice(`New analytics update available${reason}.`);
+        };
+
+        document.addEventListener('ayuda:super-admin-analytics-update', handleUpdateEvent);
+    }
+
     const applicantsOverTimeData = parseData('applicants-over-time-data', { labels: [], data: [] });
     const applicationsByTypeData = parseData('applications-by-type-data', { labels: [], data: [] });
     const applicantsByBarangayData = parseData('applicants-by-barangay-data', { labels: [], data: [] });
@@ -199,6 +261,29 @@
     let municipalityChart = null;
     let applicantsForecastChart = null;
     let programForecastChart = null;
+
+    const programForecastPalette = [
+        '#4e73df',
+        '#1cc88a',
+        '#36b9cc',
+        '#f6c23e',
+        '#e74a3b',
+        '#858796',
+        '#20c9a6',
+        '#6f42c1',
+    ];
+
+    function colorWithAlpha(hexColor, alpha) {
+        const clean = String(hexColor || '').replace('#', '');
+        if (clean.length !== 6) {
+            return `rgba(78, 115, 223, ${alpha})`;
+        }
+
+        const r = parseInt(clean.slice(0, 2), 16);
+        const g = parseInt(clean.slice(2, 4), 16);
+        const b = parseInt(clean.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
 
     function renderApplicantsChart(labels, values) {
         const ctx = document.getElementById('applicantsTimeSeriesChart');
@@ -591,40 +676,91 @@
         const ctx = document.getElementById('forecastProgramCategoryChart');
         if (!ctx) return;
 
-        fetch('/super-admin/api/analytics/program-forecast')
+        fetch('/super-admin/api/analytics/program-forecast?months=18&forecast_periods=6')
             .then((response) => response.json())
             .then((data) => {
-                const programLabels = data.labels || applicationsByTypeData.labels || [];
-                const currentData = data.current_data || applicationsByTypeData.data || [];
-                const forecastedData = data.forecast_data || currentData.map((value) => Math.round(value * 1.1));
-                const growthRate = data.growth_rate || 0.1;
+                const historicalLabels = data.historical_labels || [];
+                const forecastLabels = data.forecast_labels || [];
+                const allLabels = [...historicalLabels, ...forecastLabels];
+                const categories = Array.isArray(data.categories) ? data.categories : [];
 
                 if (programForecastChart) programForecastChart.destroy();
 
+                const datasets = [];
+                categories.forEach((category, index) => {
+                    const programType = category.program_type || `Category ${index + 1}`;
+                    const color = programForecastPalette[index % programForecastPalette.length];
+                    const historicalValues = Array.isArray(category.historical_values)
+                        ? category.historical_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
+                        : [];
+                    const forecastValues = Array.isArray(category.forecast_values)
+                        ? category.forecast_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
+                        : [];
+
+                    datasets.push({
+                        label: `${programType} (Historical)`,
+                        data: [...historicalValues, ...Array(forecastLabels.length).fill(null)],
+                        borderColor: color,
+                        backgroundColor: colorWithAlpha(color, 0.12),
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.35,
+                        pointRadius: 2,
+                    });
+
+                    if (forecastValues.length > 0 && historicalValues.length > 0) {
+                        const lastHistorical = historicalValues[historicalValues.length - 1];
+                        const forecastSeries = [
+                            ...Array(Math.max(historicalValues.length - 1, 0)).fill(null),
+                            lastHistorical,
+                            ...forecastValues,
+                        ];
+
+                        datasets.push({
+                            label: `${programType} (Forecast)`,
+                            data: forecastSeries,
+                            borderColor: color,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [6, 5],
+                            fill: false,
+                            tension: 0.35,
+                            pointRadius: 2,
+                        });
+                    }
+                });
+
                 programForecastChart = new Chart(ctx.getContext('2d'), {
-                    type: 'bar',
+                    type: 'line',
                     data: {
-                        labels: programLabels,
-                        datasets: [
-                            {
-                                label: 'Current Applications',
-                                data: currentData,
-                                backgroundColor: 'rgba(78, 115, 223, 0.6)',
-                                borderColor: 'rgba(78, 115, 223, 1)',
-                                borderWidth: 2,
-                            },
-                            {
-                                label: `Forecasted Applications (+${Math.round(growthRate * 100)}%)`,
-                                data: forecastedData,
-                                backgroundColor: 'rgba(246, 194, 62, 0.6)',
-                                borderColor: 'rgba(246, 194, 62, 1)',
-                                borderWidth: 2,
-                            },
-                        ],
+                        labels: allLabels,
+                        datasets: datasets,
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += Math.round(context.parsed.y);
+                                        }
+                                        return label;
+                                    },
+                                },
+                            },
+                        },
                         scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
                     },
                 });
@@ -652,6 +788,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        bindSuperAdminAnalyticsRefreshButton();
+        bindSuperAdminAnalyticsUpdateListener();
         renderApplicantsChart(applicantsOverTimeData.labels || [], applicantsOverTimeData.data || []);
         renderProgramTypeChart();
         renderBarangayChart();

@@ -922,6 +922,8 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
         <div class="modal-content announcement-modal-surface">
             <form method="POST" action="{{ url_for('admin.add_announcement') }}" enctype="multipart/form-data">
+                <input type="hidden" name="generated_image_path" value="{{ announcement_prefill.generated_image_path if announcement_prefill else '' }}">
+                <input type="hidden" name="generated_image_caption" value="{{ announcement_prefill.generated_image_caption if announcement_prefill else '' }}">
                 <div class="modal-header announcement-modal-header">
                     <h5 class="modal-title">
                         <i class="fas fa-plus-circle mr-2"></i>Create New Announcement
@@ -936,22 +938,22 @@
                             <div class="form-group">
                                 <label for="title">Title <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="title" name="title" 
-                                       placeholder="Enter announcement title" required>
+                                       placeholder="Enter announcement title" value="{{ announcement_prefill.title if announcement_prefill else '' }}" required>
                             </div>
                             <div class="form-group">
                                 <label for="category">Category</label>
                                 <select class="form-control" id="category" name="category">
-                                    <option value="General">General</option>
-                                    <option value="Programs">Programs</option>
-                                    <option value="Services">Services</option>
-                                    <option value="Events">Events</option>
-                                    <option value="Emergency">Emergency</option>
+                                    <option value="General" {% if announcement_prefill and announcement_prefill.category == 'General' %}selected{% endif %}>General</option>
+                                    <option value="Programs" {% if announcement_prefill and announcement_prefill.category == 'Programs' %}selected{% endif %}>Programs</option>
+                                    <option value="Services" {% if announcement_prefill and announcement_prefill.category == 'Services' %}selected{% endif %}>Services</option>
+                                    <option value="Events" {% if announcement_prefill and announcement_prefill.category == 'Events' %}selected{% endif %}>Events</option>
+                                    <option value="Emergency" {% if announcement_prefill and announcement_prefill.category == 'Emergency' %}selected{% endif %}>Emergency</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label for="content">Content <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="content" name="content" 
-                                          rows="8" placeholder="Enter announcement content..." required></textarea>
+                                          rows="8" placeholder="Enter announcement content..." required>{{ announcement_prefill.content if announcement_prefill else '' }}</textarea>
                                 <small class="form-text text-muted">Provide detailed information about the announcement.</small>
                             </div>
                             
@@ -988,7 +990,7 @@
                                         <select class="form-control" id="program_id" name="program_id">
                                             <option value="">-- No Program Link --</option>
                                             {% for program in programs %}
-                                            <option value="{{ program.id }}">{{ program.program_name }} ({{ program.program_type }})</option>
+                                            <option value="{{ program.id }}" {% if announcement_prefill and announcement_prefill.program_id == program.id %}selected{% endif %}>{{ program.program_name }} ({{ program.program_type }})</option>
                                             {% endfor %}
                                         </select>
                                         <small class="form-text text-muted">Link this announcement to a specific program for easy application access</small>
@@ -996,11 +998,23 @@
                                     <div class="form-group mb-0">
                                         <label for="attachment_url">Or Add External Link/Attachment URL</label>
                                         <input type="url" class="form-control" id="attachment_url" name="attachment_url"
-                                               placeholder="https://example.com/resource">
+                                               placeholder="https://example.com/resource" value="{{ announcement_prefill.attachment_url if announcement_prefill else '' }}">
                                         <small class="form-text text-muted">Provide an external link or resource URL</small>
                                     </div>
                                 </div>
                             </div>
+
+                            {% if announcement_prefill and announcement_prefill.generated_image_path %}
+                            <div class="card mt-3 mb-0 announcement-form-section-card">
+                                <div class="card-header announcement-form-section-header">
+                                    <i class="fas fa-image mr-2"></i>Generated Beneficiaries List Image
+                                </div>
+                                <div class="card-body">
+                                    <img src="/{{ announcement_prefill.generated_image_path }}" class="img-fluid rounded shadow-sm" alt="Generated beneficiaries list image">
+                                    <small class="form-text text-muted">This generated list image will be attached automatically when you create the announcement.</small>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -1270,6 +1284,12 @@
 $('#addAnnouncementModal').on('shown.bs.modal', function () {
     $('#title').trigger('focus');
 });
+
+{% if announcement_prefill and announcement_prefill.open_add_modal %}
+$(function() {
+    $('#addAnnouncementModal').modal('show');
+});
+{% endif %}
 
 $('.announcement-edit-modal').on('shown.bs.modal', function () {
     $(this).find('input[name="title"]').first().trigger('focus');

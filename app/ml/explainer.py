@@ -21,11 +21,13 @@ from app.recommender import (
 class BeneficiaryExplainer:
     """Generate human-readable explanations for recommendation scores."""
 
-    # Income brackets used for plain-language descriptions (PHP annual)
+    # Income brackets used for plain-language descriptions (PHP annual).
+    # Aligned with PSA monthly thresholds annualized for a family of five.
     _INCOME_BRACKETS = [
-        (100_000, 'very low income'),
-        (250_000, 'low income'),
-        (400_000, 'moderate income'),
+        (100_548, 'subsistence poor (food threshold)'),
+        (144_360, 'poor / indigent (poverty threshold)'),
+        (288_720, 'low-income vulnerable'),
+        (600_000, 'lower-middle income vulnerability'),
     ]
 
     # Default weight map – mirrors finalized need-focused ranking formula.
@@ -126,14 +128,7 @@ class BeneficiaryExplainer:
             return 1.0
 
         if not self._pop_stats:
-            # Without population data, use a simple bracket heuristic
-            if income < 100_000:
-                return 1.0
-            if income < 250_000:
-                return 0.75
-            if income < 400_000:
-                return 0.50
-            return 0.25
+            return _income_vulnerability_score(income)
 
         max_inc = self._pop_stats.get('max_income', 1) or 1
         min_inc = self._pop_stats.get('min_income', 0)
@@ -191,9 +186,11 @@ class BeneficiaryExplainer:
         """Return HIGH / MEDIUM / LOW vulnerability classification."""
         count = 0
         income = float(beneficiary.get('family_annual_income', 0) or 0)
-        if income < 100_000:
+        if income <= 100_548:
             count += 2
-        elif income < 250_000:
+        elif income <= 144_360:
+            count += 2
+        elif income <= 288_720:
             count += 1
         if beneficiary.get('is_solo_parent'):
             count += 1

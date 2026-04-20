@@ -161,6 +161,7 @@
                                 <h3 class="auth-form-title">Log in to your account</h3>
 
                                 <form method="POST" id="loginForm" novalidate>
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <div id="loginAlert" class="alert alert-danger login-alert d-none" role="alert"></div>
 
                                     <div class="form-group">
@@ -309,10 +310,13 @@ document.addEventListener('DOMContentLoaded', function() {
             loginBtn.textContent = 'Signing in...';
 
             try {
+                const csrfTokenInput = loginForm.querySelector('input[name="csrf_token"]');
+                const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
                 const response = await fetch(loginForm.action || window.location.pathname, {
                     method: 'POST',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
                     },
                     body: formData
                 });
