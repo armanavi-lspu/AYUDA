@@ -1884,9 +1884,14 @@ def api_generate_recommendations():
                 # CBF path produces similarity_score; rule-based path produces score.
                 # Use whichever is non-zero so the UI always shows a meaningful value.
                 'score': r.get('score') or r.get('similarity_score', 0.0) or 0.0,
+                'adjusted_similarity_score': r.get('adjusted_similarity_score', None),
+                'repeat_beneficiary_penalty': r.get('repeat_beneficiary_penalty', 0.0),
                 'score_breakdown': r.get('score_breakdown', {}),
                 'similarity_score': r.get('similarity_score', None),
                 'past_applications': r.get('past_applications', ''),
+                'past_applications_count': r.get('past_applications_count', 0),
+                'received_program_count': r.get('received_program_count', 0),
+                'completed_program_count': r.get('completed_program_count', 0),
                 'has_active_application': bool(active_application_flags_by_user.get(str(r.get('user_id')))),
                 'active_application': active_application_flags_by_user.get(str(r.get('user_id'))),
                 'has_active_cooldown': bool(cooldown_flags_by_user.get(str(r.get('user_id')))),

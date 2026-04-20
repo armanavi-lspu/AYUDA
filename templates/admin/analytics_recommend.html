@@ -2318,6 +2318,36 @@ function formatProgramHistoryEntries(rec) {
     return entries.slice(0, 8);
 }
 
+function getCbfScoreContext(rec, breakdown) {
+    const bd = breakdown || {};
+    const rawSimilarity = clampUnitInterval(
+        toFiniteNumber(bd.similarity_score, toFiniteNumber(rec.similarity_score, 0))
+    );
+
+    const incomeProximity = bd.income_proximity != null
+        ? clampUnitInterval(bd.income_proximity)
+        : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
+
+    const repeatPenaltyComponent = toFiniteNumber(
+        bd.repeat_penalty_component,
+        toFiniteNumber(rec.repeat_beneficiary_penalty, 0)
+    );
+
+    const adjustedSimilarity = clampUnitInterval(
+        toFiniteNumber(
+            rec.adjusted_similarity_score,
+            toFiniteNumber(rec.score, rawSimilarity + repeatPenaltyComponent)
+        )
+    );
+
+    return {
+        rawSimilarity,
+        incomeProximity,
+        repeatPenaltyComponent,
+        adjustedSimilarity,
+    };
+}
+
 function generatePlainLanguageExplanation(rec, isCBF, bd) {
     let reasons = [];
     
@@ -2326,16 +2356,9 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
     
     if (isCBF) {
         // Content-Based Filtering Path
-        const similarity = Math.max(
-            0,
-            toFiniteNumber(
-                bd.similarity_score,
-                toFiniteNumber(rec.similarity_score, toFiniteNumber(rec.score, 0))
-            )
-        );
-        const incomeProximity = bd.income_proximity != null
-            ? clampUnitInterval(bd.income_proximity)
-            : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
+        const cbfContext = getCbfScoreContext(rec, bd);
+        const similarity = cbfContext.rawSimilarity;
+        const incomeProximity = cbfContext.incomeProximity;
         
         if (similarity >= 0.65) {
             reasons.push(`<strong>${rec.name}</strong> has a strong match with this program. Their profile characteristics align very well with what the program is looking for.`);
@@ -2346,7 +2369,7 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
         } else if (similarity > 0.001) {
             reasons.push(`<strong>${rec.name}</strong> has limited similarity with this program. Only a few profile features overlap with the target program profile.`);
         } else {
-            reasons.push(`<strong>${rec.name}</strong> has minimal measurable profile similarity to this program based on current CBF features.`);
+            reasons.push(`<strong>${rec.name}</strong> has near-zero measurable profile similarity to this program based on current CBF features (it may display as 0.0000 after rounding).`);
         }
         
         // Income proximity explanation
@@ -2361,6 +2384,10 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
         if (profileMatches.length > 0) {
             const profileText = profileMatches.join(', ');
             reasons.push(`<i class="fas fa-user mr-2" style="color: #4e73df;"></i><strong>Program Requirement Match:</strong> They are a ${profileText}, which is a target group for this program.`);
+        }
+
+        if (cbfContext.repeatPenaltyComponent < -0.0001) {
+            reasons.push(`<i class="fas fa-balance-scale mr-2" style="color: #6c757d;"></i><strong>Fairness Adjustment:</strong> A repeat-beneficiary penalty of ${Math.abs(cbfContext.repeatPenaltyComponent).toFixed(4)} was applied so frequently assisted users are less likely to dominate top recommendations.`);
         }
     } else {
         // Rule-Based Scoring Path
@@ -2431,7 +2458,7 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
         : currentRecommendations.length;
 
     const isCBF = rec.similarity_score != null;
-    const scoreLabel = isCBF ? 'Similarity Score' : 'Priority Score';
+    const scoreLabel = isCBF ? 'Final Recommendation Score' : 'Priority Score';
     const bd = rec.score_breakdown || {};
     const historyEntries = formatProgramHistoryEntries(rec);
     const readableHistoryText = historyEntries.length
@@ -2443,16 +2470,11 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
 
     if (isCBF) {
         // CBF breakdown
-        const cosineSim = Math.max(
-            0,
-            toFiniteNumber(
-                bd.similarity_score,
-                toFiniteNumber(rec.similarity_score, toFiniteNumber(rec.score, 0))
-            )
-        );
-        const incomeProximity = bd.income_proximity != null
-            ? clampUnitInterval(bd.income_proximity)
-            : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
+        const cbfContext = getCbfScoreContext(rec, bd);
+        const cosineSim = cbfContext.rawSimilarity;
+        const incomeProximity = cbfContext.incomeProximity;
+        const fairnessPenalty = cbfContext.repeatPenaltyComponent;
+        const adjustedSimilarity = cbfContext.adjustedSimilarity;
         let cosineDescription = 'How closely this beneficiary\'s profile matches the target program profile. ';
         if (cosineSim >= 0.65) {
             cosineDescription += '<strong class="text-success">✓ Highly similar:</strong> Strong match across features.';
@@ -2463,11 +2485,11 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
         } else if (cosineSim > 0.001) {
             cosineDescription += '<strong class="text-warning">! Very low similarity:</strong> Only a weak overlap with program features.';
         } else {
-            cosineDescription += '<strong class="text-danger">✗ Minimal similarity:</strong> No meaningful feature overlap was detected.';
+            cosineDescription += '<strong class="text-danger">✗ Near-zero similarity:</strong> No meaningful feature overlap was detected (rounded display may show 0.0000).';
         }
 
         breakdownItems.push({
-            label: 'Cosine Similarity',
+            label: 'Raw Cosine Similarity',
             value: cosineSim,
             max: 1,
             color: '#4e73df',
@@ -2479,6 +2501,23 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
             max: 1,
             color: '#1cc88a',
             description: 'Income closeness to the program\'s target income range'
+        });
+        breakdownItems.push({
+            label: 'Repeat-Beneficiary Fairness Adjustment',
+            value: fairnessPenalty,
+            max: 0.35,
+            color: '#6c757d',
+            useAbsolute: true,
+            description: fairnessPenalty < -0.0001
+                ? `Applied fairness reduction: ${Math.abs(fairnessPenalty).toFixed(4)} (reduces final score).`
+                : 'No fairness penalty was applied for repeat-beneficiary history.'
+        });
+        breakdownItems.push({
+            label: 'Final Adjusted Similarity',
+            value: adjustedSimilarity,
+            max: 1,
+            color: '#17a2b8',
+            description: 'Final score shown above (raw similarity + fairness adjustment, clamped at 0).'
         });
     } else {
         // Rule-based breakdown
@@ -2522,7 +2561,8 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
     // Build bars HTML
     let barsHtml = '';
     breakdownItems.forEach(item => {
-        const pct = item.max > 0 ? Math.min((item.value / item.max) * 100, 100) : 0;
+        const normalizedValue = item.useAbsolute ? Math.abs(item.value) : item.value;
+        const pct = item.max > 0 ? Math.min((normalizedValue / item.max) * 100, 100) : 0;
         barsHtml += `
             <div class="score-bar-container">
                 <div class="score-bar-label">
@@ -2617,7 +2657,7 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
             <h6><i class="fas fa-chart-bar mr-2"></i>Score Breakdown</h6>
             <p class="text-muted small mb-3">
                 ${isCBF
-                    ? 'This score is computed using <strong>Content-Based Filtering (CBF)</strong>. The system compares this beneficiary\'s profile against the target program profile using cosine similarity on TF-IDF, demographic, and socio-economic features.'
+                    ? 'This score is computed using <strong>Content-Based Filtering (CBF)</strong>. The system computes raw cosine similarity, then applies a repeat-beneficiary fairness adjustment to produce the final recommendation score shown above.'
                     : 'This score is computed using <strong>Rule-Based Priority Scoring</strong>. Each criterion is weighted and combined into a composite priority score.'
                 }
             </p>
@@ -2630,13 +2670,13 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
             <h6 style="color: #0066cc;"><i class="fas fa-question-circle mr-2"></i>What Does This Score Mean?</h6>
             <div style="font-size: 0.9rem;">
                 <div class="mb-2">
-                    <span style="color: #27ae60; font-weight: 600;">✓ 0.5+</span> = Good fit for the program
+                    <span style="color: #27ae60; font-weight: 600;">✓ 0.50+</span> = strong final recommendation fit
                 </div>
                 <div class="mb-2">
-                    <span style="color: #2980b9; font-weight: 600;">⚬ 0 to 0.5</span> = Some features match the program
+                    <span style="color: #2980b9; font-weight: 600;">⚬ 0.15 to 0.49</span> = some profile features match the target program
                 </div>
                 <div>
-                    <span style="color: #e74c3c; font-weight: 600;">✗ Below 0</span> = Does not fit the program profile
+                    <span style="color: #e74c3c; font-weight: 600;">✗ 0.00 to 0.14</span> = weak final fit after similarity and fairness adjustment
                 </div>
             </div>
         </div>
@@ -2650,7 +2690,7 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
             </span>
             ${isCBF ? `
             <p class="text-muted small mt-3 mb-2">
-                The system converts both the <strong>beneficiary's profile</strong> and the <strong>program's target</strong> into numeric vectors, then measures how close they are using cosine similarity.
+                The system converts both the <strong>beneficiary's profile</strong> and the <strong>program's target</strong> into numeric vectors, measures raw cosine similarity, then applies a fairness adjustment for repeat-beneficiary history.
             </p>
             <table style="width:100%; font-size: 0.82rem; border-collapse: collapse;">
                 <thead>
@@ -2700,6 +2740,12 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
                         <td style="padding: 6px 10px; font-weight:600;">Past Applications</td>
                         <td style="padding: 6px 10px; color:#666;">${readableHistoryText || '<em>None on record</em>'}</td>
                         <td style="padding: 6px 10px; color:#666;">Program name, type &amp; priority group keywords</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Final Score Formula</td>
+                        <td style="padding: 6px 10px; color:#666;" colspan="2">
+                            max(0, raw cosine similarity + fairness adjustment)
+                        </td>
                     </tr>
                 </tbody>
             </table>
