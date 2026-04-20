@@ -1607,6 +1607,13 @@ def api_generate_recommendations():
     student_priority = False
     pwd_priority = False
     senior_citizen_priority = data.get('senior_citizen_priority', preset.senior_citizen_priority if preset else False)
+    target_is_emergency = _is_emergency_program_snapshot(
+        scoped_program.program_type if scoped_program else None,
+        scoped_program.program_name if scoped_program else None,
+        scoped_program.description if scoped_program else None,
+        scoped_program.priority_group if scoped_program else None,
+        scoped_program.program_period if scoped_program else None,
+    )
     
     # Query all community users with their profiles
     query = db.session.query(
@@ -1649,6 +1656,7 @@ def api_generate_recommendations():
     )
     
     all_users = query.all()
+    all_user_ids = [u.id for u in all_users]
 
     # Build per-user application history text map for semantic similarity features.
     # Use a delimiter so downstream parsing can derive stable counts.
@@ -1668,6 +1676,58 @@ def api_generate_recommendations():
             app_history_map[user_id] += '|' + tokens
         else:
             app_history_map[user_id] = tokens
+
+    # Enforce cooldown as a hard filter for recommendations:
+    # users with recent completed/claimed applications are excluded.
+    cooldown_reference = datetime.utcnow() - relativedelta(months=3)
+    cooldown_blocked_user_ids = set()
+    recent_completion_count_map = {}
+
+    if all_user_ids and not target_is_emergency:
+        cooldown_candidate_rows = _scoped_applications_query().with_entities(
+            Applications.user_id,
+            Applications.application_status,
+            Applications.claim_date,
+            Applications.updated_at,
+            Applications.review_date,
+            Applications.application_date,
+            Programs.program_name,
+            Programs.program_type,
+            Programs.program_period,
+            Programs.priority_group,
+            Programs.description,
+        ).filter(
+            Applications.user_id.in_(all_user_ids),
+            or_(
+                application_status_key == 'completed',
+                Applications.claim_date.isnot(None),
+            )
+        ).order_by(
+            Applications.user_id.asc(),
+            Applications.updated_at.desc(),
+            Applications.application_date.desc(),
+        ).all()
+
+        for row in cooldown_candidate_rows:
+            reference_date = row.claim_date or row.updated_at or row.review_date or row.application_date
+            if not reference_date or reference_date < cooldown_reference:
+                continue
+
+            if _is_emergency_program_snapshot(
+                row.program_type,
+                row.program_name,
+                row.description,
+                row.priority_group,
+                row.program_period,
+            ):
+                continue
+
+            user_id = row.user_id
+            cooldown_blocked_user_ids.add(user_id)
+
+            status_key = str(row.application_status or '').strip().lower()
+            if status_key == 'completed' or row.claim_date is not None:
+                recent_completion_count_map[user_id] = int(recent_completion_count_map.get(user_id, 0)) + 1
 
     # Build repeat-beneficiary pressure metrics.
     repeat_stats_rows = (
@@ -1695,11 +1755,15 @@ def api_generate_recommendations():
             'total_applications_count': int(row.total_applications_count or 0),
             'received_program_count': int(row.received_program_count or 0),
             'completed_program_count': int(row.completed_program_count or 0),
+            'recent_completed_within_cooldown_count': int(recent_completion_count_map.get(row.user_id, 0)),
         }
 
     # Convert to list of dictionaries for the recommender with income validation
     beneficiaries_data = []
     for u in all_users:
+        if u.id in cooldown_blocked_user_ids:
+            continue
+
         repeat_stats = repeat_stats_map.get(u.id, {})
         beneficiaries_data.append({
             'user_id': u.id,
@@ -1721,6 +1785,7 @@ def api_generate_recommendations():
             'total_applications_count': int(repeat_stats.get('total_applications_count', 0)),
             'received_program_count': int(repeat_stats.get('received_program_count', 0)),
             'completed_program_count': int(repeat_stats.get('completed_program_count', 0)),
+            'recent_completed_within_cooldown_count': int(repeat_stats.get('recent_completed_within_cooldown_count', 0)),
         })
 
     # Keep all scoped beneficiaries in the recommendation pool. Eligibility constraints
@@ -1837,13 +1902,6 @@ def api_generate_recommendations():
             }
 
     cooldown_flags = {}
-    target_is_emergency = _is_emergency_program_snapshot(
-        scoped_program.program_type if scoped_program else None,
-        scoped_program.program_name if scoped_program else None,
-        scoped_program.description if scoped_program else None,
-        scoped_program.priority_group if scoped_program else None,
-        scoped_program.program_period if scoped_program else None,
-    )
 
     if recommendation_user_ids and not target_is_emergency:
         cooldown_reference = datetime.utcnow() - relativedelta(months=3)
@@ -1931,6 +1989,7 @@ def api_generate_recommendations():
                 'past_applications_count': r.get('past_applications_count', 0),
                 'received_program_count': r.get('received_program_count', 0),
                 'completed_program_count': r.get('completed_program_count', 0),
+                'recent_completed_within_cooldown_count': r.get('recent_completed_within_cooldown_count', 0),
                 'has_active_application': bool(active_application_flags_by_user.get(str(r.get('user_id')))),
                 'active_application': active_application_flags_by_user.get(str(r.get('user_id'))),
                 'has_active_cooldown': bool(cooldown_flags_by_user.get(str(r.get('user_id')))),

@@ -255,7 +255,8 @@ def _coerce_non_negative_int(value):
 
 
 def _repeat_beneficiary_penalty(raw_past_applications, total_applications_count=None,
-                                received_program_count=None, completed_program_count=None):
+                                received_program_count=None, completed_program_count=None,
+                                recent_completed_within_cooldown_count=None):
     """Return repeat-beneficiary penalty in [-1.0, 0.0].
 
     Penalizes profiles that repeatedly apply and repeatedly receive/complete
@@ -265,8 +266,9 @@ def _repeat_beneficiary_penalty(raw_past_applications, total_applications_count=
     total_count = max(history_count, _coerce_non_negative_int(total_applications_count))
     received_count = _coerce_non_negative_int(received_program_count)
     completed_count = _coerce_non_negative_int(completed_program_count)
+    recent_completed_count = _coerce_non_negative_int(recent_completed_within_cooldown_count)
 
-    if total_count <= 0 and received_count <= 0 and completed_count <= 0:
+    if total_count <= 0 and received_count <= 0 and completed_count <= 0 and recent_completed_count <= 0:
         return 0.0
 
     # Frequency pressure: more total applications indicates repeated participation.
@@ -277,6 +279,9 @@ def _repeat_beneficiary_penalty(raw_past_applications, total_applications_count=
 
     # Completion pressure: completed programs increase priority for first-time recipients.
     completed_penalty = min(1.0, completed_count * 0.25)
+
+    # Recent completion pressure: stronger fairness pressure for very recent completions.
+    recent_completion_penalty = min(1.0, recent_completed_count * 0.50)
 
     success_ratio_penalty = 0.0
     if total_count > 0:
@@ -289,10 +294,11 @@ def _repeat_beneficiary_penalty(raw_past_applications, total_applications_count=
             success_ratio_penalty = 0.12
 
     combined = (
-        frequency_penalty * 0.45
-        + received_penalty * 0.30
+        frequency_penalty * 0.35
+        + received_penalty * 0.25
         + completed_penalty * 0.15
-        + success_ratio_penalty * 0.10
+        + recent_completion_penalty * 0.20
+        + success_ratio_penalty * 0.05
     )
     return -min(1.0, round(combined, 4))
 
@@ -316,12 +322,14 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
     total_count = beneficiary.get('total_applications_count', history_count)
     received_count = beneficiary.get('received_program_count', 0)
     completed_count = beneficiary.get('completed_program_count', 0)
+    recent_completed_count = beneficiary.get('recent_completed_within_cooldown_count', 0)
 
     repeat_value = _repeat_beneficiary_penalty(
         beneficiary.get('past_applications'),
         total_applications_count=total_count,
         received_program_count=received_count,
         completed_program_count=completed_count,
+        recent_completed_within_cooldown_count=recent_completed_count,
     )
 
     case_contrib = active_weights['case_severity'] * case_value
@@ -359,6 +367,7 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
             'total_applications_count': _coerce_non_negative_int(total_count),
             'received_program_count': _coerce_non_negative_int(received_count),
             'completed_program_count': _coerce_non_negative_int(completed_count),
+            'recent_completed_within_cooldown_count': _coerce_non_negative_int(recent_completed_count),
         },
         # Legacy flat keys retained for compatibility with existing consumers.
         'severity_component': round(case_contrib, 4),
@@ -1081,6 +1090,7 @@ def get_recommendations(beneficiaries_data, target_profile=None, filters=None, m
                         total_applications_count=rec.get('total_applications_count', rec.get('past_applications_count')),
                         received_program_count=rec.get('received_program_count'),
                         completed_program_count=rec.get('completed_program_count'),
+                        recent_completed_within_cooldown_count=rec.get('recent_completed_within_cooldown_count'),
                     )
 
                     raw_similarity = float(rec.get('similarity_score', 0.0) or 0.0)

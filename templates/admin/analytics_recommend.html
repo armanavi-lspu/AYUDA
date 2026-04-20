@@ -975,7 +975,6 @@ function renderFilteredOutRecommendationsSection(filteredRecommendations) {
                 totalCount: filtered.length,
             });
         });
-        const safeIncome = Number.isFinite(Number(rec.income)) ? Number(rec.income) : 0;
 
         item.innerHTML = `
             <div class="d-flex justify-content-between align-items-start">
@@ -986,7 +985,7 @@ function renderFilteredOutRecommendationsSection(filteredRecommendations) {
                 </div>
                 <div class="text-right">
                     <small class="text-muted d-block">Family Monthly Income</small>
-                    <strong>₱${safeIncome.toLocaleString()}</strong>
+                    <strong>${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</strong>
                 </div>
             </div>
             <div class="mt-2">
@@ -1518,7 +1517,7 @@ function displayResults(data, options = {}) {
                     <div class="col-md-4 text-md-right">
                         <div class="mb-1">
                             <small class="text-muted">Family Monthly Income:</small>
-                            <div class="font-weight-bold">₱${rec.income.toLocaleString()}</div>
+                            <div class="font-weight-bold">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</div>
                         </div>
                         <div class="score-badge">
                             ${rec.similarity_score != null ? 'Similarity' : 'Score'}: ${rec.score.toFixed(2)}
