@@ -593,17 +593,16 @@ class BeneficiaryRecommender:
             # Build a score_breakdown that explains why this beneficiary
             # was matched, mirroring the rule-based breakdown structure.
             income = float(rec.get('family_annual_income', 0) or 0)
-            target_income = float(target_profile.get('family_annual_income', 0) or 0)
             similarity_score = max(0.0, float(sim))
-            income_proximity = 0.0
-            if target_income > 0:
-                income_proximity = max(0.0, 1 - abs(income - target_income) / max(target_income, 1))
+            # Income proximity is vulnerability-based (range-aware):
+            # lower monthly income / closer to the lower bands => higher proximity.
+            income_proximity = max(0.0, min(1.0, _income_vulnerability_score(income)))
             
             rec['score_breakdown'] = {
                 # Not part of CBF similarity scoring; kept for legacy UI compatibility.
                 'severity_component': 0.0,
                 'similarity_score': round(similarity_score, 4),
-                # Raw 0-1 closeness of beneficiary income to target income.
+                # Raw 0-1 income vulnerability score used as CBF income proximity.
                 'income_proximity': round(income_proximity, 4),
                 # Legacy weighted field retained for older consumers.
                 'income_score': round(income_proximity * 0.2, 4),

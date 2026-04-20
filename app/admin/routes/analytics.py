@@ -135,6 +135,21 @@ AREA_OF_CONCERN_KEYWORDS = {
     'Medical': ('medical', 'health', 'hospital', 'medicine', 'illness', 'surgery', 'treatment'),
     'Emergency': ('emergency', 'disaster', 'calamity', 'crisis', 'relief', 'urgent'),
 }
+FAMILY_MONTHLY_INCOME_RANGES = (
+    {'min': 0, 'max': 9999, 'display': 'Below ₱10,000'},
+    {'min': 10000, 'max': 20000, 'display': '₱10,000 - ₱20,000'},
+    {'min': 20001, 'max': 30000, 'display': '₱20,001 - ₱30,000'},
+    {'min': 30001, 'max': 40000, 'display': '₱30,001 - ₱40,000'},
+    {'min': 40001, 'max': 50000, 'display': '₱40,001 - ₱50,000'},
+    {'min': 50001, 'max': 75000, 'display': '₱50,001 - ₱75,000'},
+    {'min': 75001, 'max': 100000, 'display': '₱75,001 - ₱100,000'},
+    {'min': 100001, 'max': 150000, 'display': '₱100,001 - ₱150,000'},
+    {'min': 150001, 'max': 200000, 'display': '₱150,001 - ₱200,000'},
+    {'min': 200001, 'max': 300000, 'display': '₱200,001 - ₱300,000'},
+    {'min': 300001, 'max': 400000, 'display': '₱300,001 - ₱400,000'},
+    {'min': 400001, 'max': 500000, 'display': '₱400,001 - ₱500,000'},
+    {'min': 500001, 'max': None, 'display': '₱500,001 and above'},
+)
 
 
 def _parse_community_areas_of_concern(raw_value):
@@ -182,6 +197,29 @@ def _infer_program_area_of_concerns(program):
             inferred.append(area_name)
 
     return inferred
+
+
+def _normalize_status_expr(column):
+    """Return lower-trimmed SQL expression for status comparisons."""
+    return func.lower(func.trim(func.coalesce(column, '')))
+
+
+def _format_family_monthly_income_range(income_value):
+    """Map stored family monthly income base value to its configured display range."""
+    try:
+        numeric = float(income_value)
+    except (TypeError, ValueError):
+        return 'Not specified'
+
+    for income_range in FAMILY_MONTHLY_INCOME_RANGES:
+        lower = income_range['min']
+        upper = income_range['max']
+        if upper is None and numeric >= lower:
+            return income_range['display']
+        if upper is not None and lower <= numeric <= upper:
+            return income_range['display']
+
+    return f'₱{numeric:,.0f}'
 
 
 def _current_admin_municipality_key():
@@ -1614,9 +1652,11 @@ def api_generate_recommendations():
 
     # Build per-user application history text map for semantic similarity features.
     # Use a delimiter so downstream parsing can derive stable counts.
+    application_status_key = _normalize_status_expr(Applications.application_status)
+
     app_history_rows = (
         _scoped_applications_query().with_entities(Applications.user_id, Programs.program_name, Programs.program_type)
-        .filter(Applications.application_status.in_(['approved', 'active', 'completed']))
+        .filter(application_status_key.in_(['approved', 'active', 'completed']))
         .all()
     )
     app_history_map: dict = {}
@@ -1636,13 +1676,13 @@ def api_generate_recommendations():
             func.count(Applications.id).label('total_applications_count'),
             func.sum(
                 case(
-                    (Applications.application_status.in_(['approved', 'active', 'completed']), 1),
+                    (application_status_key.in_(['approved', 'active', 'completed']), 1),
                     else_=0,
                 )
             ).label('received_program_count'),
             func.sum(
                 case(
-                    (Applications.application_status == 'completed', 1),
+                    (application_status_key == 'completed', 1),
                     else_=0,
                 )
             ).label('completed_program_count'),
@@ -1717,21 +1757,17 @@ def api_generate_recommendations():
             for token in priority_tokens
         )
 
-        # Parse income range if available (e.g., "0-250000" or "Below 250,000")
-        # sensible default for low-income programs.
-        max_inc = 250000
-        if program.income_range:
-            try:
-                parts = str(program.income_range).replace(',', '').replace(' ', '').split('-')
-                if len(parts) == 2:
-                    max_inc = float(parts[1])
-            except (ValueError, IndexError):
-                pass
+        # Use the selected Beneficiary Recommendation income dropdown as the
+        # target income signal for CBF income proximity and similarity.
+        # For "Below X" selections (min=0), use X directly as target.
+        # For explicit ranges, use the midpoint.
+        selected_target_income = max_income if min_income <= 0 else ((min_income + max_income) / 2)
+        selected_target_income = max(0.0, min(float(selected_target_income), 10000000.0))
 
         target_profile = {
             # Use a representative age aligned with recommender configuration.
             'age': SENIOR_CITIZEN_AGE if senior_targeted else DEFAULT_TARGET_AGE,
-            'family_annual_income': max_inc / 2,  # midpoint of target income range
+            'family_annual_income': selected_target_income,
             'barangay': 'Unknown',
             'is_solo_parent': 'solo parent' in priority_group or 'solo_parent' in priority_group,
             'is_student': 'student' in priority_group,
@@ -1776,6 +1812,7 @@ def api_generate_recommendations():
 
     active_application_flags = {}
     if program_id and recommendation_user_ids:
+        active_status_key = _normalize_status_expr(Applications.application_status)
         active_rows = _scoped_applications_query().with_entities(
             Applications.user_id,
             Applications.id,
@@ -1784,7 +1821,7 @@ def api_generate_recommendations():
         ).filter(
             Applications.program_id == program_id,
             Applications.user_id.in_(recommendation_user_ids),
-            Applications.application_status.in_(['pending', 'approved', 'active'])
+            active_status_key.in_(['pending', 'approved', 'active'])
         ).order_by(
             Applications.user_id.asc(),
             Applications.application_date.desc()
@@ -1810,6 +1847,7 @@ def api_generate_recommendations():
 
     if recommendation_user_ids and not target_is_emergency:
         cooldown_reference = datetime.utcnow() - relativedelta(months=3)
+        cooldown_status_key = _normalize_status_expr(Applications.application_status)
         cooldown_rows = _scoped_applications_query().with_entities(
             Applications.user_id,
             Applications.id,
@@ -1826,7 +1864,7 @@ def api_generate_recommendations():
         ).filter(
             Applications.user_id.in_(recommendation_user_ids),
             or_(
-                Applications.application_status == 'completed',
+                cooldown_status_key == 'completed',
                 Applications.claim_date.isnot(None)
             )
         ).order_by(
@@ -1876,6 +1914,7 @@ def api_generate_recommendations():
                 'barangay': r.get('barangay', 'N/A'),
                 'municipality': r.get('municipality', 'N/A'),
                 'income': r.get('family_annual_income', 0),
+                'income_range_label': _format_family_monthly_income_range(r.get('family_annual_income', None)),
                 'age': r.get('age', None),
                 'is_solo_parent': r.get('is_solo_parent', False),
                 'is_student': r.get('is_student', False),

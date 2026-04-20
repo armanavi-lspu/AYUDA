@@ -800,6 +800,43 @@ function formatCurrency(value) {
     return `₱${safeValue.toLocaleString()}`;
 }
 
+function getFamilyMonthlyIncomeDisplay(rec) {
+    const incomeLabel = String((rec && rec.income_range_label) || '').trim();
+    if (incomeLabel) {
+        return incomeLabel;
+    }
+
+    const incomeValue = toFiniteNumber(rec && rec.income, 0);
+    const ranges = [
+        { min: 0, max: 9999, label: 'Below ₱10,000' },
+        { min: 10000, max: 20000, label: '₱10,000 - ₱20,000' },
+        { min: 20001, max: 30000, label: '₱20,001 - ₱30,000' },
+        { min: 30001, max: 40000, label: '₱30,001 - ₱40,000' },
+        { min: 40001, max: 50000, label: '₱40,001 - ₱50,000' },
+        { min: 50001, max: 75000, label: '₱50,001 - ₱75,000' },
+        { min: 75001, max: 100000, label: '₱75,001 - ₱100,000' },
+        { min: 100001, max: 150000, label: '₱100,001 - ₱150,000' },
+        { min: 150001, max: 200000, label: '₱150,001 - ₱200,000' },
+        { min: 200001, max: 300000, label: '₱200,001 - ₱300,000' },
+        { min: 300001, max: 400000, label: '₱300,001 - ₱400,000' },
+        { min: 400001, max: 500000, label: '₱400,001 - ₱500,000' },
+        { min: 500001, max: null, label: '₱500,001 and above' },
+    ];
+
+    const matched = ranges.find(range => {
+        if (range.max === null) {
+            return incomeValue >= range.min;
+        }
+        return incomeValue >= range.min && incomeValue <= range.max;
+    });
+
+    if (matched) {
+        return matched.label;
+    }
+
+    return formatCurrency(incomeValue);
+}
+
 function toFiniteNumber(value, fallback = 0) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -2374,8 +2411,7 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
         
         // Income proximity explanation
         if (incomeProximity >= 0.5) {
-            const target_income = rec.income || 0;
-            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Match:</strong> Their Family Annual Income of ₱${target_income.toLocaleString()} is close to the program's target income range.`);
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Vulnerability Match:</strong> Their Family Monthly Income range (${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}) falls in a higher-vulnerability band (lower income), which increases income proximity.`);
         }
         
         // FIXED: Only list profile characteristics that actually match the program's priority groups
@@ -2403,7 +2439,7 @@ function generatePlainLanguageExplanation(rec, isCBF, bd) {
         
         // Income explanation
         if (bd.income_score > 0.05) {
-            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With a Family Annual Income of ₱${rec.income.toLocaleString()}, they are among those most in need of financial assistance.`);
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With a Family Monthly Income range of ${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}, they are among those most in need of financial assistance.`);
         }
         
         // FIXED: Only mention characteristics that match the program's actual priority groups
@@ -2500,7 +2536,7 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
             value: incomeProximity,
             max: 1,
             color: '#1cc88a',
-            description: 'Income closeness to the program\'s target income range'
+            description: 'Income vulnerability proximity (lower income bands, especially near ₱10,000 and below, produce higher proximity)'
         });
         breakdownItems.push({
             label: 'Repeat-Beneficiary Fairness Adjustment',
@@ -2606,8 +2642,8 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
                     <span>${rec.age != null ? rec.age : 'N/A'}</span>
                 </div>
                 <div class="col-sm-6 mb-2">
-                    <small class="text-muted d-block">Family Annual Income</small>
-                    <span class="font-weight-bold">₱${toFiniteNumber(rec.income, 0).toLocaleString()}</span>
+                    <small class="text-muted d-block">Family Monthly Income</small>
+                    <span class="font-weight-bold">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</span>
                 </div>
             </div>
             <div class="mt-2">
@@ -2708,8 +2744,8 @@ function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
                     </tr>
                     <tr>
                         <td style="padding: 6px 10px; font-weight:600;">Family Monthly Income</td>
-                        <td style="padding: 6px 10px;">₱${rec.income.toLocaleString()}</td>
-                        <td style="padding: 6px 10px; color:#666;">Midpoint of program's income range</td>
+                        <td style="padding: 6px 10px;">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</td>
+                        <td style="padding: 6px 10px; color:#666;">Mapped to vulnerability scale (lower income bands => higher income proximity)</td>
                     </tr>
                     <tr style="background:#f8f9fc;">
                         <td style="padding: 6px 10px; font-weight:600;">Barangay</td>
