@@ -1961,46 +1961,88 @@ def api_generate_recommendations():
     active_application_flags_by_user = {str(user_id): payload for user_id, payload in active_application_flags.items()}
     cooldown_flags_by_user = {str(user_id): payload for user_id, payload in cooldown_flags.items()}
 
+    generated_at = datetime.utcnow().isoformat()
+    recommendation_payload = [
+        {
+            'user_id': r.get('user_id'),
+            'name': f"{r.get('first_name', '')} {r.get('last_name', '')}",
+            'email': r.get('email', ''),
+            'barangay': r.get('barangay', 'N/A'),
+            'municipality': r.get('municipality', 'N/A'),
+            'income': r.get('family_annual_income', 0),
+            'income_range_label': _format_family_monthly_income_range(r.get('family_annual_income', None)),
+            'age': r.get('age', None),
+            'is_solo_parent': r.get('is_solo_parent', False),
+            'is_student': r.get('is_student', False),
+            'is_pwd': r.get('is_pwd', False),
+            'is_senior': (r.get('age') or 0) >= 60,
+            # CBF path produces similarity_score; rule-based path produces score.
+            # Use whichever is non-zero so the UI always shows a meaningful value.
+            'score': r.get('score') or r.get('similarity_score', 0.0) or 0.0,
+            'adjusted_similarity_score': r.get('adjusted_similarity_score', None),
+            'repeat_beneficiary_penalty': r.get('repeat_beneficiary_penalty', 0.0),
+            'score_breakdown': r.get('score_breakdown', {}),
+            'similarity_score': r.get('similarity_score', None),
+            'past_applications': r.get('past_applications', ''),
+            'past_applications_count': r.get('past_applications_count', 0),
+            'received_program_count': r.get('received_program_count', 0),
+            'completed_program_count': r.get('completed_program_count', 0),
+            'recent_completed_within_cooldown_count': r.get('recent_completed_within_cooldown_count', 0),
+            'has_active_application': bool(active_application_flags_by_user.get(str(r.get('user_id')))),
+            'active_application': active_application_flags_by_user.get(str(r.get('user_id'))),
+            'has_active_cooldown': bool(cooldown_flags_by_user.get(str(r.get('user_id')))),
+            'active_cooldown': cooldown_flags_by_user.get(str(r.get('user_id'))),
+        }
+        for r in recommendations
+    ]
+
+    history_program_name = scoped_program.program_name if scoped_program else 'Unknown Program'
+    history_filters = {
+        'max_beneficiaries': max_beneficiaries,
+        'priority_groups': effective_priority_groups or '',
+        'priority_municipality': priority_municipality or '',
+        'priority_barangays': priority_barangays,
+        'area_of_concerns': area_of_concerns,
+        'min_income': min_income,
+        'max_income': max_income,
+        'algorithm': 'content-based-knn' if target_profile else 'rule-based-scoring',
+    }
+
+    max_snapshot_items = 500
+    stored_user_ids = recommendation_user_ids[:max_snapshot_items]
+    stored_snapshot = recommendation_payload[:max_snapshot_items]
+
+    try:
+        log_recommendation_saved(
+            program_name=history_program_name,
+            recommendation_count=len(recommendation_payload),
+            details_extra={
+                'history_type': 'generated_recommendation',
+                'program_id': program_id,
+                'generated_at': generated_at,
+                'filters': history_filters,
+                'recommended_user_ids': stored_user_ids,
+                'recommended_user_count': len(recommendation_user_ids),
+                'recommended_user_ids_truncated': len(recommendation_user_ids) > len(stored_user_ids),
+                'recommendation_snapshot': stored_snapshot,
+                'recommendation_snapshot_count': len(recommendation_payload),
+                'recommendation_snapshot_truncated': len(recommendation_payload) > len(stored_snapshot),
+            }
+        )
+        db.session.commit()
+    except Exception:
+        # History logging should not block recommendation generation.
+        db.session.rollback()
+
     return jsonify({
         'success': True,
         'count': len(recommendations),
-        'recommendations': [
-            {
-                'user_id': r.get('user_id'),
-                'name': f"{r.get('first_name', '')} {r.get('last_name', '')}",
-                'email': r.get('email', ''),
-                'barangay': r.get('barangay', 'N/A'),
-                'municipality': r.get('municipality', 'N/A'),
-                'income': r.get('family_annual_income', 0),
-                'income_range_label': _format_family_monthly_income_range(r.get('family_annual_income', None)),
-                'age': r.get('age', None),
-                'is_solo_parent': r.get('is_solo_parent', False),
-                'is_student': r.get('is_student', False),
-                'is_pwd': r.get('is_pwd', False),
-                'is_senior': (r.get('age') or 0) >= 60,
-                # CBF path produces similarity_score; rule-based path produces score.
-                # Use whichever is non-zero so the UI always shows a meaningful value.
-                'score': r.get('score') or r.get('similarity_score', 0.0) or 0.0,
-                'adjusted_similarity_score': r.get('adjusted_similarity_score', None),
-                'repeat_beneficiary_penalty': r.get('repeat_beneficiary_penalty', 0.0),
-                'score_breakdown': r.get('score_breakdown', {}),
-                'similarity_score': r.get('similarity_score', None),
-                'past_applications': r.get('past_applications', ''),
-                'past_applications_count': r.get('past_applications_count', 0),
-                'received_program_count': r.get('received_program_count', 0),
-                'completed_program_count': r.get('completed_program_count', 0),
-                'recent_completed_within_cooldown_count': r.get('recent_completed_within_cooldown_count', 0),
-                'has_active_application': bool(active_application_flags_by_user.get(str(r.get('user_id')))),
-                'active_application': active_application_flags_by_user.get(str(r.get('user_id'))),
-                'has_active_cooldown': bool(cooldown_flags_by_user.get(str(r.get('user_id')))),
-                'active_cooldown': cooldown_flags_by_user.get(str(r.get('user_id'))),
-            }
-            for r in recommendations
-        ],
+        'recommendations': recommendation_payload,
         'algorithm': 'content-based-knn' if target_profile else 'rule-based-scoring',
         'program_matched': program_id is not None,
         'priority_groups': effective_priority_groups or '',
         'area_of_concerns': area_of_concerns,
+        'generated_at': generated_at,
         'message': 'Recommendations generated using content-based filtering algorithm'
     })
 
@@ -2155,7 +2197,7 @@ def _build_recommendation_export_payload(data):
 @login_required
 @role_required('admin')
 def api_save_recommendations():
-    """Save/log a recommendation list generation for audit trail"""
+    """Save/log a recommendation history entry for backward compatibility."""
     data = request.get_json() or {}
 
     program_id_raw = data.get('program_id')
@@ -2216,7 +2258,7 @@ def api_save_recommendations():
 
         return jsonify({
             'success': True,
-            'message': 'Recommendation list saved successfully.',
+            'message': 'Recommendation history entry recorded successfully.',
             'saved_count': len(recommendation_user_ids),
         })
     except Exception as e:
@@ -2228,7 +2270,7 @@ def api_save_recommendations():
 @login_required
 @role_required('admin')
 def api_saved_recommendations():
-    """Return recent saved recommendation lists with summary details."""
+    """Return recent recommendation history records with summary details."""
     limit = request.args.get('limit', 30, type=int)
     limit = max(1, min(limit, 100))
 
@@ -2287,6 +2329,12 @@ def api_saved_recommendations():
         except (TypeError, ValueError):
             recommendation_count = recommended_user_count
 
+        snapshot_count = details.get('recommendation_snapshot_count', recommendation_count)
+        try:
+            snapshot_count = max(int(snapshot_count), 0)
+        except (TypeError, ValueError):
+            snapshot_count = recommendation_count
+
         generated_at = str(details.get('generated_at') or '').strip() or (log.created_at.isoformat() if log.created_at else None)
 
         saved_lists.append({
@@ -2301,6 +2349,10 @@ def api_saved_recommendations():
             'recommended_user_count': recommended_user_count,
             'recommended_user_ids': recommended_user_ids,
             'recommended_user_ids_truncated': bool(details.get('recommended_user_ids_truncated', False)),
+            'has_recommendation_snapshot': bool(isinstance(details.get('recommendation_snapshot', []), list) and details.get('recommendation_snapshot')),
+            'recommendation_snapshot_count': snapshot_count,
+            'recommendation_snapshot_truncated': bool(details.get('recommendation_snapshot_truncated', False)),
+            'history_type': details.get('history_type') or 'saved_recommendation',
             'filters': filters_payload,
         })
 
@@ -2315,7 +2367,7 @@ def api_saved_recommendations():
 @login_required
 @role_required('admin')
 def api_saved_recommendation_detail(saved_list_id):
-    """Return one saved recommendation list with beneficiary details."""
+    """Return one recommendation history record with beneficiary details."""
     log = _scoped_admin_activity_logs_query().filter(
         AdminActivityLog.id == saved_list_id,
         AdminActivityLog.action == 'save_recommendation',
@@ -2323,7 +2375,7 @@ def api_saved_recommendation_detail(saved_list_id):
     ).first()
 
     if not log:
-        return jsonify({'success': False, 'message': 'Saved recommendation list not found.'}), 404
+        return jsonify({'success': False, 'message': 'Recommendation history record not found.'}), 404
 
     details = log.details_dict if hasattr(log, 'details_dict') else {}
     if not isinstance(details, dict):
@@ -2400,6 +2452,50 @@ def api_saved_recommendation_detail(saved_list_id):
             'is_senior': bool(age_value is not None and age_value >= SENIOR_CITIZEN_AGE),
         })
 
+    raw_snapshot = details.get('recommendation_snapshot', [])
+    recommendation_snapshot = []
+    if isinstance(raw_snapshot, list):
+        recommendation_snapshot = [row for row in raw_snapshot if isinstance(row, dict)]
+
+    if not recommendation_snapshot and beneficiaries:
+        recommendation_snapshot = [
+            {
+                'user_id': row.get('user_id'),
+                'name': row.get('name', ''),
+                'email': row.get('email', ''),
+                'barangay': row.get('barangay', 'N/A'),
+                'municipality': row.get('municipality', 'N/A'),
+                'income': 0,
+                'income_range_label': '',
+                'age': row.get('age'),
+                'is_solo_parent': row.get('is_solo_parent', False),
+                'is_student': row.get('is_student', False),
+                'is_pwd': row.get('is_pwd', False),
+                'is_senior': row.get('is_senior', False),
+                'score': 0.0,
+                'adjusted_similarity_score': None,
+                'repeat_beneficiary_penalty': 0.0,
+                'score_breakdown': {},
+                'similarity_score': None,
+                'past_applications': '',
+                'past_applications_count': 0,
+                'received_program_count': 0,
+                'completed_program_count': 0,
+                'recent_completed_within_cooldown_count': 0,
+                'has_active_application': False,
+                'active_application': None,
+                'has_active_cooldown': False,
+                'active_cooldown': None,
+            }
+            for row in beneficiaries
+        ]
+
+    snapshot_count = details.get('recommendation_snapshot_count', recommendation_count)
+    try:
+        snapshot_count = max(int(snapshot_count), len(recommendation_snapshot))
+    except (TypeError, ValueError):
+        snapshot_count = max(recommendation_count, len(recommendation_snapshot))
+
     saved_list_payload = {
         'id': log.id,
         'created_at': log.created_at.isoformat() if log.created_at else None,
@@ -2412,12 +2508,17 @@ def api_saved_recommendation_detail(saved_list_id):
         'recommended_user_count': recommended_user_count,
         'recommended_user_ids': recommended_user_ids,
         'recommended_user_ids_truncated': bool(details.get('recommended_user_ids_truncated', False)),
+        'has_recommendation_snapshot': bool(recommendation_snapshot),
+        'recommendation_snapshot_count': snapshot_count,
+        'recommendation_snapshot_truncated': bool(details.get('recommendation_snapshot_truncated', False)),
+        'history_type': details.get('history_type') or 'saved_recommendation',
         'filters': filters_payload,
     }
 
     return jsonify({
         'success': True,
         'saved_list': saved_list_payload,
+        'recommendations': recommendation_snapshot,
         'beneficiaries': beneficiaries,
         'beneficiary_count': len(beneficiaries),
     })
@@ -2427,23 +2528,11 @@ def api_saved_recommendation_detail(saved_list_id):
 @login_required
 @role_required('admin')
 def api_delete_saved_recommendation(saved_list_id):
-    """Delete one saved recommendation list within the admin's municipality scope."""
-    log = _scoped_admin_activity_logs_query().filter(
-        AdminActivityLog.id == saved_list_id,
-        AdminActivityLog.action == 'save_recommendation',
-        AdminActivityLog.entity_type == 'recommendation'
-    ).first()
-
-    if not log:
-        return jsonify({'success': False, 'message': 'Saved recommendation list not found.'}), 404
-
-    try:
-        db.session.delete(log)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Saved recommendation list deleted successfully.'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+    """Retained for backward compatibility; recommendation history records are immutable."""
+    return jsonify({
+        'success': False,
+        'message': 'Recommendation history records cannot be deleted.'
+    }), 403
 
 
 @admin_bp.route('/api/analytics/export-recommendations', methods=['POST'])

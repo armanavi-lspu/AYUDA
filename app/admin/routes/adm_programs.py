@@ -2263,12 +2263,20 @@ def generate_program_ranked_list(program_id):
     if not isinstance(raw_scoring_parameters, dict):
         return jsonify({'success': False, 'message': 'Invalid scoring parameters payload.'}), 400
 
+    vulnerability_enabled_override = None
+    if 'vulnerability' in raw_scoring_parameters:
+        vulnerability_enabled_override = _to_bool(raw_scoring_parameters.get('vulnerability'))
+
     scoring_parameters = {
         'case_severity': _to_bool(raw_scoring_parameters.get('case_severity', True)),
         'income_vulnerability': _to_bool(raw_scoring_parameters.get('income_vulnerability', True)),
         'household_vulnerability': _to_bool(raw_scoring_parameters.get('household_vulnerability', True)),
         'repeat_beneficiary_penalty': _to_bool(raw_scoring_parameters.get('repeat_beneficiary_penalty', True)),
     }
+
+    if vulnerability_enabled_override is not None:
+        scoring_parameters['income_vulnerability'] = vulnerability_enabled_override
+        scoring_parameters['household_vulnerability'] = vulnerability_enabled_override
 
     if not any(scoring_parameters.values()):
         return jsonify({'success': False, 'message': 'Select at least one scoring parameter.'}), 400
@@ -2277,14 +2285,37 @@ def generate_program_ranked_list(program_id):
     if not isinstance(raw_scoring_weights, dict):
         return jsonify({'success': False, 'message': 'Invalid scoring weights payload.'}), 400
 
+    vulnerability_weight_override = None
+    if 'vulnerability' in raw_scoring_weights:
+        try:
+            vulnerability_weight_override = float(raw_scoring_weights.get('vulnerability'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Invalid weight for vulnerability.'}), 400
+        if vulnerability_weight_override < 0:
+            return jsonify({'success': False, 'message': 'Scoring weights cannot be negative.'}), 400
+
+    vulnerability_base_total = 25 + 12
+    vulnerability_income_ratio = 25 / vulnerability_base_total
+    vulnerability_household_ratio = 12 / vulnerability_base_total
+
     default_scoring_weights = {
         key: NEED_FOCUSED_WEIGHTS[key] * 100
         for key in NEED_FOCUSED_WEIGHTS.keys()
     }
     scoring_weights = {}
     for factor_key in NEED_FOCUSED_WEIGHTS.keys():
+        raw_weight_input = raw_scoring_weights.get(factor_key, default_scoring_weights[factor_key])
+
+        if (
+            vulnerability_weight_override is not None
+            and factor_key in {'income_vulnerability', 'household_vulnerability'}
+            and factor_key not in raw_scoring_weights
+        ):
+            ratio = vulnerability_income_ratio if factor_key == 'income_vulnerability' else vulnerability_household_ratio
+            raw_weight_input = vulnerability_weight_override * ratio
+
         try:
-            raw_weight = float(raw_scoring_weights.get(factor_key, default_scoring_weights[factor_key]))
+            raw_weight = float(raw_weight_input)
         except (TypeError, ValueError):
             return jsonify({'success': False, 'message': f'Invalid weight for {factor_key}.'}), 400
         if raw_weight < 0:

@@ -251,7 +251,7 @@
         opacity: 0.9;
     }
 
-    /* Saved list item contrast fix */
+    /* Recommendation history list item contrast fix */
     .saved-list-item.active {
         background-color: var(--dash-blue) !important;
         color: #fff !important;
@@ -438,12 +438,9 @@
                     </h6>
                     <div class="d-flex align-items-center">
                         <button class="btn btn-outline-custom btn-sm mr-2" id="viewSavedListsBtn" type="button">
-                            <i class="fas fa-folder-open mr-2"></i>View Saved Lists
+                            <i class="fas fa-history mr-2"></i>Recommendation History
                         </button>
                         <div id="resultActionButtons" style="display: none;">
-                        <button class="btn btn-outline-custom btn-sm mr-2" id="saveListBtn" type="button">
-                            <i class="fas fa-save mr-2"></i>Save List
-                        </button>
                         <button class="btn btn-gradient-primary btn-sm mr-2" id="notifyUsersBtn" type="button">
                             <i class="fas fa-bell mr-2"></i>Notify Users
                         </button>
@@ -656,13 +653,13 @@
     </div>
 </div>
 
-<!-- Saved Recommendation Lists Modal -->
+<!-- Recommendation History Modal -->
 <div class="modal fade" id="savedListsModal" tabindex="-1" role="dialog" aria-labelledby="savedListsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="savedListsModalLabel">
-                    <i class="fas fa-folder-open mr-2"></i>Saved Recommendation Lists
+                    <i class="fas fa-history mr-2"></i>Recommendation History
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -673,21 +670,21 @@
                 <div class="row">
                     <div class="col-lg-5 border-right">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="font-weight-bold mb-0">Generated Sets</h6>
+                            <h6 class="font-weight-bold mb-0">Generated Recommendations</h6>
                             <button type="button" class="btn btn-outline-custom btn-sm" id="refreshSavedListsBtn">
                                 <i class="fas fa-sync-alt mr-1"></i>Refresh
                             </button>
                         </div>
                         <div id="savedListsLoading" class="text-center py-4 text-muted" style="display: none;">
                             <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
-                            Loading saved lists...
+                            Loading recommendation history...
                         </div>
                         <div class="list-group" id="savedListsContainer"></div>
                     </div>
                     <div class="col-lg-7">
-                        <h6 class="font-weight-bold mb-3">List Summary</h6>
+                        <h6 class="font-weight-bold mb-3">History Summary</h6>
                         <div id="savedListDetailPanel" class="text-muted">
-                            Select a saved recommendation set to view parameters and actions.
+                            Select a recommendation history record to view parameters and actions.
                         </div>
                     </div>
                 </div>
@@ -702,13 +699,13 @@
     </div>
 </div>
 
-<!-- Saved List Beneficiaries Modal -->
+<!-- Recommendation History Beneficiaries Modal -->
 <div class="modal fade" id="savedListBeneficiariesModal" tabindex="-1" role="dialog" aria-labelledby="savedListBeneficiariesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="savedListBeneficiariesModalLabel">
-                    <i class="fas fa-users mr-2"></i>Saved List Beneficiaries
+                    <i class="fas fa-users mr-2"></i>History Beneficiaries
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -741,7 +738,7 @@
                         </table>
                     </div>
                     <div id="savedBeneficiariesEmpty" class="text-center text-muted py-3" style="display: none;">
-                        No beneficiaries available in this saved list.
+                        No beneficiaries available in this recommendation history record.
                     </div>
                 </div>
             </div>
@@ -781,7 +778,6 @@ let savedRecommendationSets = [];
 let selectedSavedListId = null;
 let selectedSavedListDetail = null;
 const savedRecommendationDetailUrlTemplate = '{{ url_for("admin.api_saved_recommendation_detail", saved_list_id=0) }}';
-const savedRecommendationDeleteUrlTemplate = '{{ url_for("admin.api_delete_saved_recommendation", saved_list_id=0) }}';
 const communityUserProfileUrlTemplate = '{{ url_for("admin.view_community_user", user_id=0) }}';
 const recommendationExportUrl = '{{ url_for("admin.api_export_recommendations") }}';
 
@@ -1118,7 +1114,6 @@ function clearRecommendationState(options = {}) {
     document.getElementById('resultsContainer').style.display = 'none';
     document.getElementById('initialState').style.display = 'block';
     document.getElementById('notifyUsersBtn').disabled = true;
-    document.getElementById('saveListBtn').disabled = !currentProgramId;
     setResultActionButtonsVisible(false);
     clearActionFeedback();
     renderFilteredOutRecommendationsSection([]);
@@ -1433,10 +1428,9 @@ document.getElementById('recommendationForm').addEventListener('submit', functio
             currentRequestFilters.area_of_concerns = Array.isArray(data.area_of_concerns)
                 ? data.area_of_concerns
                 : [];
-            const generatedAt = new Date().toISOString();
             displayResults({
                 ...data,
-                generated_at: generatedAt,
+                generated_at: data.generated_at || new Date().toISOString(),
             });
         } else {
             alert('Error generating recommendations: ' + data.message);
@@ -1534,7 +1528,6 @@ function displayResults(data, options = {}) {
     document.getElementById('resultsContainer').style.display = 'block';
     setResultActionButtonsVisible(includedRecommendations.length > 0);
     document.getElementById('notifyUsersBtn').disabled = includedRecommendations.length === 0;
-    document.getElementById('saveListBtn').disabled = !currentProgramId;
 
     if (shouldPersist) {
         persistRecommendationState(data.generated_at);
@@ -1707,10 +1700,6 @@ function getSavedRecommendationDetailUrl(savedListId) {
     return savedRecommendationDetailUrlTemplate.replace(/0$/, String(savedListId));
 }
 
-function getSavedRecommendationDeleteUrl(savedListId) {
-    return savedRecommendationDeleteUrlTemplate.replace('/0/delete', `/${savedListId}/delete`);
-}
-
 function getCommunityUserProfileUrl(userId) {
     return communityUserProfileUrlTemplate.replace(/0$/, String(userId));
 }
@@ -1736,12 +1725,12 @@ function renderSavedBeneficiariesModalContent(savedItem, beneficiaries) {
     summaryEl.innerHTML = `
         <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
             <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
-            <small class="text-muted">Saved ${escapeHtml(formatTimestamp(savedItem.created_at))} by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+            <small class="text-muted">Recorded ${escapeHtml(formatTimestamp(savedItem.created_at))} by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
         </div>
         <div class="text-muted small mb-2">Generated: ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</div>
         <div class="mb-2">
             <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
-            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users saved</span>
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users recorded</span>
             <span class="badge badge-light">Priority: ${escapeHtml(filters.priority_groups || 'Not set')}</span>
             <span class="badge badge-light">Area: ${escapeHtml(areaConcernLabel)}</span>
         </div>
@@ -1780,7 +1769,7 @@ function openSavedRecommendationBeneficiariesModal(savedListId) {
     clearSavedBeneficiariesModalFeedback();
     selectedSavedListDetail = null;
     notifyBtn.disabled = true;
-    titleEl.innerHTML = '<i class="fas fa-users mr-2"></i>Saved List Beneficiaries';
+    titleEl.innerHTML = '<i class="fas fa-users mr-2"></i>History Beneficiaries';
 
     loadingEl.style.display = 'block';
     contentEl.style.display = 'none';
@@ -1791,7 +1780,7 @@ function openSavedRecommendationBeneficiariesModal(savedListId) {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load saved list beneficiaries.'}`, 'danger');
+                showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history beneficiaries.'}`, 'danger');
                 return;
             }
 
@@ -1802,13 +1791,13 @@ function openSavedRecommendationBeneficiariesModal(savedListId) {
                 beneficiaries,
             };
 
-            titleEl.innerHTML = `<i class="fas fa-users mr-2"></i>${escapeHtml(savedItem.program_name || 'Saved List')} Beneficiaries`;
+            titleEl.innerHTML = `<i class="fas fa-users mr-2"></i>${escapeHtml(savedItem.program_name || 'History Record')} Beneficiaries`;
             renderSavedBeneficiariesModalContent(savedItem, beneficiaries);
             contentEl.style.display = 'block';
         })
         .catch(error => {
-            console.error('Error loading saved list details:', error);
-            showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading saved beneficiaries.', 'danger');
+            console.error('Error loading recommendation history details:', error);
+            showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading history beneficiaries.', 'danger');
         })
         .finally(() => {
             loadingEl.style.display = 'none';
@@ -1819,12 +1808,58 @@ function getSavedListById(savedListId) {
     return savedRecommendationSets.find(item => item.id === savedListId) || null;
 }
 
+function loadRecommendationHistoryIntoResults(savedListId) {
+    const selected = getSavedListById(savedListId);
+    if (!selected) {
+        showSavedListFeedback('Select a recommendation history record first.', 'warning');
+        return;
+    }
+
+    fetch(getSavedRecommendationDetailUrl(savedListId))
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history record.'}`, 'danger');
+                return;
+            }
+
+            const savedItem = data.saved_list || selected;
+            const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+            if (!recommendations.length) {
+                showSavedListFeedback('This history record does not have recommendation details to display.', 'warning');
+                return;
+            }
+
+            currentProgramId = savedItem.program_id || null;
+            currentProgramName = savedItem.program_name || '';
+            currentRequestFilters = (savedItem.filters && typeof savedItem.filters === 'object')
+                ? { ...savedItem.filters }
+                : {};
+            currentAlgorithm = String(currentRequestFilters.algorithm || '');
+            currentPriorityGroups = String(currentRequestFilters.priority_groups || '');
+
+            displayResults({
+                count: recommendations.length,
+                recommendations,
+                generated_at: savedItem.generated_at || savedItem.created_at || new Date().toISOString(),
+            });
+
+            $('#savedListBeneficiariesModal').modal('hide');
+            $('#savedListsModal').modal('hide');
+            showActionFeedback('<i class="fas fa-history mr-2"></i>Loaded recommendation history into Recommended Beneficiaries.', 'success');
+        })
+        .catch(error => {
+            console.error('Error loading recommendation history into results:', error);
+            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading recommendation history.', 'danger');
+        });
+}
+
 function renderSavedListSummary(savedItem) {
     const detailPanel = document.getElementById('savedListDetailPanel');
     const notifyButton = document.getElementById('notifySavedListUsersBtn');
 
     if (!savedItem) {
-        detailPanel.innerHTML = 'Select a saved recommendation set to view parameters and actions.';
+        detailPanel.innerHTML = 'Select a recommendation history record to view parameters and actions.';
         notifyButton.disabled = true;
         return;
     }
@@ -1843,13 +1878,14 @@ function renderSavedListSummary(savedItem) {
     detailPanel.innerHTML = `
         <div class="mb-3">
             <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
-            <div class="text-muted small">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')} on ${escapeHtml(formatTimestamp(savedItem.created_at))}</div>
+            <div class="text-muted small">Recorded by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')} on ${escapeHtml(formatTimestamp(savedItem.created_at))}</div>
             <div class="text-muted small">Generated on ${escapeHtml(generatedAtText)}</div>
         </div>
         <div class="mb-3">
             <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
-            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users saved</span>
-            ${savedItem.recommended_user_ids_truncated ? '<span class="badge badge-warning">User list truncated in saved record</span>' : ''}
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users recorded</span>
+            ${savedItem.recommended_user_ids_truncated ? '<span class="badge badge-warning">User list truncated in history record</span>' : ''}
+            ${savedItem.recommendation_snapshot_truncated ? '<span class="badge badge-warning">Recommendation details truncated</span>' : ''}
         </div>
         <hr>
         <h6 class="font-weight-bold">Parameter Summary</h6>
@@ -1863,20 +1899,34 @@ function renderSavedListSummary(savedItem) {
             <li><strong>Algorithm:</strong> ${escapeHtml(filters.algorithm || 'N/A')}</li>
         </ul>
         <div class="mt-3 d-flex justify-content-end">
-            <button type="button" class="btn btn-outline-danger btn-sm" data-action="delete-saved-list" data-saved-id="${escapeHtml(savedItem.id)}">
-                <i class="fas fa-trash-alt mr-1"></i>Delete List
+            <button type="button" class="btn btn-outline-custom btn-sm mr-2" data-action="view-history-beneficiaries" data-saved-id="${escapeHtml(savedItem.id)}">
+                <i class="fas fa-users mr-1"></i>View Beneficiaries
+            </button>
+            <button type="button" class="btn btn-gradient-primary btn-sm" data-action="load-history-results" data-saved-id="${escapeHtml(savedItem.id)}">
+                <i class="fas fa-sync-alt mr-1"></i>Load to Results
             </button>
         </div>
     `;
 
-    const deleteBtn = detailPanel.querySelector('[data-action="delete-saved-list"]');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', function() {
+    const viewBtn = detailPanel.querySelector('[data-action="view-history-beneficiaries"]');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', function() {
             const targetId = parseInt(this.getAttribute('data-saved-id'), 10);
             if (!Number.isInteger(targetId) || targetId <= 0) {
                 return;
             }
-            deleteSavedRecommendationSet(targetId);
+            openSavedRecommendationBeneficiariesModal(targetId);
+        });
+    }
+
+    const loadBtn = detailPanel.querySelector('[data-action="load-history-results"]');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', function() {
+            const targetId = parseInt(this.getAttribute('data-saved-id'), 10);
+            if (!Number.isInteger(targetId) || targetId <= 0) {
+                return;
+            }
+            loadRecommendationHistoryIntoResults(targetId);
         });
     }
 
@@ -1896,7 +1946,7 @@ function renderSavedRecommendationSets() {
     container.innerHTML = '';
 
     if (!savedRecommendationSets.length) {
-        container.innerHTML = '<div class="text-muted small py-2">No saved recommendation lists found.</div>';
+        container.innerHTML = '<div class="text-muted small py-2">No recommendation history found.</div>';
         renderSavedListSummary(null);
         return;
     }
@@ -1911,27 +1961,16 @@ function renderSavedRecommendationSets() {
                     <div class="font-weight-bold">${escapeHtml(savedItem.program_name || 'Unknown Program')}</div>
                     <small class="text-muted d-block">${escapeHtml(savedItem.recommendation_count)} recommendations</small>
                     <small class="text-muted d-block mt-1">Generated ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</small>
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-sm ml-2 saved-list-delete-btn" title="Delete saved list" aria-label="Delete saved list">
-                    <i class="fas fa-trash-alt"></i>
+                    <small class="text-muted d-block mt-1">${savedItem.has_recommendation_snapshot ? 'Detailed recommendation snapshot available' : 'Limited details available'}</small>
                 </button>
             </div>
-            <small class="text-muted d-block mt-1">Saved by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+            <small class="text-muted d-block mt-1">Recorded by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
         `;
 
         const openBtn = item.querySelector('.saved-list-open-btn');
         if (openBtn) {
             openBtn.addEventListener('click', function() {
                 selectSavedRecommendation(savedItem.id);
-                openSavedRecommendationBeneficiariesModal(savedItem.id);
-            });
-        }
-
-        const deleteBtn = item.querySelector('.saved-list-delete-btn');
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', function(event) {
-                event.stopPropagation();
-                deleteSavedRecommendationSet(savedItem.id);
             });
         }
 
@@ -1940,47 +1979,6 @@ function renderSavedRecommendationSets() {
         if (index === 0) {
             selectSavedRecommendation(savedItem.id);
         }
-    });
-}
-
-function deleteSavedRecommendationSet(savedListId) {
-    const savedItem = getSavedListById(savedListId);
-    const listLabel = savedItem ? (savedItem.program_name || `List #${savedListId}`) : `List #${savedListId}`;
-    const confirmed = confirm(`Delete ${listLabel}? This action cannot be undone.`);
-    if (!confirmed) {
-        return;
-    }
-
-    fetch(getSavedRecommendationDeleteUrl(savedListId), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.success) {
-            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to delete saved list.'}`, 'danger');
-            return;
-        }
-
-        savedRecommendationSets = savedRecommendationSets.filter(item => item.id !== savedListId);
-        if (selectedSavedListId === savedListId) {
-            selectedSavedListId = null;
-        }
-        if (selectedSavedListDetail && selectedSavedListDetail.id === savedListId) {
-            selectedSavedListDetail = null;
-            document.getElementById('notifySavedBeneficiariesBtn').disabled = true;
-            $('#savedListBeneficiariesModal').modal('hide');
-        }
-
-        renderSavedRecommendationSets();
-        showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
-        showActionFeedback(`<i class="fas fa-trash-alt mr-2"></i>${data.message}`, 'success');
-    })
-    .catch(error => {
-        console.error('Error deleting saved recommendation list:', error);
-        showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while deleting the saved list.', 'danger');
     });
 }
 
@@ -1996,7 +1994,7 @@ function loadSavedRecommendationSets() {
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
-                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load saved lists.'}`, 'danger');
+                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history.'}`, 'danger');
                 savedRecommendationSets = [];
                 selectedSavedListId = null;
                 renderSavedRecommendationSets();
@@ -2008,8 +2006,8 @@ function loadSavedRecommendationSets() {
             renderSavedRecommendationSets();
         })
         .catch(error => {
-            console.error('Error loading saved recommendation lists:', error);
-            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading saved lists.', 'danger');
+            console.error('Error loading recommendation history list:', error);
+            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading recommendation history.', 'danger');
             savedRecommendationSets = [];
             selectedSavedListId = null;
             renderSavedRecommendationSets();
@@ -2031,17 +2029,17 @@ document.getElementById('refreshSavedListsBtn').addEventListener('click', functi
 document.getElementById('notifySavedListUsersBtn').addEventListener('click', function() {
     const selected = getSavedListById(selectedSavedListId);
     if (!selected) {
-        showSavedListFeedback('Select a saved recommendation list first.', 'warning');
+        showSavedListFeedback('Select a recommendation history record first.', 'warning');
         return;
     }
 
     const userIds = Array.isArray(selected.recommended_user_ids) ? selected.recommended_user_ids : [];
     if (!selected.program_id || !userIds.length) {
-        showSavedListFeedback('This saved set does not include enough data to notify users.', 'warning');
+        showSavedListFeedback('This history record does not include enough data to notify users.', 'warning');
         return;
     }
 
-    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this saved list?`);
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this recommendation history record?`);
     if (!confirmed) {
         return;
     }
@@ -2068,11 +2066,11 @@ document.getElementById('notifySavedListUsersBtn').addEventListener('click', fun
             showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
             showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
         } else {
-            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from saved set.'}`, 'danger');
+            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from recommendation history.'}`, 'danger');
         }
     })
     .catch(error => {
-        console.error('Error notifying saved list users:', error);
+        console.error('Error notifying recommendation history users:', error);
         showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
     })
     .finally(() => {
@@ -2083,7 +2081,7 @@ document.getElementById('notifySavedListUsersBtn').addEventListener('click', fun
 
 document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click', function() {
     if (!selectedSavedListDetail) {
-        showSavedBeneficiariesModalFeedback('Select a saved recommendation list first.', 'warning');
+        showSavedBeneficiariesModalFeedback('Select a recommendation history record first.', 'warning');
         return;
     }
 
@@ -2092,11 +2090,11 @@ document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click',
         : [];
 
     if (!selectedSavedListDetail.program_id || !userIds.length) {
-        showSavedBeneficiariesModalFeedback('This saved set does not include enough data to notify users.', 'warning');
+        showSavedBeneficiariesModalFeedback('This history record does not include enough data to notify users.', 'warning');
         return;
     }
 
-    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this saved list?`);
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this recommendation history record?`);
     if (!confirmed) {
         return;
     }
@@ -2124,7 +2122,7 @@ document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click',
             showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
             showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
         } else {
-            showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from saved set.'}`, 'danger');
+            showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from recommendation history.'}`, 'danger');
         }
     })
     .catch(error => {
@@ -2134,54 +2132,6 @@ document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click',
     .finally(() => {
         notifyBtn.disabled = false;
         notifyBtn.innerHTML = originalText;
-    });
-});
-
-document.getElementById('saveListBtn').addEventListener('click', function() {
-    if (!currentProgramId) {
-        showActionFeedback('Select a valid target program before saving a list.', 'warning');
-        return;
-    }
-
-    const saveBtn = this;
-    const originalText = saveBtn.innerHTML;
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
-
-    const payload = {
-        program_id: currentProgramId,
-        generated_at: currentGeneratedAt || new Date().toISOString(),
-        count: currentRecommendations.length,
-        recommendation_user_ids: getUniqueRecommendationUserIds(),
-        filters: {
-            ...currentRequestFilters,
-            algorithm: currentAlgorithm,
-            priority_groups: currentPriorityGroups,
-        }
-    };
-
-    fetch('{{ url_for("admin.api_save_recommendations") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
-        } else {
-            showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to save recommendation list.'}`, 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error saving recommendations:', error);
-        showActionFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while saving the list.', 'danger');
-    })
-    .finally(() => {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = originalText;
     });
 });
 

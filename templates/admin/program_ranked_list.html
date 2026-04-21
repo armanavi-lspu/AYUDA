@@ -306,20 +306,12 @@
                     <input type="number" class="form-control form-control-sm" id="modalCaseSeverityWeight" min="0" step="0.01" value="60">
                 </div>
                 <div class="form-group mb-2">
-                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Prioritizes lower-income households. Lower Family Monthly Income corresponds to higher vulnerability.">
-                        Income Vulnerability
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Combines income need and household risk indicators (solo parent, student, PWD, senior status, and employment context) into a single vulnerability parameter.">
+                        Vulnerability
                         <i class="fas fa-info-circle text-info ml-1"></i>
                     </label>
-                    <label class="small text-muted mb-1" for="modalIncomeVulnerabilityWeight">Weight (%)</label>
-                    <input type="number" class="form-control form-control-sm" id="modalIncomeVulnerabilityWeight" min="0" step="0.01" value="25">
-                </div>
-                <div class="form-group mb-2">
-                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Adds risk indicators from profile flags such as solo parent, student, PWD, senior status, and employment context.">
-                        Household Vulnerability
-                        <i class="fas fa-info-circle text-info ml-1"></i>
-                    </label>
-                    <label class="small text-muted mb-1" for="modalHouseholdVulnerabilityWeight">Weight (%)</label>
-                    <input type="number" class="form-control form-control-sm" id="modalHouseholdVulnerabilityWeight" min="0" step="0.01" value="12">
+                    <label class="small text-muted mb-1" for="modalVulnerabilityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalVulnerabilityWeight" min="0" step="0.01" value="37">
                 </div>
                 <div class="form-group mb-2">
                     <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Applies a deduction when there is prior assistance history to help distribute support more fairly.">
@@ -368,8 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
     const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
     const modalCaseSeverityWeightInput = document.getElementById('modalCaseSeverityWeight');
-    const modalIncomeVulnerabilityWeightInput = document.getElementById('modalIncomeVulnerabilityWeight');
-    const modalHouseholdVulnerabilityWeightInput = document.getElementById('modalHouseholdVulnerabilityWeight');
+    const modalVulnerabilityWeightInput = document.getElementById('modalVulnerabilityWeight');
     const modalRepeatPenaltyWeightInput = document.getElementById('modalRepeatPenaltyWeight');
     const rankedMaxBeneficiariesInput = document.getElementById('rankedMaxBeneficiaries');
     const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
@@ -381,6 +372,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const rankedFilteredApplicantsCount = document.getElementById('rankedFilteredApplicantsCount');
     const rankedFilteredApplicantsList = document.getElementById('rankedFilteredApplicantsList');
     const rankedFilteredApplicantsCollapse = document.getElementById('rankedFilteredApplicantsCollapse');
+    const RANKED_VULNERABILITY_BASE_TOTAL = 25 + 12;
+    const RANKED_VULNERABILITY_INCOME_RATIO = 25 / RANKED_VULNERABILITY_BASE_TOTAL;
+    const RANKED_VULNERABILITY_HOUSEHOLD_RATIO = 12 / RANKED_VULNERABILITY_BASE_TOTAL;
 
     function initRankedParameterTooltips() {
         if (!(window.$ && $.fn.tooltip)) {
@@ -409,12 +403,10 @@ document.addEventListener('DOMContentLoaded', function() {
         includeIncome: true,
         includeMunicipalityBarangay: true,
         includeCaseSeverityFactor: true,
-        includeIncomeVulnerabilityFactor: true,
-        includeHouseholdVulnerabilityFactor: true,
+        includeVulnerabilityFactor: true,
         includeRepeatPenaltyFactor: true,
         caseSeverityWeight: 60,
-        incomeVulnerabilityWeight: 25,
-        householdVulnerabilityWeight: 12,
+        vulnerabilityWeight: 37,
         repeatPenaltyWeight: 3,
     };
 
@@ -573,8 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const scoringLabels = [];
         if (rankedCriteriaState.includeCaseSeverityFactor) scoringLabels.push(`Case Severity (${rankedCriteriaState.caseSeverityWeight}%)`);
-        if (rankedCriteriaState.includeIncomeVulnerabilityFactor) scoringLabels.push(`Income Vulnerability (${rankedCriteriaState.incomeVulnerabilityWeight}%)`);
-        if (rankedCriteriaState.includeHouseholdVulnerabilityFactor) scoringLabels.push(`Household Vulnerability (${rankedCriteriaState.householdVulnerabilityWeight}%)`);
+        if (rankedCriteriaState.includeVulnerabilityFactor) scoringLabels.push(`Vulnerability (${rankedCriteriaState.vulnerabilityWeight}%)`);
         if (rankedCriteriaState.includeRepeatPenaltyFactor) scoringLabels.push(`Repeat Beneficiary Penalty (${rankedCriteriaState.repeatPenaltyWeight}%)`);
         if (scoringLabels.length) labels.push('Scoring: ' + scoringLabels.join(', '));
 
@@ -595,8 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSelectAllRankedBarangaysButtonState();
 
         if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.disabled = !rankedCriteriaState.includeCaseSeverityFactor;
-        if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeIncomeVulnerabilityFactor;
-        if (modalHouseholdVulnerabilityWeightInput) modalHouseholdVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeHouseholdVulnerabilityFactor;
+        if (modalVulnerabilityWeightInput) modalVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeVulnerabilityFactor;
         if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.disabled = !rankedCriteriaState.includeRepeatPenaltyFactor;
 
         renderRankedCriteriaSummary();
@@ -612,8 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function openRankedParametersSelectionModal() {
         if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.value = String(rankedCriteriaState.caseSeverityWeight);
-        if (modalIncomeVulnerabilityWeightInput) modalIncomeVulnerabilityWeightInput.value = String(rankedCriteriaState.incomeVulnerabilityWeight);
-        if (modalHouseholdVulnerabilityWeightInput) modalHouseholdVulnerabilityWeightInput.value = String(rankedCriteriaState.householdVulnerabilityWeight);
+        if (modalVulnerabilityWeightInput) modalVulnerabilityWeightInput.value = String(rankedCriteriaState.vulnerabilityWeight);
         if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.value = String(rankedCriteriaState.repeatPenaltyWeight);
         applyRankedCriteriaStateToInputs();
         $('#rankedParametersSelectionModal').modal('show');
@@ -628,19 +617,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (saveRankedParametersBtn) {
         saveRankedParametersBtn.addEventListener('click', function() {
             rankedCriteriaState.includeCaseSeverityFactor = true;
-            rankedCriteriaState.includeIncomeVulnerabilityFactor = true;
-            rankedCriteriaState.includeHouseholdVulnerabilityFactor = true;
+            rankedCriteriaState.includeVulnerabilityFactor = true;
             rankedCriteriaState.includeRepeatPenaltyFactor = true;
 
             const caseSeverityWeight = Number((modalCaseSeverityWeightInput && modalCaseSeverityWeightInput.value) || 0);
-            const incomeVulnerabilityWeight = Number((modalIncomeVulnerabilityWeightInput && modalIncomeVulnerabilityWeightInput.value) || 0);
-            const householdVulnerabilityWeight = Number((modalHouseholdVulnerabilityWeightInput && modalHouseholdVulnerabilityWeightInput.value) || 0);
+            const vulnerabilityWeight = Number((modalVulnerabilityWeightInput && modalVulnerabilityWeightInput.value) || 0);
             const repeatPenaltyWeight = Number((modalRepeatPenaltyWeightInput && modalRepeatPenaltyWeightInput.value) || 0);
 
             const weightValues = [
                 caseSeverityWeight,
-                incomeVulnerabilityWeight,
-                householdVulnerabilityWeight,
+                vulnerabilityWeight,
                 repeatPenaltyWeight,
             ];
             if (weightValues.some(function(weight) { return Number.isNaN(weight) || weight < 0; })) {
@@ -649,14 +635,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             rankedCriteriaState.caseSeverityWeight = caseSeverityWeight;
-            rankedCriteriaState.incomeVulnerabilityWeight = incomeVulnerabilityWeight;
-            rankedCriteriaState.householdVulnerabilityWeight = householdVulnerabilityWeight;
+            rankedCriteriaState.vulnerabilityWeight = vulnerabilityWeight;
             rankedCriteriaState.repeatPenaltyWeight = repeatPenaltyWeight;
 
             const hasScoringFactor = (
                 rankedCriteriaState.includeCaseSeverityFactor ||
-                rankedCriteriaState.includeIncomeVulnerabilityFactor ||
-                rankedCriteriaState.includeHouseholdVulnerabilityFactor ||
+                rankedCriteriaState.includeVulnerabilityFactor ||
                 rankedCriteriaState.includeRepeatPenaltyFactor
             );
             if (!hasScoringFactor) {
@@ -666,8 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const enabledWeightTotal =
                 (rankedCriteriaState.includeCaseSeverityFactor ? rankedCriteriaState.caseSeverityWeight : 0) +
-                (rankedCriteriaState.includeIncomeVulnerabilityFactor ? rankedCriteriaState.incomeVulnerabilityWeight : 0) +
-                (rankedCriteriaState.includeHouseholdVulnerabilityFactor ? rankedCriteriaState.householdVulnerabilityWeight : 0) +
+                (rankedCriteriaState.includeVulnerabilityFactor ? rankedCriteriaState.vulnerabilityWeight : 0) +
                 (rankedCriteriaState.includeRepeatPenaltyFactor ? rankedCriteriaState.repeatPenaltyWeight : 0);
             if (enabledWeightTotal <= 0) {
                 alert('Enabled scoring factors must have a positive total weight.');
@@ -823,16 +806,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const maxBeneficiaries = Number((rankedMaxBeneficiariesInput && rankedMaxBeneficiariesInput.value) || 50);
             const incomeFilterEnabled = rankedCriteriaState.includeIncome;
             const municipalityBarangayFilterEnabled = rankedCriteriaState.includeMunicipalityBarangay;
+            const vulnerabilityFactorEnabled = rankedCriteriaState.includeVulnerabilityFactor;
+            const incomeVulnerabilityWeight = vulnerabilityFactorEnabled
+                ? rankedCriteriaState.vulnerabilityWeight * RANKED_VULNERABILITY_INCOME_RATIO
+                : 0;
+            const householdVulnerabilityWeight = vulnerabilityFactorEnabled
+                ? rankedCriteriaState.vulnerabilityWeight * RANKED_VULNERABILITY_HOUSEHOLD_RATIO
+                : 0;
             const scoringParameters = {
                 case_severity: rankedCriteriaState.includeCaseSeverityFactor,
-                income_vulnerability: rankedCriteriaState.includeIncomeVulnerabilityFactor,
-                household_vulnerability: rankedCriteriaState.includeHouseholdVulnerabilityFactor,
+                income_vulnerability: vulnerabilityFactorEnabled,
+                household_vulnerability: vulnerabilityFactorEnabled,
                 repeat_beneficiary_penalty: rankedCriteriaState.includeRepeatPenaltyFactor,
             };
             const scoringWeights = {
                 case_severity: rankedCriteriaState.caseSeverityWeight,
-                income_vulnerability: rankedCriteriaState.incomeVulnerabilityWeight,
-                household_vulnerability: rankedCriteriaState.householdVulnerabilityWeight,
+                income_vulnerability: incomeVulnerabilityWeight,
+                household_vulnerability: householdVulnerabilityWeight,
                 repeat_beneficiary_penalty: rankedCriteriaState.repeatPenaltyWeight,
             };
 
@@ -843,8 +833,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const enabledWeightTotal =
                 (scoringParameters.case_severity ? scoringWeights.case_severity : 0) +
-                (scoringParameters.income_vulnerability ? scoringWeights.income_vulnerability : 0) +
-                (scoringParameters.household_vulnerability ? scoringWeights.household_vulnerability : 0) +
+                (vulnerabilityFactorEnabled ? rankedCriteriaState.vulnerabilityWeight : 0) +
                 (scoringParameters.repeat_beneficiary_penalty ? scoringWeights.repeat_beneficiary_penalty : 0);
             if (enabledWeightTotal <= 0) {
                 alert('Enabled scoring factors must have a positive total weight.');
@@ -958,11 +947,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             score: Number(rec.score || 0),
                             score_breakdown: breakdown,
                         }));
+                        const vulnerabilityContribution =
+                            Number((breakdown.income_vulnerability_factor || {}).contribution || 0) +
+                            Number((breakdown.household_vulnerability_factor || {}).contribution || 0);
                         
                         const scoreTooltip = `Severity: ${severityLabels[caseSeverity] || 'UNRATED'} (${(breakdown.severity_component || 0).toFixed(4)})
 Case Severity Contribution: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}
-Income Vulnerability Contribution: ${Number((breakdown.income_vulnerability_factor || {}).contribution || 0).toFixed(4)}
-Household Vulnerability Contribution: ${Number((breakdown.household_vulnerability_factor || {}).contribution || 0).toFixed(4)}
+Vulnerability Contribution: ${vulnerabilityContribution.toFixed(4)}
 Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_penalty_factor || {}).contribution || 0).toFixed(4)}`;
 
                         row.innerHTML = `
@@ -1142,14 +1133,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (factorKey === 'case_severity_factor') {
             const severity = getCaseSeverityContext(profile.case_severity);
             context = `Case severity is tagged as ${severity.label}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
-        } else if (factorKey === 'income_vulnerability_factor') {
-            context = getIncomeContext(profile.income);
-        } else if (factorKey === 'household_vulnerability_factor') {
+        } else if (factorKey === 'vulnerability_factor') {
+            const incomeContext = getIncomeContext(profile.income);
             const indicators = getHouseholdIndicators(profile);
             if (indicators.length) {
-                context = `Household vulnerability increased because the profile includes ${indicators.join(', ')}.`;
+                context = `${incomeContext} Household vulnerability indicators include ${indicators.join(', ')}.`;
             } else {
-                context = 'No vulnerability indicators were detected, so this factor contributes less.';
+                context = `${incomeContext} No additional household vulnerability indicators were detected.`;
             }
         } else if (factorKey === 'repeat_beneficiary_penalty_factor') {
             const historyCount = Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)));
@@ -1169,23 +1159,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const incomeFactor = breakdown.income_vulnerability_factor || {};
         const householdFactor = breakdown.household_vulnerability_factor || {};
         const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
         const priorityBand = getPriorityBand(totalScore);
 
-        reasons.push(`<p class="mb-2"><strong>${escapeHtml(profile.name)}</strong> is currently classified as <span class="${priorityBand.className}">${priorityBand.label}</span> based on combined urgency, income need, household risk, and repeat-beneficiary fairness adjustment.</p>`);
+        reasons.push(`<p class="mb-2"><strong>${escapeHtml(profile.name)}</strong> is currently classified as <span class="${priorityBand.className}">${priorityBand.label}</span> based on combined urgency, vulnerability, and repeat-beneficiary fairness adjustment.</p>`);
 
         if (toFiniteNumber(caseFactor.contribution, 0) > 0) {
             const severity = getCaseSeverityContext(profile.case_severity);
             reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case is marked as <strong>${severity.label}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
         }
 
-        if (toFiniteNumber(incomeFactor.contribution, 0) > 0) {
-            reasons.push(`<p class="mb-2"><strong>Financial Need:</strong> Family Monthly Income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}), contributing ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}.</p>`);
-        }
-
-        if (toFiniteNumber(householdFactor.contribution, 0) > 0) {
+        if (vulnerabilityContribution > 0) {
             const indicators = getHouseholdIndicators(profile);
-            const indicatorText = indicators.length ? indicators.join(', ') : 'household risk indicators';
-            reasons.push(`<p class="mb-2"><strong>Household Context:</strong> The profile includes ${escapeHtml(indicatorText)}, adding ${toFiniteNumber(householdFactor.contribution, 0).toFixed(4)} to the score.</p>`);
+            const indicatorText = indicators.length ? indicators.join(', ') : 'no additional household risk indicators';
+            reasons.push(`<p class="mb-2"><strong>Vulnerability:</strong> Family Monthly Income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}) and household context indicates ${escapeHtml(indicatorText)}, contributing ${vulnerabilityContribution.toFixed(4)}.</p>`);
         }
 
         if (toFiniteNumber(repeatFactor.contribution, 0) < 0) {
@@ -1197,6 +1186,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderFactorBars(profile, breakdown) {
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const vulnerabilityWeight =
+            toFiniteNumber(incomeFactor.weight, 0) +
+            toFiniteNumber(householdFactor.weight, 0);
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
+        const vulnerabilityValue = vulnerabilityWeight > 0
+            ? (
+                (toFiniteNumber(incomeFactor.weight, 0) * toFiniteNumber(incomeFactor.beneficiary_value, 0)) +
+                (toFiniteNumber(householdFactor.weight, 0) * toFiniteNumber(householdFactor.beneficiary_value, 0))
+            ) / vulnerabilityWeight
+            : 0;
+
         const factors = [
             {
                 key: 'case_severity_factor',
@@ -1205,16 +1209,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 maxMagnitude: toFiniteNumber((breakdown.case_severity_factor || {}).weight, 0),
             },
             {
-                key: 'income_vulnerability_factor',
-                label: 'Income Vulnerability',
-                color: '#f6c23e',
-                maxMagnitude: toFiniteNumber((breakdown.income_vulnerability_factor || {}).weight, 0),
-            },
-            {
-                key: 'household_vulnerability_factor',
-                label: 'Household Vulnerability',
+                key: 'vulnerability_factor',
+                label: 'Vulnerability',
                 color: '#1cc88a',
-                maxMagnitude: toFiniteNumber((breakdown.household_vulnerability_factor || {}).weight, 0),
+                maxMagnitude: vulnerabilityWeight,
+                factor: {
+                    label: 'Vulnerability',
+                    contribution: vulnerabilityContribution,
+                    beneficiary_value: vulnerabilityValue,
+                },
             },
             {
                 key: 'repeat_beneficiary_penalty_factor',
@@ -1225,7 +1228,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
 
         return factors.map(function(item) {
-            const factor = breakdown[item.key] || {};
+            const factor = item.factor || breakdown[item.key] || {};
             const contribution = toFiniteNumber(factor.contribution, 0);
             const maxMagnitude = Math.max(0, item.maxMagnitude);
             const percent = maxMagnitude > 0
@@ -1256,6 +1259,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
         const householdIndicators = getHouseholdIndicators(profile);
         const severity = getCaseSeverityContext(profile.case_severity);
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
 
         return `
             <table class="ranked-modal-table">
@@ -1266,14 +1272,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>Weighted urgency contribution: ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}</td>
                     </tr>
                     <tr>
-                        <th>Income Vulnerability</th>
-                        <td>${formatCurrency(profile.income)} Family Monthly Income</td>
-                        <td>Need contribution: ${toFiniteNumber(incomeFactor.contribution, 0).toFixed(4)}</td>
-                    </tr>
-                    <tr>
-                        <th>Household Indicators</th>
-                        <td>${escapeHtml(householdIndicators.length ? householdIndicators.join(', ') : 'none detected')}</td>
-                        <td>Risk contribution: ${toFiniteNumber(householdFactor.contribution, 0).toFixed(4)}</td>
+                        <th>Vulnerability</th>
+                        <td>${formatCurrency(profile.income)} Family Monthly Income; indicators: ${escapeHtml(householdIndicators.length ? householdIndicators.join(', ') : 'none detected')}</td>
+                        <td>Combined contribution: ${vulnerabilityContribution.toFixed(4)}</td>
                     </tr>
                     <tr>
                         <th>Prior Assistance History</th>
