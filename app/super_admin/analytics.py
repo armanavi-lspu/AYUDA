@@ -4,13 +4,13 @@ import json
 from dateutil.relativedelta import relativedelta
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.admin.routes import analytics as admin_analytics
 from app.extensions import db
 from app.forecasting import arima_forecast, forecast_program_timeseries
 from app.location_options import get_municipalities
-from app.models import Applications, CommunityUsers, Programs
+from app.models import AdminActivityLog, Applications, CommunityUsers, Programs, User, UserActivityLog
 from app.super_admin import super_admin_bp
 from app.utils import manila_strftime, role_required
 
@@ -31,47 +31,16 @@ def analytics_analysis():
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=365)
 
-    applicants_over_time_raw = db.session.query(
-        func.date_trunc('month', Applications.application_date).label('month'),
-        func.count(Applications.id).label('count')
+    users_over_time_raw = db.session.query(
+        func.date_trunc('month', User.created_at).label('month'),
+        func.count(User.id).label('count')
     ).filter(
-        Applications.application_date >= start_date
+        User.created_at >= start_date
     ).group_by('month').order_by('month').all()
 
-    applicants_over_time = {
-        'labels': [row.month.strftime('%B %Y') if row.month else '' for row in applicants_over_time_raw],
-        'data': [row.count for row in applicants_over_time_raw],
-    }
-
-    applications_by_type_raw = db.session.query(
-        Programs.program_type,
-        func.count(Applications.id).label('count')
-    ).join(
-        Applications, Programs.id == Applications.program_id
-    ).group_by(Programs.program_type).all()
-
-    applications_by_type = {
-        'labels': [row.program_type for row in applications_by_type_raw],
-        'data': [row.count for row in applications_by_type_raw],
-    }
-
-    applicants_by_barangay_raw = db.session.query(
-        CommunityUsers.barangay,
-        func.count(Applications.id).label('count')
-    ).join(
-        Applications, CommunityUsers.user_id == Applications.user_id
-    ).filter(
-        CommunityUsers.barangay.isnot(None),
-        CommunityUsers.barangay != ''
-    ).group_by(
-        CommunityUsers.barangay
-    ).order_by(
-        func.count(Applications.id).desc()
-    ).limit(10).all()
-
-    applicants_by_barangay = {
-        'labels': [row.barangay for row in applicants_by_barangay_raw],
-        'data': [row.count for row in applicants_by_barangay_raw],
+    users_over_time = {
+        'labels': [row.month.strftime('%B %Y') if row.month else '' for row in users_over_time_raw],
+        'data': [row.count for row in users_over_time_raw],
     }
 
     registered_municipalities = get_municipalities()
@@ -109,28 +78,57 @@ def analytics_analysis():
         'data': [users_by_municipality_counts[name] for name in registered_municipalities],
     }
 
-    total_applications = Applications.query.count()
-    total_applicants = db.session.query(func.count(func.distinct(Applications.user_id))).scalar()
-    total_programs = Programs.query.count()
-    total_community_users = CommunityUsers.query.count()
+    total_super_admins = User.query.filter_by(role='super_admin').count()
+    total_admins = User.query.filter_by(role='admin').count()
+    total_community_users = User.query.filter_by(role='community').count()
+    total_users = total_super_admins + total_admins + total_community_users
 
-    status_breakdown = db.session.query(
-        Applications.application_status,
-        func.count(Applications.id).label('count')
-    ).group_by(Applications.application_status).all()
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    active_admins = db.session.query(func.count(func.distinct(User.id))).outerjoin(
+        AdminActivityLog, AdminActivityLog.admin_id == User.id
+    ).filter(
+        User.role == 'admin'
+    ).filter(
+        or_(
+            User.last_activity >= seven_days_ago,
+            AdminActivityLog.created_at >= seven_days_ago,
+        )
+    ).scalar() or 0
+    inactive_admins = max(total_admins - active_admins, 0)
+
+    active_community_users = db.session.query(func.count(func.distinct(User.id))).outerjoin(
+        UserActivityLog, UserActivityLog.user_id == User.id
+    ).filter(
+        User.role == 'community'
+    ).filter(
+        or_(
+            User.last_activity >= seven_days_ago,
+            UserActivityLog.created_at >= seven_days_ago,
+        )
+    ).scalar() or 0
+    inactive_community_users = max(total_community_users - active_community_users, 0)
+
+    account_status_chart = {
+        'labels': ['Admins', 'Community Users'],
+        'active': [active_admins, active_community_users],
+        'inactive': [inactive_admins, inactive_community_users],
+    }
+    user_role_chart = {
+        'labels': ['Super Admins', 'Admins', 'Community Users'],
+        'data': [total_super_admins, total_admins, total_community_users],
+    }
 
     return render_template(
         'super_admin/analytics_analysis.html',
         user=current_user,
-        applicants_over_time_json=json.dumps(applicants_over_time),
-        applications_by_type_json=json.dumps(applications_by_type),
-        applicants_by_barangay_json=json.dumps(applicants_by_barangay),
+        users_over_time_json=json.dumps(users_over_time),
         users_by_municipality_json=json.dumps(users_by_municipality),
-        total_applications=total_applications,
-        total_applicants=total_applicants,
-        total_programs=total_programs,
+        account_status_chart=account_status_chart,
+        user_role_chart=user_role_chart,
+        total_users=total_users,
+        total_admins=total_admins,
+        total_super_admins=total_super_admins,
         total_community_users=total_community_users,
-        status_breakdown=status_breakdown,
     )
 
 
@@ -256,20 +254,21 @@ def analytics_generate_report():
     return admin_analytics._build_pdf_response(report_payload, filename, date_label)
 
 
+@super_admin_bp.route('/api/analytics/users-timeseries')
 @super_admin_bp.route('/api/analytics/applicants-timeseries')
 @login_required
 @role_required('super_admin')
-def api_applicants_timeseries():
-    """API endpoint for applicants time series data."""
+def api_users_timeseries():
+    """API endpoint for user registration time series data."""
     months = request.args.get('months', 18, type=int)
     end_date = datetime.utcnow()
     start_date = end_date - relativedelta(months=months)
 
     data = db.session.query(
-        func.date_trunc('month', Applications.application_date).label('month'),
-        func.count(Applications.id).label('count')
+        func.date_trunc('month', User.created_at).label('month'),
+        func.count(User.id).label('count')
     ).filter(
-        Applications.application_date >= start_date
+        User.created_at >= start_date
     ).group_by('month').order_by('month').all()
 
     return jsonify({

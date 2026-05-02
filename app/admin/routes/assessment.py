@@ -11,14 +11,14 @@ from app.models import (
     User, Notifications, ApplicationWorkflowStatus, ProgramWorkflowSteps, UserActivityLog, AdminUsers, CommunityUsers
 )
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, get_upload_root, resolve_upload_path
 from app.activity_logger import log_activity
 import os
 from werkzeug.utils import secure_filename
 from mimetypes import guess_type
 
 # Configuration
-ASSESSMENT_UPLOAD_FOLDER = 'static/uploads/assessments'
+ASSESSMENT_UPLOAD_FOLDER = 'assessments'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
@@ -799,13 +799,15 @@ def upload_assessment_document(assessment_id):
         return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))
 
     # Ensure upload directory exists
-    upload_dir = os.path.join(ASSESSMENT_UPLOAD_FOLDER, str(assessment_id))
+    upload_dir_relative = os.path.join(ASSESSMENT_UPLOAD_FOLDER, str(assessment_id))
+    upload_dir = os.path.join(get_upload_root(), upload_dir_relative)
     os.makedirs(upload_dir, exist_ok=True)
 
     filename = secure_filename(file.filename)
     # Prevent collisions by prefixing a UUID to the original filename; the human-readable
     # name is preserved in AssessmentDocument.original_filename for display
     stored_filename = f"{uuid.uuid4().hex}_{filename}"
+    file_path_relative = os.path.join(upload_dir_relative, stored_filename).replace('\\', '/')
     file_path = os.path.join(upload_dir, stored_filename)
     file.save(file_path)
 
@@ -814,7 +816,7 @@ def upload_assessment_document(assessment_id):
     # Preserve the human-readable name alongside the stored UUID-prefixed filename
     assessment_doc = AssessmentDocument(
         assessment_id=assessment_id,
-        file_path=file_path,
+        file_path=file_path_relative,
         original_filename=filename,
         file_size=file_size,
         file_type=file.content_type,
@@ -841,11 +843,12 @@ def view_assessment_document(assessment_id, document_id):
         return "Unauthorized", 403
     
     # Check if file exists
-    if not os.path.exists(doc.file_path):
+    abs_path = resolve_upload_path(doc.file_path)
+    if not abs_path or not os.path.exists(abs_path):
         return "File not found", 404
     
     # Get the absolute path
-    abs_path = os.path.abspath(doc.file_path)
+    abs_path = os.path.abspath(abs_path)
     
     # Determine MIME type based on file extension
     file_ext = os.path.splitext(doc.original_filename)[1].lower()
@@ -875,11 +878,12 @@ def download_assessment_document(assessment_id, document_id):
         return "Unauthorized", 403
     
     # Check if file exists
-    if not os.path.exists(doc.file_path):
+    abs_path = resolve_upload_path(doc.file_path)
+    if not abs_path or not os.path.exists(abs_path):
         return "File not found", 404
     
     # Get the absolute path
-    abs_path = os.path.abspath(doc.file_path)
+    abs_path = os.path.abspath(abs_path)
     
     return send_file(abs_path, as_attachment=True, download_name=doc.original_filename)
 
@@ -897,9 +901,10 @@ def delete_assessment_document(assessment_id, document_id):
         return "Unauthorized", 403
     
     # Remove file from disk
-    if os.path.exists(doc.file_path):
+    abs_path = resolve_upload_path(doc.file_path)
+    if abs_path and os.path.exists(abs_path):
         try:
-            os.remove(doc.file_path)
+            os.remove(abs_path)
         except OSError as e:
             flash(f'Error deleting file: {str(e)}', 'danger')
             return redirect(url_for('admin.view_assessment', assessment_id=assessment_id))

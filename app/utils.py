@@ -2,12 +2,42 @@ from functools import wraps
 from flask import redirect, url_for, flash, current_app
 from flask_login import current_user
 import datetime
+import os
 import pytz
 
 
 def get_app_timezone():
     """Return configured app timezone, defaulting to Asia/Manila."""
     return current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
+
+
+def get_upload_root():
+    """Return the configured upload root directory."""
+    return current_app.config.get('UPLOAD_ROOT') or os.path.join(os.getcwd(), 'uploads')
+
+
+def normalize_upload_relative(raw_path):
+    """Normalize stored upload paths to a safe, relative form."""
+    if not raw_path:
+        return None
+    return str(raw_path).replace('\\', '/').lstrip('/')
+
+
+def resolve_upload_path(raw_path):
+    """Resolve a stored upload path to an absolute filesystem path."""
+    if not raw_path:
+        return None
+
+    normalized = str(raw_path).replace('\\', '/')
+    if os.path.isabs(normalized):
+        return os.path.normpath(normalized)
+
+    normalized = normalized.lstrip('/')
+    root = os.path.normpath(get_upload_root())
+    abs_path = os.path.normpath(os.path.join(root, normalized))
+    if not abs_path.startswith(root):
+        return None
+    return abs_path
 
 
 def to_manila_datetime(value):

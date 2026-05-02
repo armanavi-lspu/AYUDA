@@ -9,7 +9,17 @@ import string
 import csv
 import io
 from app.admin import admin_bp
-from app.models import User, AdminUsers, Notifications, Applications, Programs, Announcements, AdminActivityLog, UserActivityLog
+from app.models import (
+    User,
+    AdminUsers,
+    Notifications,
+    Applications,
+    Programs,
+    Announcements,
+    AdminActivityLog,
+    UserActivityLog,
+    find_existing_user_by_name,
+)
 from app.extensions import db
 from app.utils import role_required, manila_strftime
 from app.activity_logger import log_admin_management
@@ -121,6 +131,11 @@ def add_admin():
         flash('Please select a valid municipality.', 'danger')
         return redirect(url_for('admin.admin_management'))
     
+    existing_name_user = find_existing_user_by_name(first_name, middle_name, last_name)
+    if existing_name_user:
+        flash('A user with the same first, middle, and last name already exists.', 'danger')
+        return redirect(url_for('admin.admin_management'))
+
     # Check if email already exists
     existing_user = User.query.filter(func.lower(User.email) == email).first()
     if existing_user:

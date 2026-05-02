@@ -320,14 +320,32 @@
                         <input type="password" class="form-control" id="new_password" 
                                name="new_password" required minlength="8">
                         <small class="form-text text-muted">
-                            Password must be at least 8 characters long
+                            Password must be at least 8 characters and include upper/lowercase and a symbol
                         </small>
+                        <div class="mt-2">
+                            <div class="progress" style="height:4px;">
+                                <div id="communityPasswordStrengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                            </div>
+                            <small id="communityPasswordStrengthLabel" class="form-text text-muted"></small>
+                            <div class="password-checklist d-flex flex-wrap mt-1">
+                                <small id="communityChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                    <i class="far fa-circle mr-1"></i>8+ chars
+                                </small>
+                                <small id="communityChecklistCase" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include both uppercase and lowercase letters">
+                                    <i class="far fa-circle mr-1"></i>Upper + lower
+                                </small>
+                                <small id="communityChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                    <i class="far fa-circle mr-1"></i>Symbol
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label for="confirm_password">Confirm New Password</label>
                         <input type="password" class="form-control" id="confirm_password" 
                                name="confirm_password" required>
+                        <small id="communityPasswordMatchText" class="form-text"></small>
                     </div>
                     
                     <button type="submit" class="btn btn-change-password">
@@ -651,6 +669,30 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
+    if ($.fn && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+
+    function updateMatchText() {
+        const newPassword = $('#new_password').val();
+        const confirmPassword = $('#confirm_password').val();
+        const matchText = $('#communityPasswordMatchText');
+
+        if (!confirmPassword) {
+            matchText.text('');
+            matchText.removeClass('text-danger text-success');
+            return;
+        }
+
+        if (newPassword === confirmPassword) {
+            matchText.text('Passwords match');
+            matchText.removeClass('text-danger').addClass('text-success');
+        } else {
+            matchText.text('Passwords do not match');
+            matchText.removeClass('text-success').addClass('text-danger');
+        }
+    }
+
     // Password validation
     $('#confirm_password').on('input', function() {
         const newPassword = $('#new_password').val();
@@ -663,47 +705,90 @@ $(document).ready(function() {
             this.setCustomValidity('');
             $(this).removeClass('is-invalid');
         }
+
+        updateMatchText();
     });
     
-    // Password strength indicator
+    function evaluatePasswordStrength(password) {
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+        const hasCase = hasLower && hasUpper;
+
+        let score = 0;
+        if (password.length >= 8) score += 40;
+        if (password.length >= 12) score += 10;
+        if (hasCase) score += 30;
+        if (hasSymbol) score += 30;
+        score = Math.min(score, 100);
+
+        let label = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            label = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            label = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        return {
+            score,
+            label,
+            barClass,
+            hasCase,
+            hasSymbol,
+            lengthOk: password.length >= 8,
+        };
+    }
+
+    function setChecklistItem(item, met) {
+        if (!item) {
+            return;
+        }
+        const icon = item.querySelector('i');
+        if (icon) {
+            icon.className = met
+                ? 'fas fa-check-circle mr-1 text-success'
+                : 'far fa-circle mr-1 text-muted';
+        }
+        item.classList.toggle('text-success', met);
+        item.classList.toggle('text-muted', !met);
+    }
+
+    function renderPasswordStrength(password) {
+        const bar = document.getElementById('communityPasswordStrengthBar');
+        const label = document.getElementById('communityPasswordStrengthLabel');
+        const checklistLength = document.getElementById('communityChecklistLength');
+        const checklistCase = document.getElementById('communityChecklistCase');
+        const checklistSymbol = document.getElementById('communityChecklistSymbol');
+
+        if (!bar || !label) {
+            return;
+        }
+
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar';
+            label.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistCase, false);
+            setChecklistItem(checklistSymbol, false);
+            return;
+        }
+
+        const result = evaluatePasswordStrength(password);
+        bar.style.width = result.score + '%';
+        bar.className = 'progress-bar ' + result.barClass;
+        label.textContent = 'Strength: ' + result.label;
+        setChecklistItem(checklistLength, result.lengthOk);
+        setChecklistItem(checklistCase, result.hasCase);
+        setChecklistItem(checklistSymbol, result.hasSymbol);
+    }
+
     $('#new_password').on('input', function() {
-        const password = $(this).val();
-        let strength = 0;
-        
-        if (password.length >= 8) strength++;
-        if (password.match(/[a-z]/)) strength++;
-        if (password.match(/[A-Z]/)) strength++;
-        if (password.match(/[0-9]/)) strength++;
-        if (password.match(/[^a-zA-Z0-9]/)) strength++;
-        
-        let strengthText = '';
-        let strengthClass = '';
-        
-        if (strength < 2) {
-            strengthText = 'Weak';
-            strengthClass = 'text-danger';
-        } else if (strength < 4) {
-            strengthText = 'Medium';
-            strengthClass = 'text-warning';
-        } else {
-            strengthText = 'Strong';
-            strengthClass = 'text-success';
-        }
-        
-        // Show strength indicator
-        let indicator = $('#password-strength');
-        if (indicator.length === 0 && password.length > 0) {
-            $('#new_password').after(
-                '<small id="password-strength" class="form-text">Password strength: <span id="strength-text"></span></small>'
-            );
-            indicator = $('#password-strength');
-        }
-        
-        if (password.length > 0) {
-            $('#strength-text').text(strengthText).attr('class', strengthClass + ' font-weight-bold');
-        } else {
-            indicator.remove();
-        }
+        renderPasswordStrength($(this).val());
+        updateMatchText();
     });
     
     // Areas of Concern validation

@@ -21,6 +21,7 @@ from app.models import (
     Programs,
     User,
     UserActivityLog,
+    find_existing_user_by_name,
 )
 from app.super_admin import super_admin_bp
 from app.utils import manila_strftime, role_required
@@ -104,6 +105,11 @@ def add_admin():
 
     if not is_valid_municipality(municipality):
         flash('Please select a valid municipality.', 'danger')
+        return redirect(redirect_target)
+
+    existing_name_user = find_existing_user_by_name(first_name, middle_name, last_name)
+    if existing_name_user:
+        flash('A user with the same first, middle, and last name already exists.', 'danger')
         return redirect(redirect_target)
 
     existing_user = User.query.filter(func.lower(User.email) == email).first()

@@ -2,7 +2,7 @@ from flask import render_template, request, flash, redirect, url_for, send_file,
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.community import community_bp
-from app.utils import role_required, manila_strftime
+from app.utils import role_required, manila_strftime, get_upload_root, resolve_upload_path, normalize_upload_relative
 from app.models import Applications, Programs, ApplicationDocuments, ProgramRequirements, Requirements, ApplicationDocumentUploads, Notifications, User, ApplicationWorkflowStatus, ProgramWorkflowSteps, ShelterPhotos, CommunityUsers, Assessment, AssessmentDocument, AdminUsers
 from app.extensions import db
 from app.user_activity_logger import log_document_upload
@@ -558,16 +558,17 @@ def download_document(doc_id):
             return redirect(url_for('community.applications'))
     
     # Check if file exists
-    if not document.file_path or not os.path.exists(document.file_path):
+    abs_path = resolve_upload_path(document.file_path)
+    if not abs_path or not os.path.exists(abs_path):
         flash('Document file not found.', 'danger')
         return redirect(request.referrer or url_for('community.applications'))
     
     try:
         # Send file for download/view
         return send_file(
-            document.file_path,
+            abs_path,
             as_attachment=False,  # False = view in browser, True = force download
-            download_name=os.path.basename(document.file_path)
+            download_name=os.path.basename(abs_path)
         )
     except Exception as e:
         flash(f'Error accessing document: {str(e)}', 'danger')
@@ -655,9 +656,10 @@ def cancel_application(application_id):
         # Delete all uploaded document files (ApplicationDocumentUploads has file_path)
         if application.document_uploads:
             for upload in application.document_uploads:
-                if upload.file_path and os.path.exists(upload.file_path):
+                abs_path = resolve_upload_path(upload.file_path)
+                if abs_path and os.path.exists(abs_path):
                     try:
-                        os.remove(upload.file_path)
+                        os.remove(abs_path)
                     except:
                         pass
                 db.session.delete(upload)
@@ -672,8 +674,8 @@ def cancel_application(application_id):
             for photo in application.shelter_photos:
                 if photo.photo_path:
                     try:
-                        full_path = os.path.join(current_app.static_folder, photo.photo_path)
-                        if os.path.exists(full_path):
+                        full_path = resolve_upload_path(photo.photo_path)
+                        if full_path and os.path.exists(full_path):
                             os.remove(full_path)
                     except:
                         pass
@@ -687,10 +689,9 @@ def cancel_application(application_id):
             for doc in assessment_docs:
                 if doc.file_path:
                     try:
-                        for candidate_path in (doc.file_path, os.path.abspath(doc.file_path)):
-                            if candidate_path and os.path.exists(candidate_path):
-                                os.remove(candidate_path)
-                                break
+                        candidate_path = resolve_upload_path(doc.file_path)
+                        if candidate_path and os.path.exists(candidate_path):
+                            os.remove(candidate_path)
                     except:
                         pass
                 db.session.delete(doc)
@@ -976,11 +977,10 @@ def submit_documents(application_id):
         
         # Create upload directory if it doesn't exist
         # Store as relative path for portability
-        upload_dir_relative = os.path.join('static', 'uploads', 'application_documents', str(application_id))
-        
+        upload_dir_relative = os.path.join('application_documents', str(application_id))
+
         # Get absolute path for file operations
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        upload_dir_absolute = os.path.join(project_root, upload_dir_relative)
+        upload_dir_absolute = os.path.join(get_upload_root(), upload_dir_relative)
         os.makedirs(upload_dir_absolute, exist_ok=True)
         
         # Process each document requirement
@@ -997,7 +997,7 @@ def submit_documents(application_id):
                     unique_filename = f'{req.id}_{timestamp}_{filename}'
                     
                     # Store relative path in database, use absolute for file operations
-                    file_path_relative = os.path.join(upload_dir_relative, unique_filename)
+                    file_path_relative = os.path.join(upload_dir_relative, unique_filename).replace('\\', '/')
                     file_path_absolute = os.path.join(upload_dir_absolute, unique_filename)
                     
                     # Save the file temporarily
@@ -1036,10 +1036,8 @@ def submit_documents(application_id):
                     if existing_upload:
                         # Delete old file if it exists
                         if existing_upload.file_path:
-                            old_file_path = existing_upload.file_path
-                            if not os.path.isabs(old_file_path):
-                                old_file_path = os.path.join(project_root, old_file_path)
-                            if os.path.exists(old_file_path):
+                            old_file_path = resolve_upload_path(existing_upload.file_path)
+                            if old_file_path and os.path.exists(old_file_path):
                                 os.remove(old_file_path)
                         
                         # Update existing upload with relative path
@@ -1130,18 +1128,11 @@ def view_uploaded_document(upload_id):
             flash('You do not have permission to view this document.', 'danger')
             return redirect(url_for('community.applications'))
     
-    # Handle file path - stored paths are relative from project root
-    file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
-    
-    # If path is relative, make it absolute using app root
-    if not os.path.isabs(file_path):
-        file_path = os.path.join(current_app.root_path, file_path)
-    
-    # Normalize the path (handles .. and other path issues)
-    file_path = os.path.normpath(file_path)
+    # Resolve stored upload path
+    file_path = resolve_upload_path(upload.file_path)
     
     # Check if file exists
-    if not os.path.exists(file_path):
+    if not file_path or not os.path.exists(file_path):
         print(f'Document file not found: {file_path}')
         print(f'Stored path: {upload.file_path}')
         print(f'App root: {current_app.root_path}')
@@ -1172,18 +1163,11 @@ def get_document_view_data(upload_id):
             if upload.application.user_id != current_user.id:
                 return jsonify({'success': False, 'message': 'Permission denied'}), 403
         
-        # Handle file path - stored paths are relative from project root
-        file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
-        
-        # If path is relative, make it absolute using app root
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(current_app.root_path, file_path)
-        
-        # Normalize the path
-        file_path = os.path.normpath(file_path)
+        # Resolve stored upload path
+        file_path = resolve_upload_path(upload.file_path)
         
         # Check if file exists
-        if not os.path.exists(file_path):
+        if not file_path or not os.path.exists(file_path):
             return jsonify({'success': False, 'message': 'Document file not found'}), 404
         
         # Generate view and download URLs
@@ -1214,18 +1198,11 @@ def download_workflow_document(upload_id):
             flash('You do not have permission to download this document.', 'danger')
             return redirect(url_for('community.applications'))
     
-    # Handle file path - stored paths are relative from project root
-    file_path = upload.file_path.replace('\\', '/')  # Normalize path separators
-    
-    # If path is relative, make it absolute using app root
-    if not os.path.isabs(file_path):
-        file_path = os.path.join(current_app.root_path, file_path)
-    
-    # Normalize the path
-    file_path = os.path.normpath(file_path)
+    # Resolve stored upload path
+    file_path = resolve_upload_path(upload.file_path)
     
     # Check if file exists
-    if not os.path.exists(file_path):
+    if not file_path or not os.path.exists(file_path):
         flash(f'Document file not found.', 'danger')
         return redirect(request.referrer or url_for('community.applications'))
     
@@ -1283,7 +1260,7 @@ def upload_workflow_photo(application_id):
         
         # Create upload directory
         try:
-            upload_path = os.path.join(current_app.static_folder, 'uploads', 'shelter_photos', str(application_id))
+            upload_path = os.path.join(get_upload_root(), 'shelter_photos', str(application_id))
             os.makedirs(upload_path, exist_ok=True)
             
             if not os.path.isdir(upload_path):
@@ -1314,7 +1291,7 @@ def upload_workflow_photo(application_id):
             # Save to database - store path relative to static folder
             shelter_photo = ShelterPhotos(
                 application_id=application_id,
-                photo_path=f'uploads/shelter_photos/{application_id}/{unique_filename}',
+                photo_path=f'shelter_photos/{application_id}/{unique_filename}',
                 caption=caption,
                 verification_status='pending'
             )
@@ -1360,7 +1337,7 @@ def upload_workflow_photo(application_id):
             'message': f'Photo uploaded successfully! ({total_photos} total)',
             'photo': {
                 'id': shelter_photo.id,
-                'photo_path': '/' + shelter_photo.photo_path,
+                'photo_path': url_for('files.shelter_photo', photo_id=shelter_photo.id),
                 'caption': shelter_photo.caption,
                 'verification_status': shelter_photo.verification_status
             },
@@ -1394,11 +1371,9 @@ def delete_workflow_photo(application_id, photo_id):
     try:
         # Delete file from filesystem
         # Convert relative path to absolute path
-        file_path = photo.photo_path
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(current_app.root_path, file_path)
+        file_path = resolve_upload_path(photo.photo_path)
         
-        if os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             os.remove(file_path)
         
         db.session.delete(photo)
@@ -1555,7 +1530,7 @@ def upload_workflow_document():
         
         # Create upload directory
         try:
-            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'application_documents')
+            upload_dir = os.path.join(get_upload_root(), 'application_documents')
             os.makedirs(upload_dir, exist_ok=True)
             
             if not os.path.isdir(upload_dir):
@@ -1593,10 +1568,8 @@ def upload_workflow_document():
             if existing_upload:
                 # Remove old file
                 try:
-                    old_file_path = existing_upload.file_path
-                    if not old_file_path.startswith('/'):
-                        old_file_path = os.path.join(current_app.root_path, old_file_path)
-                    if os.path.exists(old_file_path):
+                    old_file_path = resolve_upload_path(existing_upload.file_path)
+                    if old_file_path and os.path.exists(old_file_path):
                         os.remove(old_file_path)
                 except Exception as cleanup_error:
                     print(f'Error cleaning up old file: {cleanup_error}')
@@ -1605,13 +1578,13 @@ def upload_workflow_document():
                 db.session.flush()
             
             # Store relative path in database
-            relative_path = os.path.join('static', 'uploads', 'application_documents', unique_filename)
+            relative_path = os.path.join('application_documents', unique_filename).replace('\\', '/')
             
             # Create new upload record
             upload = ApplicationDocumentUploads(
                 application_id=application_id,
                 requirement_id=requirement_id,
-                file_path=relative_path.replace('\\', '/'),
+                file_path=relative_path,
                 original_filename=filename,
                 uploaded_at=datetime.utcnow(),
                 verification_status='pending'

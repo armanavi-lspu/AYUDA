@@ -120,6 +120,49 @@
             filter: brightness(1.14);
         } 
 
+        .navbar-community-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-right: auto;
+        }
+
+        .navbar-logo-image {
+            height: 45px;
+            width: auto;
+            display: block;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-community-brand:hover .navbar-logo-image,
+        .navbar-community-brand:focus-within .navbar-logo-image,
+        .navbar-community-brand:hover .navbar-community-meta,
+        .navbar-community-brand:focus-within .navbar-community-meta {
+            transform: scale(1.05);
+            filter: brightness(1.12);
+        }
+
+        .navbar-community-meta {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: #ffffff;
+            line-height: 1.1;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-community-role {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .navbar-community-municipality {
+            font-size: 0.82rem;
+            opacity: 0.85;
+            letter-spacing: 0.01em;
+        }
+
         body {
             overflow-x: hidden;
             background-color: #f8f9fc;
@@ -352,7 +395,7 @@
             color: #8f1010;
         }
 
-        .top-navbar .navbar-brand-elegant {
+        .top-navbar .navbar-brand-logo {
             margin-left: 0.25rem;
             margin-right: auto;
         }
@@ -1572,10 +1615,26 @@
                 width: 52px;
                 height: 52px;
             }
+
+            .navbar-logo-image {
+                height: 32px;
+            }
+
+            .navbar-community-role {
+                font-size: 0.85rem;
+            }
+
+            .navbar-community-municipality {
+                font-size: 0.72rem;
+            }
         }
     </style>
+        <link
+            href="{{ url_for('static', filename='css/ui-buttons.css') }}"
+            rel="stylesheet"
+        />
     
-    <title>{% block title %}Community Portal{% endblock %}</title>
+        <title>{% block title %}Community Portal{% endblock %}</title>
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -1585,7 +1644,19 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         
-        <span class="navbar-brand navbar-brand-elegant px-2 mb-0">AYUDA</span>
+        <div class="navbar-brand navbar-community-brand px-2 mb-0">
+            <img class="navbar-logo-image" src="{{ url_for('static', filename='images/logo-white.png') }}" alt="AYUDA">
+            <div class="navbar-community-meta">
+                <span class="navbar-community-role">Community User</span>
+                <span class="navbar-community-municipality">
+                    {% if current_user.is_authenticated and current_user.community_profile and current_user.community_profile.municipality %}
+                        {{ current_user.community_profile.municipality }}
+                    {% else %}
+                        Municipality Unset
+                    {% endif %}
+                </span>
+            </div>
+        </div>
         
         <div class="ml-auto d-flex align-items-center">
             <!-- Enhanced Notification Icon -->
@@ -1695,7 +1766,7 @@
                     <!-- Profile Picture -->
                     <div class="user-avatar-wrapper mr-3">
                         {% if current_user.profile_pic %}
-                            <img src="{{ current_user.profile_pic }}" alt="Profile" class="rounded-circle user-avatar-image">
+                            <img src="{{ url_for('files.profile_pic', user_id=current_user.id) }}" alt="Profile" class="rounded-circle user-avatar-image">
                         {% else %}
                             <div class="rounded-circle d-flex align-items-center justify-content-center user-avatar-fallback">
                                 {{ current_user.first_name[0] | upper }}{{ current_user.last_name[0] | upper }}

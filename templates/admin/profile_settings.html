@@ -434,7 +434,7 @@
                     <form id="photoForm" action="{{ url_for('admin.upload_admin_photo') }}" method="POST" enctype="multipart/form-data">
                         <div class="profile-avatar-wrapper mb-3 d-inline-block {% if user.profile_pic %}clickable{% endif %}" {% if user.profile_pic %}onclick="showPhotoModal()"{% endif %}>
                             {% if user.profile_pic %}
-                                <img src="{{ user.profile_pic }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
+                                <img src="{{ url_for('files.profile_pic', user_id=user.id) }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
                             {% else %}
                                 <div class="profile-avatar-placeholder" id="avatarPlaceholder">
                                     {{ user.first_name[0] | upper }}{{ user.last_name[0] | upper }}
@@ -643,6 +643,23 @@
                                         <div id="strengthBar" class="progress-bar password-strength" role="progressbar" style="width:0%"></div>
                                     </div>
                                     <small id="strengthText" class="text-muted"></small>
+                                    <div class="password-checklist d-flex flex-wrap mt-1">
+                                        <small id="adminChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                            <i class="far fa-circle mr-1"></i>8+ chars
+                                        </small>
+                                        <small id="adminChecklistLower" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a lowercase letter">
+                                            <i class="far fa-circle mr-1"></i>Lowercase
+                                        </small>
+                                        <small id="adminChecklistUpper" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include an uppercase letter">
+                                            <i class="far fa-circle mr-1"></i>Uppercase
+                                        </small>
+                                        <small id="adminChecklistNumber" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a number">
+                                            <i class="far fa-circle mr-1"></i>Number
+                                        </small>
+                                        <small id="adminChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                            <i class="far fa-circle mr-1"></i>Symbol
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
 
@@ -800,25 +817,71 @@
     function checkStrength(password) {
         const bar = document.getElementById('strengthBar');
         const text = document.getElementById('strengthText');
-        let score = 0;
-        if (password.length >= 8) score++;
-        if (password.length >= 12) score++;
-        if (/[A-Z]/.test(password)) score++;
-        if (/[0-9]/.test(password)) score++;
-        if (/[^A-Za-z0-9]/.test(password)) score++;
+        const checklistLength = document.getElementById('adminChecklistLength');
+        const checklistLower = document.getElementById('adminChecklistLower');
+        const checklistUpper = document.getElementById('adminChecklistUpper');
+        const checklistNumber = document.getElementById('adminChecklistNumber');
+        const checklistSymbol = document.getElementById('adminChecklistSymbol');
 
-        const levels = [
-            { pct: 0,   cls: 'bg-secondary', label: '' },
-            { pct: 20,  cls: 'bg-danger',    label: 'Very Weak' },
-            { pct: 40,  cls: 'bg-warning',   label: 'Weak' },
-            { pct: 60,  cls: 'bg-info',      label: 'Fair' },
-            { pct: 80,  cls: 'bg-primary',   label: 'Strong' },
-            { pct: 100, cls: 'bg-success',   label: 'Very Strong' },
-        ];
-        const level = levels[score];
-        bar.style.width = level.pct + '%';
-        bar.className = 'progress-bar password-strength ' + level.cls;
-        text.textContent = level.label;
+        function setChecklistItem(item, met) {
+            if (!item) {
+                return;
+            }
+            const icon = item.querySelector('i');
+            if (icon) {
+                icon.className = met
+                    ? 'fas fa-check-circle mr-1 text-success'
+                    : 'far fa-circle mr-1 text-muted';
+            }
+            item.classList.toggle('text-success', met);
+            item.classList.toggle('text-muted', !met);
+        }
+
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar password-strength bg-secondary';
+            text.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistLower, false);
+            setChecklistItem(checklistUpper, false);
+            setChecklistItem(checklistNumber, false);
+            setChecklistItem(checklistSymbol, false);
+            checkMatch();
+            return;
+        }
+
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasDigit = /[0-9]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+        let score = 0;
+        if (password.length >= 8) score += 25;
+        if (password.length >= 12) score += 10;
+        if (hasLower) score += 15;
+        if (hasUpper) score += 15;
+        if (hasDigit) score += 15;
+        if (hasSymbol) score += 20;
+        score = Math.min(score, 100);
+
+        let label = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            label = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            label = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        bar.style.width = score + '%';
+        bar.className = 'progress-bar password-strength ' + barClass;
+        text.textContent = 'Strength: ' + label;
+        setChecklistItem(checklistLength, password.length >= 8);
+        setChecklistItem(checklistLower, hasLower);
+        setChecklistItem(checklistUpper, hasUpper);
+        setChecklistItem(checklistNumber, hasDigit);
+        setChecklistItem(checklistSymbol, hasSymbol);
         checkMatch();
     }
 
@@ -839,6 +902,9 @@
 
     // Keep active tab across page reload (flash messages)
     document.addEventListener('DOMContentLoaded', function() {
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+            window.jQuery('[data-toggle="tooltip"]').tooltip();
+        }
         const hash = window.location.hash;
         if (hash) {
             const tabLink = document.querySelector('.tab-nav a[href="' + hash + '"]');

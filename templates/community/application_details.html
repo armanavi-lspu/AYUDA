@@ -328,8 +328,8 @@
                     <div class="col-md-6 mb-3">
                         <div class="card {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                                <img src="{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
-                                     alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
+                                  <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
+                                      alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('files.shelter_photo', photo_id=photo.id) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
                             </div>
                             <div class="card-body p-2">
                                 {% if photo.caption %}
@@ -535,13 +535,13 @@
                                 {% if cal_certificate %}
                                 <div class="text-center mb-3">
                                     {% if cal_certificate.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                                    <img src="/{{ cal_certificate.file_path }}" class="img-fluid rounded mb-2" style="max-height: 150px;" alt="Certificate">
+                                    <img src="{{ url_for('files.ca_document', doc_id=cal_certificate.id) }}" class="img-fluid rounded mb-2" style="max-height: 150px;" alt="Certificate">
                                     {% else %}
                                     <i class="fas fa-file-pdf fa-4x text-danger mb-2"></i>
                                     {% endif %}
                                 </div>
                                 <p class="small text-muted mb-2">{{ cal_certificate.original_filename }}</p>
-                                <a href="/{{ cal_certificate.file_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block mb-2">
+                                <a href="{{ url_for('files.ca_document', doc_id=cal_certificate.id) }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block mb-2">
                                     <i class="fas fa-eye mr-1"></i>View Document
                                 </a>
                                 <div class="text-center">
@@ -588,7 +588,7 @@
                                 {% if cal_proposal %}
                                 <div class="text-center mb-3">
                                     {% if cal_proposal.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                                    <img src="/{{ cal_proposal.file_path }}" class="img-fluid rounded mb-2" style="max-height: 150px;" alt="Proposal">
+                                    <img src="{{ url_for('files.ca_document', doc_id=cal_proposal.id) }}" class="img-fluid rounded mb-2" style="max-height: 150px;" alt="Proposal">
                                     {% else %}
                                     <i class="fas fa-file-pdf fa-4x text-danger mb-2"></i>
                                     {% endif %}
@@ -597,7 +597,7 @@
                                 {% if cal_proposal.description %}
                                 <p class="small mb-2"><strong>Description:</strong> {{ cal_proposal.description }}</p>
                                 {% endif %}
-                                <a href="/{{ cal_proposal.file_path }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block mb-2">
+                                <a href="{{ url_for('files.ca_document', doc_id=cal_proposal.id) }}" target="_blank" class="btn btn-sm btn-outline-primary btn-block mb-2">
                                     <i class="fas fa-eye mr-1"></i>View Document
                                 </a>
                                 <div class="text-center">
@@ -1429,7 +1429,7 @@
                         <div class="card border-success h-100">
                             <div class="card-body text-center">
                                 {% if certificate.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                                <img src="/{{ certificate.file_path }}" class="img-fluid rounded mb-2" style="max-height: 100px;" alt="Certificate">
+                                <img src="{{ url_for('files.ca_document', doc_id=certificate.id) }}" class="img-fluid rounded mb-2" style="max-height: 100px;" alt="Certificate">
                                 {% else %}
                                 <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
                                 {% endif %}
@@ -1443,7 +1443,7 @@
                         <div class="card border-success h-100">
                             <div class="card-body text-center">
                                 {% if proposal.file_path.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
-                                <img src="/{{ proposal.file_path }}" class="img-fluid rounded mb-2" style="max-height: 100px;" alt="Proposal">
+                                <img src="{{ url_for('files.ca_document', doc_id=proposal.id) }}" class="img-fluid rounded mb-2" style="max-height: 100px;" alt="Proposal">
                                 {% else %}
                                 <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
                                 {% endif %}
@@ -1477,7 +1477,7 @@
                     {% for photo in application.shelter_photos %}
                     <div class="col-md-4 mb-3">
                         <div class="card border-success">
-                            <img src="{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="Shelter Photo">
+                            <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="Shelter Photo">
                             <div class="card-body p-2 text-center">
                                 <span class="badge badge-success"><i class="fas fa-check"></i> Approved</span>
                                 {% if photo.caption %}

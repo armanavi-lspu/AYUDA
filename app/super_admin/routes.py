@@ -254,12 +254,10 @@ def dashboard():
         'announcements': [weekly_activity_map[day]['announcements'] for day in daily_dates],
     }
 
-    municipality_application_totals = {}
+    municipality_user_totals = {}
     for municipality_name, count in db.session.query(
         CommunityUsers.municipality,
-        func.count(Applications.id)
-    ).join(
-        Applications, Applications.user_id == CommunityUsers.user_id
+        func.count(CommunityUsers.id)
     ).filter(
         CommunityUsers.municipality.isnot(None),
         CommunityUsers.municipality != ''
@@ -270,17 +268,17 @@ def dashboard():
         if not normalized_name:
             continue
         key = normalized_name.lower()
-        municipality_application_totals[key] = municipality_application_totals.get(key, 0) + int(count or 0)
+        municipality_user_totals[key] = municipality_user_totals.get(key, 0) + int(count or 0)
         municipality_name_by_key.setdefault(key, normalized_name)
 
-    top_municipality_rows = sorted(
-        municipality_application_totals.items(),
+    municipality_user_rows = sorted(
+        municipality_user_totals.items(),
         key=lambda row: row[1],
         reverse=True,
-    )[:8]
-    top_municipality_applications_chart = {
-        'labels': [municipality_name_by_key.get(key, key.title()) for key, _ in top_municipality_rows],
-        'data': [count for _, count in top_municipality_rows],
+    )
+    municipality_user_counts_chart = {
+        'labels': [municipality_name_by_key.get(key, key.title()) for key, _ in municipality_user_rows],
+        'data': [count for _, count in municipality_user_rows],
     }
 
     municipality_status_chart = {
@@ -324,7 +322,7 @@ def dashboard():
         municipality_status_chart=municipality_status_chart,
         account_status_chart=account_status_chart,
         weekly_activity_chart=weekly_activity_chart,
-        top_municipality_applications_chart=top_municipality_applications_chart,
+        municipality_user_counts_chart=municipality_user_counts_chart,
         recent_admin_logs=recent_admin_logs,
         recent_user_logs=recent_user_logs,
     )
@@ -1354,12 +1352,16 @@ def change_password():
     new_password = request.form.get('new_password', '')
     confirm_password = request.form.get('confirm_password', '')
 
+    has_lower = any(char.islower() for char in new_password)
+    has_upper = any(char.isupper() for char in new_password)
+    has_symbol = any(not char.isalnum() for char in new_password)
+
     if not check_password_hash(current_user.password_hash, current_password):
         flash('Current password is incorrect.', 'danger')
         return redirect(url_for('super_admin.settings'))
 
-    if len(new_password) < 8:
-        flash('New password must be at least 8 characters.', 'danger')
+    if len(new_password) < 8 or not (has_lower and has_upper) or not has_symbol:
+        flash('New password must be at least 8 characters and include uppercase, lowercase, and a symbol.', 'danger')
         return redirect(url_for('super_admin.settings'))
 
     if new_password != confirm_password:

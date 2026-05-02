@@ -44,6 +44,32 @@ def _normalize_person_name(raw_value):
     return ' '.join(words)
 
 
+def find_existing_user_by_name(first_name, middle_name, last_name):
+    """Return the first user matching the normalized full name, if any."""
+    normalized_first = _normalize_person_name(first_name)
+    normalized_last = _normalize_person_name(last_name)
+    normalized_middle = _normalize_person_name(middle_name)
+
+    if not normalized_first or not normalized_last:
+        return None
+
+    query = User.query.filter(
+        func.lower(func.trim(User.first_name)) == normalized_first.lower(),
+        func.lower(func.trim(User.last_name)) == normalized_last.lower(),
+    )
+
+    if normalized_middle:
+        query = query.filter(
+            func.lower(func.trim(User.middle_name)) == normalized_middle.lower()
+        )
+    else:
+        query = query.filter(
+            (User.middle_name.is_(None)) | (func.trim(User.middle_name) == '')
+        )
+
+    return query.first()
+
+
 class JsonSerializableMixin:
     """Mixin to make models JSON serializable"""
     def to_dict(self):

@@ -9,10 +9,10 @@ import json
 from app.admin import admin_bp
 from app.models import User, AdminUsers, AdminActivityLog, Applications, Programs, Announcements
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, get_upload_root, resolve_upload_path
 from app.location_options import get_municipalities, is_valid_municipality
 
-PROFILE_UPLOAD_FOLDER = 'static/uploads/profile_pics'
+PROFILE_UPLOAD_FOLDER = 'profile_pics'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
@@ -145,7 +145,7 @@ def upload_admin_photo():
         flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP.', 'danger')
         return redirect(url_for('admin.admin_profile'))
 
-    upload_path = os.path.join(os.getcwd(), PROFILE_UPLOAD_FOLDER)
+    upload_path = os.path.join(get_upload_root(), PROFILE_UPLOAD_FOLDER)
     os.makedirs(upload_path, exist_ok=True)
 
     # Store old photo path for logging
@@ -153,15 +153,15 @@ def upload_admin_photo():
 
     # Delete old photo if exists
     if current_user.profile_pic:
-        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
-        if os.path.exists(old_path):
+        old_path = resolve_upload_path(current_user.profile_pic)
+        if old_path and os.path.exists(old_path):
             os.remove(old_path)
 
     ext = file.filename.rsplit('.', 1)[1].lower()
     unique_filename = f"admin_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
     file.save(os.path.join(upload_path, unique_filename))
 
-    new_photo_path = f'/{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
+    new_photo_path = f'{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
     current_user.profile_pic = new_photo_path
     db.session.add(current_user)
     
@@ -195,8 +195,8 @@ def remove_admin_photo():
     """Remove admin profile photo."""
     if current_user.profile_pic:
         old_photo = current_user.profile_pic
-        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
-        if os.path.exists(old_path):
+        old_path = resolve_upload_path(current_user.profile_pic)
+        if old_path and os.path.exists(old_path):
             os.remove(old_path)
         current_user.profile_pic = None
         db.session.add(current_user)

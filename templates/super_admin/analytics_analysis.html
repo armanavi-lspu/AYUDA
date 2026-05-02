@@ -6,7 +6,7 @@
     <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
         <div>
             <h1 class="mb-1"><i class="fas fa-chart-line mr-2"></i>Analytics Analysis</h1>
-            <p class="subtitle">Analytics and forecasting for all municipalities.</p>
+            <p class="subtitle">User management and system monitoring insights across municipalities.</p>
         </div>
         <div class="mt-3 mt-md-0">
             <a class="btn btn-outline-custom btn-sm mr-2" href="{{ url_for('super_admin.analytics_reports') }}">
@@ -33,10 +33,10 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="sa-stat-label">Total Applications</div>
-                            <div class="sa-stat-value">{{ total_applications }}</div>
+                            <div class="sa-stat-label">Total Users</div>
+                            <div class="sa-stat-value">{{ total_users }}</div>
                         </div>
-                        <div class="sa-stat-icon icon-primary"><i class="fas fa-clipboard-list"></i></div>
+                        <div class="sa-stat-icon icon-primary"><i class="fas fa-users"></i></div>
                     </div>
                 </div>
             </div>
@@ -46,36 +46,36 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="sa-stat-label">Unique Applicants</div>
-                            <div class="sa-stat-value">{{ total_applicants }}</div>
-                        </div>
-                        <div class="sa-stat-icon icon-success"><i class="fas fa-users"></i></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card sa-stats-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="sa-stat-label">Active Programs</div>
-                            <div class="sa-stat-value">{{ total_programs }}</div>
-                        </div>
-                        <div class="sa-stat-icon icon-info"><i class="fas fa-folder-open"></i></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card sa-stats-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="sa-stat-label">Registered Community Users</div>
+                            <div class="sa-stat-label">Community Users</div>
                             <div class="sa-stat-value">{{ total_community_users }}</div>
                         </div>
-                        <div class="sa-stat-icon icon-warning"><i class="fas fa-user-friends"></i></div>
+                        <div class="sa-stat-icon icon-success"><i class="fas fa-user-friends"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Admins</div>
+                            <div class="sa-stat-value">{{ total_admins }}</div>
+                        </div>
+                        <div class="sa-stat-icon icon-info"><i class="fas fa-user-cog"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Super Admins</div>
+                            <div class="sa-stat-value">{{ total_super_admins }}</div>
+                        </div>
+                        <div class="sa-stat-icon icon-warning"><i class="fas fa-user-shield"></i></div>
                     </div>
                 </div>
             </div>
@@ -86,7 +86,7 @@
         <div class="col-12 mb-4">
             <div class="card sa-panel h-100">
                 <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-area mr-2"></i>Applicants Count Over Time</h6>
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-area mr-2"></i>User Count Over Time</h6>
                     <select class="form-control form-control-sm mt-2 mt-md-0" id="timeRangeSelect" style="max-width: 220px;">
                         <option value="6">Last 6 Months</option>
                         <option value="12" selected>Last 12 Months</option>
@@ -94,7 +94,7 @@
                     </select>
                 </div>
                 <div class="card-body">
-                    <canvas id="applicantsTimeSeriesChart" style="height: 330px;"></canvas>
+                    <canvas id="usersTimeSeriesChart" style="height: 330px;"></canvas>
                 </div>
             </div>
         </div>
@@ -102,10 +102,10 @@
         <div class="col-lg-6 mb-4">
             <div class="card sa-panel h-100">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-pie mr-2"></i>Applications per Program Type</h6>
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-user-check mr-2"></i>Account Activity Status (Last 7 Days)</h6>
                 </div>
                 <div class="card-body">
-                    <canvas id="programTypeChart" style="height: 350px;"></canvas>
+                    <canvas id="accountStatusChart" style="height: 320px;"></canvas>
                 </div>
             </div>
         </div>
@@ -113,10 +113,10 @@
         <div class="col-lg-6 mb-4">
             <div class="card sa-panel h-100">
                 <div class="card-header bg-white py-3">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-map-marker-alt mr-2"></i>Applicants per Barangay</h6>
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-user-tag mr-2"></i>User Roles Breakdown</h6>
                 </div>
                 <div class="card-body">
-                    <canvas id="barangayChart" style="height: 350px;"></canvas>
+                    <canvas id="userRolesChart" style="height: 320px;"></canvas>
                 </div>
             </div>
         </div>
@@ -132,35 +132,12 @@
             </div>
         </div>
 
-        <div class="col-12 mb-4">
-            <div class="card sa-panel h-100 border-left-warning" style="border-left-width: 4px !important;">
-                <div class="card-header bg-warning text-white py-3">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-line mr-2"></i>Forecast: Applicants Over Time</h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" style="position: relative; height: 400px;">
-                        <canvas id="forecastApplicantsChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-12 mb-4">
-            <div class="card sa-panel h-100 border-left-warning" style="border-left-width: 4px !important;">
-                <div class="card-header bg-warning text-white py-3">
-                    <h6 class="m-0 font-weight-bold"><i class="fas fa-chart-bar mr-2"></i>Forecast: Applications per Program Category</h6>
-                </div>
-                <div class="card-body">
-                    <canvas id="forecastProgramCategoryChart" style="height: 320px;"></canvas>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
-    <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
-    <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+    <script type="application/json" id="users-over-time-data">{{ users_over_time_json | safe }}</script>
     <script type="application/json" id="users-by-municipality-data">{{ users_by_municipality_json | safe }}</script>
+    <script type="application/json" id="account-status-data">{{ account_status_chart | tojson }}</script>
+    <script type="application/json" id="user-roles-data">{{ user_role_chart | tojson }}</script>
 </div>
 {% endblock %}
 
@@ -180,27 +157,6 @@
             console.error('Failed to parse data for', id, e);
             return fallback;
         }
-    }
-
-    function buildForecastDataArray(historicalLength, lastValue, forecastData) {
-        const nullsForHistorical = Array(historicalLength).fill(null);
-        return [...nullsForHistorical, lastValue, ...forecastData];
-    }
-
-    function clearForecastStatus(chartContainer) {
-        if (!chartContainer) return;
-        const existing = chartContainer.querySelector('.forecast-status-message');
-        if (existing) existing.remove();
-    }
-
-    function renderForecastStatus(chartContainer, message) {
-        if (!chartContainer) return;
-        clearForecastStatus(chartContainer);
-
-        const note = document.createElement('div');
-        note.className = 'forecast-status-message alert alert-warning mt-3 mb-0';
-        note.textContent = message;
-        chartContainer.appendChild(note);
     }
 
     function showSuperAdminAnalyticsUpdateNotice(message) {
@@ -250,52 +206,27 @@
         document.addEventListener('ayuda:super-admin-analytics-update', handleUpdateEvent);
     }
 
-    const applicantsOverTimeData = parseData('applicants-over-time-data', { labels: [], data: [] });
-    const applicationsByTypeData = parseData('applications-by-type-data', { labels: [], data: [] });
-    const applicantsByBarangayData = parseData('applicants-by-barangay-data', { labels: [], data: [] });
+    const usersOverTimeData = parseData('users-over-time-data', { labels: [], data: [] });
     const usersByMunicipalityData = parseData('users-by-municipality-data', { labels: [], data: [] });
+    const accountStatusData = parseData('account-status-data', { labels: [], active: [], inactive: [] });
+    const userRolesData = parseData('user-roles-data', { labels: [], data: [] });
 
-    let applicantsChart = null;
-    let programTypeChart = null;
-    let barangayChart = null;
+    let usersChart = null;
     let municipalityChart = null;
-    let applicantsForecastChart = null;
-    let programForecastChart = null;
+    let accountStatusChart = null;
+    let userRolesChart = null;
 
-    const programForecastPalette = [
-        '#4e73df',
-        '#1cc88a',
-        '#36b9cc',
-        '#f6c23e',
-        '#e74a3b',
-        '#858796',
-        '#20c9a6',
-        '#6f42c1',
-    ];
-
-    function colorWithAlpha(hexColor, alpha) {
-        const clean = String(hexColor || '').replace('#', '');
-        if (clean.length !== 6) {
-            return `rgba(78, 115, 223, ${alpha})`;
-        }
-
-        const r = parseInt(clean.slice(0, 2), 16);
-        const g = parseInt(clean.slice(2, 4), 16);
-        const b = parseInt(clean.slice(4, 6), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-
-    function renderApplicantsChart(labels, values) {
-        const ctx = document.getElementById('applicantsTimeSeriesChart');
+    function renderUserGrowthChart(labels, values) {
+        const ctx = document.getElementById('usersTimeSeriesChart');
         if (!ctx) return;
-        if (applicantsChart) applicantsChart.destroy();
+        if (usersChart) usersChart.destroy();
 
-        applicantsChart = new Chart(ctx.getContext('2d'), {
+        usersChart = new Chart(ctx.getContext('2d'), {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Number of Applicants',
+                    label: 'Number of Users',
                     data: values,
                     borderColor: 'rgb(78, 115, 223)',
                     backgroundColor: 'rgba(78, 115, 223, 0.1)',
@@ -313,59 +244,71 @@
         });
     }
 
-    function renderProgramTypeChart() {
-        const ctx = document.getElementById('programTypeChart');
+    function renderAccountStatusChart() {
+        const ctx = document.getElementById('accountStatusChart');
         if (!ctx) return;
-        if (programTypeChart) programTypeChart.destroy();
+        if (accountStatusChart) accountStatusChart.destroy();
 
-        programTypeChart = new Chart(ctx.getContext('2d'), {
-            type: 'pie',
+        accountStatusChart = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
             data: {
-                labels: applicationsByTypeData.labels,
-                datasets: [{
-                    data: applicationsByTypeData.data,
-                    backgroundColor: [
-                        'rgba(78, 115, 223, 0.8)',
-                        'rgba(28, 200, 138, 0.8)',
-                        'rgba(54, 185, 204, 0.8)',
-                        'rgba(246, 194, 62, 0.8)',
-                        'rgba(231, 74, 59, 0.8)',
-                        'rgba(133, 135, 150, 0.8)',
-                    ],
-                    borderWidth: 2,
-                    borderColor: '#fff',
-                }],
+                labels: accountStatusData.labels,
+                datasets: [
+                    {
+                        label: 'Active',
+                        data: accountStatusData.active,
+                        backgroundColor: 'rgba(54, 185, 204, 0.82)',
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'Inactive',
+                        data: accountStatusData.inactive,
+                        backgroundColor: 'rgba(246, 194, 62, 0.82)',
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        borderWidth: 2,
+                    },
+                ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'right' } },
+                scales: {
+                    x: { stacked: true },
+                    y: { beginAtZero: true, stacked: true, ticks: { stepSize: 1 } },
+                },
             },
         });
     }
 
-    function renderBarangayChart() {
-        const ctx = document.getElementById('barangayChart');
+    function renderUserRolesChart() {
+        const ctx = document.getElementById('userRolesChart');
         if (!ctx) return;
-        if (barangayChart) barangayChart.destroy();
+        if (userRolesChart) userRolesChart.destroy();
 
-        barangayChart = new Chart(ctx.getContext('2d'), {
-            type: 'bar',
+        userRolesChart = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
             data: {
-                labels: applicantsByBarangayData.labels,
+                labels: userRolesData.labels,
                 datasets: [{
-                    label: 'Number of Applicants',
-                    data: applicantsByBarangayData.data,
-                    backgroundColor: 'rgba(54, 185, 204, 0.6)',
-                    borderColor: 'rgba(54, 185, 204, 1)',
+                    data: userRolesData.data,
+                    backgroundColor: [
+                        'rgba(78, 115, 223, 0.8)',
+                        'rgba(28, 200, 138, 0.8)',
+                        'rgba(246, 194, 62, 0.8)',
+                    ],
+                    borderColor: '#ffffff',
                     borderWidth: 2,
                 }],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'y',
-                scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                },
             },
         });
     }
@@ -399,390 +342,19 @@
             },
         });
     }
-
-    function loadArimaForecast() {
-        const ctx = document.getElementById('forecastApplicantsChart');
-        if (!ctx) return;
-
-        const chartContainer = ctx.parentElement;
-        chartContainer.style.opacity = '0.5';
-        clearForecastStatus(chartContainer);
-
-        fetch('/super-admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
-            .then((response) => response.json())
-            .then((data) => {
-                const historicalLabels = data.historical.labels || [];
-                const historicalData = data.historical.values || [];
-                const forecastLabels = (data.forecast && data.forecast.forecast_labels) || [];
-                const forecastData = (data.forecast && data.forecast.forecast_values) || [];
-                const confidenceLower = (data.forecast && data.forecast.confidence_lower) || [];
-                const confidenceUpper = (data.forecast && data.forecast.confidence_upper) || [];
-                const modelType = data.model || 'unknown';
-                const fallbackReason = data.fallback_reason || (data.forecast && data.forecast.fallback_reason) || null;
-                const fallbackNote = data.forecast_note || (data.forecast && data.forecast.forecast_note) || null;
-                const forecastSupported = data.forecast_supported !== false;
-                const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
-                const hasLinearInsufficientDataFallback = modelType === 'linear' && fallbackReason === 'insufficient_data';
-                const hasInsufficientDataUnsupported = !forecastSupported && (
-                    fallbackReason === 'insufficient_data' ||
-                    ((data.forecast && data.forecast.reason) === 'insufficient_data')
-                );
-                const linearFallbackMessage = fallbackNote ||
-                    'Not enough historical data to fit the ARIMA model. Forecasts are using linear regression fallback, and additional monthly data will support stronger and more reliable forecasts.';
-                const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
-
-                if (applicantsForecastChart) applicantsForecastChart.destroy();
-
-                if (!forecastSupported) {
-                    if (hasInsufficientDataUnsupported) {
-                        renderLinearFallbackForecast(ctx, chartContainer, historicalData, historicalLabels, forecastMessage);
-                        chartContainer.style.opacity = '1';
-                        return;
-                    }
-
-                    applicantsForecastChart = new Chart(ctx.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels: historicalLabels,
-                            datasets: [
-                                {
-                                    label: 'Historical Data',
-                                    data: historicalData,
-                                    borderColor: 'rgb(78, 115, 223)',
-                                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                                    fill: true,
-                                    tension: 0.4,
-                                    borderWidth: 3,
-                                    pointBackgroundColor: 'rgb(78, 115, 223)',
-                                    pointBorderColor: '#fff',
-                                    pointBorderWidth: 2,
-                                    pointRadius: 4,
-                                },
-                            ],
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: true,
-                                    position: 'top',
-                                },
-                            },
-                            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-                        },
-                    });
-
-                    renderForecastStatus(chartContainer, forecastMessage);
-                    chartContainer.style.opacity = '1';
-                    return;
-                }
-
-                const datasets = [
-                    {
-                        label: 'Historical Data',
-                        data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
-                        borderColor: 'rgb(78, 115, 223)',
-                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: 'rgb(78, 115, 223)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                    },
-                    {
-                        label: hasLinearInsufficientDataFallback
-                            ? 'Forecast (Linear Regression Fallback)'
-                            : `ARIMA Forecast (${modelType})`,
-                        data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
-                        borderColor: 'rgb(246, 194, 62)',
-                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        borderDash: [5, 5],
-                        pointBackgroundColor: 'rgb(246, 194, 62)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                    },
-                ];
-
-                if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
-                    datasets.push({
-                        label: '95% Confidence Interval',
-                        data: [...Array(historicalData.length).fill(null), ...confidenceUpper],
-                        borderColor: 'rgba(246, 194, 62, 0.3)',
-                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
-                        fill: '+1',
-                        tension: 0.4,
-                        borderWidth: 1,
-                        pointRadius: 0,
-                    });
-                    datasets.push({
-                        label: 'Confidence Lower',
-                        data: [...Array(historicalData.length).fill(null), ...confidenceLower],
-                        borderColor: 'rgba(246, 194, 62, 0.3)',
-                        backgroundColor: 'transparent',
-                        fill: false,
-                        tension: 0.4,
-                        borderWidth: 1,
-                        pointRadius: 0,
-                        hidden: true,
-                    });
-                }
-
-                applicantsForecastChart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: [...historicalLabels, ...forecastLabels],
-                        datasets: datasets,
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top',
-                                labels: {
-                                    filter: function (item) {
-                                        return item.text !== 'Confidence Lower';
-                                    },
-                                },
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function (context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += Math.round(context.parsed.y);
-                                        }
-                                        return label;
-                                    },
-                                },
-                            },
-                        },
-                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-                    },
-                });
-
-                if (hasLinearInsufficientDataFallback) {
-                    renderForecastStatus(chartContainer, linearFallbackMessage);
-                }
-
-                chartContainer.style.opacity = '1';
-            })
-            .catch((error) => {
-                console.error('Error loading ARIMA forecast:', error);
-                chartContainer.style.opacity = '1';
-                renderLinearFallbackForecast(ctx, chartContainer, applicantsOverTimeData.data || [], applicantsOverTimeData.labels || []);
-            });
-    }
-
-    function renderLinearFallbackForecast(ctx, chartContainer, historicalData, historicalLabels, noteMessage) {
-        const avgGrowth = historicalData.length > 1
-            ? (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length
-            : 0;
-        const forecastData = [];
-        const forecastLabels = [];
-        const lastValue = historicalData[historicalData.length - 1] || 0;
-
-        for (let i = 1; i <= 6; i += 1) {
-            const date = new Date();
-            date.setMonth(date.getMonth() + i);
-            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
-            forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
-        }
-
-        if (applicantsForecastChart) applicantsForecastChart.destroy();
-
-        applicantsForecastChart = new Chart(ctx.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: [...historicalLabels, ...forecastLabels],
-                datasets: [
-                    {
-                        label: 'Historical Data',
-                        data: [...historicalData, ...Array(6).fill(null)],
-                        borderColor: 'rgb(78, 115, 223)',
-                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: 'rgb(78, 115, 223)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                    },
-                    {
-                        label: 'Forecast (Linear Regression Fallback)',
-                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData],
-                        borderColor: 'rgb(246, 194, 62)',
-                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        borderDash: [5, 5],
-                        pointBackgroundColor: 'rgb(246, 194, 62)',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function (context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.y !== null) {
-                                    label += Math.round(context.parsed.y);
-                                }
-                                return label;
-                            },
-                        },
-                    },
-                },
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-            },
-        });
-
-        if (noteMessage) {
-            renderForecastStatus(chartContainer, noteMessage);
-        }
-    }
-
-    function loadProgramForecast() {
-        const ctx = document.getElementById('forecastProgramCategoryChart');
-        if (!ctx) return;
-
-        fetch('/super-admin/api/analytics/program-forecast?months=18&forecast_periods=6')
-            .then((response) => response.json())
-            .then((data) => {
-                const historicalLabels = data.historical_labels || [];
-                const forecastLabels = data.forecast_labels || [];
-                const allLabels = [...historicalLabels, ...forecastLabels];
-                const categories = Array.isArray(data.categories) ? data.categories : [];
-
-                if (programForecastChart) programForecastChart.destroy();
-
-                const datasets = [];
-                categories.forEach((category, index) => {
-                    const programType = category.program_type || `Category ${index + 1}`;
-                    const color = programForecastPalette[index % programForecastPalette.length];
-                    const historicalValues = Array.isArray(category.historical_values)
-                        ? category.historical_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
-                        : [];
-                    const forecastValues = Array.isArray(category.forecast_values)
-                        ? category.forecast_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
-                        : [];
-
-                    datasets.push({
-                        label: `${programType} (Historical)`,
-                        data: [...historicalValues, ...Array(forecastLabels.length).fill(null)],
-                        borderColor: color,
-                        backgroundColor: colorWithAlpha(color, 0.12),
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.35,
-                        pointRadius: 2,
-                    });
-
-                    if (forecastValues.length > 0 && historicalValues.length > 0) {
-                        const lastHistorical = historicalValues[historicalValues.length - 1];
-                        const forecastSeries = [
-                            ...Array(Math.max(historicalValues.length - 1, 0)).fill(null),
-                            lastHistorical,
-                            ...forecastValues,
-                        ];
-
-                        datasets.push({
-                            label: `${programType} (Forecast)`,
-                            data: forecastSeries,
-                            borderColor: color,
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [6, 5],
-                            fill: false,
-                            tension: 0.35,
-                            pointRadius: 2,
-                        });
-                    }
-                });
-
-                programForecastChart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: allLabels,
-                        datasets: datasets,
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top',
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function (context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += Math.round(context.parsed.y);
-                                        }
-                                        return label;
-                                    },
-                                },
-                            },
-                        },
-                        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-                    },
-                });
-            })
-            .catch((error) => {
-                console.error('Error loading program forecast:', error);
-            });
-    }
-
     function bindTimeRangeSelect() {
         const timeRangeSelect = document.getElementById('timeRangeSelect');
         if (!timeRangeSelect) return;
 
         timeRangeSelect.addEventListener('change', function () {
             const months = this.value;
-            fetch(`/super-admin/api/analytics/applicants-timeseries?months=${months}`)
+            fetch(`/super-admin/api/analytics/users-timeseries?months=${months}`)
                 .then((response) => response.json())
                 .then((data) => {
-                    renderApplicantsChart(data.labels || [], data.values || []);
+                    renderUserGrowthChart(data.labels || [], data.values || []);
                 })
                 .catch((error) => {
-                    console.error('Error loading applicants time-series range:', error);
+                    console.error('Error loading users time-series range:', error);
                 });
         });
     }
@@ -790,12 +362,10 @@
     document.addEventListener('DOMContentLoaded', function () {
         bindSuperAdminAnalyticsRefreshButton();
         bindSuperAdminAnalyticsUpdateListener();
-        renderApplicantsChart(applicantsOverTimeData.labels || [], applicantsOverTimeData.data || []);
-        renderProgramTypeChart();
-        renderBarangayChart();
+        renderUserGrowthChart(usersOverTimeData.labels || [], usersOverTimeData.data || []);
+        renderAccountStatusChart();
+        renderUserRolesChart();
         renderMunicipalityChart();
-        loadArimaForecast();
-        loadProgramForecast();
         bindTimeRangeSelect();
     });
 })();

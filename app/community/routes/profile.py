@@ -14,7 +14,7 @@ from app.location_options import (
     is_valid_barangay,
     is_valid_municipality,
 )
-from app.utils import calculate_profile_completion
+from app.utils import calculate_profile_completion, get_upload_root, resolve_upload_path, normalize_upload_relative
 from app.user_activity_logger import log_profile_edit, log_user_activity
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -580,7 +580,7 @@ def api_profile_completion():
 
 # ============== VERIFICATION REQUEST ROUTES ==============
 
-PROFILE_UPLOAD_FOLDER = 'static/uploads/profile_pics'
+PROFILE_UPLOAD_FOLDER = 'profile_pics'
 PROFILE_ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def profile_allowed_file(filename):
@@ -588,7 +588,7 @@ def profile_allowed_file(filename):
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
-UPLOAD_FOLDER = os.path.join('static', 'uploads', 'verification_documents')
+UPLOAD_FOLDER = os.path.join('verification_documents')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -656,7 +656,7 @@ def request_verification(verification_type):
     
     try:
         # Create upload directory if it doesn't exist
-        upload_path = os.path.join(os.getcwd(), UPLOAD_FOLDER)
+        upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER)
         os.makedirs(upload_path, exist_ok=True)
         
         # Generate unique filename
@@ -669,7 +669,7 @@ def request_verification(verification_type):
         file.save(file_path)
         
         # Update verification status and document path
-        relative_path = f'/{UPLOAD_FOLDER}/{unique_filename}'
+        relative_path = f'{UPLOAD_FOLDER}/{unique_filename}'
         id_number = request.form.get('id_number', '').strip()
         
         if verification_type == 'senior_citizen':
@@ -899,7 +899,7 @@ def upload_community_photo():
         flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP.', 'danger')
         return redirect(url_for('community.edit_profile'))
 
-    upload_path = os.path.join(os.getcwd(), PROFILE_UPLOAD_FOLDER)
+    upload_path = os.path.join(get_upload_root(), PROFILE_UPLOAD_FOLDER)
     os.makedirs(upload_path, exist_ok=True)
 
     # Store old photo path for logging
@@ -907,15 +907,15 @@ def upload_community_photo():
 
     # Delete old photo if exists
     if current_user.profile_pic:
-        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
-        if os.path.exists(old_path):
+        old_path = resolve_upload_path(current_user.profile_pic)
+        if old_path and os.path.exists(old_path):
             os.remove(old_path)
 
     ext = file.filename.rsplit('.', 1)[1].lower()
     unique_filename = f"community_{current_user.id}_{int(datetime.utcnow().timestamp())}.{ext}"
     file.save(os.path.join(upload_path, unique_filename))
 
-    new_photo_path = f'/{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
+    new_photo_path = f'{PROFILE_UPLOAD_FOLDER}/{unique_filename}'
     current_user.profile_pic = new_photo_path
     db.session.add(current_user)
     
@@ -952,8 +952,8 @@ def remove_community_photo():
     
     if current_user.profile_pic:
         old_photo = current_user.profile_pic
-        old_path = os.path.join(os.getcwd(), current_user.profile_pic.lstrip('/'))
-        if os.path.exists(old_path):
+        old_path = resolve_upload_path(current_user.profile_pic)
+        if old_path and os.path.exists(old_path):
             os.remove(old_path)
         current_user.profile_pic = None
         db.session.add(current_user)

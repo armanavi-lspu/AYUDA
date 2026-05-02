@@ -136,11 +136,13 @@ def create_app():
     from .super_admin import super_admin_bp
     from .community import community_bp  
     from .home.routes import home_bp
+    from .files import files_bp
     
     app.register_blueprint(auth_bp, url_prefix='/')
     app.register_blueprint(admin_bp)
     app.register_blueprint(super_admin_bp)
     app.register_blueprint(community_bp)  
+    app.register_blueprint(files_bp)
     app.register_blueprint(home_bp)
     
     # Import models to register them with SQLAlchemy

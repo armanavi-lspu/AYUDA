@@ -9,11 +9,11 @@ import shutil
 from app.admin import admin_bp
 from app.models import Announcements, User, AnnouncementImages, Programs, AdminUsers
 from app.extensions import db
-from app.utils import role_required
+from app.utils import role_required, get_upload_root, resolve_upload_path
 from app.activity_logger import log_announcement
 
 # Configuration
-UPLOAD_FOLDER = 'static/uploads/announcements'
+UPLOAD_FOLDER = 'announcements'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -76,7 +76,7 @@ def _is_valid_generated_beneficiaries_image_path(relative_path):
     normalized = str(relative_path or '').strip().replace('\\', '/')
     if not normalized or '..' in normalized:
         return False
-    return normalized.startswith('static/uploads/beneficiaries_lists/')
+    return normalized.startswith('beneficiaries_lists/')
 
 
 def _generated_image_absolute_path(relative_path):
@@ -84,11 +84,10 @@ def _generated_image_absolute_path(relative_path):
     if not _is_valid_generated_beneficiaries_image_path(relative_path):
         return None
 
-    static_relative = relative_path[len('static/'):].replace('/', os.sep)
-    abs_path = os.path.normpath(os.path.join(current_app.static_folder, static_relative))
-    static_root = os.path.normpath(current_app.static_folder)
+    abs_path = resolve_upload_path(relative_path)
+    upload_root = os.path.normpath(get_upload_root())
 
-    if not abs_path.startswith(static_root):
+    if not abs_path or not abs_path.startswith(upload_root):
         return None
     return abs_path
 
@@ -253,13 +252,14 @@ def add_announcement():
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename and allowed_file(file.filename):
                     # Create upload directory if it doesn't exist
-                    upload_path = os.path.join('static', 'uploads', 'announcements', str(new_announcement.id))
+                    upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER, str(new_announcement.id))
                     os.makedirs(upload_path, exist_ok=True)
                     
                     # Secure filename and save
                     filename = secure_filename(file.filename)
                     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                     unique_filename = f"{timestamp}_{filename}"
+                    file_path_relative = os.path.join(UPLOAD_FOLDER, str(new_announcement.id), unique_filename).replace('\\', '/')
                     file_path = os.path.join(upload_path, unique_filename)
                     
                     file.save(file_path)
@@ -270,7 +270,7 @@ def add_announcement():
                     # Save image record
                     announcement_image = AnnouncementImages(
                         announcement_id=new_announcement.id,
-                        image_path=file_path.replace('\\', '/'),
+                        image_path=file_path_relative,
                         caption=caption,
                         display_order=idx
                     )
@@ -278,7 +278,7 @@ def add_announcement():
 
             generated_image_abs_path = _generated_image_absolute_path(generated_image_path)
             if generated_image_abs_path and os.path.exists(generated_image_abs_path):
-                upload_path = os.path.join('static', 'uploads', 'announcements', str(new_announcement.id))
+                upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER, str(new_announcement.id))
                 os.makedirs(upload_path, exist_ok=True)
 
                 source_name = os.path.basename(generated_image_abs_path)
@@ -294,7 +294,7 @@ def add_announcement():
 
                 db.session.add(AnnouncementImages(
                     announcement_id=new_announcement.id,
-                    image_path=destination_path.replace('\\', '/'),
+                    image_path=os.path.join(UPLOAD_FOLDER, str(new_announcement.id), copied_name).replace('\\', '/'),
                     caption=generated_image_caption,
                     display_order=next_order,
                 ))
@@ -361,13 +361,14 @@ def edit_announcement(id):
         for idx, file in enumerate(uploaded_files):
             if file and file.filename and allowed_file(file.filename):
                 # Create upload directory if it doesn't exist
-                upload_path = os.path.join('static', 'uploads', 'announcements', str(id))
+                upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER, str(id))
                 os.makedirs(upload_path, exist_ok=True)
                 
                 # Secure filename and save
                 filename = secure_filename(file.filename)
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 unique_filename = f"{timestamp}_{filename}"
+                file_path_relative = os.path.join(UPLOAD_FOLDER, str(id), unique_filename).replace('\\', '/')
                 file_path = os.path.join(upload_path, unique_filename)
                 
                 file.save(file_path)
@@ -378,7 +379,7 @@ def edit_announcement(id):
                 # Save image record
                 announcement_image = AnnouncementImages(
                     announcement_id=id,
-                    image_path=file_path.replace('\\', '/'),
+                    image_path=file_path_relative,
                     caption=caption,
                     display_order=max_order + idx + 1
                 )
@@ -390,8 +391,9 @@ def edit_announcement(id):
             image = AnnouncementImages.query.get(int(image_id))
             if image and image.announcement_id == id:
                 # Delete file from filesystem
-                if os.path.exists(image.image_path):
-                    os.remove(image.image_path)
+                image_path = resolve_upload_path(image.image_path)
+                if image_path and os.path.exists(image_path):
+                    os.remove(image_path)
                 db.session.delete(image)
         
         db.session.commit()
@@ -423,7 +425,7 @@ def delete_announcement(id):
                 os.remove(image.image_path)
         
         # Delete announcement directory if empty
-        upload_path = os.path.join('static', 'uploads', 'announcements', str(id))
+        upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER, str(id))
         if os.path.exists(upload_path):
             try:
                 os.rmdir(upload_path)
@@ -456,8 +458,9 @@ def delete_announcement_image(image_id):
     
     try:
         # Delete file from filesystem
-        if os.path.exists(image.image_path):
-            os.remove(image.image_path)
+        image_path = resolve_upload_path(image.image_path)
+        if image_path and os.path.exists(image_path):
+            os.remove(image_path)
         
         db.session.delete(image)
         db.session.commit()

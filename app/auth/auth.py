@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from ..models import User, CommunityUsers
+from ..models import User, CommunityUsers, find_existing_user_by_name
 from werkzeug.security import generate_password_hash, check_password_hash
 from .. import db
 from flask_login import login_user, login_required, logout_user, current_user
@@ -106,9 +106,14 @@ def sign_up():
         email = _normalize_email(request.form.get('email'))
         password = (request.form.get('password') or '')
         confirmPassword = (request.form.get('confirmPassword') or '')
+
+        has_lower = any(char.islower() for char in password)
+        has_upper = any(char.isupper() for char in password)
+        has_symbol = any(not char.isalnum() for char in password)
         
         # Personal Information
         firstName = (request.form.get('firstName') or '').strip()
+        middleName = (request.form.get('middleName') or '').strip()
         lastName = (request.form.get('lastName') or '').strip()
         birthDate = request.form.get('birthDate')  # YYYY-MM-DD format
         gender = request.form.get('gender')
@@ -118,6 +123,7 @@ def sign_up():
 
         # Validation
         user = User.query.filter(_normalized_email_expr() == email).first()
+        existing_name_user = find_existing_user_by_name(firstName, middleName, lastName)
 
         if not email:
             flash('Email is required.', category='error')
@@ -129,6 +135,8 @@ def sign_up():
             flash('First name must be greater than 1 character.', category='error')
         elif len(lastName) < 2:
             flash('Last name must be greater than 1 character.', category='error')
+        elif existing_name_user:
+            flash('User name (First Name, Middle Name, and Last Name) already exists.', category='error')
         elif not birthDate:
             flash('Please enter your birth date.', category='error')
         elif not gender:
@@ -145,8 +153,8 @@ def sign_up():
             flash('Please enter your address.', category='error')
         elif password != confirmPassword:
             flash('Passwords don\'t match.', category='error')
-        elif len(password) < 8:
-            flash('Password must be at least 8 characters.', category='error')
+        elif len(password) < 8 or not (has_lower and has_upper) or not has_symbol:
+            flash('Password must be at least 8 characters and include uppercase, lowercase, and a symbol.', category='error')
         else:
             try:
                 # Parse birth date and calculate age
@@ -168,6 +176,7 @@ def sign_up():
                 new_user = User(
                     email=email,
                     first_name=firstName,
+                    middle_name=middleName,
                     last_name=lastName,
                     role='community',
                     password_hash=generate_password_hash(password, method='pbkdf2:sha256')

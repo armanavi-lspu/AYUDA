@@ -116,6 +116,63 @@
             filter: brightness(1.14);
         }
 
+        .navbar-admin-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-right: auto;
+        }
+
+        .navbar-logo-image {
+            height: 45px;
+            width: auto;
+            display: block;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-admin-brand:hover .navbar-logo-image,
+        .navbar-admin-brand:focus-within .navbar-logo-image,
+        .navbar-admin-brand:hover .navbar-admin-meta,
+        .navbar-admin-brand:focus-within .navbar-admin-meta {
+            transform: scale(1.05);
+            filter: brightness(1.12);
+        }
+
+        .navbar-admin-meta {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: #ffffff;
+            line-height: 1.1;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-admin-role {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .navbar-admin-municipality {
+            font-size: 0.82rem;
+            opacity: 0.85;
+            letter-spacing: 0.01em;
+        }
+
+        @media (max-width: 575.98px) {
+            .navbar-logo-image {
+                height: 32px;
+            }
+
+            .navbar-admin-role {
+                font-size: 0.85rem;
+            }
+
+            .navbar-admin-municipality {
+                font-size: 0.72rem;
+            }
+        }
+
         /* Top Navbar Styling */
         .top-navbar {
             position: fixed;
@@ -1353,8 +1410,12 @@
             }
         }
     </style>
+        <link
+            href="{{ url_for('static', filename='css/ui-buttons.css') }}"
+            rel="stylesheet"
+        />
     
-    <title>{% block title %}Community Portal{% endblock %}</title>
+        <title>{% block title %}Community Portal{% endblock %}</title>
 </head>
 <body>
     <!-- Top Navigation Bar -->
@@ -1363,7 +1424,19 @@
         <button class="navbar-toggler d-lg-none" type="button" id="sidebarToggle" aria-label="Toggle menu" aria-controls="sidebarMenu" aria-expanded="false" style="order: -1; margin-right: 0.5rem;">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <span class="navbar-brand navbar-brand-elegant mb-0">AYUDA</span>
+        <div class="navbar-brand navbar-admin-brand mb-0">
+            <img class="navbar-logo-image" src="{{ url_for('static', filename='images/logo-white.png') }}" alt="AYUDA">
+            <div class="navbar-admin-meta">
+                <span class="navbar-admin-role">MSWD Office</span>
+                <span class="navbar-admin-municipality">
+                    {% if current_user.is_authenticated and current_user.admin_profile and current_user.admin_profile.municipality %}
+                        {{ current_user.admin_profile.municipality }}
+                    {% else %}
+                        Municipality Unset
+                    {% endif %}
+                </span>
+            </div>
+        </div>
         
         <div class="ml-auto d-flex align-items-center">
             <!-- Notification Icon -->
@@ -1434,7 +1507,7 @@
                     <!-- Profile Picture -->
                     <div class="user-avatar-wrapper mr-3">
                         {% if current_user.profile_pic %}
-                            <img src="{{ current_user.profile_pic }}" alt="Profile" class="rounded-circle user-avatar-image">
+                            <img src="{{ url_for('files.profile_pic', user_id=current_user.id) }}" alt="Profile" class="rounded-circle user-avatar-image">
                         {% else %}
                             <div class="rounded-circle d-flex align-items-center justify-content-center user-avatar-fallback">
                                 {{ current_user.first_name[0] | upper }}{{ current_user.last_name[0] | upper }}

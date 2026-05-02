@@ -17,6 +17,13 @@ def _parse_csrf_time_limit(raw_value):
     except ValueError:
         return None
 
+
+def _default_upload_root():
+    """Return a platform-appropriate default upload root."""
+    if os.name == 'nt':
+        return os.path.join(os.getcwd(), 'instance', 'uploads')
+    return '/var/lib/ayuda/uploads'
+
 class Config:
     # Database: Use DATABASE_URL env var (required for production)
     # Format: postgresql://user:password@host:port/database
@@ -48,3 +55,6 @@ class Config:
     # Timezone configuration (defaults to Asia/Manila for Philippines)
     TIMEZONE = os.environ.get('TIMEZONE', 'Asia/Manila')
     TZ = pytz.timezone(TIMEZONE)
+
+    # Private upload storage (outside web root in production).
+    UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', _default_upload_root())

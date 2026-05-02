@@ -11,7 +11,6 @@
             <button type="button" class="btn btn-gradient-primary btn-sm" data-toggle="modal" data-target="#addMunicipalityModal">
                 <i class="fas fa-plus-circle mr-1"></i>Add Municipality
             </button>
-            <a href="{{ url_for('super_admin.dashboard') }}" class="btn btn-outline-custom btn-sm">Back to Dashboard</a>
         </div>
     </div>
 
@@ -121,15 +120,17 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div class="d-flex flex-wrap" style="gap: 0.35rem;">
-                                {% if item.is_configured %}
+                            {% if item.is_configured %}
+                                <div class="action-buttons">
                                     <button type="button" class="btn btn-sm btn-outline-custom" data-toggle="modal" data-target="#editMunicipalityModal{{ item.id }}" title="Rename Municipality">
                                         <i class="fas fa-pen"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Municipality" data-toggle="modal" data-target="#deleteMunicipalityModal{{ item.id }}">
                                         <i class="fas fa-trash"></i>
                                     </button>
-                                {% else %}
+                                </div>
+                            {% else %}
+                                <div class="d-flex flex-wrap" style="gap: 0.35rem;">
                                     <form method="post" action="{{ url_for('super_admin.add_municipality') }}" class="mb-0">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="name" value="{{ item.name }}">
@@ -137,8 +138,8 @@
                                             <i class="fas fa-plus"></i> Register
                                         </button>
                                     </form>
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

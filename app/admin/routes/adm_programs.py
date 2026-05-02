@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 from app.admin import admin_bp
 from app.models import Programs, Requirements, ProgramRequirements, Applications, FileAttachment, CommunityUsers, User, Announcements, Notifications, Assessment, ApplicationDocuments, ApplicationDocumentUploads, SubsidyPayout, UserActivityLog, ProgramWorkflowSteps, ApplicationWorkflowStatus, AdminUsers
 from app.extensions import db
-from app.utils import role_required, manila_strftime
+from app.utils import role_required, manila_strftime, get_upload_root, resolve_upload_path
 from app.activity_logger import log_activity
 from app.recommender import get_recommendations, SENIOR_CITIZEN_AGE, NEED_FOCUSED_WEIGHTS
 from app.community.routes.profile import get_income_range_display
@@ -16,7 +16,7 @@ import json
 from werkzeug.utils import secure_filename
 
 # Configuration
-UPLOAD_FOLDER = 'static/uploads/programs'
+UPLOAD_FOLDER = 'programs'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 DEFAULT_TARGET_AGE = 30
@@ -1539,21 +1539,22 @@ def add_program():
             file = request.files['attachment']
             if file and file.filename and allowed_file(file.filename):
                 # Create upload directory
-                upload_path = os.path.join(UPLOAD_FOLDER)
+                upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER)
                 os.makedirs(upload_path, exist_ok=True)
                 
                 # Secure filename and save
                 filename = secure_filename(file.filename)
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 unique_filename = f"{timestamp}_{filename}"
+                file_path_relative = os.path.join(UPLOAD_FOLDER, unique_filename).replace('\\', '/')
                 file_path = os.path.join(upload_path, unique_filename)
-                
+
                 file.save(file_path)
                 
                 # Create file attachment record
                 file_attachment = FileAttachment(
                     filename=filename,
-                    file_path=file_path.replace('\\', '/'),
+                    file_path=file_path_relative,
                     file_size=os.path.getsize(file_path),
                     file_type=filename.rsplit('.', 1)[1].lower(),
                     uploaded_by_id=current_user.id,
@@ -1973,27 +1974,28 @@ def edit_program(id):
             if file and file.filename and allowed_file(file.filename):
                 # Delete old file if exists
                 if program.file_attachment:
-                    old_file_path = program.file_attachment.file_path
-                    if os.path.exists(old_file_path):
+                    old_file_path = resolve_upload_path(program.file_attachment.file_path)
+                    if old_file_path and os.path.exists(old_file_path):
                         os.remove(old_file_path)
                     db.session.delete(program.file_attachment)
                 
                 # Create upload directory
-                upload_path = os.path.join(UPLOAD_FOLDER)
+                upload_path = os.path.join(get_upload_root(), UPLOAD_FOLDER)
                 os.makedirs(upload_path, exist_ok=True)
                 
                 # Save new file
                 filename = secure_filename(file.filename)
                 timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
                 unique_filename = f"{timestamp}_{filename}"
+                file_path_relative = os.path.join(UPLOAD_FOLDER, unique_filename).replace('\\', '/')
                 file_path = os.path.join(upload_path, unique_filename)
-                
+
                 file.save(file_path)
                 
                 # Create new file attachment record
                 file_attachment = FileAttachment(
                     filename=filename,
-                    file_path=file_path.replace('\\', '/'),
+                    file_path=file_path_relative,
                     file_size=os.path.getsize(file_path),
                     file_type=filename.rsplit('.', 1)[1].lower(),
                     uploaded_by_id=current_user.id,
@@ -2094,8 +2096,8 @@ def delete_program(id):
     try:
         # Delete associated file if exists
         if program.file_attachment:
-            file_path = program.file_attachment.file_path
-            if os.path.exists(file_path):
+            file_path = resolve_upload_path(program.file_attachment.file_path)
+            if file_path and os.path.exists(file_path):
                 os.remove(file_path)
             db.session.delete(program.file_attachment)
         

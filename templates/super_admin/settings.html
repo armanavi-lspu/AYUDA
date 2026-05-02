@@ -22,13 +22,31 @@
 
                     <div class="form-group">
                         <label class="sa-filter-label mb-2">New Password</label>
-                        <input type="password" class="form-control" name="new_password" minlength="8" required>
-                        <small class="form-text text-muted">Use at least 8 characters with a strong mix of letters, numbers, and symbols.</small>
+                        <input type="password" class="form-control" id="superAdminNewPassword" name="new_password" minlength="8" required>
+                        <small class="form-text text-muted">Use at least 8 characters with uppercase, lowercase, and symbols.</small>
+                        <div class="mt-2">
+                            <div class="progress" style="height:4px;">
+                                <div id="superAdminPasswordStrengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                            </div>
+                            <small id="superAdminPasswordStrengthLabel" class="form-text text-muted"></small>
+                            <div class="password-checklist d-flex flex-wrap mt-1">
+                                <small id="superAdminChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                    <i class="far fa-circle mr-1"></i>8+ chars
+                                </small>
+                                <small id="superAdminChecklistCase" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include both uppercase and lowercase letters">
+                                    <i class="far fa-circle mr-1"></i>Upper + lower
+                                </small>
+                                <small id="superAdminChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                    <i class="far fa-circle mr-1"></i>Symbol
+                                </small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="form-group">
                         <label class="sa-filter-label mb-2">Confirm New Password</label>
-                        <input type="password" class="form-control" name="confirm_password" minlength="8" required>
+                        <input type="password" class="form-control" id="superAdminConfirmPassword" name="confirm_password" minlength="8" required>
+                        <small id="superAdminPasswordMatchText" class="form-text"></small>
                     </div>
 
                     <button type="submit" class="btn btn-gradient-primary">
@@ -63,4 +81,121 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('superAdminNewPassword');
+    const bar = document.getElementById('superAdminPasswordStrengthBar');
+    const label = document.getElementById('superAdminPasswordStrengthLabel');
+    const checklistLength = document.getElementById('superAdminChecklistLength');
+    const checklistCase = document.getElementById('superAdminChecklistCase');
+    const checklistSymbol = document.getElementById('superAdminChecklistSymbol');
+    const confirmInput = document.getElementById('superAdminConfirmPassword');
+    const matchText = document.getElementById('superAdminPasswordMatchText');
+
+    if (!passwordInput || !bar || !label) {
+        return;
+    }
+
+    function evaluatePasswordStrength(password) {
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+        const hasCase = hasLower && hasUpper;
+
+        let score = 0;
+        if (password.length >= 8) score += 40;
+        if (password.length >= 12) score += 10;
+        if (hasCase) score += 30;
+        if (hasSymbol) score += 30;
+        score = Math.min(score, 100);
+
+        let labelText = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            labelText = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            labelText = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        return {
+            score,
+            labelText,
+            barClass,
+            hasCase,
+            hasSymbol,
+            lengthOk: password.length >= 8,
+        };
+    }
+
+    function setChecklistItem(item, met) {
+        if (!item) {
+            return;
+        }
+        const icon = item.querySelector('i');
+        if (icon) {
+            icon.className = met
+                ? 'fas fa-check-circle mr-1 text-success'
+                : 'far fa-circle mr-1 text-muted';
+        }
+        item.classList.toggle('text-success', met);
+        item.classList.toggle('text-muted', !met);
+    }
+
+    function renderPasswordStrength(password) {
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar';
+            label.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistCase, false);
+            setChecklistItem(checklistSymbol, false);
+            return;
+        }
+
+        const result = evaluatePasswordStrength(password);
+        bar.style.width = result.score + '%';
+        bar.className = 'progress-bar ' + result.barClass;
+        label.textContent = 'Strength: ' + result.labelText;
+        setChecklistItem(checklistLength, result.lengthOk);
+        setChecklistItem(checklistCase, result.hasCase);
+        setChecklistItem(checklistSymbol, result.hasSymbol);
+    }
+
+    function updateMatchText() {
+        if (!confirmInput || !matchText) {
+            return;
+        }
+        if (!confirmInput.value) {
+            matchText.textContent = '';
+            matchText.className = 'form-text';
+            return;
+        }
+        if (passwordInput.value === confirmInput.value) {
+            matchText.textContent = 'Passwords match';
+            matchText.className = 'form-text text-success';
+        } else {
+            matchText.textContent = 'Passwords do not match';
+            matchText.className = 'form-text text-danger';
+        }
+    }
+
+    passwordInput.addEventListener('input', function() {
+        renderPasswordStrength(passwordInput.value);
+        updateMatchText();
+    });
+
+    if (confirmInput) {
+        confirmInput.addEventListener('input', updateMatchText);
+    }
+
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+        window.jQuery('[data-toggle="tooltip"]').tooltip();
+    }
+});
+</script>
 {% endblock %}

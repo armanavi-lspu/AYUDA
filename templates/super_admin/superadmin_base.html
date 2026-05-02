@@ -78,6 +78,47 @@
             filter: brightness(1.14);
         }
 
+        .navbar-super-admin-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-right: auto;
+        }
+
+        .navbar-logo-image {
+            height: 45px;
+            width: auto;
+            display: block;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-super-admin-brand:hover .navbar-logo-image,
+        .navbar-super-admin-brand:focus-within .navbar-logo-image,
+        .navbar-super-admin-brand:hover .navbar-super-admin-text,
+        .navbar-super-admin-brand:focus-within .navbar-super-admin-text {
+            transform: scale(1.05);
+            filter: brightness(1.12);
+        }
+
+        .navbar-super-admin-text {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            line-height: 1.1;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        @media (max-width: 575.98px) {
+            .navbar-logo-image {
+                height: 32px;
+            }
+
+            .navbar-super-admin-text {
+                font-size: 0.85rem;
+            }
+        }
+
         .top-navbar {
             position: fixed;
             top: 0;
@@ -879,7 +920,7 @@
         .sa-panel select {
             border-radius: 9px;
             border: 1px solid #d8deea;
-            padding: 0.6rem 0.85rem;
+            padding: 0.4rem 0.85rem;
         }
 
         .sa-panel .form-control:focus,
@@ -1003,6 +1044,10 @@
 
     {% block super_admin_extra_css %}{% endblock %}
     {% block extra_css %}{% endblock %}
+        <link
+            href="{{ url_for('static', filename='css/ui-buttons.css') }}"
+            rel="stylesheet"
+        />
     <title>{% block title %}Super Admin - AYUDA{% endblock %}</title>
 </head>
 <body>
@@ -1011,7 +1056,10 @@
         <button class="navbar-toggler d-lg-none" type="button" id="sidebarToggle" aria-label="Toggle menu" aria-controls="sidebarMenu" aria-expanded="false" style="order: -1; margin-right: 0.5rem;">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <span class="navbar-brand navbar-brand-elegant mb-0">AYUDA</span>
+        <div class="navbar-brand navbar-super-admin-brand mb-0">
+            <img class="navbar-logo-image" src="{{ url_for('static', filename='images/logo-white.png') }}" alt="AYUDA">
+            <span class="navbar-super-admin-text">Super Admin</span>
+        </div>
 
         <div class="ml-auto d-flex align-items-center">
             <div class="dropdown mr-2">
@@ -1096,7 +1144,7 @@
                 <div class="d-flex align-items-center">
                     <div class="mr-3">
                         {% if current_user.profile_pic %}
-                            <img src="{{ current_user.profile_pic }}" alt="Profile" class="user-avatar-image">
+                            <img src="{{ url_for('files.profile_pic', user_id=current_user.id) }}" alt="Profile" class="user-avatar-image">
                         {% else %}
                             <div class="user-avatar-fallback">
                                 {{ current_user.first_name[0] | upper }}{{ current_user.last_name[0] | upper }}

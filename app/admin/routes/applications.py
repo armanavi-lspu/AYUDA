@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import asc, desc, or_, func
 from sqlalchemy.orm import aliased
 from app.admin import admin_bp
-from app.utils import role_required, manila_strftime
+from app.utils import role_required, manila_strftime, get_upload_root
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument, AdminUsers
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
@@ -2800,9 +2800,9 @@ def generate_beneficiaries_list():
         if create_announcement:
             timestamp_token = generated_at.strftime('%Y%m%d_%H%M%S_%f')
             generated_image_filename = f'beneficiaries_list_{timestamp_token}.jpg'
-            generated_image_rel_path = f'static/uploads/beneficiaries_lists/{generated_image_filename}'
+            generated_image_rel_path = f'beneficiaries_lists/{generated_image_filename}'
 
-            generated_dir_abs = os.path.join(current_app.static_folder, 'uploads', 'beneficiaries_lists')
+            generated_dir_abs = os.path.join(get_upload_root(), 'beneficiaries_lists')
             os.makedirs(generated_dir_abs, exist_ok=True)
 
             generated_image_abs_path = os.path.join(generated_dir_abs, generated_image_filename)

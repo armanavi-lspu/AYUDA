@@ -5,7 +5,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, ShelterPhotos, SavedProgram, HiddenProgram, ProgramWorkflowSteps, ApplicationWorkflowStatus, AdminUsers, User
 from app.extensions import db
-from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility, manila_strftime
+from app.utils import role_required, calculate_profile_completion, evaluate_program_profile_eligibility, manila_strftime, get_upload_root, resolve_upload_path
 from app.user_activity_logger import log_program_detail_view, log_application_started, log_save_program, log_unsave_program, log_hide_program, log_unhide_program, log_search_query
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import joinedload
@@ -800,8 +800,8 @@ def upload_shelter_photos(application_id):
                         flash(f'File {file.filename} is too large. Maximum size is 5MB.', 'warning')
                         continue
                     
-                    # Create upload directory in Flask's static folder
-                    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'shelter_photos', str(application_id))
+                    # Create upload directory in private storage
+                    upload_dir = os.path.join(get_upload_root(), 'shelter_photos', str(application_id))
                     os.makedirs(upload_dir, exist_ok=True)
                     
                     # Secure filename and save
@@ -816,10 +816,9 @@ def upload_shelter_photos(application_id):
                     caption = captions[idx] if idx < len(captions) else ''
                     
                     # Save to database - store path relative to static folder
-                    relative_path = os.path.join('uploads', 'shelter_photos', str(application_id), unique_filename).replace('\\', '/')
                     shelter_photo = ShelterPhotos(
                         application_id=application_id,
-                        photo_path=f'uploads/shelter_photos/{application_id}/{unique_filename}',
+                        photo_path=f'shelter_photos/{application_id}/{unique_filename}',
                         caption=caption,
                         verification_status='pending'
                     )
@@ -863,8 +862,8 @@ def delete_shelter_photo(photo_id):
     
     try:
         # Delete file from filesystem
-        full_path = os.path.join(current_app.static_folder, photo.photo_path)
-        if os.path.exists(full_path):
+        full_path = resolve_upload_path(photo.photo_path)
+        if full_path and os.path.exists(full_path):
             os.remove(full_path)
         
         application_id = photo.application_id
@@ -943,12 +942,14 @@ def replace_shelter_photo(photo_id):
             return jsonify({'success': False, 'message': 'File is too large. Maximum size is 5MB.'}), 400
         
         # Delete old file
-        old_full_path = os.path.join(current_app.static_folder, photo.photo_path)
-        if os.path.exists(old_full_path):
+        old_full_path = resolve_upload_path(photo.photo_path)
+        if old_full_path and os.path.exists(old_full_path):
             os.remove(old_full_path)
         
         # Save new file in same directory
-        upload_dir = os.path.dirname(old_full_path)
+        upload_dir = os.path.dirname(old_full_path) if old_full_path else os.path.join(
+            get_upload_root(), 'shelter_photos', str(application.id)
+        )
         os.makedirs(upload_dir, exist_ok=True)
         
         filename = secure_filename(file.filename)
@@ -959,14 +960,14 @@ def replace_shelter_photo(photo_id):
         file.save(new_file_path)
         
         # Update database - store relative path
-        photo.photo_path = f'uploads/shelter_photos/{application.id}/{unique_filename}'
+        photo.photo_path = f'shelter_photos/{application.id}/{unique_filename}'
         photo.verification_status = 'pending'  # Reset to pending for re-review
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': 'Photo replaced successfully!',
-            'photo_path': f'uploads/shelter_photos/{application.id}/{unique_filename}'
+            'photo_path': url_for('files.shelter_photo', photo_id=photo.id)
         })
     
     except Exception as e:
@@ -1007,7 +1008,8 @@ def upload_cal_documents(application_id):
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
     
     try:
-        upload_path = os.path.join('static', 'uploads', 'cal_documents', str(application_id))
+        upload_dir_relative = os.path.join('cal_documents', str(application_id))
+        upload_path = os.path.join(get_upload_root(), upload_dir_relative)
         os.makedirs(upload_path, exist_ok=True)
         
         uploaded_docs = []
@@ -1029,18 +1031,20 @@ def upload_cal_documents(application_id):
             else:
                 # Delete old file if exists
                 if existing_cert:
-                    if os.path.exists(existing_cert.file_path):
-                        os.remove(existing_cert.file_path)
+                    old_path = resolve_upload_path(existing_cert.file_path)
+                    if old_path and os.path.exists(old_path):
+                        os.remove(old_path)
                     db.session.delete(existing_cert)
                 
                 filename = secure_filename(f"certificate_{application_id}_{certificate_file.filename}")
-                file_path = os.path.join(upload_path, filename)
-                certificate_file.save(file_path)
+                file_path_relative = os.path.join(upload_dir_relative, filename).replace('\\', '/')
+                file_path_absolute = os.path.join(upload_path, filename)
+                certificate_file.save(file_path_absolute)
                 
                 cal_doc = CALDocuments(
                     application_id=application_id,
                     document_type='certificate',
-                    file_path=file_path,
+                    file_path=file_path_relative,
                     original_filename=certificate_file.filename,
                     description='Certificate of Participation - Seminar/Training'
                 )
@@ -1064,18 +1068,20 @@ def upload_cal_documents(application_id):
             else:
                 # Delete old file if exists
                 if existing_proposal:
-                    if os.path.exists(existing_proposal.file_path):
-                        os.remove(existing_proposal.file_path)
+                    old_path = resolve_upload_path(existing_proposal.file_path)
+                    if old_path and os.path.exists(old_path):
+                        os.remove(old_path)
                     db.session.delete(existing_proposal)
                 
                 filename = secure_filename(f"proposal_{application_id}_{proposal_file.filename}")
-                file_path = os.path.join(upload_path, filename)
-                proposal_file.save(file_path)
+                file_path_relative = os.path.join(upload_dir_relative, filename).replace('\\', '/')
+                file_path_absolute = os.path.join(upload_path, filename)
+                proposal_file.save(file_path_absolute)
                 
                 cal_doc = CALDocuments(
                     application_id=application_id,
                     document_type='proposal',
-                    file_path=file_path,
+                    file_path=file_path_relative,
                     original_filename=proposal_file.filename,
                     description=proposal_description or 'Capital Assistance Proposal'
                 )
@@ -1128,8 +1134,9 @@ def delete_ca_document(doc_id):
     
     try:
         # Delete file from filesystem
-        if os.path.exists(cal_doc.file_path):
-            os.remove(cal_doc.file_path)
+        old_path = resolve_upload_path(cal_doc.file_path)
+        if old_path and os.path.exists(old_path):
+            os.remove(old_path)
         
         application_id = cal_doc.application_id
         doc_type = cal_doc.document_type

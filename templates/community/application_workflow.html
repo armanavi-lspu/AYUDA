@@ -777,8 +777,8 @@
                                     <div class="col-md-4 mb-3">
                                         <div class="card h-100 {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
                                             <div class="card-img-top bg-light d-flex align-items-center justify-content-center position-relative" style="height: 180px;">
-                                                <img src="{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
-                                                     alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
+                                                   <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
+                                                       alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('files.shelter_photo', photo_id=photo.id) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
                                                 {% if photo.verification_status != 'approved' %}
                                                 <button type="button" class="btn btn-sm btn-danger" onclick="setPhotoForDelete({{ photo.id }})" data-toggle="modal" data-target="#deletePhotoConfirmModal" style="position: absolute; top: 5px; right: 5px; border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(220, 53, 69, 0.9); border: none;" title="Delete photo">
                                                     <i class="fas fa-times" style="font-size: 16px;"></i>
@@ -890,8 +890,8 @@
                             <div class="col-md-4 mb-3" id="photo-{{ photo.id }}">
                                 <div class="card h-100 {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
                                     <div class="card-img-top bg-light d-flex align-items-center justify-content-center position-relative" style="height: 180px;">
-                                        <img src="{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
-                                             alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('static', filename=photo.photo_path.replace('static/', '')) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
+                                        <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
+                                            alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('files.shelter_photo', photo_id=photo.id) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
                                         {% if photo.verification_status != 'approved' %}
                                         <button type="button" class="btn btn-sm btn-danger" onclick="setPhotoForDelete({{ photo.id }})" data-toggle="modal" data-target="#deletePhotoConfirmModal" style="position: absolute; top: 5px; right: 5px; border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(220, 53, 69, 0.9); border: none;" title="Delete photo">
                                             <i class="fas fa-times" style="font-size: 16px;"></i>
@@ -2089,12 +2089,7 @@ function addPhotoToGrid(photo) {
     const noPhotosMsg = document.getElementById('noPhotosMessage');
     if (noPhotosMsg) noPhotosMsg.style.display = 'none';
     
-    // Format photo path correctly for static files
-    let photoPath = photo.photo_path;
-    if (!photoPath.startsWith('/static/')) {
-        photoPath = photoPath.replace('static/', '');
-        photoPath = '/static/' + photoPath;
-    }
+    const photoPath = photo.photo_path;
     
     const photoHtml = `
         <div class="col-md-4 mb-3" id="photo-${photo.id}">
@@ -2574,7 +2569,7 @@ function replacePhoto() {
             if (photoCard) {
                 const img = photoCard.querySelector('img');
                 if (img) {
-                    img.src = `/static/${data.photo_path}`;
+                    img.src = data.photo_path;
                 }
             }
         } else {
