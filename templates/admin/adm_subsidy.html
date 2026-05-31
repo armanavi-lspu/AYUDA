@@ -946,6 +946,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const $ = window.jQuery;
     const validSubsidyCategories = ['pwd', 'senior', 'solo_parent'];
+    const COPY_TYPE_LIMIT = 3;
 
     function applyScheduleModalQueryParams() {
         const params = new URLSearchParams(window.location.search);
@@ -985,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="row align-items-end mb-2 copy-spec-row">
                 <div class="col-md-7 mb-2 mb-md-0">
                     <label class="small font-weight-bold">Copy Type</label>
-                    <select class="form-control form-control-sm" name="copy_type_${requirementId}[]">
+                    <select class="form-control form-control-sm copy-type-select" name="copy_type_${requirementId}[]">
                         <option value="original" ${copyType === 'original' ? 'selected' : ''}>${copyTypeLabel('original')}</option>
                         <option value="photocopy" ${copyType === 'photocopy' ? 'selected' : ''}>${copyTypeLabel('photocopy')}</option>
                         <option value="certified_true_copy" ${copyType === 'certified_true_copy' ? 'selected' : ''}>${copyTypeLabel('certified_true_copy')}</option>
@@ -1014,6 +1015,56 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function getSelectedCopyTypes(listEl) {
+        const selected = new Set();
+        if (!listEl || !listEl.length) {
+            return selected;
+        }
+
+        listEl.find('.copy-type-select').each(function() {
+            const value = String(this.value || '').trim();
+            if (value) {
+                selected.add(value);
+            }
+        });
+
+        return selected;
+    }
+
+    function getRequirementIdFromInput(inputEl) {
+        const name = inputEl && inputEl.getAttribute ? inputEl.getAttribute('name') : '';
+        const match = name ? name.match(/copy_type_(\d+)\[\]/) : null;
+        return match ? match[1] : '';
+    }
+
+    function updateCopyTypeOptions(requirementId) {
+        const container = $(`#copySpecsContainer${requirementId}`);
+        if (!container.length) {
+            return;
+        }
+
+        const listEl = container.find('.copy-specs-list');
+        const selects = listEl.find('.copy-type-select');
+        const selected = getSelectedCopyTypes(listEl);
+        const rowCount = listEl.children('.copy-spec-row').length;
+
+        selects.each(function() {
+            const currentValue = String(this.value || '').trim();
+            $(this).find('option').each(function() {
+                if (!this.value) {
+                    return;
+                }
+
+                const isTaken = selected.has(this.value) && this.value !== currentValue;
+                this.hidden = isTaken;
+                this.disabled = isTaken;
+            });
+        });
+
+        const addBtn = container.find('.add-copy-spec-btn');
+        addBtn.toggle(rowCount < COPY_TYPE_LIMIT);
+    }
+
     function toggleCopySpecs(requirementId, isChecked) {
         const container = $(`#copySpecsContainer${requirementId}`);
         if (!container.length) {
@@ -1023,6 +1074,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isChecked) {
             container.show();
             ensureAtLeastOneCopyRow(requirementId);
+            updateCopyTypeOptions(requirementId);
         } else {
             container.hide();
         }
@@ -1036,6 +1088,7 @@ document.addEventListener('DOMContentLoaded', function() {
         $('.copy-specs-list').each(function() {
             const requirementId = $(this).data('requirement-id');
             $(this).empty().append(buildCopySpecRow(requirementId));
+            updateCopyTypeOptions(requirementId);
         });
 
         const searchInput = document.getElementById('subsidyDocRequirementSearch');
@@ -1125,6 +1178,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const safeCount = Number(copySpec.count) > 0 ? Number(copySpec.count) : 1;
                 listEl.append(buildCopySpecRow(resolvedId, safeType, safeCount));
             });
+
+            updateCopyTypeOptions(resolvedId);
         });
 
         const searchInput = document.getElementById('subsidyDocRequirementSearch');
@@ -1205,10 +1260,23 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleCopySpecs(reqId, this.checked);
     });
 
+    $(document).on('change', '.copy-specs-container .copy-type-select', function() {
+        const reqId = getRequirementIdFromInput(this);
+        if (reqId) {
+            updateCopyTypeOptions(reqId);
+        }
+    });
+
     $(document).on('click', '.add-copy-spec-btn', function() {
         const reqId = String($(this).data('requirement-id'));
         const listEl = $(`#copySpecsContainer${reqId} .copy-specs-list`);
+        const rowCount = listEl.children('.copy-spec-row').length;
+        if (rowCount >= COPY_TYPE_LIMIT) {
+            updateCopyTypeOptions(reqId);
+            return;
+        }
         listEl.append(buildCopySpecRow(reqId));
+        updateCopyTypeOptions(reqId);
     });
 
     $(document).on('click', '.remove-copy-spec-btn', function() {
@@ -1218,6 +1286,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         row.remove();
+        const reqId = listEl.data('requirement-id');
+        if (reqId) {
+            updateCopyTypeOptions(reqId);
+        }
     });
 
     const subsidyDocRequirementSearch = document.getElementById('subsidyDocRequirementSearch');

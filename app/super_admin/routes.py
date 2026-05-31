@@ -579,38 +579,53 @@ def municipalities():
         community_counts[key] = community_counts.get(key, 0) + int(count or 0)
         name_by_key.setdefault(key, normalized_name)
 
-    application_counts = {}
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    active_admin_counts = {}
     for municipality, count in db.session.query(
-        CommunityUsers.municipality,
-        func.count(Applications.id)
+        AdminUsers.municipality,
+        func.count(func.distinct(User.id))
     ).join(
-        Applications, Applications.user_id == CommunityUsers.user_id
+        User, User.id == AdminUsers.user_id
+    ).outerjoin(
+        AdminActivityLog, AdminActivityLog.admin_id == User.id
     ).filter(
-        CommunityUsers.municipality.isnot(None),
-        CommunityUsers.municipality != ''
-    ).group_by(CommunityUsers.municipality).all():
+        AdminUsers.municipality.isnot(None),
+        AdminUsers.municipality != ''
+    ).filter(
+        or_(
+            User.last_activity >= seven_days_ago,
+            AdminActivityLog.created_at >= seven_days_ago,
+        )
+    ).group_by(AdminUsers.municipality).all():
         normalized_name = _normalize_municipality_name(municipality)
         if not normalized_name:
             continue
         key = normalized_name.lower()
-        application_counts[key] = application_counts.get(key, 0) + int(count or 0)
+        active_admin_counts[key] = active_admin_counts.get(key, 0) + int(count or 0)
         name_by_key.setdefault(key, normalized_name)
 
-    program_counts = {}
+    active_community_counts = {}
     for municipality, count in db.session.query(
         CommunityUsers.municipality,
-        func.count(func.distinct(Applications.program_id))
+        func.count(func.distinct(User.id))
     ).join(
-        Applications, Applications.user_id == CommunityUsers.user_id
+        User, User.id == CommunityUsers.user_id
+    ).outerjoin(
+        UserActivityLog, UserActivityLog.user_id == User.id
     ).filter(
         CommunityUsers.municipality.isnot(None),
         CommunityUsers.municipality != ''
+    ).filter(
+        or_(
+            User.last_activity >= seven_days_ago,
+            UserActivityLog.created_at >= seven_days_ago,
+        )
     ).group_by(CommunityUsers.municipality).all():
         normalized_name = _normalize_municipality_name(municipality)
         if not normalized_name:
             continue
         key = normalized_name.lower()
-        program_counts[key] = program_counts.get(key, 0) + int(count or 0)
+        active_community_counts[key] = active_community_counts.get(key, 0) + int(count or 0)
         name_by_key.setdefault(key, normalized_name)
 
     rows = []
@@ -621,15 +636,19 @@ def municipalities():
         configured_record = configured_by_key.get(key)
         admin_count = int(admin_counts.get(key, 0))
         community_count = int(community_counts.get(key, 0))
+        active_admin_count = int(active_admin_counts.get(key, 0))
+        active_community_count = int(active_community_counts.get(key, 0))
+        active_accounts = active_admin_count + active_community_count
 
         rows.append({
             'id': configured_record.id if configured_record else None,
             'name': configured_record.name if configured_record else display_name,
             'admin_count': admin_count,
             'community_count': community_count,
+            'active_admin_count': active_admin_count,
+            'active_community_count': active_community_count,
+            'active_accounts': active_accounts,
             'total_accounts': admin_count + community_count,
-            'application_count': int(application_counts.get(key, 0)),
-            'program_count': int(program_counts.get(key, 0)),
             'is_configured': bool(configured_record),
             'updated_at': configured_record.updated_at if configured_record else None,
         })
@@ -637,12 +656,13 @@ def municipalities():
     rows.sort(
         key=lambda item: (
             -item['total_accounts'],
-            -item['application_count'],
+            -item['active_accounts'],
             item['name'].lower(),
         )
     )
 
     total_accounts = sum(item['total_accounts'] for item in rows)
+    active_accounts = sum(item['active_accounts'] for item in rows)
     configured_count = sum(1 for item in rows if item['is_configured'])
     observed_count = len(rows) - configured_count
 
@@ -652,6 +672,7 @@ def municipalities():
         municipalities=rows,
         configured_count=configured_count,
         observed_count=observed_count,
+        active_accounts=active_accounts,
         total_accounts=total_accounts,
         search=search,
     )
@@ -772,7 +793,7 @@ def delete_municipality(municipality_id):
 @login_required
 @role_required('super_admin')
 def municipality_detail(municipality_name):
-    """Municipality performance page with account, application, and program analytics."""
+    """Municipality performance page with account coverage and activity monitoring."""
     normalized_name = _normalize_municipality_name(municipality_name)
     if not normalized_name:
         flash('Municipality was not found.', 'danger')
@@ -788,14 +809,13 @@ def municipality_detail(municipality_name):
         active_tab = 'overview'
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-
     total_admins = AdminUsers.query.filter(
         func.lower(AdminUsers.municipality) == municipality_key
     ).count()
     total_community_users = CommunityUsers.query.filter(
         func.lower(CommunityUsers.municipality) == municipality_key
     ).count()
+    total_accounts = total_admins + total_community_users
 
     active_admins = User.query.join(
         AdminUsers, AdminUsers.user_id == User.id
@@ -809,89 +829,46 @@ def municipality_detail(municipality_name):
         func.lower(CommunityUsers.municipality) == municipality_key,
         User.last_activity >= seven_days_ago,
     ).count()
+    inactive_admins = max(total_admins - active_admins, 0)
+    inactive_community_users = max(total_community_users - active_community_users, 0)
+    active_accounts = active_admins + active_community_users
+    inactive_accounts = max(total_accounts - active_accounts, 0)
 
-    applications_query = Applications.query.join(
-        CommunityUsers, CommunityUsers.user_id == Applications.user_id
+    today = datetime.utcnow().date()
+    daily_dates = [today - timedelta(days=offset) for offset in range(6, -1, -1)]
+    day_label_lookup = {day: day.strftime('%b %d') for day in daily_dates}
+    activity_map = {day: {'admin': 0, 'community': 0} for day in daily_dates}
+    activity_start = datetime.combine(daily_dates[0], datetime.min.time())
+
+    for log in AdminActivityLog.query.join(
+        AdminUsers, AdminUsers.user_id == AdminActivityLog.admin_id
     ).filter(
-        func.lower(CommunityUsers.municipality) == municipality_key
-    )
+        func.lower(AdminUsers.municipality) == municipality_key,
+        AdminActivityLog.created_at >= activity_start,
+    ).all():
+        if not log.created_at:
+            continue
+        day = log.created_at.date()
+        if day in activity_map:
+            activity_map[day]['admin'] += 1
 
-    total_applications = applications_query.count()
-    recent_applications = applications_query.filter(
-        Applications.application_date >= thirty_days_ago
-    ).count()
+    for log in UserActivityLog.query.join(
+        CommunityUsers, CommunityUsers.user_id == UserActivityLog.user_id
+    ).filter(
+        func.lower(CommunityUsers.municipality) == municipality_key,
+        UserActivityLog.created_at >= activity_start,
+    ).all():
+        if not log.created_at:
+            continue
+        day = log.created_at.date()
+        if day in activity_map:
+            activity_map[day]['community'] += 1
 
-    status_counts = {
-        status: int(count or 0)
-        for status, count in db.session.query(
-            Applications.application_status,
-            func.count(Applications.id)
-        ).join(
-            CommunityUsers, CommunityUsers.user_id == Applications.user_id
-        ).filter(
-            func.lower(CommunityUsers.municipality) == municipality_key
-        ).group_by(
-            Applications.application_status
-        ).all()
-        if status
+    municipality_activity_chart = {
+        'labels': [day_label_lookup[day] for day in daily_dates],
+        'admin': [activity_map[day]['admin'] for day in daily_dates],
+        'community': [activity_map[day]['community'] for day in daily_dates],
     }
-
-    pending_count = int(status_counts.get('pending', 0))
-    approved_count = int(status_counts.get('approved', 0))
-    active_count = int(status_counts.get('active', 0))
-    completed_count = int(status_counts.get('completed', 0))
-    rejected_count = int(status_counts.get('rejected', 0))
-
-    approved_pipeline = approved_count + active_count + completed_count
-    approval_rate = round((approved_pipeline / total_applications) * 100, 1) if total_applications else 0.0
-    completion_rate = round((completed_count / total_applications) * 100, 1) if total_applications else 0.0
-
-    total_programs = db.session.query(
-        func.count(func.distinct(Applications.program_id))
-    ).join(
-        CommunityUsers, CommunityUsers.user_id == Applications.user_id
-    ).filter(
-        func.lower(CommunityUsers.municipality) == municipality_key
-    ).scalar() or 0
-
-    application_count_label = func.count(Applications.id).label('application_count')
-    accepted_count_label = func.sum(
-        case(
-            (Applications.application_status.in_(['approved', 'active', 'completed']), 1),
-            else_=0,
-        )
-    ).label('accepted_count')
-
-    top_program_rows = db.session.query(
-        Programs.id.label('program_id'),
-        Programs.program_name.label('program_name'),
-        application_count_label,
-        accepted_count_label,
-    ).join(
-        Applications, Applications.program_id == Programs.id
-    ).join(
-        CommunityUsers, CommunityUsers.user_id == Applications.user_id
-    ).filter(
-        func.lower(CommunityUsers.municipality) == municipality_key
-    ).group_by(
-        Programs.id,
-        Programs.program_name,
-    ).order_by(
-        application_count_label.desc(),
-        Programs.program_name.asc(),
-    ).limit(8).all()
-
-    top_programs = []
-    for row in top_program_rows:
-        accepted_count = int(row.accepted_count or 0)
-        application_count = int(row.application_count or 0)
-        top_programs.append({
-            'program_id': row.program_id,
-            'program_name': row.program_name,
-            'application_count': application_count,
-            'accepted_count': accepted_count,
-            'acceptance_rate': round((accepted_count / application_count) * 100, 1) if application_count else 0.0,
-        })
 
     top_barangays = db.session.query(
         CommunityUsers.barangay,
@@ -955,17 +932,12 @@ def municipality_detail(municipality_name):
         total_community_users=total_community_users,
         active_admins=active_admins,
         active_community_users=active_community_users,
-        total_applications=total_applications,
-        recent_applications=recent_applications,
-        pending_count=pending_count,
-        approved_count=approved_count,
-        active_count=active_count,
-        completed_count=completed_count,
-        rejected_count=rejected_count,
-        approval_rate=approval_rate,
-        completion_rate=completion_rate,
-        total_programs=total_programs,
-        top_programs=top_programs,
+        total_accounts=total_accounts,
+        active_accounts=active_accounts,
+        inactive_accounts=inactive_accounts,
+        inactive_admins=inactive_admins,
+        inactive_community_users=inactive_community_users,
+        municipality_activity_chart=municipality_activity_chart,
         top_barangays=top_barangays,
         admin_users=admin_users,
         community_users=community_users,

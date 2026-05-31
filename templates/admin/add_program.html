@@ -669,18 +669,80 @@
                     <form id="addProgramForm" method="POST" action="{{ url_for('admin.add_program') }}" enctype="multipart/form-data">
                         <!-- Define copy field functions early so they're available to inline event handlers -->
                         <script>
+                            const COPY_TYPE_LIMIT = 3;
+
                             function toggleCopyFieldsAdd(reqId, isChecked) {
                                 const copyFieldsDiv = document.querySelector(`.copy-fields-add-${reqId}`);
                                 if (copyFieldsDiv) {
                                     copyFieldsDiv.style.display = isChecked ? 'block' : 'none';
+                                    if (isChecked) {
+                                        updateCopyTypeOptionsAdd(reqId);
+                                    }
+                                }
+                            }
+
+                            function getSelectedCopyTypesFromList(list) {
+                                const selected = new Set();
+                                if (!list) {
+                                    return selected;
+                                }
+
+                                list.querySelectorAll('.copy-type-select').forEach((select) => {
+                                    const value = String(select.value || '').trim();
+                                    if (value) {
+                                        selected.add(value);
+                                    }
+                                });
+
+                                return selected;
+                            }
+
+                            function updateCopyTypeOptionsAdd(reqId) {
+                                const list = document.querySelector(`.copy-specs-list-${reqId}`);
+                                if (!list) {
+                                    return;
+                                }
+
+                                const selects = list.querySelectorAll('.copy-type-select');
+                                const selected = getSelectedCopyTypesFromList(list);
+                                const rowCount = list.querySelectorAll('.copy-spec-row').length;
+
+                                selects.forEach((select) => {
+                                    const currentValue = String(select.value || '').trim();
+                                    Array.from(select.options).forEach((option) => {
+                                        if (!option.value) {
+                                            return;
+                                        }
+
+                                        const isTaken = selected.has(option.value) && option.value !== currentValue;
+                                        option.hidden = isTaken;
+                                        option.disabled = isTaken;
+                                    });
+                                });
+
+                                const container = list.closest('.copy-fields-add');
+                                if (container) {
+                                    const addBtn = container.querySelector('.add-copy-spec-btn');
+                                    if (addBtn) {
+                                        addBtn.style.display = rowCount >= COPY_TYPE_LIMIT ? 'none' : '';
+                                    }
                                 }
                             }
                             
                             // Add new copy specification row
                             function addCopySpecRow(reqId) {
                                 const container = document.querySelector(`.copy-specs-list-${reqId}`);
+                                if (!container) {
+                                    return;
+                                }
+
+                                const rowCount = container.querySelectorAll('.copy-spec-row').length;
+                                if (rowCount >= COPY_TYPE_LIMIT) {
+                                    updateCopyTypeOptionsAdd(reqId);
+                                    return;
+                                }
+
                                 const rowId = Date.now();
-                                
                                 const row = document.createElement('div');
                                 row.className = 'copy-spec-row form-row align-items-end mb-2';
                                 row.id = `spec-row-${rowId}`;
@@ -705,19 +767,50 @@
                                     </div>
                                 `;
                                 container.appendChild(row);
+
+                                const newSelect = row.querySelector('.copy-type-select');
+                                if (newSelect) {
+                                    newSelect.addEventListener('change', () => updateCopyTypeOptionsAdd(reqId));
+                                }
+
+                                updateCopyTypeOptionsAdd(reqId);
                             }
                             
                             // Remove copy specification row
                             function removeCopySpecRow(rowIdOrBtn) {
-                                // Handle both cases: passed as button element or row ID string
+                                let row = null;
                                 if (typeof rowIdOrBtn === 'string') {
-                                    // rowIdOrBtn is a row ID string
-                                    const row = document.getElementById(`spec-row-${rowIdOrBtn}`);
-                                    if (row) row.remove();
-                                } else {
-                                    // rowIdOrBtn is the button element
-                                    rowIdOrBtn.closest('.copy-spec-row').remove();
+                                    row = document.getElementById(`spec-row-${rowIdOrBtn}`);
+                                } else if (rowIdOrBtn) {
+                                    row = rowIdOrBtn.closest('.copy-spec-row');
                                 }
+
+                                if (!row) {
+                                    return;
+                                }
+
+                                const container = row.closest('.copy-fields-add');
+                                row.remove();
+
+                                if (container && container.dataset.reqId) {
+                                    updateCopyTypeOptionsAdd(container.dataset.reqId);
+                                }
+                            }
+
+                            function initializeCopyTypeOptionsAdd() {
+                                const containers = document.querySelectorAll('.copy-fields-add');
+                                containers.forEach((container) => {
+                                    const reqId = container.dataset.reqId;
+                                    if (!reqId) {
+                                        return;
+                                    }
+
+                                    container.querySelectorAll('.copy-type-select').forEach((select) => {
+                                        select.addEventListener('change', () => updateCopyTypeOptionsAdd(reqId));
+                                    });
+
+                                    updateCopyTypeOptionsAdd(reqId);
+                                });
                             }
                             
                             // Collect copy specifications before form submission
@@ -764,6 +857,8 @@
                                         collectCopySpecs(form);
                                     });
                                 }
+
+                                initializeCopyTypeOptionsAdd();
                             });
                         </script>
 
@@ -1123,7 +1218,7 @@
                                                             {% endif %}
                                                         </label>
                                                     </div>
-                                                    <div class="ml-4 copy-fields-add-{{ req.id }}" style="display: none;">
+                                                    <div class="ml-4 copy-fields-add copy-fields-add-{{ req.id }}" style="display: none;" data-req-id="{{ req.id }}">
                                                         <div class="card card-sm bg-light">
                                                             <div class="card-header py-2 bg-white">
                                                                 <h6 class="mb-0 small font-weight-bold">Copy Requirements</h6>
@@ -1153,7 +1248,7 @@
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRow({{ req.id }})">
+                                                                <button type="button" class="btn btn-sm btn-outline-primary add-copy-spec-btn" data-req-id="{{ req.id }}" onclick="addCopySpecRow({{ req.id }})">
                                                                     <i class="fas fa-plus mr-1"></i>Add Another Copy Type
                                                                 </button>
                                                             </div>
@@ -2275,7 +2370,7 @@ $(document).ready(function() {
                 let copyFieldsHtml = '';
                 if (type === 'document') {
                     copyFieldsHtml = `
-                        <div class="ml-4 copy-fields-add-${data.requirement.id}" style="display: none;">
+                        <div class="ml-4 copy-fields-add copy-fields-add-${data.requirement.id}" style="display: none;" data-req-id="${data.requirement.id}">
                             <div class="form-row">
                                 <div class="form-group col-md-6">
                                     <label for="copies${data.requirement.id}" class="small font-weight-bold">Number of Copies</label>

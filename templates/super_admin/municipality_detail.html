@@ -5,7 +5,7 @@
     <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
         <div>
             <h1 class="mb-1">{{ municipality_name }} Performance</h1>
-            <p class="subtitle">Account footprint, application outcomes, and operational activity for this municipality.</p>
+            <p class="subtitle">Account footprint and operational activity for this municipality.</p>
         </div>
         <a href="{{ url_for('super_admin.municipalities') }}" class="btn btn-outline-custom btn-sm mt-3 mt-md-0">Back to Municipality Controls</a>
     </div>
@@ -76,14 +76,14 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="sa-stat-label">Applications</div>
-                                <div class="sa-stat-value">{{ total_applications }}</div>
+                                <div class="sa-stat-label">Total Accounts</div>
+                                <div class="sa-stat-value">{{ total_accounts }}</div>
                             </div>
-                            <div class="sa-stat-icon icon-warning">
-                                <i class="fas fa-file-alt"></i>
+                            <div class="sa-stat-icon icon-success">
+                                <i class="fas fa-user-check"></i>
                             </div>
                         </div>
-                        <small class="text-muted">Last 30 days: {{ recent_applications }}</small>
+                        <small class="text-muted">Active (7d): {{ active_accounts }}</small>
                     </div>
                 </div>
             </div>
@@ -92,14 +92,14 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="sa-stat-label">Programs Reached</div>
-                                <div class="sa-stat-value">{{ total_programs }}</div>
+                                <div class="sa-stat-label">Inactive Accounts (7d)</div>
+                                <div class="sa-stat-value">{{ inactive_accounts }}</div>
                             </div>
-                            <div class="sa-stat-icon icon-success">
-                                <i class="fas fa-layer-group"></i>
+                            <div class="sa-stat-icon icon-warning">
+                                <i class="fas fa-user-slash"></i>
                             </div>
                         </div>
-                        <small class="text-muted">Approval rate: {{ approval_rate }}%</small>
+                        <small class="text-muted">No activity in 7 days</small>
                     </div>
                 </div>
             </div>
@@ -109,89 +109,41 @@
             <div class="col-lg-8 mb-3">
                 <div class="card sa-panel h-100">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0">Application Status Breakdown</h6>
+                        <h6 class="mb-0">Recorded Activity Over Time (Last 7 Days)</h6>
                     </div>
                     <div class="card-body">
-                        <div class="row text-center">
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Pending</div>
-                                <div class="h4 mb-0">{{ pending_count }}</div>
-                            </div>
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Approved</div>
-                                <div class="h4 mb-0">{{ approved_count }}</div>
-                            </div>
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Active</div>
-                                <div class="h4 mb-0">{{ active_count }}</div>
-                            </div>
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Completed</div>
-                                <div class="h4 mb-0">{{ completed_count }}</div>
-                            </div>
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Rejected</div>
-                                <div class="h4 mb-0">{{ rejected_count }}</div>
-                            </div>
-                            <div class="col-4 col-md-2 mb-3">
-                                <div class="sa-stat-label">Completion Rate</div>
-                                <div class="h4 mb-0">{{ completion_rate }}%</div>
-                            </div>
-                        </div>
+                        <canvas id="municipalityActivityChart" style="height: 320px;"></canvas>
                     </div>
                 </div>
             </div>
             <div class="col-lg-4 mb-3">
                 <div class="card sa-panel h-100">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0">Top Barangays</h6>
+                        <h6 class="mb-0">Barangay User Counts</h6>
                     </div>
-                    <div class="card-body p-0">
-                        <ul class="list-group list-group-flush">
-                            {% for barangay, residents in top_barangays %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <span>{{ barangay }}</span>
-                                <span class="badge badge-light">{{ residents }}</span>
-                            </li>
-                            {% else %}
-                            <li class="list-group-item text-muted">No barangay data yet.</li>
-                            {% endfor %}
-                        </ul>
+                    <div class="table-responsive">
+                        <table class="table table-sm sa-table mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Barangay</th>
+                                    <th class="text-right">Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for barangay, residents in top_barangays %}
+                                <tr>
+                                    <td>{{ barangay }}</td>
+                                    <td class="text-right"><span class="badge badge-light">{{ residents }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">No barangay data yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="card sa-panel mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Program Performance</h6>
-                <span class="badge badge-light">Top {{ top_programs|length }} by applications</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover sa-table mb-0">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>Program</th>
-                            <th>Total Applications</th>
-                            <th>Accepted</th>
-                            <th>Acceptance Rate</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for program in top_programs %}
-                        <tr>
-                            <td>{{ program.program_name }}</td>
-                            <td>{{ program.application_count }}</td>
-                            <td>{{ program.accepted_count }}</td>
-                            <td>{{ program.acceptance_rate }}%</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-4">No program applications recorded for this municipality.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -259,6 +211,7 @@
                 </div>
             </div>
         </div>
+        <script type="application/json" id="municipality-activity-data">{{ municipality_activity_chart | tojson }}</script>
     {% elif active_tab == 'users' %}
         <div class="card sa-panel">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -380,4 +333,60 @@
             </div>
         </div>
     {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+(function () {
+    function parseData(id, fallback) {
+        const node = document.getElementById(id);
+        if (!node) return fallback;
+        try {
+            return JSON.parse(node.textContent || '{}');
+        } catch (e) {
+            console.error('Failed to parse chart data for', id, e);
+            return fallback;
+        }
+    }
+
+    const activityData = parseData('municipality-activity-data', { labels: [], admin: [], community: [] });
+    const activityCtx = document.getElementById('municipalityActivityChart');
+    if (activityCtx) {
+        new Chart(activityCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: activityData.labels,
+                datasets: [
+                    {
+                        label: 'Admin Activity',
+                        data: activityData.admin,
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        backgroundColor: 'rgba(54, 185, 204, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: 'Community Activity',
+                        data: activityData.community,
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        backgroundColor: 'rgba(28, 200, 138, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                },
+            },
+        });
+    }
+})();
+</script>
 {% endblock %}

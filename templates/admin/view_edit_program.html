@@ -1629,7 +1629,7 @@
                                                     </div>
                                                     {% set prog_req = program.program_requirements|selectattr('requirement_id', 'equalto', req.id)|first %}
                                                     {% set copy_specs = prog_req.get_copy_specifications() if prog_req else [{'type': 'original', 'count': 1}] %}
-                                                    <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: {% if req.id in existing_reqs %}block{% else %}none{% endif %};">
+                                                    <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: {% if req.id in existing_reqs %}block{% else %}none{% endif %};" data-req-id="{{ req.id }}">
                                                         <div class="copy-specs-list-edit-{{ req.id }}">
                                                             {% for spec in copy_specs %}
                                                             <div class="copy-spec-row form-row align-items-end mb-2">
@@ -1654,7 +1654,7 @@
                                                             </div>
                                                             {% endfor %}
                                                         </div>
-                                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRowEdit({{ req.id }})">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary add-copy-spec-btn" data-req-id="{{ req.id }}" onclick="addCopySpecRowEdit({{ req.id }})">
                                                             <i class="fas fa-plus mr-1"></i>Add Another Copy Type
                                                         </button>
                                                     </div>
@@ -1901,27 +1901,27 @@
                                     </button>
                                     <div class="dropdown-menu p-3" aria-labelledby="rankedPriorityGroupsDropdownBtn" style="width: 100%; max-height: 220px; overflow-y: auto;">
                                         <div class="custom-control custom-checkbox mb-2">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupLowIncomeFamilies" value="Low Income Families" {% if 'Low Income Families' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupLowIncomeFamilies" value="Low Income Families" checked>
                                             <label class="custom-control-label" for="rankedGroupLowIncomeFamilies">Low Income Families</label>
                                         </div>
                                         <div class="custom-control custom-checkbox mb-2">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupStudents" value="Students" {% if 'Students' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupStudents" value="Students" checked>
                                             <label class="custom-control-label" for="rankedGroupStudents">Students</label>
                                         </div>
                                         <div class="custom-control custom-checkbox mb-2">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupPwd" value="PWDs (Persons with Disabilities)" {% if 'PWDs (Persons with Disabilities)' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupPwd" value="PWDs (Persons with Disabilities)" checked>
                                             <label class="custom-control-label" for="rankedGroupPwd">PWDs (Persons with Disabilities)</label>
                                         </div>
                                         <div class="custom-control custom-checkbox mb-2">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSenior" value="Senior Citizens" {% if 'Senior Citizens' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSenior" value="Senior Citizens" checked>
                                             <label class="custom-control-label" for="rankedGroupSenior">Senior Citizens</label>
                                         </div>
                                         <div class="custom-control custom-checkbox mb-2">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSingleParents" value="Single Parents" {% if 'Single Parents' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupSingleParents" value="Single Parents" checked>
                                             <label class="custom-control-label" for="rankedGroupSingleParents">Single Parents</label>
                                         </div>
                                         <div class="custom-control custom-checkbox mb-0">
-                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupIndigent" value="Indigent Families" {% if 'Indigent Families' in selected_ranked_groups %}checked{% endif %}>
+                                            <input type="checkbox" class="custom-control-input ranked-priority-group" id="rankedGroupIndigent" value="Indigent Families" checked>
                                             <label class="custom-control-label" for="rankedGroupIndigent">Indigent Families</label>
                                         </div>
                                     </div>
@@ -1937,7 +1937,7 @@
                                 {% if barangays %}
                                     {% for barangay in barangays %}
                                     <div class="custom-control custom-checkbox mb-1">
-                                        <input type="checkbox" class="custom-control-input ranked-barangay" id="rankedBarangay{{ loop.index }}" value="{{ barangay }}">
+                                        <input type="checkbox" class="custom-control-input ranked-barangay" id="rankedBarangay{{ loop.index }}" value="{{ barangay }}" checked>
                                         <label class="custom-control-label" for="rankedBarangay{{ loop.index }}">{{ barangay }}</label>
                                     </div>
                                     {% endfor %}
@@ -2055,7 +2055,7 @@
 
                 <div class="ranked-parameter-option">
                     <div class="custom-control custom-checkbox mb-0">
-                        <input type="checkbox" class="custom-control-input" id="modalIncludeBarangayCriteria">
+                        <input type="checkbox" class="custom-control-input" id="modalIncludeBarangayCriteria" checked>
                         <label class="custom-control-label" for="modalIncludeBarangayCriteria">Include Priority Barangays Filter</label>
                     </div>
                 </div>
@@ -2361,10 +2361,69 @@
     }
     
     // Functions for handling multiple copy specifications in edit tab
+    const COPY_TYPE_LIMIT = 3;
+
+    function getSelectedCopyTypesFromList(list) {
+        const selected = new Set();
+        if (!list) {
+            return selected;
+        }
+
+        list.querySelectorAll('.copy-type-select').forEach((select) => {
+            const value = String(select.value || '').trim();
+            if (value) {
+                selected.add(value);
+            }
+        });
+
+        return selected;
+    }
+
+    function updateCopyTypeOptionsEdit(reqId) {
+        const list = document.querySelector(`.copy-specs-list-edit-${reqId}`);
+        if (!list) {
+            return;
+        }
+
+        const selects = list.querySelectorAll('.copy-type-select');
+        const selected = getSelectedCopyTypesFromList(list);
+        const rowCount = list.querySelectorAll('.copy-spec-row').length;
+
+        selects.forEach((select) => {
+            const currentValue = String(select.value || '').trim();
+            Array.from(select.options).forEach((option) => {
+                if (!option.value) {
+                    return;
+                }
+
+                const isTaken = selected.has(option.value) && option.value !== currentValue;
+                option.hidden = isTaken;
+                option.disabled = isTaken;
+            });
+        });
+
+        const container = list.closest('.copy-specs-container');
+        if (container) {
+            const addBtn = container.querySelector('.add-copy-spec-btn');
+            if (addBtn) {
+                addBtn.style.display = rowCount >= COPY_TYPE_LIMIT ? 'none' : '';
+            }
+        }
+    }
+
     function addCopySpecRowEdit(reqId) {
         const container = document.querySelector(`.copy-specs-list-edit-${reqId}`);
+        if (!container) {
+            return;
+        }
+
+        const rowCount = container.querySelectorAll('.copy-spec-row').length;
+        if (rowCount >= COPY_TYPE_LIMIT) {
+            updateCopyTypeOptionsEdit(reqId);
+            return;
+        }
+
         const rowId = Date.now();
-        
         const row = document.createElement('div');
         row.className = 'copy-spec-row form-row align-items-end mb-2';
         row.id = `spec-row-${rowId}`;
@@ -2389,18 +2448,50 @@
             </div>
         `;
         container.appendChild(row);
+
+        const newSelect = row.querySelector('.copy-type-select');
+        if (newSelect) {
+            newSelect.addEventListener('change', () => updateCopyTypeOptionsEdit(reqId));
+        }
+
+        updateCopyTypeOptionsEdit(reqId);
     }
     
     function removeCopySpecRow(rowIdOrBtn) {
-        // Handle both cases: passed as button element or row ID string
+        let row = null;
         if (typeof rowIdOrBtn === 'string') {
-            // rowIdOrBtn is a row ID string
-            const row = document.getElementById(`spec-row-${rowIdOrBtn}`);
-            if (row) row.remove();
-        } else {
-            // rowIdOrBtn is the button element
-            rowIdOrBtn.closest('.copy-spec-row').remove();
+            row = document.getElementById(`spec-row-${rowIdOrBtn}`);
+        } else if (rowIdOrBtn) {
+            row = rowIdOrBtn.closest('.copy-spec-row');
         }
+
+        if (!row) {
+            return;
+        }
+
+        const container = row.closest('.copy-specs-container');
+        row.remove();
+
+        if (container && container.dataset.reqId) {
+            updateCopyTypeOptionsEdit(container.dataset.reqId);
+        }
+    }
+
+    function initializeCopyTypeOptionsEdit() {
+        const lists = document.querySelectorAll('[class*="copy-specs-list-edit-"]');
+        lists.forEach((list) => {
+            const container = list.closest('.copy-specs-container');
+            const reqId = container ? container.dataset.reqId : null;
+            if (!reqId) {
+                return;
+            }
+
+            list.querySelectorAll('.copy-type-select').forEach((select) => {
+                select.addEventListener('change', () => updateCopyTypeOptionsEdit(reqId));
+            });
+
+            updateCopyTypeOptionsEdit(reqId);
+        });
     }
     
     // Collect copy specifications from edit tab before form submission
@@ -2677,7 +2768,7 @@
                 let copySpecsHtml = '';
                 if (type === 'document') {
                     copySpecsHtml = `
-                        <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: none;">
+                        <div class="ml-4 mt-2 p-2 bg-light rounded copy-specs-container" style="display: none;" data-req-id="${data.requirement.id}">
                             <div class="copy-specs-list-edit-${data.requirement.id}">
                                 <div class="copy-spec-row form-row align-items-end mb-2">
                                     <div class="form-group col-md-5">
@@ -2700,7 +2791,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCopySpecRowEdit(${data.requirement.id})">
+                            <button type="button" class="btn btn-sm btn-outline-primary add-copy-spec-btn" data-req-id="${data.requirement.id}" onclick="addCopySpecRowEdit(${data.requirement.id})">
                                 <i class="fas fa-plus mr-1"></i>Add Another Copy Type
                             </button>
                         </div>
@@ -2737,6 +2828,14 @@
                 const newlyAddedCheckbox = reqItem.querySelector('input.req-checkbox');
                 if (newlyAddedCheckbox) {
                     toggleRequirementCopySpecs(newlyAddedCheckbox);
+                }
+
+                const newCopySpecList = reqItem.querySelector(`.copy-specs-list-edit-${data.requirement.id}`);
+                if (newCopySpecList) {
+                    newCopySpecList.querySelectorAll('.copy-type-select').forEach((select) => {
+                        select.addEventListener('change', () => updateCopyTypeOptionsEdit(data.requirement.id));
+                    });
+                    updateCopyTypeOptionsEdit(data.requirement.id);
                 }
                 
                 document.getElementById(nameField).value = '';
@@ -2897,6 +2996,10 @@
         if (!container) return;
 
         container.style.display = checkbox.checked ? 'block' : 'none';
+
+        if (checkbox.checked && container.dataset.reqId) {
+            updateCopyTypeOptionsEdit(container.dataset.reqId);
+        }
     }
 
     function initializeRequirementCopySpecsState() {
@@ -3033,6 +3136,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         initializeProgramFormChangeDetection();
         initializeRequirementCopySpecsState();
+        initializeCopyTypeOptionsEdit();
         renderViewWorkflowSteps();
 
         const editDocumentReqSearch = document.getElementById('editDocumentReqSearch');
@@ -4061,8 +4165,8 @@
 
     const rankedCriteriaState = {
         includeIncome: true,
-        includePriorityGroups: {{ 'true' if program.priority_group else 'false' }},
-        includeBarangays: false
+        includePriorityGroups: true,
+        includeBarangays: true
     };
 
     function renderRankedCriteriaSummary() {
