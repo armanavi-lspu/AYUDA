@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import asc, desc, or_, func
 from sqlalchemy.orm import aliased
 from app.admin import admin_bp
-from app.utils import role_required, manila_strftime, get_upload_root
+from app.utils import role_required, manila_strftime, get_upload_root, resolve_upload_path
 from app.models import Programs, Requirements, ProgramRequirements, Applications, ApplicationDocuments, Notifications, User, CommunityUsers, ShelterPhotos, ApplicationDocumentUploads, ApplicationWorkflowStatus, ProgramWorkflowSteps, Assessment, AssessmentDocument, AdminUsers
 from app.extensions import db
 from app.activity_logger import log_application_status_update, log_bulk_application_status_update, log_document_verification, log_document_status_toggle, log_beneficiaries_list_generated
@@ -2437,6 +2437,78 @@ def verify_document_status(application_id, doc_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, message=str(e)), 500
+
+
+@admin_bp.route('/document-uploads/<int:upload_id>/view-data')
+@login_required
+@role_required('admin')
+def admin_get_document_view_data(upload_id):
+    """Get document URLs for admin preview modal."""
+    upload = ApplicationDocumentUploads.query.get_or_404(upload_id)
+
+    if not _application_is_in_scope(upload.application_id):
+        abort(404)
+
+    file_path = resolve_upload_path(upload.file_path)
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({'success': False, 'message': 'Document file not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'document_url': url_for('admin.admin_view_uploaded_document', upload_id=upload_id),
+        'download_url': url_for('admin.admin_download_workflow_document', upload_id=upload_id),
+        'filename': upload.original_filename
+    })
+
+
+@admin_bp.route('/document-uploads/<int:upload_id>/view')
+@login_required
+@role_required('admin')
+def admin_view_uploaded_document(upload_id):
+    """Serve an uploaded document for admin preview."""
+    upload = ApplicationDocumentUploads.query.get_or_404(upload_id)
+
+    if not _application_is_in_scope(upload.application_id):
+        abort(404)
+
+    file_path = resolve_upload_path(upload.file_path)
+    if not file_path or not os.path.exists(file_path):
+        abort(404)
+
+    try:
+        return send_file(
+            file_path,
+            as_attachment=False,
+            download_name=upload.original_filename
+        )
+    except Exception as exc:
+        logger.exception('Error serving document preview: %s', exc)
+        abort(500)
+
+
+@admin_bp.route('/document-uploads/<int:upload_id>/download')
+@login_required
+@role_required('admin')
+def admin_download_workflow_document(upload_id):
+    """Download an uploaded document from the workflow (admin)."""
+    upload = ApplicationDocumentUploads.query.get_or_404(upload_id)
+
+    if not _application_is_in_scope(upload.application_id):
+        abort(404)
+
+    file_path = resolve_upload_path(upload.file_path)
+    if not file_path or not os.path.exists(file_path):
+        abort(404)
+
+    try:
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=upload.original_filename
+        )
+    except Exception as exc:
+        logger.exception('Error downloading document: %s', exc)
+        abort(500)
 
 
 def _beneficiaries_completion_datetime_expr():

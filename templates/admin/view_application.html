@@ -5396,7 +5396,7 @@ function viewStepDetails(stepId) {
                             </div>
                             ${feedbackHtml}
                             <div class="btn-group btn-group-sm btn-block" role="group">
-                                <a href="/community/uploaded-documents/${upload.id}/view" class="btn btn-outline-primary" target="_blank">
+                                <a href="/admin/document-uploads/${upload.id}/view" class="btn btn-outline-primary" target="_blank">
                                     <i class="fas fa-eye"></i> View
                                 </a>
                                 ${!isVerifiedUpload ? `
@@ -5471,7 +5471,12 @@ function viewDocument(uploadId, filename) {
     const isPdf = fileExt === 'pdf';
     
     // Fetch document metadata
-    fetch(`/community/document-uploads/${uploadId}/view-data`)
+    fetch(`/admin/document-uploads/${uploadId}/view-data`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Failed to load document: ${response.status}`);
@@ -5549,7 +5554,12 @@ function viewDocumentFromSubmission(uploadId, filename) {
     const isPdf = fileExt === 'pdf';
     
     // Fetch document metadata
-    fetch(`/community/document-uploads/${uploadId}/view-data`)
+    fetch(`/admin/document-uploads/${uploadId}/view-data`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Failed to load document: ${response.status}`);
