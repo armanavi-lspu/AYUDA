@@ -336,6 +336,44 @@
 {% block extra_js %}
 <script type="application/json" id="municipalityBarangaysData">{{ municipality_barangays_json | safe }}</script>
 <script>
+function getCaseSeverityContext(rawSeverity, rawScore) {
+    const key = String(rawSeverity || 'unrated').toLowerCase();
+    const labels = {
+        critical: 'Critical',
+        high: 'High',
+        moderate: 'Moderate',
+        medium: 'Moderate',
+        low: 'Low',
+        unrated: 'Unrated',
+    };
+
+    const numericScore = Number(rawScore);
+    if (Number.isFinite(numericScore)) {
+        const clamped = Math.max(0, Math.min(100, numericScore));
+        return {
+            key: key,
+            label: labels[key] || 'Unrated',
+            mappedValue: clamped / 100,
+            score: clamped,
+        };
+    }
+
+    const valueMap = {
+        critical: 1.0,
+        high: 1.0,
+        moderate: 0.6,
+        medium: 0.6,
+        low: 0.2,
+        unrated: 0.4,
+    };
+    return {
+        key: key,
+        label: labels[key] || 'Unrated',
+        mappedValue: valueMap[key] != null ? valueMap[key] : 0.4,
+        score: null,
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const municipalityBarangays = JSON.parse(
         (document.getElementById('municipalityBarangaysData') || { textContent: '{}' }).textContent || '{}'
@@ -1050,44 +1088,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatCurrency(value) {
         const numeric = toFiniteNumber(value, 0);
         return `P${numeric.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-    }
-
-    function getCaseSeverityContext(rawSeverity, rawScore) {
-        const key = String(rawSeverity || 'unrated').toLowerCase();
-        const labels = {
-            critical: 'Critical',
-            high: 'High',
-            moderate: 'Moderate',
-            medium: 'Moderate',
-            low: 'Low',
-            unrated: 'Unrated',
-        };
-
-        const numericScore = Number(rawScore);
-        if (Number.isFinite(numericScore)) {
-            const clamped = Math.max(0, Math.min(100, numericScore));
-            return {
-                key: key,
-                label: labels[key] || 'Unrated',
-                mappedValue: clamped / 100,
-                score: clamped,
-            };
-        }
-
-        const valueMap = {
-            critical: 1.0,
-            high: 1.0,
-            moderate: 0.6,
-            medium: 0.6,
-            low: 0.2,
-            unrated: 0.4,
-        };
-        return {
-            key: key,
-            label: labels[key] || 'Unrated',
-            mappedValue: valueMap[key] != null ? valueMap[key] : 0.4,
-            score: null,
-        };
     }
 
     function getIncomeContext(income) {
