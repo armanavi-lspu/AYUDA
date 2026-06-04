@@ -2265,20 +2265,12 @@ def generate_program_ranked_list(program_id):
     if not isinstance(raw_scoring_parameters, dict):
         return jsonify({'success': False, 'message': 'Invalid scoring parameters payload.'}), 400
 
-    vulnerability_enabled_override = None
-    if 'vulnerability' in raw_scoring_parameters:
-        vulnerability_enabled_override = _to_bool(raw_scoring_parameters.get('vulnerability'))
-
     scoring_parameters = {
         'case_severity': _to_bool(raw_scoring_parameters.get('case_severity', True)),
-        'income_vulnerability': _to_bool(raw_scoring_parameters.get('income_vulnerability', True)),
-        'household_vulnerability': _to_bool(raw_scoring_parameters.get('household_vulnerability', True)),
+        'income_vulnerability': True,
+        'household_vulnerability': True,
         'repeat_beneficiary_penalty': _to_bool(raw_scoring_parameters.get('repeat_beneficiary_penalty', True)),
     }
-
-    if vulnerability_enabled_override is not None:
-        scoring_parameters['income_vulnerability'] = vulnerability_enabled_override
-        scoring_parameters['household_vulnerability'] = vulnerability_enabled_override
 
     if not any(scoring_parameters.values()):
         return jsonify({'success': False, 'message': 'Select at least one scoring parameter.'}), 400
@@ -2322,6 +2314,8 @@ def generate_program_ranked_list(program_id):
             return jsonify({'success': False, 'message': f'Invalid weight for {factor_key}.'}), 400
         if raw_weight < 0:
             return jsonify({'success': False, 'message': 'Scoring weights cannot be negative.'}), 400
+        if factor_key in {'income_vulnerability', 'household_vulnerability'} and raw_weight <= 0:
+            raw_weight = default_scoring_weights[factor_key]
         scoring_weights[factor_key] = raw_weight / 100.0
 
     enabled_total_weight = sum(

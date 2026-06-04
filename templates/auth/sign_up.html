@@ -86,6 +86,50 @@
         font-size: 0.85rem;
     }
 
+    .email-input-wrap {
+        position: relative;
+    }
+
+    .email-status {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        pointer-events: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .email-status.text-danger {
+        color: #dc3545;
+    }
+
+    .email-status.text-success {
+        color: #28a745;
+    }
+
+    .form-control.email-exists {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.15);
+    }
+
+    .form-control.email-available {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.15rem rgba(40, 167, 69, 0.15);
+    }
+
+    .form-control.name-exists {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.15);
+    }
+
+    .form-control.name-available {
+        border-color: #28a745;
+        box-shadow: 0 0 0 0.15rem rgba(40, 167, 69, 0.15);
+    }
+
     .btn-create {
         border: none;
         border-radius: 12px;
@@ -226,16 +270,19 @@
                                     </div>
                                     <div class="form-group col-md-4">
                                         <label for="lastName" class="required-field">Last Name</label>
-                                        <input
-                                            type="text"
-                                            class="form-control"
-                                            id="lastName"
-                                            name="lastName"
-                                            placeholder="Dela Cruz"
-                                            value="{{ last_name_value }}"
-                                            pattern="[A-Za-z\s]+"
-                                            required
-                                        >
+                                        <div class="email-input-wrap">
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="lastName"
+                                                name="lastName"
+                                                placeholder="Dela Cruz"
+                                                value="{{ last_name_value }}"
+                                                pattern="[A-Za-z\s]+"
+                                                required
+                                            >
+                                            <span id="nameAvailabilityStatus" class="email-status" aria-live="polite"></span>
+                                        </div>
                                         <div class="invalid-feedback">Please provide your last name (letters only).</div>
                                     </div>
                                 </div>
@@ -308,15 +355,18 @@
                             <div class="section-panel">
                                 <div class="form-group">
                                     <label for="email" class="required-field">Email Address</label>
-                                    <input
-                                        type="email"
-                                        class="form-control"
-                                        id="email"
-                                        name="email"
-                                        placeholder="juan.delacruz@gmail.com"
-                                        value="{{ email_value }}"
-                                        required
-                                    >
+                                    <div class="email-input-wrap">
+                                        <input
+                                            type="email"
+                                            class="form-control"
+                                            id="email"
+                                            name="email"
+                                            placeholder="juan.delacruz@gmail.com"
+                                            value="{{ email_value }}"
+                                            required
+                                        >
+                                        <span id="emailAvailabilityStatus" class="email-status" aria-live="polite"></span>
+                                    </div>
                                     <div class="invalid-feedback">Please provide a valid email address.</div>
                                     <small class="hint-text">This will be your account login email.</small>
                                 </div>
@@ -437,6 +487,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const birthDateInput = document.getElementById('birthDate');
     const emailInput = document.getElementById('email');
+    const emailAvailabilityStatus = document.getElementById('emailAvailabilityStatus');
+    const nameAvailabilityStatus = document.getElementById('nameAvailabilityStatus');
     const municipalityInput = document.getElementById('municipality');
     const barangayInput = document.getElementById('barangay');
     const addressInput = document.getElementById('address');
@@ -458,6 +510,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const checklistCase = document.getElementById('signupChecklistCase');
     const checklistSymbol = document.getElementById('signupChecklistSymbol');
     const matchText = document.getElementById('signupPasswordMatchText');
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const namePattern = /^[A-Za-z\s]+$/;
+    let emailCheckTimer = null;
+    let emailCheckAbort = null;
+    let lastCheckedEmail = '';
+    let nameCheckTimer = null;
+    let nameCheckAbort = null;
+    let lastCheckedNameKey = '';
 
     function isReloadNavigation() {
         const navEntries = performance.getEntriesByType('navigation');
@@ -665,6 +725,186 @@ document.addEventListener('DOMContentLoaded', function() {
         setChecklistItem(checklistSymbol, result.hasSymbol);
     }
 
+    function clearEmailAvailability() {
+        if (emailAvailabilityStatus) {
+            emailAvailabilityStatus.textContent = '';
+            emailAvailabilityStatus.className = 'email-status';
+        }
+        if (emailInput) {
+            emailInput.classList.remove('email-exists', 'email-available');
+        }
+    }
+
+    function markEmailExists() {
+        if (emailAvailabilityStatus) {
+            emailAvailabilityStatus.textContent = 'Email already exist';
+            emailAvailabilityStatus.className = 'email-status text-danger';
+        }
+        if (emailInput) {
+            emailInput.classList.add('email-exists');
+            emailInput.classList.remove('email-available');
+        }
+    }
+
+    function markEmailAvailable() {
+        if (emailAvailabilityStatus) {
+            emailAvailabilityStatus.innerHTML = '<i class="fas fa-check-circle"></i>';
+            emailAvailabilityStatus.className = 'email-status text-success';
+        }
+        if (emailInput) {
+            emailInput.classList.add('email-available');
+            emailInput.classList.remove('email-exists');
+        }
+    }
+
+    function clearNameAvailability() {
+        if (nameAvailabilityStatus) {
+            nameAvailabilityStatus.textContent = '';
+            nameAvailabilityStatus.className = 'email-status';
+        }
+        if (firstNameInput) {
+            firstNameInput.classList.remove('name-exists', 'name-available');
+        }
+        if (lastNameInput) {
+            lastNameInput.classList.remove('name-exists', 'name-available');
+        }
+    }
+
+    function markNameExists() {
+        if (nameAvailabilityStatus) {
+            nameAvailabilityStatus.textContent = 'User already exist';
+            nameAvailabilityStatus.className = 'email-status text-danger';
+        }
+        if (firstNameInput) {
+            firstNameInput.classList.add('name-exists');
+            firstNameInput.classList.remove('name-available');
+        }
+        if (lastNameInput) {
+            lastNameInput.classList.add('name-exists');
+            lastNameInput.classList.remove('name-available');
+        }
+    }
+
+    function markNameAvailable() {
+        if (nameAvailabilityStatus) {
+            nameAvailabilityStatus.innerHTML = '<i class="fas fa-check-circle"></i>';
+            nameAvailabilityStatus.className = 'email-status text-success';
+        }
+        if (firstNameInput) {
+            firstNameInput.classList.add('name-available');
+            firstNameInput.classList.remove('name-exists');
+        }
+        if (lastNameInput) {
+            lastNameInput.classList.add('name-available');
+            lastNameInput.classList.remove('name-exists');
+        }
+    }
+
+    function normalizeNameValue(value) {
+        return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function checkNameAvailability(rawFirstName, rawLastName) {
+        const normalizedFirst = normalizeNameValue(rawFirstName);
+        const normalizedLast = normalizeNameValue(rawLastName);
+        const nameKey = `${normalizedFirst.toLowerCase()}|${normalizedLast.toLowerCase()}`;
+
+        if (!normalizedFirst || !normalizedLast) {
+            clearNameAvailability();
+            lastCheckedNameKey = '';
+            return;
+        }
+
+        if (!namePattern.test(normalizedFirst) || !namePattern.test(normalizedLast)) {
+            clearNameAvailability();
+            lastCheckedNameKey = '';
+            return;
+        }
+
+        if (nameKey === lastCheckedNameKey) {
+            return;
+        }
+
+        lastCheckedNameKey = nameKey;
+        if (nameCheckAbort) {
+            nameCheckAbort.abort();
+        }
+
+        nameCheckAbort = new AbortController();
+        const query = new URLSearchParams({
+            first_name: normalizedFirst,
+            last_name: normalizedLast,
+        });
+        fetch(`/auth/check-name?${query.toString()}`, { signal: nameCheckAbort.signal })
+            .then((response) => response.json())
+            .then((data) => {
+                if (!data || !data.valid) {
+                    clearNameAvailability();
+                    return;
+                }
+
+                if (data.exists) {
+                    markNameExists();
+                } else {
+                    markNameAvailable();
+                }
+            })
+            .catch((error) => {
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
+                clearNameAvailability();
+            });
+    }
+
+    function checkEmailAvailability(rawEmail) {
+        const normalizedEmail = String(rawEmail || '').trim().toLowerCase();
+        if (!normalizedEmail) {
+            clearEmailAvailability();
+            lastCheckedEmail = '';
+            return;
+        }
+
+        if (!emailPattern.test(normalizedEmail)) {
+            clearEmailAvailability();
+            lastCheckedEmail = '';
+            return;
+        }
+
+        if (normalizedEmail === lastCheckedEmail) {
+            return;
+        }
+
+        lastCheckedEmail = normalizedEmail;
+        if (emailCheckAbort) {
+            emailCheckAbort.abort();
+        }
+
+        emailCheckAbort = new AbortController();
+        fetch(`/auth/check-email?email=${encodeURIComponent(normalizedEmail)}`, {
+            signal: emailCheckAbort.signal,
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (!data || !data.valid) {
+                    clearEmailAvailability();
+                    return;
+                }
+
+                if (data.exists) {
+                    markEmailExists();
+                } else {
+                    markEmailAvailable();
+                }
+            })
+            .catch((error) => {
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
+                clearEmailAvailability();
+            });
+    }
+
     function renderBarangays(municipality, selectedBarangay) {
         barangayInput.innerHTML = '';
         barangayInput.append(new Option('Select Barangay', ''));
@@ -707,6 +947,27 @@ document.addEventListener('DOMContentLoaded', function() {
     emailInput.addEventListener('blur', function() {
         emailInput.value = emailInput.value.trim().toLowerCase();
     });
+    emailInput.addEventListener('input', function() {
+        const emailValue = emailInput.value;
+        if (emailCheckTimer) {
+            clearTimeout(emailCheckTimer);
+        }
+        emailCheckTimer = setTimeout(function() {
+            checkEmailAvailability(emailValue);
+        }, 400);
+    });
+
+    function scheduleNameCheck() {
+        if (nameCheckTimer) {
+            clearTimeout(nameCheckTimer);
+        }
+        nameCheckTimer = setTimeout(function() {
+            checkNameAvailability(firstNameInput.value, lastNameInput.value);
+        }, 400);
+    }
+
+    firstNameInput.addEventListener('input', scheduleNameCheck);
+    lastNameInput.addEventListener('input', scheduleNameCheck);
 
     renderBarangays(municipalityInput.value, barangayInput.value);
 

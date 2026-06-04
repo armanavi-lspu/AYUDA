@@ -440,7 +440,11 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
+                    <div class="chart-container" id="forecastApplicantsContainer">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
                         <canvas id="forecastApplicantsChart"></canvas>
                     </div>
                 </div>
@@ -457,7 +461,11 @@
                     </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
+                    <div class="chart-container" id="forecastProgramContainer">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
                         <canvas id="forecastProgramCategoryChart"></canvas>
                     </div>
                 </div>
@@ -965,6 +973,7 @@ function initializeAnalyticsAnalysisPage() {
                     if (hasInsufficientDataUnsupported) {
                         loadFallbackForecast(forecastMessage);
                         chartContainer.style.opacity = '1';
+                        showChart('forecastApplicantsContainer');
                         return;
                     }
 
@@ -1010,6 +1019,7 @@ function initializeAnalyticsAnalysisPage() {
 
                     renderForecastStatus(chartContainer, forecastMessage);
                     chartContainer.style.opacity = '1';
+                    showChart('forecastApplicantsContainer');
                     return;
                 }
                 
@@ -1128,10 +1138,12 @@ function initializeAnalyticsAnalysisPage() {
                 }
                 
                 chartContainer.style.opacity = '1';
+                showChart('forecastApplicantsContainer');
             })
             .catch(error => {
                 console.error('Error loading ARIMA forecast:', error);
                 chartContainer.style.opacity = '1';
+                showChart('forecastApplicantsContainer');
                 
                 // Fallback to simple linear forecast on error
                 loadFallbackForecast();
@@ -1216,6 +1228,8 @@ function initializeAnalyticsAnalysisPage() {
         if (noteMessage) {
             renderForecastStatus(chartContainer, noteMessage);
         }
+
+        showChart('forecastApplicantsContainer');
     }
     
     // Load ARIMA forecast on page load
@@ -1355,10 +1369,12 @@ function initializeAnalyticsAnalysisPage() {
                 });
                 
                 chartContainer.style.opacity = '1';
+                showChart('forecastProgramContainer');
             })
             .catch(error => {
                 console.error('Error loading program forecast:', error);
                 chartContainer.style.opacity = '1';
+                showChart('forecastProgramContainer');
             });
     }
     
