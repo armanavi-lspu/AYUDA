@@ -96,8 +96,18 @@ def _resolve_need_focused_weights(scoring_parameters=None, scoring_weights=None)
     return active_weights
 
 
-def _case_severity_score(raw_severity):
-    """Map case severity labels to a normalized score in [0, 1]."""
+def _case_severity_score(raw_severity, raw_severity_score=None):
+    """Map case severity labels or numeric scores to a normalized score in [0, 1]."""
+    if raw_severity_score is not None:
+        try:
+            numeric_score = float(raw_severity_score)
+        except (TypeError, ValueError):
+            numeric_score = None
+
+        if numeric_score is not None:
+            numeric_score = max(0.0, min(100.0, numeric_score))
+            return numeric_score / 100.0
+
     label = str(raw_severity or '').strip().lower()
     if label in {'high', 'critical'}:
         return 1.0
@@ -313,7 +323,10 @@ def _build_need_focused_breakdown(beneficiary, weights=None):
             except (TypeError, ValueError):
                 active_weights[factor_key] = 0.0
 
-    case_value = _case_severity_score(beneficiary.get('case_severity'))
+    case_value = _case_severity_score(
+        beneficiary.get('case_severity'),
+        beneficiary.get('severity_score'),
+    )
     income_value, scoring_income, income_band_label, income_value_source = _income_vulnerability_components(
         beneficiary.get('family_annual_income')
     )

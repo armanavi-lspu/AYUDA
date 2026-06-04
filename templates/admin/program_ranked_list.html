@@ -913,14 +913,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         // Format score breakdown for tooltip
                         const breakdown = rec.score_breakdown || {};
-                        const severityLabels = {
-                            'critical': 'CRITICAL (1.0)',
-                            'high': 'HIGH (0.8)',
-                            'moderate': 'MODERATE (0.6)',
-                            'low': 'LOW (0.4)',
-                            'unrated': 'UNRATED (0.0)'
-                        };
                         const caseSeverity = (rec.case_severity || 'unrated').toLowerCase();
+                        const severityScore = Number.isFinite(Number(rec.severity_score))
+                            ? Number(rec.severity_score)
+                            : null;
+                        const severityContext = getCaseSeverityContext(caseSeverity, severityScore);
                         const severityBadgeColor = 
                             caseSeverity === 'critical' ? 'danger' :
                             caseSeverity === 'high' ? 'warning' :
@@ -936,6 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             income: Number(rec.income || 0),
                             income_range: rec.income_range || 'Not specified',
                             case_severity: caseSeverity,
+                            severity_score: severityScore,
                             age: rec.age,
                             is_solo_parent: !!rec.is_solo_parent,
                             is_student: !!rec.is_student,
@@ -951,7 +949,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             Number((breakdown.income_vulnerability_factor || {}).contribution || 0) +
                             Number((breakdown.household_vulnerability_factor || {}).contribution || 0);
                         
-                        const scoreTooltip = `Severity: ${severityLabels[caseSeverity] || 'UNRATED'} (${(breakdown.severity_component || 0).toFixed(4)})
+                        const severitySummary = severityContext.score !== null
+                            ? `Severity Score: ${severityContext.score.toFixed(0)} (${severityContext.mappedValue.toFixed(4)})`
+                            : `Severity: ${severityContext.label.toUpperCase()} (${severityContext.mappedValue.toFixed(4)})`;
+                        const scoreTooltip = `${severitySummary} (${(breakdown.severity_component || 0).toFixed(4)})
 Case Severity Contribution: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}
 Vulnerability Contribution: ${vulnerabilityContribution.toFixed(4)}
 Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_penalty_factor || {}).contribution || 0).toFixed(4)}`;
@@ -1051,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return `P${numeric.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     }
 
-    function getCaseSeverityContext(rawSeverity) {
+    function getCaseSeverityContext(rawSeverity, rawScore) {
         const key = String(rawSeverity || 'unrated').toLowerCase();
         const labels = {
             critical: 'Critical',
@@ -1061,6 +1062,18 @@ document.addEventListener('DOMContentLoaded', function() {
             low: 'Low',
             unrated: 'Unrated',
         };
+
+        const numericScore = Number(rawScore);
+        if (Number.isFinite(numericScore)) {
+            const clamped = Math.max(0, Math.min(100, numericScore));
+            return {
+                key: key,
+                label: labels[key] || 'Unrated',
+                mappedValue: clamped / 100,
+                score: clamped,
+            };
+        }
+
         const valueMap = {
             critical: 1.0,
             high: 1.0,
@@ -1073,6 +1086,7 @@ document.addEventListener('DOMContentLoaded', function() {
             key: key,
             label: labels[key] || 'Unrated',
             mappedValue: valueMap[key] != null ? valueMap[key] : 0.4,
+            score: null,
         };
     }
 
@@ -1131,8 +1145,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let context = '';
         if (factorKey === 'case_severity_factor') {
-            const severity = getCaseSeverityContext(profile.case_severity);
-            context = `Case severity is tagged as ${severity.label}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
+            const severity = getCaseSeverityContext(profile.case_severity, profile.severity_score);
+            if (severity.score !== null) {
+                context = `Case severity score is ${severity.score.toFixed(0)}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
+            } else {
+                context = `Case severity is tagged as ${severity.label}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
+            }
         } else if (factorKey === 'vulnerability_factor') {
             const incomeContext = getIncomeContext(profile.income);
             const indicators = getHouseholdIndicators(profile);
@@ -1167,8 +1185,12 @@ document.addEventListener('DOMContentLoaded', function() {
         reasons.push(`<p class="mb-2"><strong>${escapeHtml(profile.name)}</strong> is currently classified as <span class="${priorityBand.className}">${priorityBand.label}</span> based on combined urgency, vulnerability, and repeat-beneficiary fairness adjustment.</p>`);
 
         if (toFiniteNumber(caseFactor.contribution, 0) > 0) {
-            const severity = getCaseSeverityContext(profile.case_severity);
-            reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case is marked as <strong>${severity.label}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
+            const severity = getCaseSeverityContext(profile.case_severity, profile.severity_score);
+            if (severity.score !== null) {
+                reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case severity score is <strong>${severity.score.toFixed(0)}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
+            } else {
+                reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case is marked as <strong>${severity.label}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
+            }
         }
 
         if (vulnerabilityContribution > 0) {
@@ -1258,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const householdFactor = breakdown.household_vulnerability_factor || {};
         const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
         const householdIndicators = getHouseholdIndicators(profile);
-        const severity = getCaseSeverityContext(profile.case_severity);
+        const severity = getCaseSeverityContext(profile.case_severity, profile.severity_score);
         const vulnerabilityContribution =
             toFiniteNumber(incomeFactor.contribution, 0) +
             toFiniteNumber(householdFactor.contribution, 0);
@@ -1331,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Municipality</small><span>${escapeHtml(profile.municipality || 'N/A')}</span></div>
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Barangay</small><span>${escapeHtml(profile.barangay || 'N/A')}</span></div>
                     <div class="col-sm-6 mb-2"><small class="text-muted d-block">Family Monthly Income</small><strong>${formatCurrency(profile.income)}</strong></div>
-                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Case Severity</small><span>${escapeHtml(getCaseSeverityContext(profile.case_severity).label)}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Case Severity</small><span>${escapeHtml(getCaseSeverityContext(profile.case_severity, profile.severity_score).label)}</span></div>
                 </div>
                 <div class="mt-1">${chipsHtml}</div>
                 <small class="text-muted d-block mt-2">Prior assistance history count: ${Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)))} records</small>

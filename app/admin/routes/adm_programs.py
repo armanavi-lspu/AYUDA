@@ -2387,6 +2387,7 @@ def generate_program_ranked_list(program_id):
     # Map user_id to application_id and application_date for quick actions from ranked results.
     application_id_map = {row.user_id: row.application_id for row in eligible_rows}
     application_date_map = {row.user_id: row.application_date for row in eligible_rows}
+    eligible_application_ids = list({row.application_id for row in eligible_rows})
 
     # Build compact application history signal for better CBF relevance.
     app_history_rows = db.session.query(
@@ -2412,21 +2413,27 @@ def generate_program_ranked_list(program_id):
 
     # Build severity map for each application
     severity_map = {}
-    if user_ids:
+    if eligible_application_ids:
         severity_rows = db.session.query(
             Applications.user_id,
-            func.max(Assessment.case_severity).label('max_severity')
+            func.max(Assessment.case_severity).label('max_severity'),
+            func.max(Assessment.severity_score).label('max_severity_score'),
         ).join(
             Assessment, Assessment.application_id == Applications.id
         ).filter(
-            Applications.user_id.in_(user_ids)
+            Applications.id.in_(eligible_application_ids)
         ).group_by(Applications.user_id).all()
-        
-        for user_id, max_severity in severity_rows:
-            severity_map[user_id] = max_severity or 'unrated'
 
-    beneficiaries_data = [
-        {
+        for user_id, max_severity, max_severity_score in severity_rows:
+            severity_map[user_id] = {
+                'case_severity': max_severity or 'unrated',
+                'severity_score': float(max_severity_score) if max_severity_score is not None else None,
+            }
+
+    beneficiaries_data = []
+    for row in eligible_rows:
+        severity_payload = severity_map.get(row.user_id) or {}
+        beneficiaries_data.append({
             'user_id': row.user_id,
             'first_name': row.first_name,
             'last_name': row.last_name,
@@ -2442,10 +2449,9 @@ def generate_program_ranked_list(program_id):
             'occupation': row.occupation,
             'past_applications': app_history_map.get(row.user_id, ''),
             'past_applications_count': app_history_count_map.get(row.user_id, 0),
-            'case_severity': severity_map.get(row.user_id, 'unrated'),
-        }
-        for row in eligible_rows
-    ]
+            'case_severity': severity_payload.get('case_severity', 'unrated'),
+            'severity_score': severity_payload.get('severity_score'),
+        })
 
     ranked_all = get_recommendations(
         beneficiaries_data=beneficiaries_data,
@@ -2575,6 +2581,7 @@ def generate_program_ranked_list(program_id):
             'income_range': get_income_range_display(income_numeric),
             'application_date': application_date_str,
             'case_severity': row.get('case_severity', 'unrated'),
+            'severity_score': row.get('severity_score'),
             'age': row.get('age'),
             'is_solo_parent': row.get('is_solo_parent', False),
             'is_student': row.get('is_student', False),
