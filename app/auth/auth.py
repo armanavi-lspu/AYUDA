@@ -238,6 +238,36 @@ def sign_up():
         municipality_barangays=MUNICIPALITY_BARANGAYS
     )
 
+
+@auth_bp.route('/check-email', methods=['GET'])
+def check_email():
+    email = _normalize_email(request.args.get('email'))
+    if not email:
+        return jsonify({'valid': False, 'exists': False}), 200
+
+    exists = User.query.filter(_normalized_email_expr() == email).first() is not None
+    return jsonify({'valid': True, 'exists': exists}), 200
+
+
+def _normalize_name(raw_value):
+    return ' '.join(str(raw_value or '').strip().split())
+
+
+@auth_bp.route('/check-name', methods=['GET'])
+def check_name():
+    first_name = _normalize_name(request.args.get('first_name'))
+    last_name = _normalize_name(request.args.get('last_name'))
+
+    if not first_name or not last_name:
+        return jsonify({'valid': False, 'exists': False}), 200
+
+    exists = User.query.filter(
+        func.lower(func.trim(User.first_name)) == first_name.lower(),
+        func.lower(func.trim(User.last_name)) == last_name.lower(),
+    ).first() is not None
+
+    return jsonify({'valid': True, 'exists': exists}), 200
+
 @auth_bp.route('/logout')
 @login_required
 def logout():

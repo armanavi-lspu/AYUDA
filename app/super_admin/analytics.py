@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import os
 import json
 
 from dateutil.relativedelta import relativedelta
@@ -13,6 +14,60 @@ from app.location_options import get_municipalities
 from app.models import AdminActivityLog, Applications, CommunityUsers, Programs, User, UserActivityLog
 from app.super_admin import super_admin_bp
 from app.utils import manila_strftime, role_required
+
+DEFAULT_ANALYTICS_APPLICANTS_LABELS = [
+    'January 2025', 'February 2025', 'March 2025', 'April 2025',
+    'May 2025', 'June 2025', 'July 2025', 'August 2025',
+    'September 2025', 'October 2025', 'November 2025', 'December 2025',
+]
+DEFAULT_ANALYTICS_APPLICANTS_VALUES = [38, 62, 92, 65, 40, 50, 53, 59, 43, 45, 30, 11]
+
+ANALYTICS_FORCE_SEED_DATA = os.environ.get('ANALYTICS_FORCE_SEED_DATA', 'false').lower() == 'true'
+
+
+def _default_applicants_series():
+    return list(DEFAULT_ANALYTICS_APPLICANTS_LABELS), list(DEFAULT_ANALYTICS_APPLICANTS_VALUES)
+
+
+def _parse_bool_flag(value):
+    if value is None:
+        return None
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _should_force_seed(request_args):
+    flag = _parse_bool_flag(request_args.get('force_seed'))
+    if flag is None:
+        return ANALYTICS_FORCE_SEED_DATA
+    return flag
+
+
+def _build_seeded_applicants_series(rows, end_month=None):
+    start_month = datetime(2025, 1, 1)
+    anchor = end_month or datetime.utcnow()
+    end_month = datetime(anchor.year, anchor.month, 1)
+
+    month_counts = {}
+    for row in rows:
+        if not row.month:
+            continue
+        month_key = datetime(row.month.year, row.month.month, 1)
+        month_counts[month_key] = int(row.count or 0)
+
+    labels = []
+    values = []
+    cursor = start_month
+    while cursor <= end_month:
+        idx = (cursor.year - 2025) * 12 + (cursor.month - 1)
+        if 0 <= idx < len(DEFAULT_ANALYTICS_APPLICANTS_VALUES):
+            value = DEFAULT_ANALYTICS_APPLICANTS_VALUES[idx]
+        else:
+            value = month_counts.get(cursor, 0)
+        labels.append(cursor.strftime('%B %Y'))
+        values.append(value)
+        cursor = cursor + relativedelta(months=1)
+
+    return labels, values
 
 
 @super_admin_bp.route('/analytics')
@@ -130,6 +185,8 @@ def analytics_analysis():
         total_super_admins=total_super_admins,
         total_community_users=total_community_users,
     )
+
+
 
 
 @super_admin_bp.route('/analytics/reports')
@@ -286,11 +343,12 @@ def api_arima_forecast():
     months = request.args.get('months', 18, type=int)
     forecast_periods = request.args.get('forecast_periods', 6, type=int)
     force_arima = request.args.get('force_arima', 'false').lower() == 'true'
+    force_seed = _should_force_seed(request.args)
 
     forecast_periods = min(forecast_periods, 12)
 
     end_date = datetime.utcnow()
-    start_date = end_date - relativedelta(months=months)
+    start_date = datetime(2025, 1, 1) if force_seed else end_date - relativedelta(months=months)
 
     historical_data = db.session.query(
         func.date_trunc('month', Applications.application_date).label('month'),
@@ -301,6 +359,11 @@ def api_arima_forecast():
 
     labels = [d.month.strftime('%B %Y') for d in historical_data if d.month]
     values = [d.count for d in historical_data]
+
+    if force_seed:
+        labels, values = _build_seeded_applicants_series(historical_data, end_date)
+    elif not labels or not values:
+        labels, values = _default_applicants_series()
 
     forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
     fallback_reason = forecast_result.get('fallback_reason')

@@ -20,9 +20,7 @@ def _parse_csrf_time_limit(raw_value):
 
 def _default_upload_root():
     """Return a platform-appropriate default upload root."""
-    if os.name == 'nt':
-        return os.path.join(os.getcwd(), 'instance', 'uploads')
-    return '/var/lib/ayuda/uploads'
+    return os.path.join(os.getcwd(), 'app', 'static', 'uploads')
 
 class Config:
     # Database: Use DATABASE_URL env var (required for production)
@@ -56,5 +54,5 @@ class Config:
     TIMEZONE = os.environ.get('TIMEZONE', 'Asia/Manila')
     TZ = pytz.timezone(TIMEZONE)
 
-    # Private upload storage (outside web root in production).
+    # Upload storage (defaults to app/static/uploads).
     UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', _default_upload_root())

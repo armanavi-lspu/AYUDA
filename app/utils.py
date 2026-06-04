@@ -11,9 +11,9 @@ def get_app_timezone():
     return current_app.config.get('TZ', pytz.timezone('Asia/Manila'))
 
 
-def get_upload_root():
+def  get_upload_root():
     """Return the configured upload root directory."""
-    return current_app.config.get('UPLOAD_ROOT') or os.path.join(os.getcwd(), 'uploads')
+    return current_app.config.get('UPLOAD_ROOT') or os.path.join(os.getcwd(), 'app', 'static', 'uploads')
 
 
 def normalize_upload_relative(raw_path):

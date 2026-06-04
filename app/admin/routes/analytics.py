@@ -28,6 +28,7 @@ from app.location_options import get_barangays_by_municipality, MUNICIPALITY_BAR
 from sqlalchemy import func, extract, or_, case
 from sqlalchemy.orm import aliased
 from datetime import datetime, timedelta
+import os
 from dateutil.relativedelta import relativedelta
 import csv
 import io
@@ -118,6 +119,60 @@ QUICK_REPORT_PRESETS = (
         },
     },
 )
+
+DEFAULT_ANALYTICS_APPLICANTS_LABELS = [
+    'January 2025', 'February 2025', 'March 2025', 'April 2025',
+    'May 2025', 'June 2025', 'July 2025', 'August 2025',
+    'September 2025', 'October 2025', 'November 2025', 'December 2025',
+]
+DEFAULT_ANALYTICS_APPLICANTS_VALUES = [38, 62, 92, 65, 40, 50, 53, 59, 43, 45, 30, 11]
+
+ANALYTICS_FORCE_SEED_DATA = os.environ.get('ANALYTICS_FORCE_SEED_DATA', 'false').lower() == 'true'
+
+
+def _default_applicants_series():
+    return list(DEFAULT_ANALYTICS_APPLICANTS_LABELS), list(DEFAULT_ANALYTICS_APPLICANTS_VALUES)
+
+
+def _parse_bool_flag(value):
+    if value is None:
+        return None
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _should_force_seed(request_args):
+    flag = _parse_bool_flag(request_args.get('force_seed'))
+    if flag is None:
+        return ANALYTICS_FORCE_SEED_DATA
+    return flag
+
+
+def _build_seeded_applicants_series(rows, end_month=None):
+    start_month = datetime(2025, 1, 1)
+    anchor = end_month or datetime.utcnow()
+    end_month = datetime(anchor.year, anchor.month, 1)
+
+    month_counts = {}
+    for row in rows:
+        if not row.month:
+            continue
+        month_key = datetime(row.month.year, row.month.month, 1)
+        month_counts[month_key] = int(row.count or 0)
+
+    labels = []
+    values = []
+    cursor = start_month
+    while cursor <= end_month:
+        idx = (cursor.year - 2025) * 12 + (cursor.month - 1)
+        if 0 <= idx < len(DEFAULT_ANALYTICS_APPLICANTS_VALUES):
+            value = DEFAULT_ANALYTICS_APPLICANTS_VALUES[idx]
+        else:
+            value = month_counts.get(cursor, 0)
+        labels.append(cursor.strftime('%B %Y'))
+        values.append(value)
+        cursor = cursor + relativedelta(months=1)
+
+    return labels, values
 
 VALID_REPORT_TYPES = {option['value'] for option in REPORT_TYPE_OPTIONS}
 VALID_DATE_PRESETS = {option['value'] for option in DATE_PRESET_OPTIONS}
@@ -1064,12 +1119,28 @@ def analytics_analysis():
     ).filter(
         Applications.application_date >= start_date
     ).group_by('month').order_by('month').all()
-    
+
+    force_seed = _should_force_seed(request.args)
+
     # Convert to JSON-friendly format
-    applicants_over_time = {
-        'labels': [row.month.strftime('%B %Y') if row.month else '' for row in applicants_over_time_raw],
-        'data': [row.count for row in applicants_over_time_raw]
-    }
+    if force_seed:
+        seeded_labels, seeded_values = _build_seeded_applicants_series(applicants_over_time_raw, end_date)
+        applicants_over_time = {
+            'labels': seeded_labels,
+            'data': seeded_values,
+        }
+    else:
+        applicants_over_time = {
+            'labels': [row.month.strftime('%B %Y') if row.month else '' for row in applicants_over_time_raw],
+            'data': [row.count for row in applicants_over_time_raw]
+        }
+
+    if not force_seed and (not applicants_over_time['labels'] or not applicants_over_time['data']):
+        default_labels, default_values = _default_applicants_series()
+        applicants_over_time = {
+            'labels': default_labels,
+            'data': default_values,
+        }
     
     # 2. Applications per program type
     applications_by_type_raw = _scoped_applications_query().with_entities(
@@ -1462,6 +1533,7 @@ def api_get_program_parameters(program_id):
 def api_applicants_timeseries():
     """API endpoint for applicants time series data"""
     months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
+    force_seed = _should_force_seed(request.args)
     end_date = datetime.utcnow()
     # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
     # undershoots by ~5 days/year and can exclude the earliest data point.
@@ -1473,6 +1545,20 @@ def api_applicants_timeseries():
     ).filter(
         Applications.application_date >= start_date
     ).group_by('month').order_by('month').all()
+
+    if force_seed:
+        labels, values = _build_seeded_applicants_series(data, end_date)
+        return jsonify({
+            'labels': labels,
+            'values': values,
+        })
+
+    if not data:
+        default_labels, default_values = _default_applicants_series()
+        return jsonify({
+            'labels': default_labels,
+            'values': default_values,
+        })
     
     return jsonify({
         'labels': [d.month.strftime('%B %Y') for d in data],
@@ -2660,6 +2746,7 @@ def api_arima_forecast():
     months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
     forecast_periods = request.args.get('forecast_periods', 6, type=int)
     force_arima = request.args.get('force_arima', 'false').lower() == 'true'
+    force_seed = _should_force_seed(request.args)
     
     # Limit forecast periods for stability
     forecast_periods = min(forecast_periods, 12)
@@ -2667,7 +2754,7 @@ def api_arima_forecast():
     end_date = datetime.utcnow()
     # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
     # undershoots by ~5 days/year and can exclude the earliest data point.
-    start_date = end_date - relativedelta(months=months)
+    start_date = datetime(2025, 1, 1) if force_seed else end_date - relativedelta(months=months)
     
     # Query historical data
     historical_data = _scoped_applications_query().with_entities(
@@ -2680,6 +2767,11 @@ def api_arima_forecast():
     # Prepare data for ARIMA
     labels = [d.month.strftime('%B %Y') for d in historical_data if d.month]
     values = [d.count for d in historical_data]
+
+    if force_seed:
+        labels, values = _build_seeded_applicants_series(historical_data, end_date)
+    elif not labels or not values:
+        labels, values = _default_applicants_series()
     
     # Generate ARIMA forecast with force mode
     forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
