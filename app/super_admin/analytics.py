@@ -365,7 +365,7 @@ def api_arima_forecast():
     elif not labels or not values:
         labels, values = _default_applicants_series()
 
-    forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
+    forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima, digits=0)
     fallback_reason = forecast_result.get('fallback_reason')
     forecast_note = forecast_result.get('forecast_note')
     forecast_supported = forecast_result.get('forecast_supported', forecast_result.get('model') != 'none')
@@ -459,7 +459,7 @@ def api_program_forecast():
         for program_type in program_types
     }
 
-    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods)
+    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods, digits=0)
 
     forecast_labels = []
     for program_type in program_types:

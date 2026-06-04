@@ -1533,7 +1533,18 @@ def api_get_program_parameters(program_id):
 def api_applicants_timeseries():
     """API endpoint for applicants time series data"""
     months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
-    force_seed = _should_force_seed(request.args)
+    # Only allow seed data to be used for the Mabitac MSWDO admin page.
+    admin_municipality_key = _current_admin_municipality_key()
+    allow_seed = bool(admin_municipality_key and 'mabitac' in admin_municipality_key)
+
+    # If the admin is scoped to Mabitac and the caller did not explicitly pass
+    # a force_seed flag, default to showing the seeded 12-month series. If the
+    # caller provided an explicit flag, respect it (but only for Mabitac).
+    requested_flag = _parse_bool_flag(request.args.get('force_seed'))
+    if allow_seed:
+        force_seed = True if requested_flag is None else requested_flag
+    else:
+        force_seed = False
     end_date = datetime.utcnow()
     # Use relativedelta for accurate calendar-month arithmetic; timedelta(days=months*30)
     # undershoots by ~5 days/year and can exclude the earliest data point.
@@ -2746,7 +2757,19 @@ def api_arima_forecast():
     months = request.args.get('months', 18, type=int)  # Changed from 12 to 18 for better ARIMA accuracy
     forecast_periods = request.args.get('forecast_periods', 6, type=int)
     force_arima = request.args.get('force_arima', 'false').lower() == 'true'
-    force_seed = _should_force_seed(request.args)
+
+    # Only allow seed data to be used for the Mabitac MSWDO admin page.
+    admin_municipality_key = _current_admin_municipality_key()
+    allow_seed = bool(admin_municipality_key and 'mabitac' in admin_municipality_key)
+
+    # If the admin is scoped to Mabitac and the caller did not explicitly pass
+    # a force_seed flag, default to using the seeded 12-month series. Respect an
+    # explicit flag when provided (but only for Mabitac).
+    requested_flag = _parse_bool_flag(request.args.get('force_seed'))
+    if allow_seed:
+        force_seed = True if requested_flag is None else requested_flag
+    else:
+        force_seed = False
     
     # Limit forecast periods for stability
     forecast_periods = min(forecast_periods, 12)
@@ -2774,7 +2797,7 @@ def api_arima_forecast():
         labels, values = _default_applicants_series()
     
     # Generate ARIMA forecast with force mode
-    forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima)
+    forecast_result = arima_forecast(values, labels, periods=forecast_periods, force_arima=force_arima, digits=0)
     fallback_reason = forecast_result.get('fallback_reason')
     forecast_note = forecast_result.get('forecast_note')
     forecast_supported = forecast_result.get('forecast_supported', forecast_result.get('model') != 'none')
@@ -2865,7 +2888,7 @@ def api_program_forecast():
         for program_type in program_types
     }
 
-    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods)
+    forecast_by_program = forecast_program_timeseries(program_histories, periods=forecast_periods, digits=0)
 
     forecast_labels = []
     for program_type in program_types:

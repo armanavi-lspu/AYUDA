@@ -698,7 +698,7 @@ def forecast_program_growth(program_data, growth_rate=None):
     }
 
 
-def forecast_program_timeseries(program_type_histories, periods=6):
+def forecast_program_timeseries(program_type_histories, periods=6, digits=None):
     """
     Forecast per-program-type application volume using ARIMA.
 
@@ -708,6 +708,7 @@ def forecast_program_timeseries(program_type_histories, periods=6):
     Args:
         program_type_histories: dict of {program_type: {'labels': [...], 'values': [...]}}
         periods: Number of months to forecast forward
+        digits: Decimal precision for forecast outputs (default: env setting)
 
     Returns:
         dict of {program_type: forecast_result_dict}
@@ -716,5 +717,5 @@ def forecast_program_timeseries(program_type_histories, periods=6):
     for program_type, history in program_type_histories.items():
         labels = history.get('labels', [])
         values = history.get('values', [])
-        results[program_type] = arima_forecast(values, labels, periods=periods)
+        results[program_type] = arima_forecast(values, labels, periods=periods, digits=digits)
     return results
