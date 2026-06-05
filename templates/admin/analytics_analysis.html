@@ -437,6 +437,12 @@
                     <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
                         <i class="fas fa-chart-line mr-2"></i>
                         <span>Forecast: Applicants Over Time</span>
+                        <div class="ml-auto" style="margin-left:12px;">
+                            <select id="forecastViewSelect" class="form-control form-control-sm" style="min-width:180px;">
+                                <option value="monthly">Monthly Forecast (default)</option>
+                                <option value="by_year">Group by Year (2023 / 2024 / 2025)</option>
+                            </select>
+                        </div>
                     </h6>
                 </div>
                 <div class="card-body">
@@ -451,26 +457,7 @@
             </div>
         </div>
 
-        <!-- Forecast: Applications by Program Category -->
-        <div class="col-12 mb-4">
-            <div class="card shadow border-left-warning forecast-card" style="border-left-width: 4px;">
-                <div class="card-header bg-warning text-white py-3">
-                    <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
-                        <i class="fas fa-chart-bar mr-2"></i>
-                        <span>Forecast: Applications per Program Category</span>
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" id="forecastProgramContainer">
-                        <div class="chart-loading">
-                            <div class="spinner"></div>
-                            <p class="mt-3 text-muted">Loading chart...</p>
-                        </div>
-                        <canvas id="forecastProgramCategoryChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Forecast: Applications per Program Category removed -->
     </div>
 </div>
 
@@ -479,6 +466,9 @@
 <script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
 <script type="application/json" id="completion-rate-by-barangay-data">{{ completion_rate_by_barangay_json | safe }}</script>
 <script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+{% if mabitac_static_applicants_over_time_json %}
+<script type="application/json" id="mabitac-static-applicants-data">{{ mabitac_static_applicants_over_time_json | safe }}</script>
+{% endif %}
 </div>
 
 {% endblock %}
@@ -931,15 +921,198 @@ function initializeAnalyticsAnalysisPage() {
     // 5. Forecast: Applicants Over Time - Using ARIMA from backend
     const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
     let applicantsForecastChart = null;
+    // Keep the last-loaded forecast/historical series so we can re-render when
+    // the user toggles views without re-fetching.
+    let lastForecastData = null; // { historicalLabels, historicalData, forecastLabels, forecastData, source }
+    
+    // Helper: parse labels like 'Jan-2023' into Date objects (month start)
+    function parseMonthLabelToDate(label) {
+        try {
+            const cleaned = String(label || '').trim().replace(/\s+/g, '-');
+            const parts = cleaned.split('-');
+            if (parts.length < 2) {
+                return new Date();
+            }
+            const monthName = parts[0].toLowerCase().slice(0,3);
+            const year = parseInt(parts[1], 10) || new Date().getFullYear();
+            const map = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+            const m = map[monthName] !== undefined ? map[monthName] : 0;
+            return new Date(year, m, 1);
+        } catch (e) {
+            return new Date();
+        }
+    }
+
+    // Helper: simple linear regression (x=0..n-1) -> {slope, intercept}
+    function computeLinearTrend(values) {
+        const n = (values || []).length;
+        if (n === 0) return { slope: 0, intercept: 0 };
+        const meanX = (n - 1) / 2;
+        const meanY = values.reduce((a, b) => a + (Number(b) || 0), 0) / n;
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+            const x = i;
+            num += (x - meanX) * ((Number(values[i]) || 0) - meanY);
+            den += (x - meanX) * (x - meanX);
+        }
+        const slope = den === 0 ? 0 : num / den;
+        const intercept = meanY - slope * meanX;
+        return { slope, intercept };
+    }
+
+    // Client-side forecast for the MSWD Mabitac static series (12 months)
+    function loadStaticMabitacForecast(staticSeries) {
+        if (!forecastApplicantsCtx) return;
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        chartContainer.style.opacity = '0.5';
+        clearForecastStatus(chartContainer);
+
+        const historicalLabels = Array.isArray(staticSeries.labels) ? staticSeries.labels.slice() : [];
+        const historicalData = Array.isArray(staticSeries.data) ? staticSeries.data.map(v => Math.max(0, Math.round(Number(v) || 0))) : [];
+        if (historicalLabels.length === 0 || historicalLabels.length !== historicalData.length) {
+            renderForecastStatus(chartContainer, 'Static Mabitac series is invalid or missing.');
+            chartContainer.style.opacity = '1';
+            showChart('forecastApplicantsContainer');
+            return;
+        }
+
+        // Trend and seasonal decomposition (simple)
+        const n = historicalData.length;
+        const lastDate = parseMonthLabelToDate(historicalLabels[historicalLabels.length - 1]);
+        const { slope, intercept } = computeLinearTrend(historicalData);
+
+        // Seasonal offsets: average residual per calendar month
+        const seasonOffsets = new Array(12).fill(0);
+        const seasonCounts = new Array(12).fill(0);
+        for (let i = 0; i < n; i++) {
+            const dt = parseMonthLabelToDate(historicalLabels[i]);
+            const m = dt.getMonth();
+            const trendVal = intercept + slope * i;
+            const residual = historicalData[i] - trendVal;
+            seasonOffsets[m] += residual;
+            seasonCounts[m] += 1;
+        }
+        for (let m = 0; m < 12; m++) {
+            if (seasonCounts[m] > 0) seasonOffsets[m] = seasonOffsets[m] / seasonCounts[m];
+            else seasonOffsets[m] = 0;
+        }
+
+        // Forecast next 12 months
+        const forecastPeriods = 12;
+        const forecastValues = [];
+        const forecastLabels = [];
+        for (let t = 1; t <= forecastPeriods; t++) {
+            const xFuture = n + (t - 1);
+            const futureMonth = (lastDate.getMonth() + t) % 12;
+            const seasonal = seasonOffsets[futureMonth] || 0;
+            let value = intercept + slope * xFuture + seasonal;
+            value = Math.max(0, Math.round(value));
+            forecastValues.push(value);
+            const futureDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + t, 1);
+            forecastLabels.push(futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
+        }
+
+        // Store last data for toggling
+        lastForecastData = {
+            historicalLabels: historicalLabels,
+            historicalData: historicalData,
+            forecastLabels: forecastLabels,
+            forecastData: forecastValues,
+            source: 'static'
+        };
+
+        // Render chart
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+        const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalLabels, ...forecastLabels],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(forecastValues.length).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Forecast (12 months) - Static Mabitac',
+                        data: buildForecastDataArray(historicalData.length, lastValue, forecastValues),
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) label += Math.round(context.parsed.y);
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        chartContainer.style.opacity = '1';
+        showChart('forecastApplicantsContainer');
+    }
     
     function loadArimaForecast() {
         if (!forecastApplicantsCtx) return;
-        
+        // If a static Mabitac series is present, use it and render a 12-month
+        // forecast entirely on the client (MSWD Mabitac special-case).
+        try {
+            const staticEl = document.getElementById('mabitac-static-applicants-data');
+            if (staticEl && staticEl.textContent && staticEl.textContent.trim().length > 0) {
+                const staticSeries = JSON.parse(staticEl.textContent);
+                loadStaticMabitacForecast(staticSeries);
+                return;
+            }
+        } catch (err) {
+            console.error('Error reading static Mabitac series:', err);
+        }
+
         // Show loading state
         const chartContainer = forecastApplicantsCtx.parentElement;
         chartContainer.style.opacity = '0.5';
         clearForecastStatus(chartContainer);
-        
+
         fetch('/admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
             .then(response => response.json())
             .then(data => {
@@ -968,6 +1141,17 @@ function initializeAnalyticsAnalysisPage() {
                 if (applicantsForecastChart) {
                     applicantsForecastChart.destroy();
                 }
+
+                // Save last fetched series for toggling
+                lastForecastData = {
+                    historicalLabels: historicalLabels,
+                    historicalData: historicalData,
+                    forecastLabels: forecastLabels,
+                    forecastData: forecastData,
+                    confidenceLower: confidenceLower,
+                    confidenceUpper: confidenceUpper,
+                    source: 'arima'
+                };
 
                 if (!forecastSupported) {
                     if (hasInsufficientDataUnsupported) {
@@ -1225,6 +1409,15 @@ function initializeAnalyticsAnalysisPage() {
             }
         });
 
+        // Save last data for toggling
+        lastForecastData = {
+            historicalLabels: historicalLabels,
+            historicalData: historicalData,
+            forecastLabels: forecastLabels,
+            forecastData: forecastData,
+            source: 'fallback'
+        };
+
         if (noteMessage) {
             renderForecastStatus(chartContainer, noteMessage);
         }
@@ -1235,151 +1428,181 @@ function initializeAnalyticsAnalysisPage() {
     // Load ARIMA forecast on page load
     loadArimaForecast();
     
-    // 6. Forecast: Program Category - Using backend forecast
-    const forecastProgramCtx = document.getElementById('forecastProgramCategoryChart');
-    let programForecastChart = null;
-
-    const programForecastPalette = [
-        '#4e73df',
-        '#1cc88a',
-        '#36b9cc',
-        '#f6c23e',
-        '#e74a3b',
-        '#858796',
-        '#20c9a6',
-        '#6f42c1',
-    ];
-
-    function colorWithAlpha(hexColor, alpha) {
-        const clean = String(hexColor || '').replace('#', '');
-        if (clean.length !== 6) {
-            return `rgba(78, 115, 223, ${alpha})`;
+    // Render grouped-by-year view from lastForecastData
+    function renderGroupedYearFromLastData() {
+        if (!lastForecastData || !lastForecastData.historicalLabels) {
+            renderForecastStatus(forecastApplicantsCtx.parentElement, 'No historical series available to group by year.');
+            return;
         }
 
-        const r = parseInt(clean.slice(0, 2), 16);
-        const g = parseInt(clean.slice(2, 4), 16);
-        const b = parseInt(clean.slice(4, 6), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    
-    function loadProgramForecast() {
-        if (!forecastProgramCtx) return;
-        
-        const chartContainer = forecastProgramCtx.parentElement;
-        chartContainer.style.opacity = '0.5';
-        
-        fetch('/admin/api/analytics/program-forecast?months=18&forecast_periods=6')
-            .then(response => response.json())
-            .then(data => {
-                console.log('Program Forecast Data:', data);
-                
-                if (programForecastChart) {
-                    programForecastChart.destroy();
+        // Build a map of year -> array of 12 months (fill null if missing)
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const yearMap = {};
+        const labels = lastForecastData.historicalLabels;
+        const values = lastForecastData.historicalData;
+        for (let i = 0; i < labels.length; i++) {
+            const lbl = labels[i];
+            const dt = parseMonthLabelToDate(lbl);
+            const y = dt.getFullYear();
+            const m = dt.getMonth();
+            yearMap[y] = yearMap[y] || new Array(12).fill(null);
+            yearMap[y][m] = Number(values[i]) || 0;
+        }
+
+        // Use only years 2023,2024,2025 if present, in that order (per request)
+        const yearsToShow = [2023, 2024, 2025].filter(y => yearMap[y]);
+        if (yearsToShow.length === 0) {
+            renderForecastStatus(forecastApplicantsCtx.parentElement, 'No yearly groups found in the historical data.');
+            return;
+        }
+
+        const palette = ['rgb(78, 115, 223)','rgb(246, 194, 62)','rgb(134,134,134)'];
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+        // We'll render months twice: historical (Jan..Dec) then forecast (Jan..Dec - Forecast)
+        const historicalLabelsPart = monthNames;
+        const forecastLabelsPart = monthNames.map(m => `${m} (Forecast)`);
+        const allLabels = [...historicalLabelsPart, ...forecastLabelsPart];
+
+        const datasets = yearsToShow.map((y, idx) => ({
+            label: String(y),
+            // historical values for first 12 slots, then nulls for forecast slots
+            data: yearMap[y].map(v => v === null ? null : Math.max(0, Math.round(v))).concat(new Array(12).fill(null)),
+            borderColor: palette[idx % palette.length],
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 4
+        }));
+
+        // Add a single-line series showing the 12-month forecast values in the
+        // second block of labels so it appears beside historical months.
+        if (lastForecastData && Array.isArray(lastForecastData.forecastLabels) && lastForecastData.forecastLabels.length > 0) {
+            const forecastByMonth = new Array(12).fill(null);
+            try {
+                for (let i = 0; i < lastForecastData.forecastLabels.length; i++) {
+                    const fl = lastForecastData.forecastLabels[i];
+                    const fv = Number((lastForecastData.forecastData && lastForecastData.forecastData[i]) || null);
+                    const dt = parseMonthLabelToDate(fl);
+                    const m = dt.getMonth();
+                    forecastByMonth[m] = isNaN(fv) ? null : Math.max(0, Math.round(fv));
                 }
 
-                const historicalLabels = data.historical_labels || [];
-                const forecastLabels = data.forecast_labels || [];
-                const allLabels = [...historicalLabels, ...forecastLabels];
-                const categories = Array.isArray(data.categories) ? data.categories : [];
-
-                const datasets = [];
-                categories.forEach((category, index) => {
-                    const programType = category.program_type || `Category ${index + 1}`;
-                    const color = programForecastPalette[index % programForecastPalette.length];
-                    const historicalValues = Array.isArray(category.historical_values)
-                        ? category.historical_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
-                        : [];
-                    const forecastValues = Array.isArray(category.forecast_values)
-                        ? category.forecast_values.map((value) => Math.max(0, Math.round(Number(value) || 0)))
-                        : [];
-
-                    datasets.push({
-                        label: `${programType} (Historical)`,
-                        data: [...historicalValues, ...Array(forecastLabels.length).fill(null)],
-                        borderColor: color,
-                        backgroundColor: colorWithAlpha(color, 0.12),
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.35,
-                        pointRadius: 2,
-                    });
-
-                    if (forecastValues.length > 0 && historicalValues.length > 0) {
-                        const lastHistorical = historicalValues[historicalValues.length - 1];
-                        const forecastSeries = [
-                            ...Array(Math.max(historicalValues.length - 1, 0)).fill(null),
-                            lastHistorical,
-                            ...forecastValues,
-                        ];
-
-                        datasets.push({
-                            label: `${programType} (Forecast)`,
-                            data: forecastSeries,
-                            borderColor: color,
-                            backgroundColor: 'transparent',
-                            borderWidth: 2,
-                            borderDash: [6, 5],
-                            fill: false,
-                            tension: 0.35,
-                            pointRadius: 2,
-                        });
-                    }
+                // Place forecast values in the second block of 12 slots
+                const forecastSeries = new Array(12).fill(null).concat(forecastByMonth);
+                datasets.push({
+                    label: '12-month Forecast',
+                    data: forecastSeries,
+                    borderColor: 'rgb(231, 74, 59)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    borderDash: [6,4]
                 });
+            } catch (e) {
+                console.error('Error building grouped forecast series:', e);
+            }
+        }
 
-                programForecastChart = new Chart(forecastProgramCtx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: allLabels,
-                        datasets: datasets,
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top',
-                            },
-                            tooltip: {
-                                mode: 'index',
-                                intersect: false,
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += Math.round(context.parsed.y);
-                                        }
-                                        return label;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                chartContainer.style.opacity = '1';
-                showChart('forecastProgramContainer');
-            })
-            .catch(error => {
-                console.error('Error loading program forecast:', error);
-                chartContainer.style.opacity = '1';
-                showChart('forecastProgramContainer');
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: allLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        showChart('forecastApplicantsContainer');
+    }
+
+    // Re-render monthly chart from lastForecastData (no re-fetch)
+    function renderMonthlyFromLastData() {
+        if (!lastForecastData || !lastForecastData.historicalLabels) {
+            loadArimaForecast();
+            return;
+        }
+
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        clearForecastStatus(chartContainer);
+        const historicalLabels = lastForecastData.historicalLabels || [];
+        const historicalData = lastForecastData.historicalData || [];
+        const forecastLabels = lastForecastData.forecastLabels || [];
+        const forecastData = lastForecastData.forecastData || [];
+        const confidenceLower = lastForecastData.confidenceLower || [];
+        const confidenceUpper = lastForecastData.confidenceUpper || [];
+
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+        const datasets = [
+            {
+                label: 'Historical Data',
+                data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
+                borderColor: 'rgb(78, 115, 223)',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3
+            }
+        ];
+
+        if (forecastData.length > 0) {
+            const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+            datasets.push({
+                label: 'Forecast',
+                data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
+                borderColor: 'rgb(246, 194, 62)',
+                backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                borderDash: [5,5]
             });
+
+            if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
+                datasets.push({ label: 'CI Upper', data: [...Array(historicalData.length).fill(null), ...confidenceUpper], borderColor: 'rgba(246,194,62,0.3)', backgroundColor: 'rgba(246,194,62,0.08)', fill: '+1', pointRadius: 0, borderWidth:1 });
+                datasets.push({ label: 'CI Lower', data: [...Array(historicalData.length).fill(null), ...confidenceLower], borderColor: 'rgba(246,194,62,0.3)', backgroundColor: 'transparent', fill: false, pointRadius:0, borderWidth:1, hidden: true });
+            }
+        }
+
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: { labels: [...historicalLabels, ...forecastLabels], datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        chartContainer.style.opacity = '1';
+        showChart('forecastApplicantsContainer');
+    }
+
+    // Wire up view toggle
+    const forecastViewSelect = document.getElementById('forecastViewSelect');
+    if (forecastViewSelect) {
+        forecastViewSelect.addEventListener('change', function() {
+            const val = this.value;
+            if (val === 'by_year') {
+                renderGroupedYearFromLastData();
+            } else {
+                renderMonthlyFromLastData();
+            }
+        });
     }
     
-    // Load program forecast on page load
-    loadProgramForecast();
+    // Forecast: Applications per Program Category removed from UI
     
     // Time range selector
     const timeRangeSelect = document.getElementById('timeRangeSelect');

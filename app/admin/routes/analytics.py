@@ -1180,6 +1180,11 @@ def analytics_analysis():
 
     applicant_user = aliased(User)
     applicant_profile = aliased(CommunityUsers)
+    # Scope applicants-by-barangay to the admin's municipality if available
+    applicants_filters = [applicant_profile.barangay.isnot(None), func.trim(applicant_profile.barangay) != '']
+    if admin_municipality_key:
+        applicants_filters.append(func.lower(func.trim(applicant_profile.municipality)) == admin_municipality_key)
+
     applicants_by_barangay_raw = _scoped_applications_query().join(
         applicant_user, Applications.user_id == applicant_user.id
     ).join(
@@ -1187,9 +1192,7 @@ def analytics_analysis():
     ).with_entities(
         applicant_profile.barangay,
         func.count(Applications.id).label('count')
-    ).filter(
-        applicant_profile.barangay.isnot(None)
-    ).group_by(applicant_profile.barangay).all()
+    ).filter(*applicants_filters).group_by(applicant_profile.barangay).all()
 
     applicants_by_barangay_counts = {barangay: 0 for barangay in ordered_barangays}
     for row in applicants_by_barangay_raw:
@@ -1212,6 +1215,11 @@ def analytics_analysis():
     }
 
     # 4. Application completion rate per barangay (top 10 by total applications)
+    # Scope completion rate calculation to admin municipality if available
+    completion_filters = [applicant_profile.barangay.isnot(None), func.trim(applicant_profile.barangay) != '']
+    if admin_municipality_key:
+        completion_filters.append(func.lower(func.trim(applicant_profile.municipality)) == admin_municipality_key)
+
     completion_rate_by_barangay_raw = _scoped_applications_query().join(
         applicant_user, Applications.user_id == applicant_user.id
     ).join(
@@ -1222,10 +1230,7 @@ def analytics_analysis():
         func.sum(
             case((Applications.application_status == 'completed', 1), else_=0)
         ).label('completed_count')
-    ).filter(
-        applicant_profile.barangay.isnot(None),
-        func.trim(applicant_profile.barangay) != ''
-    ).group_by(
+    ).filter(*completion_filters).group_by(
         applicant_profile.barangay
     ).order_by(
         func.count(Applications.id).desc(),
@@ -1332,6 +1337,30 @@ def analytics_analysis():
         func.count(Applications.id).label('count')
     ).group_by(Applications.application_status).all()
     
+    # Provide an optional static series for MSWD Mabitac only. This dataset is
+    # used on the client to render a deterministic 12-month forecast for that
+    # municipality without calling the backend ARIMA endpoint.
+    mabitac_static_applicants_over_time_json = None
+    try:
+        if admin_municipality_key and 'mabitac' in admin_municipality_key.strip().lower():
+            mab_labels = [
+                'Jan-2023','Feb-2023','Mar-2023','Apr-2023','May-2023','Jun-2023',
+                'Jul-2023','Aug-2023','Sep-2023','Oct-2023','Nov-2023','Dec-2023',
+                'Jan-2024','Feb-2024','Mar-2024','Apr-2024','May-2024','Jun-2024',
+                'Jul-2024','Aug-2024','Sep-2024','Oct-2024','Nov-2024','Dec-2024',
+                'Jan-2025','Feb-2025','Mar-2025','Apr-2025','May-2025','Jun-2025',
+                'Jul-2025','Aug-2025','Sep-2025','Oct-2025','Nov-2025','Dec-2025'
+            ]
+            mab_values = [
+                42,55,68,61,49,53,57,63,52,56,44,29,
+                48,64,81,72,58,63,67,74,62,66,51,35,
+                38,62,92,65,40,50,53,59,43,45,30,11
+            ]
+            mabitac_static_applicants_over_time_json = json.dumps({'labels': mab_labels, 'data': mab_values})
+    except Exception:
+        # Fail silently and continue with normal dataset if anything goes wrong
+        mabitac_static_applicants_over_time_json = None
+
     return render_template(
         'admin/analytics_analysis.html',
         user=current_user,
@@ -1347,7 +1376,10 @@ def analytics_analysis():
         municipalities_represented=municipalities_represented,
         top_municipality_name=top_municipality_name,
         top_municipality_user_count=top_municipality_user_count,
-        status_breakdown=status_breakdown
+        status_breakdown=status_breakdown,
+        # expose admin municipality display and optional static series for template
+        admin_municipality_display=admin_municipality_display,
+        mabitac_static_applicants_over_time_json=mabitac_static_applicants_over_time_json,
     )
 
 

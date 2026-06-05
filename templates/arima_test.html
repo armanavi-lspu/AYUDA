@@ -533,12 +533,27 @@
                 input.value = values[index] != null ? values[index] : 0;
                 input.addEventListener('input', function () {
                     customDirty = true;
+                    saveCustomDataToStorage();
                 });
 
                 row.appendChild(labelNode);
                 row.appendChild(input);
                 dataRows.appendChild(row);
             });
+
+            // Scale the visible table height to the number of rows requested so
+            // the user can edit the full series without excessive scrolling.
+            try {
+                const tableWrap = dataRows.closest('.arima-data-table');
+                if (tableWrap) {
+                    const rowCount = Math.max(1, labels.length);
+                    const rowHeight = 44; // approx height per row in px
+                    const maxRows = 36; // cap to match input limit
+                    tableWrap.style.maxHeight = Math.min(rowCount, maxRows) * rowHeight + 'px';
+                }
+            } catch (e) {
+                // ignore styling issues
+            }
         }
 
         function buildCustomTable(markDirty) {
@@ -558,6 +573,10 @@
             if (markDirty) {
                 customDirty = true;
             }
+            // Save the generated table as initial stored data (if not dirty)
+            if (!customDirty) {
+                saveCustomDataToStorage();
+            }
         }
 
         function seedCustomData(payload) {
@@ -576,11 +595,44 @@
                 historyCountInput.value = labels.length;
             }
             renderCustomTable(labels, values);
+            // Persist seeded data so reloads keep the same custom series unless
+            // the user actively edits it.
+            saveCustomDataToStorage();
         }
 
         function toggleCustomPanel(isEnabled) {
             if (!customPanel) return;
             customPanel.classList.toggle('d-none', !isEnabled);
+        }
+
+        // Local storage helpers to persist custom historical data across reloads.
+        const STORAGE_KEY = 'arima_custom_data_v1';
+
+        function saveCustomDataToStorage() {
+            if (!window || !window.localStorage) return;
+            try {
+                const payload = {
+                    start_month: startMonthInput ? startMonthInput.value : null,
+                    history_count: historyCountInput ? parseInt(historyCountInput.value, 10) : null,
+                    data: getCustomDataFromTable(),
+                    ts: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                // ignore storage errors
+            }
+        }
+
+        function loadCustomDataFromStorage() {
+            if (!window || !window.localStorage) return null;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch (e) {
+                return null;
+            }
         }
 
         function renderChart(payload) {
@@ -915,18 +967,35 @@
         if (startMonthInput) {
             startMonthInput.addEventListener('change', function () {
                 buildCustomTable(true);
+                saveCustomDataToStorage();
             });
         }
 
         if (historyCountInput) {
             historyCountInput.addEventListener('change', function () {
                 buildCustomTable(true);
+                saveCustomDataToStorage();
             });
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            toggleCustomPanel(customToggle && customToggle.checked);
-            buildCustomTable(false);
+            // Load any stored custom series and apply it. If none, build default table.
+            const stored = loadCustomDataFromStorage();
+            if (stored && Array.isArray((stored.data || {}).labels) && (stored.data.labels.length)) {
+                if (startMonthInput && stored.start_month) startMonthInput.value = stored.start_month;
+                if (historyCountInput && stored.history_count) historyCountInput.value = stored.history_count;
+                renderCustomTable((stored.data || {}).labels || [], (stored.data || {}).values || []);
+                if (customToggle) {
+                    customToggle.checked = true;
+                }
+                toggleCustomPanel(true);
+                customDirty = true; // user-saved data should not be overwritten by seeded payload
+            } else {
+                toggleCustomPanel(customToggle && customToggle.checked);
+                buildCustomTable(false);
+            }
+
+            // Kick off initial ARIMA test (uses either seeded or stored custom data)
             runTest();
         });
     })();

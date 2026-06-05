@@ -13,45 +13,10 @@ import os
 # FutureWarning suppression removed so pandas/statsmodels deprecations surface early
 warnings.filterwarnings('ignore', category=UserWarning)
 
-def _parse_int_env(name, default):
-    try:
-        return int(os.environ.get(name, default))
-    except (TypeError, ValueError):
-        return default
-
-
-def _parse_seasonal_order(value):
-    if value is None:
-        return None
-    raw = str(value).strip()
-    if not raw:
-        return None
-    parts = [part.strip() for part in raw.replace(';', ',').split(',') if part.strip()]
-    if len(parts) != 4:
-        return None
-    try:
-        return tuple(int(part) for part in parts)
-    except ValueError:
-        return None
-
-
-def _resolve_digits(digits):
-    if digits is None:
-        return DEFAULT_DECIMAL_DIGITS
-    try:
-        parsed = int(digits)
-    except (TypeError, ValueError):
-        return DEFAULT_DECIMAL_DIGITS
-    return max(0, parsed)
-
 # Constants for simple linear forecast confidence intervals
 CONFIDENCE_LOWER_MULTIPLIER = 0.8
 CONFIDENCE_UPPER_MULTIPLIER = 1.2
 MIN_FORECAST_DATA_POINTS = 4
-DEFAULT_DECIMAL_DIGITS = _parse_int_env('FORECAST_DECIMAL_DIGITS', 0)
-DEFAULT_SEASONAL_ORDER = (1, 1, 1, 12)
-SEASONAL_MIN_POINTS = max(0, _parse_int_env('FORECAST_SEASONAL_MIN_POINTS', 36))
-SEASONAL_ORDER_OVERRIDE = _parse_seasonal_order(os.environ.get('FORECAST_SEASONAL_ORDER'))
 
 # Force ARIMA override (set env var FORECAST_FORCE_ARIMA=true or query param)
 FORCE_ARIMA_MODE = os.environ.get('FORECAST_FORCE_ARIMA', 'false').lower() == 'true'
@@ -63,10 +28,6 @@ def _clamp_non_negative(values, digits=0):
     if digits <= 0:
         return [int(round(v)) for v in clamped]
     return [round(v, digits) for v in clamped]
-
-
-def _finalize_forecast_values(values, digits=0):
-    return _clamp_non_negative(values, digits=_resolve_digits(digits))
 
 
 def _build_insufficient_data_note(required_points, available_points):
@@ -145,15 +106,7 @@ def prepare_time_series_data(labels, values):
     return series
 
 
-def arima_forecast(
-    historical_data,
-    historical_labels,
-    periods=6,
-    force_arima=None,
-    digits=None,
-    seasonal_order=None,
-    seasonal_min_points=None
-):
+def arima_forecast(historical_data, historical_labels, periods=6, force_arima=None, digits=0):
     """
     Generate forecasts using ARIMA model with improved robustness.
     Smart fallback strategy for low-volume data.
@@ -163,41 +116,16 @@ def arima_forecast(
         historical_labels: List of date labels for historical data
         periods: Number of future periods to forecast (default: 6)
         force_arima: Override to force ARIMA mode (default: None, uses env var)
-        digits: Decimal precision for forecast outputs (default: env setting)
-        seasonal_order: Optional override (p, d, q, s) for seasonal ARIMA
-        seasonal_min_points: Minimum points before applying seasonality
         
     Returns:
         dict with forecast_labels, forecast_values, confidence_lower, confidence_upper
     """
     available_points = len(historical_data) if historical_data else 0
-    digits = _resolve_digits(digits)
     if available_points < MIN_FORECAST_DATA_POINTS:
         return _unsupported_forecast(available_points)
 
     # Check force mode
     force_mode = force_arima if force_arima is not None else FORCE_ARIMA_MODE
-
-    if seasonal_min_points is None:
-        seasonal_min_points = SEASONAL_MIN_POINTS
-    else:
-        try:
-            seasonal_min_points = max(0, int(seasonal_min_points))
-        except (TypeError, ValueError):
-            seasonal_min_points = SEASONAL_MIN_POINTS
-
-    resolved_seasonal_order = None
-    if seasonal_order is not None:
-        if isinstance(seasonal_order, (list, tuple)) and len(seasonal_order) == 4:
-            try:
-                resolved_seasonal_order = tuple(int(value) for value in seasonal_order)
-            except (TypeError, ValueError):
-                resolved_seasonal_order = None
-        else:
-            resolved_seasonal_order = _parse_seasonal_order(seasonal_order)
-
-    if resolved_seasonal_order is None:
-        resolved_seasonal_order = SEASONAL_ORDER_OVERRIDE
 
     try:
         from statsmodels.tsa.arima.model import ARIMA
@@ -209,8 +137,7 @@ def arima_forecast(
             historical_data,
             historical_labels,
             periods,
-            fallback_reason='statsmodels_unavailable',
-            digits=digits
+            fallback_reason='statsmodels_unavailable'
         )
     
     # Smart detection: Use exponential smoothing for low-volume, volatile data
@@ -227,12 +154,7 @@ def arima_forecast(
         if avg_value < 20 and cv > 0.35:
             print(f"INFO: Low-volume, high-variability data detected (avg={avg_value:.1f}, CV={cv:.2f})")
             print("  -> Using exponential smoothing instead of ARIMA for more responsive forecasts")
-            return exponential_smoothing_forecast(
-                historical_data,
-                historical_labels,
-                periods,
-                digits=digits
-            )
+            return exponential_smoothing_forecast(historical_data, historical_labels, periods)
     
     # Prepare time series with gap filling
     series = prepare_time_series_data(historical_labels, historical_data)
@@ -242,16 +164,17 @@ def arima_forecast(
             historical_data,
             historical_labels,
             periods,
-            fallback_reason='invalid_time_series_labels',
-            digits=digits
+            fallback_reason='invalid_time_series_labels'
         )
     
     try:
         # Determine seasonality: 12 for monthly data (need ≥36 points for 3 cycles)
-        seasonal_order = resolved_seasonal_order
-        if seasonal_order is None and len(series) >= seasonal_min_points:
-            seasonal_order = DEFAULT_SEASONAL_ORDER  # Seasonal ARIMA with 12-month period
-        seasonal_order = seasonal_order or (0, 0, 0, 0)
+        seasonal_order = (0, 0, 0, 0)  # No seasonality by default
+        # Force seasonal ARIMA when force_arima is requested
+        if force_arima:
+            seasonal_order = (1, 1, 1, 12)
+        elif len(series) >= 36:
+            seasonal_order = (1, 1, 1, 12)  # Seasonal ARIMA with 12-month period
         
         # Fit ARIMA model with relaxed constraints for better convergence
         # order=(1, 1, 1): Standard ARIMA configuration
@@ -282,13 +205,13 @@ def arima_forecast(
             next_date = last_date + pd.DateOffset(months=i)
             forecast_labels.append(next_date.strftime('%b %Y'))
         
-        forecast_values = _finalize_forecast_values(forecast_values, digits=digits)
-        confidence_lower = _finalize_forecast_values(confidence_lower, digits=digits)
-        confidence_upper = _finalize_forecast_values(confidence_upper, digits=digits)
+        forecast_values = _clamp_non_negative(forecast_values, digits=digits)
+        confidence_lower = _clamp_non_negative(confidence_lower, digits=digits)
+        confidence_upper = _clamp_non_negative(confidence_upper, digits=digits)
         
         model_name = f"ARIMA(1,1,1)"
         if seasonal_order != (0, 0, 0, 0):
-            model_name += f"x{seasonal_order}"
+            model_name += f"x{seasonal_order}12"
         
         return {
             'forecast_labels': forecast_labels,
@@ -329,9 +252,9 @@ def arima_forecast(
                 next_date = last_date + pd.DateOffset(months=i)
                 forecast_labels.append(next_date.strftime('%b %Y'))
             
-            forecast_values = _finalize_forecast_values(forecast_values, digits=digits)
-            confidence_lower = _finalize_forecast_values(confidence_lower, digits=digits)
-            confidence_upper = _finalize_forecast_values(confidence_upper, digits=digits)
+            forecast_values = _clamp_non_negative(forecast_values, digits=digits)
+            confidence_lower = _clamp_non_negative(confidence_lower, digits=digits)
+            confidence_upper = _clamp_non_negative(confidence_upper, digits=digits)
             
             print("  OK: Fallback ARIMA(1,0,1) succeeded")
             return {
@@ -353,20 +276,13 @@ def arima_forecast(
             historical_data,
             historical_labels,
             periods,
-            fallback_reason='arima_failed',
-            digits=digits
+            fallback_reason='arima_failed'
         )
         fallback['arima_error'] = str(e)
         return fallback
 
 
-def moving_average_forecast(
-    historical_data,
-    historical_labels,
-    periods=6,
-    window=3,
-    digits=None
-):
+def moving_average_forecast(historical_data, historical_labels, periods=6, window=3):
     """
     Moving average trend forecast - smooths noise and projects trend.
     Better for understanding direction than point predictions.
@@ -380,15 +296,8 @@ def moving_average_forecast(
     Returns:
         dict with forecast_labels, forecast_values, and trend info
     """
-    digits = _resolve_digits(digits)
-
     if len(historical_data) < window:
-        return simple_linear_forecast(
-            historical_data,
-            historical_labels,
-            periods,
-            digits=digits
-        )
+        return simple_linear_forecast(historical_data, historical_labels, periods)
     
     # Calculate moving average
     series = pd.Series(historical_data)
@@ -408,10 +317,10 @@ def moving_average_forecast(
         trend = 0
     
     # Generate forecast based on smoothed trend
-    raw_forecast = []
+    forecast_values = []
     for i in range(1, periods + 1):
-        raw_forecast.append(last_ma + (trend * i))
-    forecast_values = _finalize_forecast_values(raw_forecast, digits=digits)
+        value = max(0, round(last_ma + (trend * i)))
+        forecast_values.append(value)
     
     # Generate labels
     forecast_labels = []
@@ -429,14 +338,8 @@ def moving_average_forecast(
         forecast_labels.append(next_date.strftime('%b %Y'))
     
     # Wider confidence intervals for uncertain data
-    confidence_lower = _finalize_forecast_values(
-        [v * 0.7 for v in raw_forecast],
-        digits=digits
-    )
-    confidence_upper = _finalize_forecast_values(
-        [v * 1.3 for v in raw_forecast],
-        digits=digits
-    )
+    confidence_lower = [max(0, round(v * 0.7)) for v in forecast_values]
+    confidence_upper = [round(v * 1.3) for v in forecast_values]
     
     return {
         'forecast_labels': forecast_labels,
@@ -452,13 +355,7 @@ def moving_average_forecast(
     }
 
 
-def exponential_smoothing_forecast(
-    historical_data,
-    historical_labels,
-    periods=6,
-    alpha=0.3,
-    digits=None
-):
+def exponential_smoothing_forecast(historical_data, historical_labels, periods=6, alpha=0.3):
     """
     Exponential smoothing forecast for small, volatile datasets.
     Uses a damped trend model when enough variation exists to avoid flat-line forecasts.
@@ -472,8 +369,6 @@ def exponential_smoothing_forecast(
     Returns:
         dict with forecast_labels, forecast_values, and confidence intervals
     """
-    digits = _resolve_digits(digits)
-
     if not historical_data:
         return {
             'forecast_labels': [],
@@ -512,15 +407,15 @@ def exponential_smoothing_forecast(
         residuals = series - model.fittedvalues
         residual_std = residuals.std()
         
-        confidence_lower = _finalize_forecast_values(
+        confidence_lower = _clamp_non_negative(
             [v - 1.96 * residual_std for v in forecast_values],
-            digits=digits
+            digits=0
         )
-        confidence_upper = _finalize_forecast_values(
+        confidence_upper = _clamp_non_negative(
             [v + 1.96 * residual_std for v in forecast_values],
-            digits=digits
+            digits=0
         )
-        forecast_values = _finalize_forecast_values(forecast_values, digits=digits)
+        forecast_values = _clamp_non_negative(forecast_values, digits=0)
         
         # Generate labels
         forecast_labels = []
@@ -552,8 +447,7 @@ def exponential_smoothing_forecast(
             historical_data,
             historical_labels,
             periods,
-            fallback_reason='exponential_smoothing_failed',
-            digits=digits
+            fallback_reason='exponential_smoothing_failed'
         )
 
 
@@ -563,8 +457,7 @@ def simple_linear_forecast(
     periods=6,
     fallback_reason=None,
     required_data_points=None,
-    available_data_points=None,
-    digits=None
+    available_data_points=None
 ):
     """
     Simple linear trend forecast as fallback when ARIMA is not applicable.
@@ -607,13 +500,11 @@ def simple_linear_forecast(
     
     last_value = historical_data[-1] if historical_data else 0
     
-    digits = _resolve_digits(digits)
-
     # Generate forecast values
-    raw_forecast = []
+    forecast_values = []
     for i in range(1, periods + 1):
-        raw_forecast.append(last_value + (avg_growth * i))
-    forecast_values = _finalize_forecast_values(raw_forecast, digits=digits)
+        value = max(0, round(last_value + (avg_growth * i)))
+        forecast_values.append(value)
     
     # Generate forecast labels anchored to the last known historical date.
     # Using datetime.now() would create a gap if historical data ends before today.
@@ -632,14 +523,8 @@ def simple_linear_forecast(
         forecast_labels.append(next_date.strftime('%b %Y'))
     
     # Simple confidence intervals using defined constants
-    confidence_lower = _finalize_forecast_values(
-        [v * CONFIDENCE_LOWER_MULTIPLIER for v in raw_forecast],
-        digits=digits
-    )
-    confidence_upper = _finalize_forecast_values(
-        [v * CONFIDENCE_UPPER_MULTIPLIER for v in raw_forecast],
-        digits=digits
-    )
+    confidence_lower = [max(0, round(v * CONFIDENCE_LOWER_MULTIPLIER)) for v in forecast_values]
+    confidence_upper = [round(v * CONFIDENCE_UPPER_MULTIPLIER) for v in forecast_values]
     
     return {
         'forecast_labels': forecast_labels,
@@ -698,7 +583,7 @@ def forecast_program_growth(program_data, growth_rate=None):
     }
 
 
-def forecast_program_timeseries(program_type_histories, periods=6, digits=None):
+def forecast_program_timeseries(program_type_histories, periods=6):
     """
     Forecast per-program-type application volume using ARIMA.
 
@@ -708,7 +593,6 @@ def forecast_program_timeseries(program_type_histories, periods=6, digits=None):
     Args:
         program_type_histories: dict of {program_type: {'labels': [...], 'values': [...]}}
         periods: Number of months to forecast forward
-        digits: Decimal precision for forecast outputs (default: env setting)
 
     Returns:
         dict of {program_type: forecast_result_dict}
@@ -717,5 +601,5 @@ def forecast_program_timeseries(program_type_histories, periods=6, digits=None):
     for program_type, history in program_type_histories.items():
         labels = history.get('labels', [])
         values = history.get('values', [])
-        results[program_type] = arima_forecast(values, labels, periods=periods, digits=digits)
+        results[program_type] = arima_forecast(values, labels, periods=periods)
     return results
