@@ -1,0 +1,936 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Assessments Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .assessments-shell {
+        animation: assessmentsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes assessmentsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .assessments-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .assessments-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .assessments-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .stats-mini-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
+    }
+
+    .stats-mini-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .stats-mini-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-primary { background: linear-gradient(135deg, #1f6feb, #1942a8); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); }
+    .icon-warning { background: linear-gradient(135deg, #d89f1d, #b77908); }
+    .icon-success { background: linear-gradient(135deg, #159947, #0f7e37); }
+    .icon-danger { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+
+    .assessment-filter-card,
+    .assessments-list-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .assessment-filter-card .card-header,
+    .assessments-list-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .form-control,
+    .form-select {
+        border-radius: 8px;
+        border: 1px solid #d8deea;
+        padding: 0.625rem 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .filter-status-note {
+        color: #596b88;
+        font-size: 0.88rem;
+    }
+
+    #assessmentSortDropdown:hover {
+        background-color: #e7f1ff;
+        color: #004085;
+    }
+
+    .sort-menu {
+        min-width: 250px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border-radius: 0.35rem;
+    }
+
+    .sort-menu .dropdown-item {
+        padding: 0.65rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .sort-menu .dropdown-item:hover {
+        background-color: #f0f4ff;
+        color: #004085;
+    }
+
+    .assessment-table thead th {
+        background: #f8fafc;
+        border-top: none;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .assessment-row {
+        transition: all 0.2s ease;
+    }
+
+    .assessment-row:hover {
+        background-color: #f8faff;
+        transform: translateX(2px);
+    }
+
+    .assessment-title {
+        color: #1f2a44;
+        font-weight: 700;
+    }
+
+    .assessment-chip {
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .status-chip {
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .status-requested { background: #e0f2fe; color: #075985; }
+    .status-scheduled { background: #fef3c7; color: #92400e; }
+    .status-completed { background: #dcfce7; color: #166534; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+    .severity-chip {
+        font-size: 0.74rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .severity-unrated { background: #e5e7eb; color: #374151; }
+    .severity-low { background: #dbeafe; color: #1d4ed8; }
+    .severity-moderate { background: #cffafe; color: #0e7490; }
+    .severity-high { background: #fef3c7; color: #b45309; }
+    .severity-critical { background: #fee2e2; color: #b91c1c; }
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+        border-radius: 9px;
+        font-weight: 600;
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border-color: transparent;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #667085;
+        padding: 3rem 1rem;
+    }
+
+    .empty-state > i {
+        font-size: 2.75rem;
+        color: #bcc8de;
+        margin-bottom: 0.9rem;
+    }
+
+    .empty-state-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.15rem;
+        border-radius: 11px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        box-shadow: 0 10px 22px rgba(25, 66, 168, 0.22);
+    }
+
+    .empty-state-action-btn i {
+        margin: 0;
+        font-size: 0.95rem;
+        color: inherit;
+    }
+
+    .empty-state-action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(25, 66, 168, 0.26);
+    }
+
+    .modal-modern .modal-content {
+        border: 1px solid #dbe5f7;
+        border-radius: 14px;
+        box-shadow: 0 20px 36px rgba(11, 44, 95, 0.22), 0 8px 18px rgba(11, 44, 95, 0.12);
+        overflow: hidden;
+    }
+
+    .modal-modern .modal-header {
+        border-bottom: 1px solid #dbe5f7;
+        padding: 0.85rem 1rem;
+    }
+
+    .modal-modern .modal-header .modal-title {
+        font-weight: 700;
+        letter-spacing: 0.15px;
+    }
+
+    .modal-modern .modal-body {
+        padding: 1rem 1.05rem;
+    }
+
+    .modal-modern .modal-footer {
+        border-top: 1px solid #e7eefb;
+        background: #fafcff;
+    }
+
+    .modal-header-gradient-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+    }
+
+    .modal-field-label {
+        color: #4e627f;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.25px;
+        margin-bottom: 0.35rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .assessments-hero {
+            padding: 1.1rem;
+        }
+
+        .assessments-hero .btn {
+            width: 100%;
+            margin-top: 0.8rem;
+        }
+
+        .assessment-filter-card .card-body,
+        .assessments-list-card .card-body {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid assessments-shell">
+    <div class="assessments-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Assessments Management</h1>
+                <p class="subtitle">Schedule interviews, home visits, and manage SCSR outputs.</p>
+            </div>
+            <div>
+                <button class="btn btn-gradient-primary" data-toggle="modal" data-target="#createAssessmentModal">
+                    <i class="fas fa-plus mr-2"></i>Schedule Assessment
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Total</div>
+                            <div class="stat-value">{{ total_assessments }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-primary"><i class="fas fa-clipboard-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Requested</div>
+                            <div class="stat-value">{{ requested_assessments }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-inbox"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-warning h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Scheduled</div>
+                            <div class="stat-value">{{ scheduled_assessments }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-warning"><i class="fas fa-calendar-alt"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Completed</div>
+                            <div class="stat-value">{{ completed_assessments }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-success"><i class="fas fa-check-circle"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-danger h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Cancelled</div>
+                            <div class="stat-value">{{ cancelled_assessments }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-danger"><i class="fas fa-ban"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card assessment-filter-card mb-4">
+        <div class="card-header py-4">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Search and Filter Assessments
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.assessments') }}">
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">Search</label>
+                        <input type="text" class="form-control" name="search"
+                               placeholder="Title or applicant name..."
+                               value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Type</label>
+                        <select class="form-control" name="type">
+                            <option value="">All Types</option>
+                            <option value="interview" {% if assessment_type == 'interview' %}selected{% endif %}>Interview</option>
+                            <option value="home_visit" {% if assessment_type == 'home_visit' %}selected{% endif %}>Home Visit</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Status</label>
+                        <select class="form-control" name="status">
+                            <option value="">All Status</option>
+                            <option value="requested" {% if status_filter == 'requested' %}selected{% endif %}>Requested</option>
+                            <option value="scheduled" {% if status_filter == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold">Severity</label>
+                        <select class="form-control" name="severity">
+                            <option value="">All Severities</option>
+                            <option value="unrated" {% if severity_filter == 'unrated' %}selected{% endif %}>Unrated</option>
+                            <option value="low" {% if severity_filter == 'low' %}selected{% endif %}>Low</option>
+                            <option value="moderate" {% if severity_filter == 'moderate' %}selected{% endif %}>Moderate</option>
+                            <option value="high" {% if severity_filter == 'high' %}selected{% endif %}>High</option>
+                            <option value="critical" {% if severity_filter == 'critical' %}selected{% endif %}>Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-gradient-primary flex-grow-1">
+                                <i class="fas fa-search mr-1"></i>Search
+                            </button>
+                            {% if has_active_filters %}
+                            <a href="{{ url_for('admin.assessments', sort_by=sort_by, sort_order=sort_order) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-redo mr-1"></i>Reset Filters
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <small class="filter-status-note d-block mt-2">
+                <i class="fas fa-info-circle mr-1"></i>
+                {% if has_active_filters %}
+                Showing filtered assessments based on your selected criteria.
+                {% else %}
+                Showing all assessments.
+                {% endif %}
+            </small>
+        </div>
+    </div>
+
+    <!-- Assessments Table -->
+    <div class="card assessments-list-card">
+        <div class="card-header py-4 d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="m-0 font-weight-bold text-primary">Assessments List</h6>
+                <small class="filter-status-note"><i class="fas fa-layer-group mr-1"></i>{{ assessments.items|length }} visible on this page</small>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="assessmentSortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-sort mr-1"></i>Sort
+                </button>
+                <div class="dropdown-menu dropdown-menu-right sort-menu" aria-labelledby="assessmentSortDropdown">
+                    <h6 class="dropdown-header">Sort by Date</h6>
+                    <a class="dropdown-item {% if sort_by == 'date' and sort_order == 'desc' %}active{% endif %}" href="{{ url_for('admin.assessments', page=1, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by='date', sort_order='desc') }}">
+                        <i class="fas fa-calendar-alt mr-2"></i>Scheduled Date (Newest)
+                    </a>
+                    <a class="dropdown-item {% if sort_by == 'date' and sort_order == 'asc' %}active{% endif %}" href="{{ url_for('admin.assessments', page=1, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by='date', sort_order='asc') }}">
+                        <i class="fas fa-calendar-alt mr-2"></i>Scheduled Date (Oldest)
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header">Sort Alphabetically</h6>
+                    <a class="dropdown-item {% if sort_by == 'alphabetical' and sort_order == 'asc' %}active{% endif %}" href="{{ url_for('admin.assessments', page=1, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by='alphabetical', sort_order='asc') }}">
+                        <i class="fas fa-sort-alpha-down mr-2"></i>A to Z
+                    </a>
+                    <a class="dropdown-item {% if sort_by == 'alphabetical' and sort_order == 'desc' %}active{% endif %}" href="{{ url_for('admin.assessments', page=1, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by='alphabetical', sort_order='desc') }}">
+                        <i class="fas fa-sort-alpha-up-alt mr-2"></i>Z to A
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover assessment-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Applicant</th>
+                            <th>Program</th>
+                            <th>Scheduled Date</th>
+                            <th>Status</th>
+                            <th>Severity</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if assessments.items %}
+                            {% for a in assessments.items %}
+                            <tr class="assessment-row">
+                                <td>
+                                    <div class="assessment-title">{{ a.title }}</div>
+                                    <small class="text-muted">Created {{ a.created_at|manila('%b %d, %Y', 'N/A') }}</small>
+                                </td>
+                                <td>
+                                    {% if a.assessment_type == 'interview' %}
+                                        <span class="assessment-chip badge badge-primary">Interview</span>
+                                    {% elif a.assessment_type == 'home_visit' %}
+                                        <span class="assessment-chip badge badge-info">Home Visit</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold">
+                                        {{ a.application.applicant.first_name }} {{ a.application.applicant.last_name }}
+                                    </div>
+                                    <small class="text-muted">{{ a.application.applicant.email }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge badge-light">{{ a.application.program.program_name }}</span>
+                                </td>
+                                <td>
+                                    {% if a.scheduled_date %}
+                                        <small>{{ a.scheduled_date|manila('%b %d, %Y') }}</small>
+                                        {% if a.scheduled_time %}
+                                        <br><small class="text-muted">{{ a.scheduled_time }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Not set</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if a.status == 'requested' %}
+                                        <span class="status-chip status-requested">Request</span>
+                                    {% elif a.status == 'scheduled' %}
+                                        <span class="status-chip status-scheduled">Scheduled</span>
+                                    {% elif a.status == 'completed' %}
+                                        <span class="status-chip status-completed">Completed</span>
+                                    {% elif a.status == 'cancelled' %}
+                                        <span class="status-chip status-cancelled">Cancelled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if a.case_severity == 'critical' %}
+                                        <span class="severity-chip severity-critical">Critical{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'high' %}
+                                        <span class="severity-chip severity-high">High{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'moderate' %}
+                                        <span class="severity-chip severity-moderate">Moderate{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% elif a.case_severity == 'low' %}
+                                        <span class="severity-chip severity-low">Low{% if a.severity_score is not none %} ({{ a.severity_score }}){% endif %}</span>
+                                    {% else %}
+                                        <span class="severity-chip severity-unrated">Unrated</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% set req_summary = request_summaries.get(a.id, {}) %}
+                                    {% if a.status == 'requested' %}
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-soft-info open-request-summary-modal"
+                                        data-toggle="modal"
+                                        data-target="#assessmentRequestSummaryModal"
+                                        data-assessment-id="{{ a.id }}"
+                                        data-title="{{ a.title|e }}"
+                                        data-applicant="{{ (a.application.applicant.first_name ~ ' ' ~ a.application.applicant.last_name)|e }}"
+                                        data-program="{{ a.application.program.program_name|e }}"
+                                        data-purpose="{{ req_summary.get('purpose', '')|e }}"
+                                        data-notes="{{ req_summary.get('notes', '')|e }}"
+                                        data-preferred-date="{{ req_summary.get('preferred_date', '')|e }}"
+                                        data-requested-at="{{ req_summary.get('requested_at')|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                        data-schedule-url="{{ url_for('admin.schedule_requested_assessment', assessment_id=a.id) }}"
+                                        data-decline-url="{{ url_for('admin.decline_requested_assessment', assessment_id=a.id) }}"
+                                    >
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </button>
+                                    {% else %}
+                                    <a href="{{ url_for('admin.view_assessment', assessment_id=a.id) }}" 
+                                       class="btn btn-sm btn-soft-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="py-4">
+                                    <div class="empty-state">
+                                        <i class="fas fa-clipboard-check"></i>
+                                        <h5 class="mb-2">No Assessments Found</h5>
+                                        <p class="mb-3">Start by scheduling an assessment for an approved application.</p>
+                                        <button class="btn btn-gradient-primary empty-state-action-btn" data-toggle="modal" data-target="#createAssessmentModal">
+                                        <i class="fas fa-plus mr-1"></i>Schedule Assessment
+                                    </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if assessments.pages > 1 %}
+            <nav aria-label="Assessments pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if assessments.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.prev_num, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by=sort_by, sort_order=sort_order) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in assessments.iter_pages() %}
+                        {% if p %}
+                            {% if p != assessments.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.assessments', page=p, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by=sort_by, sort_order=sort_order) }}">
+                                    {{ p }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ p }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if assessments.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.assessments', page=assessments.next_num, search=search_query, type=assessment_type, status=status_filter, severity=severity_filter, sort_by=sort_by, sort_order=sort_order) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Assessment Modal -->
+<div class="modal fade modal-modern" id="createAssessmentModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.create_assessment') }}">
+                <div class="modal-header modal-header-gradient-primary">
+                    <h5 class="modal-title">
+                        <i class="fas fa-plus mr-2"></i>Schedule Assessment
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="application_id" class="modal-field-label">Application <span class="text-danger">*</span></label>
+                        <select name="application_id" id="application_id" class="form-control" required>
+                            <option value="">Select an approved application...</option>
+                            {% for app in approved_applications %}
+                            <option value="{{ app.id }}">
+                                #{{ app.id }} - {{ app.applicant.first_name }} {{ app.applicant.last_name }} ({{ app.program.program_name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="assessment_type" class="modal-field-label">Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" id="assessment_type" class="form-control" required>
+                                <option value="">Select type...</option>
+                                <option value="interview">Interview</option>
+                                <option value="home_visit">Home Visit</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="title" class="modal-field-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="title" class="form-control" placeholder="e.g. Initial SCSR Interview" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description" class="modal-field-label">Description</label>
+                        <textarea name="description" id="description" class="form-control" rows="3" placeholder="Purpose and notes for this assessment..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="scheduled_date" class="modal-field-label">Scheduled Date</label>
+                            <input type="date" name="scheduled_date" id="scheduled_date" class="form-control">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="scheduled_time" class="modal-field-label">Scheduled Time</label>
+                            <input type="text" name="scheduled_time" id="scheduled_time" class="form-control" placeholder="e.g. 09:00 AM">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="location" class="modal-field-label">Location</label>
+                            <input type="text" name="location" id="location" class="form-control" placeholder="e.g. MSWD Office">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-primary"><i class="fas fa-calendar-check mr-1"></i>Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Requested Assessment Summary Modal -->
+<div class="modal fade modal-modern" id="assessmentRequestSummaryModal" tabindex="-1" role="dialog" aria-labelledby="assessmentRequestSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header modal-header-gradient-primary">
+                <h5 class="modal-title" id="assessmentRequestSummaryModalLabel">
+                    <i class="fas fa-file-alt mr-2"></i>Assessment/SCSR Request Summary
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Applicant</small>
+                        <strong id="reqSummaryApplicant">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Program</small>
+                        <strong id="reqSummaryProgram">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Requested At</small>
+                        <span id="reqSummaryRequestedAt">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Preferred Date</small>
+                        <span id="reqSummaryPreferredDate">No preference submitted</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Purpose</small>
+                    <div class="border rounded p-2 bg-light" id="reqSummaryPurpose">-</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Notes</small>
+                    <div class="border rounded p-2 bg-light" id="reqSummaryNotes">No additional notes provided.</div>
+                </div>
+
+                <hr>
+                <h6 class="font-weight-bold text-primary mb-3"><i class="fas fa-calendar-check mr-2"></i>Schedule Assessment</h6>
+                <form id="scheduleRequestedAssessmentForm" method="POST">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_assessment_type">Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" id="request_modal_assessment_type" class="form-control" required>
+                                <option value="interview">Interview</option>
+                                <option value="home_visit">Home Visit</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-8">
+                            <label class="modal-field-label" for="request_modal_title">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="request_modal_title" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="modal-field-label" for="request_modal_description">Description</label>
+                        <textarea name="description" id="request_modal_description" class="form-control" rows="2" placeholder="Purpose and notes for this scheduled assessment..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_scheduled_date">Scheduled Date <span class="text-danger">*</span></label>
+                            <input type="date" name="scheduled_date" id="request_modal_scheduled_date" class="form-control" required>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_scheduled_time">Scheduled Time</label>
+                            <input type="text" name="scheduled_time" id="request_modal_scheduled_time" class="form-control" placeholder="e.g. 09:00 AM">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label class="modal-field-label" for="request_modal_location">Location</label>
+                            <input type="text" name="location" id="request_modal_location" class="form-control" placeholder="e.g. MSWD Office">
+                        </div>
+                    </div>
+
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-gradient-primary">
+                            <i class="fas fa-calendar-check mr-1"></i>Schedule Assessment
+                        </button>
+                    </div>
+                </form>
+
+                <hr>
+                <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-times-circle mr-2"></i>Decline Request</h6>
+                <form id="declineRequestedAssessmentForm" method="POST">
+                    <div class="form-group mb-2">
+                        <label class="modal-field-label" for="request_modal_decline_reason">Reason (optional)</label>
+                        <textarea name="decline_reason" id="request_modal_decline_reason" class="form-control" rows="2" placeholder="Reason for declining this request..."></textarea>
+                    </div>
+                    <div class="text-right">
+                        <button type="submit" class="btn btn-outline-danger">
+                            <i class="fas fa-ban mr-1"></i>Decline Assessment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    $(document).on('click', '.open-request-summary-modal', function() {
+        const data = this.dataset;
+
+        $('#reqSummaryApplicant').text(data.applicant || '-');
+        $('#reqSummaryProgram').text(data.program || '-');
+        $('#reqSummaryRequestedAt').text(data.requestedAt || 'N/A');
+        $('#reqSummaryPreferredDate').text(data.preferredDate || 'No preference submitted');
+        $('#reqSummaryPurpose').text(data.purpose || 'No purpose submitted.');
+        $('#reqSummaryNotes').text(data.notes || 'No additional notes provided.');
+
+        $('#request_modal_title').val(data.title || 'Requested Assessment / SCSR');
+        $('#request_modal_description').val((data.purpose || '') + (data.notes ? ('\n\nNotes: ' + data.notes) : ''));
+        $('#request_modal_scheduled_date').val(data.preferredDate || '');
+        $('#request_modal_scheduled_time').val('');
+        $('#request_modal_location').val('');
+        $('#request_modal_decline_reason').val('');
+        $('#request_modal_assessment_type').val('interview');
+
+        $('#scheduleRequestedAssessmentForm').attr('action', data.scheduleUrl || '#');
+        $('#declineRequestedAssessmentForm').attr('action', data.declineUrl || '#');
+    });
+
+    $('#declineRequestedAssessmentForm').on('submit', function(e) {
+        if (!confirm('Decline this assessment request?')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,224 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}Analytics Reports - AYUDA{% endblock %}
+
+{% block super_admin_content %}
+<div class="container-fluid py-3">
+    <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1"><i class="fas fa-file-export mr-2"></i>Report Configuration & Generation</h1>
+            <p class="subtitle">Configure report type, filters, and export format for system-wide analytics reports.</p>
+        </div>
+        <a href="{{ url_for('super_admin.analytics_analysis') }}" class="btn btn-outline-custom btn-sm mt-3 mt-md-0">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Analytics
+        </a>
+    </div>
+
+    <div class="row mb-3">
+        {% for preset in quick_report_presets %}
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card sa-panel h-100">
+                <div class="card-body">
+                    <h6 class="mb-2">{{ preset.name }}</h6>
+                    <p class="text-muted mb-3">{{ preset.description }}</p>
+                    <div class="d-flex flex-wrap" style="gap: 0.5rem;">
+                        <a href="{{ preset.generate_url }}" class="btn btn-gradient-primary btn-sm">
+                            <i class="fas fa-bolt mr-1"></i>Generate Now
+                        </a>
+                        <a href="{{ preset.configure_url }}" class="btn btn-outline-custom btn-sm">
+                            <i class="fas fa-sliders-h mr-1"></i>Customize
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card sa-panel">
+        <div class="card-header py-3 px-4 bg-white">
+            <h6 class="m-0 font-weight-bold d-flex align-items-center">
+                <i class="fas fa-cogs mr-2"></i>Report Setup
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('super_admin.analytics_generate_report') }}">
+                <div class="form-row">
+                    <div class="form-group col-lg-4">
+                        <label class="sa-filter-label">Report Type</label>
+                        <select class="form-control" id="report_type" name="report_type" required>
+                            {% for option in report_type_options %}
+                            <option value="{{ option.value }}" {% if form_values.get('report_type') == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group col-lg-4">
+                        <label class="sa-filter-label">Date Range</label>
+                        <select class="form-control" id="date_preset" name="date_preset" required>
+                            {% for option in date_preset_options %}
+                            <option value="{{ option.value }}" {% if form_values.get('date_preset') == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group col-lg-4">
+                        <label class="sa-filter-label">Export Format</label>
+                        <div class="small text-muted mt-2">PDF is recommended for better accessibility.</div>
+                    </div>
+                </div>
+
+                <div class="form-row {% if form_values.get('date_preset') != 'custom' %}d-none{% endif %}" id="customDateRangeRow">
+                    <div class="form-group col-md-6">
+                        <label class="font-weight-bold mb-1" for="start_date">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ form_values.get('start_date', '') }}">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label class="font-weight-bold mb-1" for="end_date">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ form_values.get('end_date', '') }}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-lg-6 {% if form_values.get('report_type') not in ['applications', 'summary'] %}d-none{% endif %}" id="applicationFilters">
+                        <div class="p-3 border rounded">
+                            <div class="sa-filter-label mb-2">Application Filters</div>
+                            <div class="form-group mb-2">
+                                <label class="font-weight-bold mb-1" for="application_status">Application Status</label>
+                                <select class="form-control" id="application_status" name="application_status">
+                                    <option value="">All statuses</option>
+                                    {% for status in application_status_options %}
+                                    <option value="{{ status }}" {% if form_values.get('application_status') == status %}selected{% endif %}>{{ status|replace('_', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="font-weight-bold mb-1" for="program_type">Program Type</label>
+                                <select class="form-control" id="program_type" name="program_type">
+                                    <option value="">All program types</option>
+                                    {% for program_type in program_type_options %}
+                                    <option value="{{ program_type }}" {% if form_values.get('program_type') == program_type %}selected{% endif %}>{{ program_type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group col-lg-6 {% if form_values.get('report_type') != 'activity_logs' %}d-none{% endif %}" id="activityFilters">
+                        <div class="p-3 border rounded">
+                            <div class="sa-filter-label mb-2">Activity Log Filters</div>
+                            <div class="form-group mb-2">
+                                <label class="font-weight-bold mb-1" for="log_scope">Log Scope</label>
+                                <select class="form-control" id="log_scope" name="log_scope">
+                                    <option value="all" {% if form_values.get('log_scope') == 'all' %}selected{% endif %}>All Logs</option>
+                                    <option value="admin" {% if form_values.get('log_scope') == 'admin' %}selected{% endif %}>Admin Logs Only</option>
+                                    <option value="community" {% if form_values.get('log_scope') == 'community' %}selected{% endif %}>Community Logs Only</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="font-weight-bold mb-1" for="activity_focus">Focus</label>
+                                <select class="form-control" id="activity_focus" name="activity_focus">
+                                    <option value="all" {% if form_values.get('activity_focus') == 'all' %}selected{% endif %}>All Activity</option>
+                                    <option value="sessions" {% if form_values.get('activity_focus') == 'sessions' %}selected{% endif %}>Sessions / Authentication</option>
+                                    <option value="applications" {% if form_values.get('activity_focus') == 'applications' %}selected{% endif %}>Application-Related Activity</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    {% for option in export_format_options %}
+                    <div class="col-lg-4 mb-2">
+                        <div class="custom-control custom-radio p-2 border rounded">
+                            <input
+                                class="custom-control-input"
+                                type="radio"
+                                name="export_format"
+                                id="format_{{ option.value }}"
+                                value="{{ option.value }}"
+                                {% if form_values.get('export_format', 'pdf') == option.value %}checked{% endif %}
+                            >
+                            <label class="custom-control-label" for="format_{{ option.value }}">
+                                <strong>{{ option.label }}</strong>
+                                {% if option.recommended %}
+                                <span class="badge badge-success ml-1">Recommended</span>
+                                {% endif %}
+                                <div class="small text-muted">{{ option.description }}</div>
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex flex-wrap mt-3" style="gap: 0.5rem;">
+                    <button type="submit" class="btn btn-gradient-primary">
+                        <i class="fas fa-download mr-1"></i>Generate Report
+                    </button>
+                    <a href="{{ url_for('super_admin.analytics_reports') }}" class="btn btn-outline-custom">
+                        <i class="fas fa-undo-alt mr-1"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function toggleDateRangeInputs() {
+        const datePreset = document.getElementById('date_preset');
+        const customDateRangeRow = document.getElementById('customDateRangeRow');
+        if (!datePreset || !customDateRangeRow) return;
+
+        if (datePreset.value === 'custom') {
+            customDateRangeRow.classList.remove('d-none');
+        } else {
+            customDateRangeRow.classList.add('d-none');
+        }
+    }
+
+    function toggleFilterGroups() {
+        const reportType = document.getElementById('report_type');
+        const applicationFilters = document.getElementById('applicationFilters');
+        const activityFilters = document.getElementById('activityFilters');
+        if (!reportType) return;
+
+        const selectedType = reportType.value;
+
+        if (applicationFilters) {
+            if (selectedType === 'applications' || selectedType === 'summary') {
+                applicationFilters.classList.remove('d-none');
+            } else {
+                applicationFilters.classList.add('d-none');
+            }
+        }
+
+        if (activityFilters) {
+            if (selectedType === 'activity_logs') {
+                activityFilters.classList.remove('d-none');
+            } else {
+                activityFilters.classList.add('d-none');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const datePreset = document.getElementById('date_preset');
+        const reportType = document.getElementById('report_type');
+
+        toggleDateRangeInputs();
+        toggleFilterGroups();
+
+        if (datePreset) {
+            datePreset.addEventListener('change', toggleDateRangeInputs);
+        }
+
+        if (reportType) {
+            reportType.addEventListener('change', toggleFilterGroups);
+        }
+    });
+})();
+</script>
+{% endblock %}

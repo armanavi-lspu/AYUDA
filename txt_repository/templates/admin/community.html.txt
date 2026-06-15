@@ -1,0 +1,1086 @@
+<!-- filepath: c:\Users\abule\Documents\GitHub\FLASK\templates\admin\community.html -->
+{% extends "admin/admin_base.html" %}
+{% block title %}Community Users - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .community-shell {
+        animation: communityFadeIn 0.45s ease-out;
+    }
+
+    @keyframes communityFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .community-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .community-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .community-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.05rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .stats-mini-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
+    }
+
+    .stats-mini-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .stats-mini-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-primary { background: linear-gradient(135deg, #1f6feb, #1942a8); }
+    .icon-success { background: linear-gradient(135deg, #159947, #0f7e37); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); }
+    .icon-warning { background: linear-gradient(135deg, #d89f1d, #b77908); }
+
+    .coverage-note {
+        border: 1px solid #d7e8fb;
+        border-left: 4px solid #0ea5a6;
+        background: linear-gradient(180deg, #f6fcff 0%, #eef8ff 100%);
+        border-radius: 12px;
+    }
+
+    .community-filter-card,
+    .community-list-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .community-filter-card .card-header,
+    .community-list-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .community-filter-card .form-control {
+        border-radius: 9px;
+        border: 1px solid #d8deea;
+        padding: 0.6rem 0.85rem;
+    }
+
+    .community-filter-card .form-control:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.14);
+    }
+
+    .community-filter-card .filter-actions {
+        display: flex;
+        gap: 0.55rem;
+        width: 100%;
+    }
+
+    .community-filter-card .filter-actions .btn {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .members-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .members-search-form {
+        width: min(100%, 360px);
+    }
+
+    .members-search-group .input-group-text {
+        border: 1px solid #d8deea;
+        border-right: none;
+        background: #f8fafc;
+        color: #46618f;
+    }
+
+    .members-search-input {
+        border-left: none;
+        border-right: none;
+        border-color: #d8deea;
+        padding: 0.52rem 0.72rem;
+    }
+
+    .members-search-input:focus {
+        box-shadow: none;
+        border-color: #d8deea;
+    }
+
+    .members-search-btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        padding: 0.45rem 0.75rem;
+    }
+
+    .filter-label {
+        color: #4f6285;
+        font-size: 0.78rem;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 0.38rem;
+    }
+
+    .community-users-table thead th {
+        border-top: none;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .community-users-table td {
+        vertical-align: middle;
+    }
+
+    .user-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(31, 111, 235, 0.28);
+    }
+
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .user-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #dbe5fa;
+    }
+
+    .user-card:hover {
+        border-left-color: var(--dash-blue);
+        background-color: #f8fbff;
+    }
+
+    .badge-status {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-weight: 600;
+    }
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border-color: transparent;
+    }
+
+    .btn-soft-warning {
+        background: rgba(216, 159, 29, 0.14);
+        color: #9a6500;
+        border: 1px solid rgba(154, 101, 0, 0.2);
+    }
+
+    .btn-soft-warning:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+    }
+
+    .btn-soft-secondary {
+        background: rgba(71, 85, 105, 0.1);
+        color: #334155;
+        border: 1px solid rgba(71, 85, 105, 0.2);
+    }
+
+    .btn-soft-secondary:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #475569 0%, #334155 100%);
+    }
+
+    .btn-soft-danger {
+        background: rgba(220, 53, 69, 0.12);
+        color: #b91c1c;
+        border: 1px solid rgba(185, 28, 28, 0.2);
+    }
+
+    .btn-soft-danger:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    .community-modal .modal-dialog {
+        max-width: 560px;
+    }
+
+    .community-modal .modal-content {
+        border: 1px solid #dbe6ff;
+        border-radius: 14px;
+        box-shadow: 0 24px 50px rgba(15, 34, 73, 0.2);
+        overflow: hidden;
+    }
+
+    .community-modal .modal-header {
+        border-bottom: 1px solid transparent;
+        padding: 1rem 1.2rem;
+    }
+
+    .community-modal .modal-title {
+        font-weight: 700;
+        letter-spacing: 0.1px;
+    }
+
+    .community-modal .close {
+        color: #fff;
+        opacity: 0.92;
+        text-shadow: none;
+    }
+
+    .community-modal .close:hover {
+        opacity: 1;
+    }
+
+    .community-modal .modal-body {
+        padding: 1.2rem 1.25rem;
+    }
+
+    .community-modal .modal-footer {
+        border-top: 1px solid #e8eefb;
+        background: #fbfdff;
+        padding: 0.85rem 1.1rem;
+    }
+
+    .modal-header-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        color: #fff;
+    }
+
+    .modal-header-info {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        color: #fff;
+    }
+
+    .modal-header-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        color: #fff;
+    }
+
+    .modal-info-card,
+    .modal-danger-card {
+        border-radius: 10px;
+        border: 1px solid;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-info-card {
+        background: rgba(8, 145, 178, 0.08);
+        border-color: rgba(14, 116, 144, 0.25);
+        color: #0e5f74;
+    }
+
+    .modal-danger-card {
+        background: rgba(231, 74, 59, 0.09);
+        border-color: rgba(201, 42, 28, 0.25);
+        color: #97261d;
+    }
+
+    .modal-context-block {
+        border: 1px solid #d9e5fa;
+        background: linear-gradient(180deg, #fcfdff 0%, #f5f9ff 100%);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+    }
+
+    .btn-gradient-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-warning:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-primary-sm {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-primary-sm:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-danger:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .dropdown-menu {
+        box-shadow: 0 10px 22px rgba(11, 44, 95, 0.16);
+        border-radius: 10px;
+        border: 1px solid #d7e6fa;
+    }
+
+    .dropdown-item {
+        padding: 0.65rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-item:hover {
+        background: linear-gradient(135deg, #eaf3ff 0%, #f1f8ff 100%);
+        color: #123f79;
+    }
+
+    .dropdown-header {
+        padding: 0.65rem 1rem;
+        font-size: 0.74rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #sortDropdown:hover {
+        background-color: #e7f1ff;
+        color: #004085;
+    }
+
+    @media (max-width: 991.98px) {
+        .community-hero {
+            padding: 1.1rem;
+        }
+
+        .community-hero .btn {
+            width: 100%;
+            margin-top: 0.6rem;
+        }
+
+        .community-filter-card .filter-actions {
+            flex-direction: column;
+        }
+
+        .members-toolbar {
+            justify-content: stretch;
+        }
+
+        .members-search-form {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid community-shell">
+    <div class="community-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Community Users</h1>
+                <p class="subtitle">Manage registered residents across Laguna municipalities.</p>
+            </div>
+            <div class="mt-2 mt-md-0 d-flex flex-wrap">
+                <a href="{{ url_for('admin.user_activity_logs') }}" class="btn btn-outline-custom mr-md-2 mb-2 mb-md-0">
+                    <i class="fas fa-history mr-2"></i>View Activity Logs
+                </a>
+                <a href="{{ url_for('admin.export_community_users') }}" class="btn btn-gradient-primary">
+                    <i class="fas fa-file-export mr-2"></i>Export to CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-value">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-primary"><i class="fas fa-users"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Active Users</div>
+                            <div class="stat-value">{{ active_users }}</div>
+                            <small class="text-muted">Last 7 days</small>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-success"><i class="fas fa-user-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">With Applications</div>
+                            <div class="stat-value">{{ users_with_apps }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-clipboard-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-warning h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">New This Month</div>
+                            <div class="stat-value">{{ new_this_month }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-warning"><i class="fas fa-user-plus"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card community-filter-card mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter mr-2"></i>Filter Users
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.community') }}" id="communityFilterForm">
+                <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+                <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                <div class="row align-items-end">
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="filter-label">Status</label>
+                        <select class="form-control" name="status">
+                            <option value="">All Status</option>
+                            <option value="student" {% if request.args.get('status')=='student' %}selected{% endif %}>Student</option>
+                            <option value="pwd_verified" {% if request.args.get('status')=='pwd_verified' %}selected{% endif %}>PWD Verified</option>
+                            <option value="senior_citizen_verified" {% if request.args.get('status')=='senior_citizen_verified' %}selected{% endif %}>Senior Citizen Verified</option>
+                            <option value="solo_parent_verified" {% if request.args.get('status')=='solo_parent_verified' %}selected{% endif %}>Solo Parent Verified</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="filter-label">Municipality</label>
+                        <select class="form-control" name="municipality">
+                            <option value="">All Municipalities</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}" {% if request.args.get('municipality')==municipality %}selected{% endif %}>
+                                {{ municipality }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="filter-label">Barangay</label>
+                        <select class="form-control" name="barangay">
+                            <option value="">All Barangays</option>
+                            {% for barangay in barangays %}
+                            <option value="{{ barangay }}" {% if request.args.get('barangay')==barangay %}selected{% endif %}>
+                                {{ barangay }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 mb-3">
+                        <label class="filter-label">Date Range</label>
+                        <select class="form-control" name="date_range">
+                            <option value="">All Time</option>
+                            <option value="today" {% if request.args.get('date_range')=='today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if request.args.get('date_range')=='week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if request.args.get('date_range')=='month' %}selected{% endif %}>This Month</option>
+                            <option value="year" {% if request.args.get('date_range')=='year' %}selected{% endif %}>This Year</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-4 col-md-12 mb-3">
+                        <label class="filter-label d-none d-lg-block">Actions</label>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-gradient-primary flex-grow-1">
+                                <i class="fas fa-filter mr-1"></i>Filter
+                            </button>
+                            <a href="{{ url_for('admin.community') }}" class="btn btn-outline-custom flex-grow-1">
+                                <i class="fas fa-redo mr-1"></i>Reset
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card community-list-card">
+        <div class="card-header py-3">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center">
+                <h6 class="m-0 font-weight-bold text-primary mb-2 mb-lg-0">Community Members</h6>
+                <div class="members-toolbar">
+                    <form method="GET" action="{{ url_for('admin.community') }}" id="communitySearchForm" class="members-search-form mb-0">
+                        <input type="hidden" name="status" value="{{ request.args.get('status', '') }}">
+                        <input type="hidden" name="municipality" value="{{ request.args.get('municipality', '') }}">
+                        <input type="hidden" name="barangay" value="{{ request.args.get('barangay', '') }}">
+                        <input type="hidden" name="date_range" value="{{ request.args.get('date_range', '') }}">
+                        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                        <div class="input-group input-group-sm members-search-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                            <input type="text" class="form-control members-search-input" name="search" id="communitySearchInput"
+                                   placeholder="Search members by name or email"
+                                   autocomplete="off"
+                                   value="{{ request.args.get('search', '') }}">
+                            <div class="input-group-append">
+                                <button type="submit" class="btn btn-gradient-primary members-search-btn" title="Search">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+            <!-- Sort Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Sort users">
+                    <i class="fas fa-sort-amount-down mr-2"></i>Sort
+                </button>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="sortDropdown" style="min-width: 220px;">
+                    <h6 class="dropdown-header font-weight-bold">Sort by Date</h6>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='desc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-down mr-2"></i>Newest to Oldest
+                        {% if sort_by == 'date' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='date', sort_order='asc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-up mr-2"></i>Oldest to Newest
+                        {% if sort_by == 'date' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <h6 class="dropdown-header font-weight-bold">Sort by Name</h6>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='asc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-up mr-2"></i>A-Z
+                        {% if sort_by == 'name' and sort_order == 'asc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('admin.community', sort_by='name', sort_order='desc', status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">
+                        <i class="fas fa-arrow-down mr-2"></i>Z-A
+                        {% if sort_by == 'name' and sort_order == 'desc' %}<i class="fas fa-check ml-2 text-success"></i>{% endif %}
+                    </a>
+                </div>
+            </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover community-users-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>User</th>
+                            <th>Contact Info</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Applications</th>
+                            <th>Registered</th>
+                            <th>Last Active</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if users %}
+                            {% for user in users %}
+                            <tr class="user-card">
+                                <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar mr-3">
+                                            {% if user.profile_pic %}
+                                                <img src="{{ url_for('files.profile_pic', user_id=user.id) }}" alt="Avatar">
+                                            {% else %}
+                                                {{ user.first_name[0] }}{{ user.last_name[0] }}
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="font-weight-bold">
+                                                {{ user.first_name }} 
+                                                {% if user.middle_name %}{{ user.middle_name[0] }}.{% endif %} 
+                                                {{ user.last_name }}
+                                            </div>
+                                            <small class="text-muted">{{ user.email }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        <div><i class="fas fa-phone text-muted mr-1"></i>{{ user.community_profile.mobile_no or 'N/A' }}</div>
+                                        <small class="text-muted"><i class="fas fa-calendar mr-1"></i>Age: {{ user.community_profile.age }}</small>
+                                    {% else %}
+                                        <span class="text-muted">No profile</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        <div>{{ user.community_profile.barangay or 'N/A' }}</div>
+                                        <small class="text-muted">{{ user.community_profile.municipality or '' }}</small>
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.community_profile %}
+                                        {% if user.community_profile.is_student %}
+                                            <br><span class="badge badge-info badge-status mt-1">
+                                                <i class="fas fa-graduation-cap mr-1"></i>Student
+                                            </span>
+                                        {% endif %}
+                                        {% if user.community_profile.is_solo_parent %}
+                                            <br><span class="badge badge-warning badge-status mt-1">
+                                                <i class="fas fa-child mr-1"></i>Solo Parent
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div>
+                                        <span class="badge badge-primary">{{ user.app_count }} Total</span>
+                                    </div>
+                                    {% if user.active_apps > 0 %}
+                                    <div class="mt-1">
+                                        <span class="badge badge-success">{{ user.active_apps }} Active</span>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ user.created_at|manila('%b %d, %Y') }}</small>
+                                </td>
+                                <td>
+                                    {% if user.last_activity %}
+                                        <small class="text-success d-inline-flex align-items-center">
+                                            <i class="fas fa-circle mr-1" style="font-size: 0.5rem;"></i>
+                                            {{ user.last_activity|manila('%b %d, %Y %I:%M %p') }}
+                                        </small>
+                                    {% else %}
+                                        <small class="text-muted">N/A</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('admin.view_community_user', user_id=user.id) }}" 
+                                           class="btn btn-soft-info" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-soft-warning" 
+                                                data-toggle="modal" 
+                                                data-target="#resetPasswordModal{{ user.id }}"
+                                                title="Reset Password">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-soft-secondary" 
+                                                data-toggle="modal" 
+                                                data-target="#toggleStatusModal{{ user.id }}"
+                                                title="Restrict Account">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-soft-danger" 
+                                                data-toggle="modal" 
+                                                data-target="#deleteUserModal{{ user.id }}"
+                                                title="Delete User">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-5">
+                                    <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                    <h5>No Community Users Found</h5>
+                                    <p>No users match your filter criteria.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Users pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.prev_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.community', page=page_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.community', page=pagination.next_num, search=request.args.get('search', ''), status=request.args.get('status', ''), municipality=request.args.get('municipality', ''), barangay=request.args.get('barangay', ''), date_range=request.args.get('date_range', '')) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modals for Each User -->
+{% for user in users %}
+<!-- Reset Password Modal -->
+<div class="modal fade community-modal" id="resetPasswordModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.reset_user_password', user_id=user.id) }}">
+                <div class="modal-header modal-header-warning">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key mr-2"></i>Reset Password
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        An 8-digit reset code will be sent to the user via notification and shown to you in a flash message.
+                    </div>
+                    <p class="mb-2">Are you sure you want to reset the password for:</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ user.first_name }} {{ user.last_name }}</p>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-warning">
+                        <i class="fas fa-key mr-1"></i>Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Account Status Modal -->
+<div class="modal fade community-modal" id="toggleStatusModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=user.id) }}">
+                <div class="modal-header modal-header-info">
+                    <h5 class="modal-title">
+                        <i class="fas fa-ban mr-2"></i>Account Access Control
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Manage account access for:</p>
+                    <div class="modal-context-block mb-3">
+                        <p class="font-weight-bold mb-1">{{ user.first_name }} {{ user.last_name }}</p>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                    <hr>
+                    <p>Choose an action:</p>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="action" id="disable{{ user.id }}" value="disable" checked>
+                        <label class="form-check-label" for="disable{{ user.id }}">
+                            <strong class="text-danger">Disable Account</strong>
+                            <br><small class="text-muted">User will not be able to login</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="action" id="enable{{ user.id }}" value="enable">
+                        <label class="form-check-label" for="enable{{ user.id }}">
+                            <strong class="text-success">Enable Account</strong>
+                            <br><small class="text-muted">Restore user's access</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-primary-sm">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade community-modal" id="deleteUserModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.delete_community_user', user_id=user.id) }}">
+                <div class="modal-header modal-header-danger">
+                    <h5 class="modal-title">
+                        <i class="fas fa-trash mr-2"></i>Delete User
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-danger-card">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+                    <p class="mb-2">Are you sure you want to permanently delete this user?</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ user.first_name }} {{ user.last_name }}</p>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                    {% if user.app_count > 0 %}
+                    <div class="modal-info-card mt-3 mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        This user has <strong>{{ user.app_count }} application(s)</strong>. Deletion may not be allowed.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-danger">
+                        <i class="fas fa-trash mr-1"></i>Delete Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('communitySearchInput');
+    const searchForm = document.getElementById('communitySearchForm');
+
+    if (!searchInput || !searchForm) {
+        return;
+    }
+
+    const userRows = Array.from(document.querySelectorAll('.community-users-table tbody tr.user-card'));
+    let submitTimer = null;
+
+    function applyClientSearch() {
+        const query = searchInput.value.trim().toLowerCase();
+
+        userRows.forEach(function (row) {
+            const nameElement = row.querySelector('td:nth-child(2) .font-weight-bold');
+            const emailElement = row.querySelector('td:nth-child(2) small');
+            const nameText = nameElement ? nameElement.textContent : '';
+            const emailText = emailElement ? emailElement.textContent : '';
+            const searchableText = (nameText + ' ' + emailText).toLowerCase();
+            const matches = query === '' || searchableText.includes(query);
+
+            row.style.display = matches ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', function () {
+        applyClientSearch();
+
+        clearTimeout(submitTimer);
+        submitTimer = setTimeout(function () {
+            searchForm.submit();
+        }, 350);
+    });
+});
+</script>
+{% endblock %}

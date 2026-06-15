@@ -1,0 +1,1401 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Ranked Beneficiary List - {{ program.program_name }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ranked-pill {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+
+    .ranked-row:hover {
+        background-color: #f8f9fc;
+    }
+
+    .ranked-score-summary {
+        background: linear-gradient(135deg, #1bb868, #158f4f);
+        color: #fff;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .ranked-score-summary .score-value {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 700;
+        margin: 0.35rem 0;
+    }
+
+    .ranked-detail-section {
+        background: #f8f9fc;
+        border-radius: 0.5rem;
+        padding: 0.9rem;
+        margin-top: 0.85rem;
+    }
+
+    .ranked-detail-section h6 {
+        margin-bottom: 0.6rem;
+    }
+
+    .ranked-score-bar {
+        width: 100%;
+        background: #e9ecef;
+        border-radius: 999px;
+        height: 10px;
+        overflow: hidden;
+    }
+
+    .ranked-score-bar > div {
+        height: 100%;
+    }
+
+    .ranked-badge-chip {
+        display: inline-block;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.2rem 0.55rem;
+        margin: 0 0.35rem 0.35rem 0;
+    }
+
+    .ranked-badge-chip-yes {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .ranked-badge-chip-no {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .ranked-modal-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84rem;
+    }
+
+    .ranked-modal-table th,
+    .ranked-modal-table td {
+        padding: 0.45rem 0.55rem;
+        border-bottom: 1px solid #e3e6f0;
+        vertical-align: top;
+    }
+
+    .ranked-modal-table th {
+        width: 40%;
+        font-weight: 600;
+        color: #5a5c69;
+    }
+
+    /* Page-level override so tooltips stay above high-z-index modals */
+    .tooltip {
+        z-index: 3000 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1 text-gray-800">
+                <i class="fas fa-sort-amount-down mr-2"></i>Ranked Beneficiary List
+            </h1>
+            <p class="text-muted mb-0">Program: <strong>{{ program.program_name }}</strong></p>
+        </div>
+        <div class="d-flex">
+            <a href="{{ url_for('admin.scheduled_beneficiaries_list', ranked_program_id=program.id) }}" class="btn btn-outline-primary mr-2">
+                <i class="fas fa-folder-open mr-1"></i>View Saved Lists
+            </a>
+            <a href="{{ url_for('admin.edit_program', id=program.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Program
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">Ranking Criteria and Parameters</h6>
+            <button type="button" class="btn btn-sm btn-light" id="editRankedCriteriaBtnTop">
+                <i class="fas fa-edit mr-1"></i>Edit Parameters
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info py-2">
+                <i class="fas fa-info-circle mr-2"></i>
+                Only applicants with <strong>Completed</strong> status and <strong>Not Scheduled</strong> claiming status are included.
+                <span class="ml-2">Eligible pool: <strong id="eligiblePoolBadge">{{ eligible_unscheduled_count or 0 }}</strong></span>
+            </div>
+
+            <form id="programRankedListForm">
+                <div class="border rounded p-2 mb-3 bg-light">
+                    <small class="font-weight-bold">Included parameters:</small>
+                    <small class="d-block text-muted" id="rankedCriteriaSummaryText">Maximum Beneficiaries, Family Monthly Income, Priority Barangays</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Maximum Beneficiaries</label>
+                            <input type="number" class="form-control" id="rankedMaxBeneficiaries" min="1" max="1000" value="{{ program.beneficiary_limit if program.beneficiary_limit else 50 }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Family Monthly Income</label>
+                            <select class="form-control" id="rankedIncomeRangeFilter">
+                                <option value="0|150000" selected>Below 150,000</option>
+                                <option value="0|100000">Below 100,000</option>
+                                <option value="0|75000">Below 75,000</option>
+                                <option value="0|50000">Below 50,000</option>
+                                <option value="0|40000">Below 40,000</option>
+                                <option value="0|30000">Below 30,000</option>
+                            </select>
+                            <input type="hidden" id="rankedMinIncome" value="0">
+                            <input type="hidden" id="rankedMaxIncome" value="150000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="font-weight-bold mb-0">Priority Barangays {% if admin_municipality %}({{ admin_municipality }}){% endif %}</label>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="rankedSelectAllBarangaysBtn">
+                                <i class="fas fa-check-square mr-1"></i>Select All
+                            </button>
+                        </div>
+                        <div class="border rounded p-2" id="rankedBarangayContainer" style="max-height: 180px; overflow-y: auto;">
+                            <small class="text-muted">Loading available barangays...</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-right">
+                    <button type="submit" class="btn btn-success" id="generateProgramRankedListBtn">
+                        <i class="fas fa-magic mr-1"></i>Generate Ranked List
+                    </button>
+                </div>
+            </form>
+
+            <div id="programRankedListLoading" class="text-center py-4" style="display: none;">
+                <div class="spinner-border text-success" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">Generating ranked list...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow" id="programRankedListResults" style="display: none;">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">Ranked Results</h6>
+            <div class="text-right d-flex align-items-center">
+                <button type="button" class="btn btn-sm btn-primary mr-2" id="saveAndScheduleRankedBtn" style="display: none;">
+                    <i class="fas fa-calendar-check mr-1"></i>Save List &amp; Schedule Payout
+                </button>
+                <small class="text-muted d-block" id="programRankedListMeta"></small>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width: 60px;">Rank</th>
+                            <th>Beneficiary</th>
+                            <th style="width: 130px;">Municipality</th>
+                            <th style="width: 130px;">Barangay</th>
+                            <th style="width: 130px;">Family Monthly Income</th>
+                            <th style="width: 160px;">Completion Date</th>
+                            <th style="width: 100px;">Score</th>
+                            <th style="width: 140px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="programRankedListBody"></tbody>
+                </table>
+            </div>
+            <div class="alert alert-warning mt-3 mb-0" id="rankedFilteredApplicantsSection" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <i class="fas fa-filter mr-2"></i>
+                        <strong id="rankedFilteredApplicantsCount">0</strong> applicant(s) were filtered out.
+                    </div>
+                    <button type="button" class="btn btn-outline-warning btn-sm mt-2 mt-md-0" data-toggle="collapse" data-target="#rankedFilteredApplicantsCollapse" aria-expanded="false" aria-controls="rankedFilteredApplicantsCollapse">
+                        <i class="fas fa-chevron-down mr-1"></i>Show Filtered Applicants
+                    </button>
+                </div>
+                <div class="collapse mt-3" id="rankedFilteredApplicantsCollapse">
+                    <div id="rankedFilteredApplicantsList"></div>
+                </div>
+            </div>
+            <p id="programRankedListEmpty" class="text-muted text-center py-3 mb-0" style="display: none;">
+                No eligible beneficiaries matched the selected filters.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankedSchedulePayoutModal" tabindex="-1" role="dialog" aria-labelledby="rankedSchedulePayoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rankedSchedulePayoutModalLabel">
+                    <i class="fas fa-calendar-check mr-2"></i>Save List &amp; Schedule Payout
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">This schedules payout for everyone currently included in the ranked results list.</p>
+                <div class="alert alert-info py-2">
+                    <i class="fas fa-users mr-2"></i>
+                    Beneficiaries to schedule: <strong id="rankedScheduleTargetCount">0</strong>
+                </div>
+
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutDate">Payout Date</label>
+                    <input type="date" class="form-control" id="rankedPayoutDate">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutTime">Payout Time</label>
+                    <input type="time" class="form-control" id="rankedPayoutTime" value="09:00">
+                </div>
+                <div class="form-group">
+                    <label class="font-weight-bold" for="rankedPayoutLocation">Payout Location</label>
+                    <input type="text" class="form-control" id="rankedPayoutLocation" value="MSWD Office, Municipal Building, Mabitac, Laguna">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="font-weight-bold" for="rankedPayoutInstructions">Instructions (Optional)</label>
+                    <textarea class="form-control" id="rankedPayoutInstructions" rows="2" placeholder="Bring valid ID and application slip."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSaveAndSchedulePayoutBtn">
+                    <i class="fas fa-save mr-1"></i>Save &amp; Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankedParametersSelectionModal" tabindex="-1" role="dialog" aria-labelledby="rankedParametersSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="rankedParametersSelectionModalLabel">
+                    <i class="fas fa-sliders-h mr-2"></i>Edit Ranked List Parameters
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Configure scoring parameters used for ranking.</p>
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Measures urgency from the assessed case severity. More urgent cases receive higher ranking weight.">
+                        Case Severity
+                        <i class="fas fa-info-circle text-info ml-1"></i>
+                    </label>
+                    <label class="small text-muted mb-1" for="modalCaseSeverityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalCaseSeverityWeight" min="0" step="0.01" value="60">
+                </div>
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Combines income need and household risk indicators (solo parent, student, PWD, senior status, and employment context) into a single vulnerability parameter.">
+                        Vulnerability
+                        <i class="fas fa-info-circle text-info ml-1"></i>
+                    </label>
+                    <label class="small text-muted mb-1" for="modalVulnerabilityWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalVulnerabilityWeight" min="0" step="0.01" value="37">
+                </div>
+                <div class="form-group mb-2">
+                    <label class="font-weight-bold mb-1" data-toggle="tooltip" data-placement="right" title="Applies a deduction when there is prior assistance history to help distribute support more fairly.">
+                        Repeat Beneficiary Penalty
+                        <i class="fas fa-info-circle text-info ml-1"></i>
+                    </label>
+                    <label class="small text-muted mb-1" for="modalRepeatPenaltyWeight">Weight (%)</label>
+                    <input type="number" class="form-control form-control-sm" id="modalRepeatPenaltyWeight" min="0" step="0.01" value="3">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRankedParametersBtn">
+                    <i class="fas fa-save mr-1"></i>Apply Parameters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="application/json" id="municipalityBarangaysData">{{ municipality_barangays_json | safe }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const municipalityBarangays = JSON.parse(
+        (document.getElementById('municipalityBarangaysData') || { textContent: '{}' }).textContent || '{}'
+    );
+    const rankedScopedMunicipality = {{ admin_municipality | tojson }} || '';
+
+    const rankedListForm = document.getElementById('programRankedListForm');
+    const rankedListLoading = document.getElementById('programRankedListLoading');
+    const rankedListResults = document.getElementById('programRankedListResults');
+    const rankedListBody = document.getElementById('programRankedListBody');
+    const rankedListEmpty = document.getElementById('programRankedListEmpty');
+    const rankedListMeta = document.getElementById('programRankedListMeta');
+    const rankedListButton = document.getElementById('generateProgramRankedListBtn');
+    const saveAndScheduleRankedBtn = document.getElementById('saveAndScheduleRankedBtn');
+    const confirmSaveAndSchedulePayoutBtn = document.getElementById('confirmSaveAndSchedulePayoutBtn');
+    const rankedScheduleTargetCount = document.getElementById('rankedScheduleTargetCount');
+    const rankedPayoutDateInput = document.getElementById('rankedPayoutDate');
+    const rankedPayoutTimeInput = document.getElementById('rankedPayoutTime');
+    const rankedPayoutLocationInput = document.getElementById('rankedPayoutLocation');
+    const rankedPayoutInstructionsInput = document.getElementById('rankedPayoutInstructions');
+    const rankedCriteriaSummaryText = document.getElementById('rankedCriteriaSummaryText');
+    const editRankedCriteriaBtnTop = document.getElementById('editRankedCriteriaBtnTop');
+    const saveRankedParametersBtn = document.getElementById('saveRankedParametersBtn');
+    const modalCaseSeverityWeightInput = document.getElementById('modalCaseSeverityWeight');
+    const modalVulnerabilityWeightInput = document.getElementById('modalVulnerabilityWeight');
+    const modalRepeatPenaltyWeightInput = document.getElementById('modalRepeatPenaltyWeight');
+    const rankedMaxBeneficiariesInput = document.getElementById('rankedMaxBeneficiaries');
+    const rankedIncomeRangeFilterInput = document.getElementById('rankedIncomeRangeFilter');
+    const rankedMinIncomeInput = document.getElementById('rankedMinIncome');
+    const rankedMaxIncomeInput = document.getElementById('rankedMaxIncome');
+    const rankedBarangayContainer = document.getElementById('rankedBarangayContainer');
+    const rankedSelectAllBarangaysBtn = document.getElementById('rankedSelectAllBarangaysBtn');
+    const rankedFilteredApplicantsSection = document.getElementById('rankedFilteredApplicantsSection');
+    const rankedFilteredApplicantsCount = document.getElementById('rankedFilteredApplicantsCount');
+    const rankedFilteredApplicantsList = document.getElementById('rankedFilteredApplicantsList');
+    const rankedFilteredApplicantsCollapse = document.getElementById('rankedFilteredApplicantsCollapse');
+    const RANKED_VULNERABILITY_BASE_TOTAL = 25 + 12;
+    const RANKED_VULNERABILITY_INCOME_RATIO = 25 / RANKED_VULNERABILITY_BASE_TOTAL;
+    const RANKED_VULNERABILITY_HOUSEHOLD_RATIO = 12 / RANKED_VULNERABILITY_BASE_TOTAL;
+
+    function initRankedParameterTooltips() {
+        if (!(window.$ && $.fn.tooltip)) {
+            return;
+        }
+
+        const $tooltips = $('#rankedParametersSelectionModal [data-toggle="tooltip"]');
+        $tooltips.tooltip('dispose');
+        $tooltips.tooltip({
+            container: 'body',
+            trigger: 'hover focus',
+            boundary: 'window'
+        });
+    }
+
+    if (window.$ && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip({ container: 'body' });
+        initRankedParameterTooltips();
+        $('#rankedParametersSelectionModal').on('shown.bs.modal', function() {
+            initRankedParameterTooltips();
+        });
+    }
+
+    const rankedCriteriaState = {
+        includeMaxBeneficiaries: true,
+        includeIncome: true,
+        includeMunicipalityBarangay: true,
+        includeCaseSeverityFactor: true,
+        includeVulnerabilityFactor: true,
+        includeRepeatPenaltyFactor: true,
+        caseSeverityWeight: 60,
+        vulnerabilityWeight: 37,
+        repeatPenaltyWeight: 3,
+    };
+
+    let latestRankedRecommendations = [];
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderFilteredApplicants(filteredApplicants) {
+        const list = Array.isArray(filteredApplicants) ? filteredApplicants : [];
+        if (!rankedFilteredApplicantsSection || !rankedFilteredApplicantsCount || !rankedFilteredApplicantsList) {
+            return;
+        }
+
+        if (!list.length) {
+            rankedFilteredApplicantsSection.style.display = 'none';
+            rankedFilteredApplicantsCount.textContent = '0';
+            rankedFilteredApplicantsList.innerHTML = '';
+            if (window.$ && rankedFilteredApplicantsCollapse) {
+                $(rankedFilteredApplicantsCollapse).collapse('hide');
+            }
+            return;
+        }
+
+        rankedFilteredApplicantsSection.style.display = 'block';
+        rankedFilteredApplicantsCount.textContent = String(list.length);
+        rankedFilteredApplicantsList.innerHTML = '';
+
+        list.forEach(function(applicant, index) {
+            const card = document.createElement('div');
+            card.className = 'border rounded bg-white p-3 mb-2';
+            const scoreText = Number.isFinite(Number(applicant.score))
+                ? `Score: ${Number(applicant.score).toFixed(4)}`
+                : 'Score: n/a';
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="font-weight-bold">${index + 1}. ${escapeHtml(applicant.name || 'N/A')}</div>
+                        <small class="text-muted d-block"><i class="fas fa-envelope mr-1"></i>${escapeHtml(applicant.email || 'N/A')}</small>
+                        <small class="text-muted d-block"><i class="fas fa-map-marker-alt mr-1"></i>${escapeHtml(applicant.barangay || 'N/A')}, ${escapeHtml(applicant.municipality || 'N/A')}</small>
+                    </div>
+                    <div class="text-right">
+                        <small class="text-muted d-block">${scoreText}</small>
+                        <small class="text-muted d-block">${escapeHtml(applicant.income_range || 'Not specified')}</small>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <span class="badge badge-warning">${escapeHtml(applicant.reason || 'Filtered out by current criteria.')}</span>
+                </div>
+            `;
+
+            rankedFilteredApplicantsList.appendChild(card);
+        });
+    }
+
+    function getSelectedRankedBarangays() {
+        return Array.from(document.querySelectorAll('.ranked-barangay:checked')).map(function(el) {
+            return el.value;
+        });
+    }
+
+    function getScopedRankedBarangays() {
+        if (!rankedScopedMunicipality || !municipalityBarangays[rankedScopedMunicipality]) {
+            return [];
+        }
+        return municipalityBarangays[rankedScopedMunicipality] || [];
+    }
+
+    function updateSaveAndScheduleRankedButton() {
+        const count = latestRankedRecommendations.length;
+        if (!saveAndScheduleRankedBtn) {
+            return;
+        }
+
+        if (count > 0) {
+            saveAndScheduleRankedBtn.style.display = 'inline-block';
+            saveAndScheduleRankedBtn.innerHTML = `<i class="fas fa-calendar-check mr-1"></i>Save List &amp; Schedule Payout (${count})`;
+        } else {
+            saveAndScheduleRankedBtn.style.display = 'none';
+        }
+    }
+
+    function renderRankedBarangayOptions() {
+        if (!rankedBarangayContainer) {
+            return;
+        }
+
+        rankedBarangayContainer.innerHTML = '';
+
+        const barangays = getScopedRankedBarangays();
+        if (!barangays.length) {
+            if (!rankedScopedMunicipality) {
+                rankedBarangayContainer.innerHTML = '<small class="text-muted">No municipality scope is assigned to this admin account.</small>';
+            } else {
+                rankedBarangayContainer.innerHTML = `<small class="text-muted">No barangays available for ${rankedScopedMunicipality}.</small>`;
+            }
+            updateSelectAllRankedBarangaysButtonState();
+            return;
+        }
+
+        barangays.forEach(function(barangay, idx) {
+            const item = document.createElement('div');
+            item.className = 'custom-control custom-checkbox mb-1';
+            const id = `rankedBarangay_${idx}`;
+            item.innerHTML = `
+                <input type="checkbox" class="custom-control-input ranked-barangay" id="${id}" value="${barangay}" checked>
+                <label class="custom-control-label" for="${id}">${barangay}</label>
+            `;
+            rankedBarangayContainer.appendChild(item);
+        });
+
+        if (!rankedCriteriaState.includeMunicipalityBarangay) {
+            Array.from(document.querySelectorAll('.ranked-barangay')).forEach(function(input) {
+                input.disabled = true;
+            });
+        }
+
+        updateSelectAllRankedBarangaysButtonState();
+    }
+
+    function updateSelectAllRankedBarangaysButtonState() {
+        if (!rankedSelectAllBarangaysBtn) {
+            return;
+        }
+
+        const checkboxes = Array.from(document.querySelectorAll('.ranked-barangay'));
+        if (!checkboxes.length) {
+            rankedSelectAllBarangaysBtn.disabled = true;
+            rankedSelectAllBarangaysBtn.innerHTML = '<i class="fas fa-check-square mr-1"></i>Select All';
+            return;
+        }
+
+        rankedSelectAllBarangaysBtn.disabled = !rankedCriteriaState.includeMunicipalityBarangay;
+        const allChecked = checkboxes.every(function(input) { return input.checked; });
+        rankedSelectAllBarangaysBtn.innerHTML = allChecked
+            ? '<i class="fas fa-times-circle mr-1"></i>Clear All'
+            : '<i class="fas fa-check-square mr-1"></i>Select All';
+    }
+
+    function renderRankedCriteriaSummary() {
+        if (!rankedCriteriaSummaryText) {
+            return;
+        }
+
+        const labels = [];
+        if (rankedCriteriaState.includeMaxBeneficiaries) labels.push('Maximum Beneficiaries');
+        if (rankedCriteriaState.includeIncome) labels.push('Family Monthly Income Range');
+        if (rankedCriteriaState.includeMunicipalityBarangay) labels.push('Priority Barangays');
+
+        const scoringLabels = [];
+        if (rankedCriteriaState.includeCaseSeverityFactor) scoringLabels.push(`Case Severity (${rankedCriteriaState.caseSeverityWeight}%)`);
+        if (rankedCriteriaState.includeVulnerabilityFactor) scoringLabels.push(`Vulnerability (${rankedCriteriaState.vulnerabilityWeight}%)`);
+        if (rankedCriteriaState.includeRepeatPenaltyFactor) scoringLabels.push(`Repeat Beneficiary Penalty (${rankedCriteriaState.repeatPenaltyWeight}%)`);
+        if (scoringLabels.length) labels.push('Scoring: ' + scoringLabels.join(', '));
+
+        rankedCriteriaSummaryText.textContent = labels.length > 0 ? labels.join(', ') : 'No optional parameters included';
+    }
+
+    function applyRankedCriteriaStateToInputs() {
+        if (rankedMaxBeneficiariesInput) rankedMaxBeneficiariesInput.disabled = !rankedCriteriaState.includeMaxBeneficiaries;
+        if (rankedIncomeRangeFilterInput) rankedIncomeRangeFilterInput.disabled = !rankedCriteriaState.includeIncome;
+
+        Array.from(document.querySelectorAll('.ranked-barangay')).forEach(function(input) {
+            input.disabled = !rankedCriteriaState.includeMunicipalityBarangay;
+            if (!rankedCriteriaState.includeMunicipalityBarangay) {
+                input.checked = false;
+            }
+        });
+
+        updateSelectAllRankedBarangaysButtonState();
+
+        if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.disabled = !rankedCriteriaState.includeCaseSeverityFactor;
+        if (modalVulnerabilityWeightInput) modalVulnerabilityWeightInput.disabled = !rankedCriteriaState.includeVulnerabilityFactor;
+        if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.disabled = !rankedCriteriaState.includeRepeatPenaltyFactor;
+
+        renderRankedCriteriaSummary();
+    }
+
+    function syncRankedIncomeRangeBoundsFromDropdown() {
+        const selected = (rankedIncomeRangeFilterInput && rankedIncomeRangeFilterInput.value ? rankedIncomeRangeFilterInput.value : '0|150000').split('|');
+        const minIncome = parseFloat(selected[0]) || 0;
+        const maxIncome = parseFloat(selected[1]) || 150000;
+        if (rankedMinIncomeInput) rankedMinIncomeInput.value = String(minIncome);
+        if (rankedMaxIncomeInput) rankedMaxIncomeInput.value = String(maxIncome);
+    }
+
+    function openRankedParametersSelectionModal() {
+        if (modalCaseSeverityWeightInput) modalCaseSeverityWeightInput.value = String(rankedCriteriaState.caseSeverityWeight);
+        if (modalVulnerabilityWeightInput) modalVulnerabilityWeightInput.value = String(rankedCriteriaState.vulnerabilityWeight);
+        if (modalRepeatPenaltyWeightInput) modalRepeatPenaltyWeightInput.value = String(rankedCriteriaState.repeatPenaltyWeight);
+        applyRankedCriteriaStateToInputs();
+        $('#rankedParametersSelectionModal').modal('show');
+    }
+
+    if (editRankedCriteriaBtnTop) {
+        editRankedCriteriaBtnTop.addEventListener('click', function() {
+            openRankedParametersSelectionModal();
+        });
+    }
+
+    if (saveRankedParametersBtn) {
+        saveRankedParametersBtn.addEventListener('click', function() {
+            rankedCriteriaState.includeCaseSeverityFactor = true;
+            rankedCriteriaState.includeVulnerabilityFactor = true;
+            rankedCriteriaState.includeRepeatPenaltyFactor = true;
+
+            const caseSeverityWeight = Number((modalCaseSeverityWeightInput && modalCaseSeverityWeightInput.value) || 0);
+            const vulnerabilityWeight = Number((modalVulnerabilityWeightInput && modalVulnerabilityWeightInput.value) || 0);
+            const repeatPenaltyWeight = Number((modalRepeatPenaltyWeightInput && modalRepeatPenaltyWeightInput.value) || 0);
+
+            const weightValues = [
+                caseSeverityWeight,
+                vulnerabilityWeight,
+                repeatPenaltyWeight,
+            ];
+            if (weightValues.some(function(weight) { return Number.isNaN(weight) || weight < 0; })) {
+                alert('Scoring weights must be valid non-negative numbers.');
+                return;
+            }
+
+            rankedCriteriaState.caseSeverityWeight = caseSeverityWeight;
+            rankedCriteriaState.vulnerabilityWeight = vulnerabilityWeight;
+            rankedCriteriaState.repeatPenaltyWeight = repeatPenaltyWeight;
+
+            const hasScoringFactor = (
+                rankedCriteriaState.includeCaseSeverityFactor ||
+                rankedCriteriaState.includeVulnerabilityFactor ||
+                rankedCriteriaState.includeRepeatPenaltyFactor
+            );
+            if (!hasScoringFactor) {
+                alert('Select at least one scoring parameter.');
+                return;
+            }
+
+            const enabledWeightTotal =
+                (rankedCriteriaState.includeCaseSeverityFactor ? rankedCriteriaState.caseSeverityWeight : 0) +
+                (rankedCriteriaState.includeVulnerabilityFactor ? rankedCriteriaState.vulnerabilityWeight : 0) +
+                (rankedCriteriaState.includeRepeatPenaltyFactor ? rankedCriteriaState.repeatPenaltyWeight : 0);
+            if (enabledWeightTotal <= 0) {
+                alert('Enabled scoring factors must have a positive total weight.');
+                return;
+            }
+
+            applyRankedCriteriaStateToInputs();
+            renderRankedCriteriaSummary();
+            $('#rankedParametersSelectionModal').modal('hide');
+        });
+    }
+
+    if (rankedIncomeRangeFilterInput) {
+        rankedIncomeRangeFilterInput.addEventListener('change', syncRankedIncomeRangeBoundsFromDropdown);
+    }
+
+    if (rankedSelectAllBarangaysBtn) {
+        rankedSelectAllBarangaysBtn.addEventListener('click', function() {
+            const checkboxes = Array.from(document.querySelectorAll('.ranked-barangay'));
+            if (!checkboxes.length) {
+                return;
+            }
+
+            const allChecked = checkboxes.every(function(input) { return input.checked; });
+            checkboxes.forEach(function(input) {
+                input.checked = !allChecked;
+            });
+
+            updateSelectAllRankedBarangaysButtonState();
+        });
+    }
+
+    if (rankedBarangayContainer) {
+        rankedBarangayContainer.addEventListener('change', function(event) {
+            if (event.target && event.target.classList.contains('ranked-barangay')) {
+                updateSelectAllRankedBarangaysButtonState();
+            }
+        });
+    }
+
+    syncRankedIncomeRangeBoundsFromDropdown();
+    renderRankedBarangayOptions();
+    applyRankedCriteriaStateToInputs();
+    updateSaveAndScheduleRankedButton();
+
+    if (saveAndScheduleRankedBtn) {
+        saveAndScheduleRankedBtn.addEventListener('click', function() {
+            if (!latestRankedRecommendations.length) {
+                alert('Generate ranked results first before scheduling payout.');
+                return;
+            }
+
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (rankedPayoutDateInput) {
+                rankedPayoutDateInput.min = tomorrow.toISOString().split('T')[0];
+                rankedPayoutDateInput.value = '';
+            }
+            if (rankedPayoutTimeInput) rankedPayoutTimeInput.value = '09:00';
+            if (rankedPayoutLocationInput) rankedPayoutLocationInput.value = 'MSWD Office, Municipal Building, Mabitac, Laguna';
+            if (rankedPayoutInstructionsInput) rankedPayoutInstructionsInput.value = '';
+            if (rankedScheduleTargetCount) rankedScheduleTargetCount.textContent = String(latestRankedRecommendations.length);
+
+            $('#rankedSchedulePayoutModal').modal('show');
+        });
+    }
+
+    if (confirmSaveAndSchedulePayoutBtn) {
+        confirmSaveAndSchedulePayoutBtn.addEventListener('click', function() {
+            const claimDate = rankedPayoutDateInput ? (rankedPayoutDateInput.value || '') : '';
+            const claimTimeRaw = rankedPayoutTimeInput ? (rankedPayoutTimeInput.value || '') : '';
+            const claimLocation = rankedPayoutLocationInput ? (rankedPayoutLocationInput.value || '').trim() : '';
+            const claimInstructions = rankedPayoutInstructionsInput ? (rankedPayoutInstructionsInput.value || '').trim() : '';
+
+            if (!claimDate || !claimTimeRaw) {
+                alert('Please provide both payout date and payout time.');
+                return;
+            }
+
+            const timeParts = claimTimeRaw.split(':');
+            const hour24 = Number(timeParts[0]);
+            const minute = Number(timeParts[1]);
+            const period = hour24 >= 12 ? 'PM' : 'AM';
+            const hour12 = (hour24 % 12) || 12;
+            const formattedClaimTime = `${hour12}:${String(minute).padStart(2, '0')} ${period}`;
+
+            const applicationIds = latestRankedRecommendations
+                .map(function(rec) { return rec.application_id; })
+                .filter(function(id) { return Number.isInteger(id) && id > 0; });
+
+            if (!applicationIds.length) {
+                alert('No valid ranked applications are available for scheduling.');
+                return;
+            }
+
+            confirmSaveAndSchedulePayoutBtn.disabled = true;
+
+            fetch('{{ url_for("admin.save_ranked_list_schedule_payout", program_id=program.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    application_ids: applicationIds,
+                    claim_date: claimDate,
+                    claim_time: formattedClaimTime,
+                    claim_location: claimLocation || 'MSWD Office, Municipal Building, Mabitac, Laguna',
+                    claim_instructions: claimInstructions,
+                })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.success) {
+                    alert(data.message || 'Failed to save and schedule payout.');
+                    return;
+                }
+
+                let summary = data.message || 'Ranked list saved and payout scheduled successfully.';
+                if (Array.isArray(data.skipped) && data.skipped.length) {
+                    summary += `\n\nSkipped applications:\n${data.skipped.slice(0, 5).map(function(item) {
+                        return `- #${item.application_id}: ${item.reason}`;
+                    }).join('\n')}`;
+                    if (data.skipped.length > 5) {
+                        summary += `\n- ...and ${data.skipped.length - 5} more`;
+                    }
+                }
+
+                alert(summary);
+                $('#rankedSchedulePayoutModal').modal('hide');
+
+                if (rankedListForm) {
+                    rankedListForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                }
+            })
+            .catch(function() {
+                alert('An error occurred while scheduling payout for ranked beneficiaries.');
+            })
+            .finally(function() {
+                confirmSaveAndSchedulePayoutBtn.disabled = false;
+            });
+        });
+    }
+
+    if (rankedListForm) {
+        rankedListForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            syncRankedIncomeRangeBoundsFromDropdown();
+            const minIncome = Number(document.getElementById('rankedMinIncome').value || 0);
+            const maxIncome = Number(document.getElementById('rankedMaxIncome').value || 0);
+            const maxBeneficiaries = Number((rankedMaxBeneficiariesInput && rankedMaxBeneficiariesInput.value) || 50);
+            const incomeFilterEnabled = rankedCriteriaState.includeIncome;
+            const municipalityBarangayFilterEnabled = rankedCriteriaState.includeMunicipalityBarangay;
+            const vulnerabilityFactorEnabled = rankedCriteriaState.includeVulnerabilityFactor;
+            const incomeVulnerabilityWeight = vulnerabilityFactorEnabled
+                ? rankedCriteriaState.vulnerabilityWeight * RANKED_VULNERABILITY_INCOME_RATIO
+                : 0;
+            const householdVulnerabilityWeight = vulnerabilityFactorEnabled
+                ? rankedCriteriaState.vulnerabilityWeight * RANKED_VULNERABILITY_HOUSEHOLD_RATIO
+                : 0;
+            const scoringParameters = {
+                case_severity: rankedCriteriaState.includeCaseSeverityFactor,
+                income_vulnerability: vulnerabilityFactorEnabled,
+                household_vulnerability: vulnerabilityFactorEnabled,
+                repeat_beneficiary_penalty: rankedCriteriaState.includeRepeatPenaltyFactor,
+            };
+            const scoringWeights = {
+                case_severity: rankedCriteriaState.caseSeverityWeight,
+                income_vulnerability: incomeVulnerabilityWeight,
+                household_vulnerability: householdVulnerabilityWeight,
+                repeat_beneficiary_penalty: rankedCriteriaState.repeatPenaltyWeight,
+            };
+
+            if (!Object.values(scoringParameters).some(Boolean)) {
+                alert('Select at least one scoring parameter.');
+                return;
+            }
+
+            const enabledWeightTotal =
+                (scoringParameters.case_severity ? scoringWeights.case_severity : 0) +
+                (vulnerabilityFactorEnabled ? rankedCriteriaState.vulnerabilityWeight : 0) +
+                (scoringParameters.repeat_beneficiary_penalty ? scoringWeights.repeat_beneficiary_penalty : 0);
+            if (enabledWeightTotal <= 0) {
+                alert('Enabled scoring factors must have a positive total weight.');
+                return;
+            }
+
+            if (incomeFilterEnabled && minIncome > maxIncome) {
+                alert('Minimum income cannot be greater than maximum income.');
+                return;
+            }
+
+            if (rankedCriteriaState.includeMaxBeneficiaries && (maxBeneficiaries < 1 || maxBeneficiaries > 1000)) {
+                alert('Maximum beneficiaries must be between 1 and 1000.');
+                return;
+            }
+
+            let selectedBarangays = municipalityBarangayFilterEnabled ? getSelectedRankedBarangays() : [];
+
+            if (municipalityBarangayFilterEnabled && selectedBarangays.length === 0) {
+                selectedBarangays = getScopedRankedBarangays();
+            }
+
+            const payload = {
+                max_beneficiaries: rankedCriteriaState.includeMaxBeneficiaries ? maxBeneficiaries : 50,
+                min_income: incomeFilterEnabled ? minIncome : 0,
+                max_income: incomeFilterEnabled ? maxIncome : 150000,
+                priority_municipality: '',
+                priority_barangays: municipalityBarangayFilterEnabled ? selectedBarangays : [],
+                completion_date_order: 'asc',
+                scoring_parameters: scoringParameters,
+                scoring_weights: scoringWeights,
+            };
+
+            rankedListLoading.style.display = 'block';
+            rankedListResults.style.display = 'none';
+            rankedListButton.disabled = true;
+            latestRankedRecommendations = [];
+            updateSaveAndScheduleRankedButton();
+            renderFilteredApplicants([]);
+
+            fetch('{{ url_for("admin.generate_program_ranked_list", program_id=program.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.success) {
+                    alert(data.message || 'Failed to generate ranked list.');
+                    return;
+                }
+
+                const applicationViewBaseUrl = '{{ url_for("admin.view_application", application_id=0) }}'.replace(/0$/, '');
+                document.getElementById('eligiblePoolBadge').textContent = String(data.eligible_pool_count || 0);
+                renderFilteredApplicants(data.filtered_applicants || []);
+
+                rankedListBody.innerHTML = '';
+                const recommendations = data.recommendations || [];
+                latestRankedRecommendations = recommendations;
+                updateSaveAndScheduleRankedButton();
+
+                if (recommendations.length === 0) {
+                    rankedListEmpty.style.display = 'block';
+                } else {
+                    rankedListEmpty.style.display = 'none';
+                    recommendations.forEach(function(rec, index) {
+                        const row = document.createElement('tr');
+                        row.className = 'ranked-row';
+
+                        const badges = [];
+                        if (rec.is_solo_parent) badges.push('<span class="badge badge-info ranked-pill mr-1">Solo Parent</span>');
+                        if (rec.is_student) badges.push('<span class="badge badge-primary ranked-pill mr-1">Student</span>');
+                        if (rec.is_pwd) badges.push('<span class="badge badge-warning ranked-pill mr-1">PWD</span>');
+                        if (rec.is_senior) badges.push('<span class="badge badge-secondary ranked-pill mr-1">Senior</span>');
+
+                        // Format score breakdown for tooltip
+                        const breakdown = rec.score_breakdown || {};
+                        const severityLabels = {
+                            'critical': 'CRITICAL (1.0)',
+                            'high': 'HIGH (0.8)',
+                            'moderate': 'MODERATE (0.6)',
+                            'low': 'LOW (0.4)',
+                            'unrated': 'UNRATED (0.0)'
+                        };
+                        const caseSeverity = (rec.case_severity || 'unrated').toLowerCase();
+                        const severityBadgeColor = 
+                            caseSeverity === 'critical' ? 'danger' :
+                            caseSeverity === 'high' ? 'warning' :
+                            caseSeverity === 'moderate' ? 'info' :
+                            caseSeverity === 'low' ? 'success' :
+                            'secondary';
+
+                        const explainabilityPayload = encodeURIComponent(JSON.stringify({
+                            name: rec.name || 'N/A',
+                            email: rec.email || '',
+                            municipality: rec.municipality || 'N/A',
+                            barangay: rec.barangay || 'N/A',
+                            income: Number(rec.income || 0),
+                            income_range: rec.income_range || 'Not specified',
+                            case_severity: caseSeverity,
+                            age: rec.age,
+                            is_solo_parent: !!rec.is_solo_parent,
+                            is_student: !!rec.is_student,
+                            is_pwd: !!rec.is_pwd,
+                            is_senior: !!rec.is_senior,
+                            is_currently_employed: !!rec.is_currently_employed,
+                            past_applications: rec.past_applications || '',
+                            past_applications_count: Number(rec.past_applications_count || 0),
+                            score: Number(rec.score || 0),
+                            score_breakdown: breakdown,
+                        }));
+                        const vulnerabilityContribution =
+                            Number((breakdown.income_vulnerability_factor || {}).contribution || 0) +
+                            Number((breakdown.household_vulnerability_factor || {}).contribution || 0);
+                        
+                        const scoreTooltip = `Severity: ${severityLabels[caseSeverity] || 'UNRATED'} (${(breakdown.severity_component || 0).toFixed(4)})
+Case Severity Contribution: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}
+Vulnerability Contribution: ${vulnerabilityContribution.toFixed(4)}
+Repeat Beneficiary Penalty Contribution: ${Number((breakdown.repeat_beneficiary_penalty_factor || {}).contribution || 0).toFixed(4)}`;
+
+                        row.innerHTML = `
+                            <td class="text-center font-weight-bold">${index + 1}</td>
+                            <td>
+                                <div class="font-weight-bold">${rec.name || 'N/A'}</div>
+                                <small class="text-muted">${rec.email || ''}</small>
+                                <div class="mt-1">${badges.join('')}</div>
+                                <small class="badge badge-${severityBadgeColor}">${caseSeverity.toUpperCase()}</small>
+                            </td>
+                            <td>${rec.municipality || 'N/A'}</td>
+                            <td>${rec.barangay || 'N/A'}</td>
+                            <td>${rec.income_range || 'Not specified'}</td>
+                            <td><small>${rec.application_date || 'N/A'}</small></td>
+                            <td>
+                                <span class="badge badge-success" title="${scoreTooltip}" style="cursor: help;">
+                                    ${Number(rec.score || 0).toFixed(4)}
+                                </span>
+                                <br/><small class="text-muted">Case: ${Number((breakdown.case_severity_factor || {}).contribution || 0).toFixed(4)}</small>
+                                <br/><button type="button" class="btn btn-xs btn-info mt-1 view-score-breakdown" data-explain="${explainabilityPayload}">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </td>
+                            <td>
+                                ${rec.application_id
+                                    ? `<a href="${applicationViewBaseUrl}${rec.application_id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-external-link-alt mr-1"></i>Open</a>`
+                                    : '<span class="text-muted small">No linked application</span>'}
+                            </td>
+                        `;
+                        rankedListBody.appendChild(row);
+                    });
+                }
+
+                rankedListMeta.textContent = `Generated ${recommendations.length} ranked beneficiaries from ${data.eligible_pool_count || 0} eligible applicants.`;
+                rankedListResults.style.display = 'block';
+            })
+            .catch(function() {
+                latestRankedRecommendations = [];
+                updateSaveAndScheduleRankedButton();
+                alert('An error occurred while generating the ranked list.');
+            })
+            .finally(function() {
+                rankedListLoading.style.display = 'none';
+                rankedListButton.disabled = false;
+            });
+        });
+    }
+});
+</script>
+
+<!-- Score Breakdown Modal -->
+<div class="modal fade" id="scoreBreakdownModal" tabindex="-1" role="dialog" aria-labelledby="scoreBreakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="scoreBreakdownModalLabel">
+                    <i class="fas fa-chart-pie mr-2"></i>Ranking Score Breakdown
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6 id="breakdownBeneficiaryName" class="font-weight-bold mb-3"></h6>
+                <div id="scoreBreakdownDetailBody"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function toFiniteNumber(value, fallback) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+            return fallback;
+        }
+        return parsed;
+    }
+
+    function formatCurrency(value) {
+        const numeric = toFiniteNumber(value, 0);
+        return `P${numeric.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    }
+
+    function getCaseSeverityContext(rawSeverity) {
+        const key = String(rawSeverity || 'unrated').toLowerCase();
+        const labels = {
+            critical: 'Critical',
+            high: 'High',
+            moderate: 'Moderate',
+            medium: 'Moderate',
+            low: 'Low',
+            unrated: 'Unrated',
+        };
+        const valueMap = {
+            critical: 1.0,
+            high: 1.0,
+            moderate: 0.6,
+            medium: 0.6,
+            low: 0.2,
+            unrated: 0.4,
+        };
+        return {
+            key: key,
+            label: labels[key] || 'Unrated',
+            mappedValue: valueMap[key] != null ? valueMap[key] : 0.4,
+        };
+    }
+
+    function getIncomeContext(income) {
+        const annualIncome = toFiniteNumber(income, 0);
+        if (annualIncome <= 0) {
+            return 'No income was recorded, which maps to the highest vulnerability score.';
+        }
+        if (annualIncome < 100000) {
+            return 'Income is below P100,000, so vulnerability remains very high.';
+        }
+        if (annualIncome < 250000) {
+            return 'Income falls in the lower band (P100,000-P249,999), so vulnerability is still elevated.';
+        }
+        if (annualIncome < 400000) {
+            return 'Income is in the mid band (P250,000-P399,999), so vulnerability is moderate.';
+        }
+        if (annualIncome < 600000) {
+            return 'Income is in the upper-mid band (P400,000-P599,999), so vulnerability is lower.';
+        }
+        return 'Income is at the highest band (P600,000+), so vulnerability contribution is minimal.';
+    }
+
+    function getHouseholdIndicators(profile) {
+        const indicators = [];
+        if (profile.is_solo_parent) indicators.push('solo parent');
+        if (profile.is_student) indicators.push('student');
+        if (profile.is_pwd) indicators.push('person with disability');
+        if (profile.is_senior) indicators.push('senior citizen');
+        if (!profile.is_currently_employed) indicators.push('not currently employed');
+        return indicators;
+    }
+
+    function getPriorityBand(score) {
+        const total = toFiniteNumber(score, 0);
+        if (total >= 0.65) {
+            return { label: 'High Priority', className: 'text-success' };
+        }
+        if (total >= 0.40) {
+            return { label: 'Moderate Priority', className: 'text-info' };
+        }
+        if (total >= 0.20) {
+            return { label: 'Eligible - Lower Urgency', className: 'text-warning' };
+        }
+        return { label: 'Low Composite Priority', className: 'text-secondary' };
+    }
+
+    function buildFactorNarrative(factorKey, factor, profile) {
+        const weight = toFiniteNumber(factor.weight, 0);
+        const value = toFiniteNumber(factor.beneficiary_value, 0);
+        const contribution = toFiniteNumber(factor.contribution, 0);
+
+        if (weight <= 0) {
+            return `${factor.label || 'This factor'} was disabled for this ranking run, so it contributes 0.0000.`;
+        }
+
+        let context = '';
+        if (factorKey === 'case_severity_factor') {
+            const severity = getCaseSeverityContext(profile.case_severity);
+            context = `Case severity is tagged as ${severity.label}, which maps to ${severity.mappedValue.toFixed(4)} before weighting.`;
+        } else if (factorKey === 'vulnerability_factor') {
+            const incomeContext = getIncomeContext(profile.income);
+            const indicators = getHouseholdIndicators(profile);
+            if (indicators.length) {
+                context = `${incomeContext} Household vulnerability indicators include ${indicators.join(', ')}.`;
+            } else {
+                context = `${incomeContext} No additional household vulnerability indicators were detected.`;
+            }
+        } else if (factorKey === 'repeat_beneficiary_penalty_factor') {
+            const historyCount = Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)));
+            if (historyCount <= 0) {
+                context = 'No prior approved/active/completed application history was detected, so no penalty was applied.';
+            } else {
+                context = `Application history count is ${historyCount}, so a fairness penalty is applied to balance distribution.`;
+            }
+        }
+
+        return `${context} Computation: ${weight.toFixed(4)} x ${value.toFixed(4)} = ${contribution.toFixed(4)}.`;
+    }
+
+    function buildPlainLanguageExplanation(profile, breakdown, totalScore) {
+        const reasons = [];
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
+        const priorityBand = getPriorityBand(totalScore);
+
+        reasons.push(`<p class="mb-2"><strong>${escapeHtml(profile.name)}</strong> is currently classified as <span class="${priorityBand.className}">${priorityBand.label}</span> based on combined urgency, vulnerability, and repeat-beneficiary fairness adjustment.</p>`);
+
+        if (toFiniteNumber(caseFactor.contribution, 0) > 0) {
+            const severity = getCaseSeverityContext(profile.case_severity);
+            reasons.push(`<p class="mb-2"><strong>Case Urgency:</strong> The case is marked as <strong>${severity.label}</strong>, which raised the score by ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}.</p>`);
+        }
+
+        if (vulnerabilityContribution > 0) {
+            const indicators = getHouseholdIndicators(profile);
+            const indicatorText = indicators.length ? indicators.join(', ') : 'no additional household risk indicators';
+            reasons.push(`<p class="mb-2"><strong>Vulnerability:</strong> Family Monthly Income is ${formatCurrency(profile.income)} (${escapeHtml(profile.income_range || 'Not specified')}) and household context indicates ${escapeHtml(indicatorText)}, contributing ${vulnerabilityContribution.toFixed(4)}.</p>`);
+        }
+
+        if (toFiniteNumber(repeatFactor.contribution, 0) < 0) {
+            const count = Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)));
+            reasons.push(`<p class="mb-0"><strong>Fairness Penalty:</strong> Prior assistance history count (${count}) applied a ${Math.abs(toFiniteNumber(repeatFactor.contribution, 0)).toFixed(4)} deduction to avoid repeatedly prioritizing the same beneficiary.</p>`);
+        }
+
+        return reasons.join('');
+    }
+
+    function renderFactorBars(profile, breakdown) {
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const vulnerabilityWeight =
+            toFiniteNumber(incomeFactor.weight, 0) +
+            toFiniteNumber(householdFactor.weight, 0);
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
+        const vulnerabilityValue = vulnerabilityWeight > 0
+            ? (
+                (toFiniteNumber(incomeFactor.weight, 0) * toFiniteNumber(incomeFactor.beneficiary_value, 0)) +
+                (toFiniteNumber(householdFactor.weight, 0) * toFiniteNumber(householdFactor.beneficiary_value, 0))
+            ) / vulnerabilityWeight
+            : 0;
+
+        const factors = [
+            {
+                key: 'case_severity_factor',
+                label: 'Case Severity',
+                color: '#e74a3b',
+                maxMagnitude: toFiniteNumber((breakdown.case_severity_factor || {}).weight, 0),
+            },
+            {
+                key: 'vulnerability_factor',
+                label: 'Vulnerability',
+                color: '#1cc88a',
+                maxMagnitude: vulnerabilityWeight,
+                factor: {
+                    label: 'Vulnerability',
+                    contribution: vulnerabilityContribution,
+                    beneficiary_value: vulnerabilityValue,
+                },
+            },
+            {
+                key: 'repeat_beneficiary_penalty_factor',
+                label: 'Repeat Beneficiary Penalty',
+                color: '#6c757d',
+                maxMagnitude: toFiniteNumber((breakdown.repeat_beneficiary_penalty_factor || {}).weight, 0),
+            },
+        ];
+
+        return factors.map(function(item) {
+            const factor = item.factor || breakdown[item.key] || {};
+            const contribution = toFiniteNumber(factor.contribution, 0);
+            const maxMagnitude = Math.max(0, item.maxMagnitude);
+            const percent = maxMagnitude > 0
+                ? Math.min((Math.abs(contribution) / maxMagnitude) * 100, 100)
+                : 0;
+            const badgeClass = contribution < 0 ? 'badge-danger' : 'badge-primary';
+
+            return `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <strong>${escapeHtml(item.label)} (${(maxMagnitude * 100).toFixed(0)}% weight)</strong>
+                        <span class="badge ${badgeClass}">${contribution.toFixed(4)}</span>
+                    </div>
+                    <div class="ranked-score-bar mb-1">
+                        <div style="width:${percent.toFixed(1)}%; background:${item.color};"></div>
+                    </div>
+                    <small class="text-muted d-block">Value: ${toFiniteNumber(factor.beneficiary_value, 0).toFixed(4)}</small>
+                    <small class="text-muted d-block mt-1">${buildFactorNarrative(item.key, factor, profile)}</small>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderAlgorithmTable(profile, breakdown) {
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+        const householdIndicators = getHouseholdIndicators(profile);
+        const severity = getCaseSeverityContext(profile.case_severity);
+        const vulnerabilityContribution =
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0);
+
+        return `
+            <table class="ranked-modal-table">
+                <tbody>
+                    <tr>
+                        <th>Case Severity</th>
+                        <td>${escapeHtml(severity.label)} (value ${toFiniteNumber(caseFactor.beneficiary_value, 0).toFixed(4)})</td>
+                        <td>Weighted urgency contribution: ${toFiniteNumber(caseFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                    <tr>
+                        <th>Vulnerability</th>
+                        <td>${formatCurrency(profile.income)} Family Monthly Income; indicators: ${escapeHtml(householdIndicators.length ? householdIndicators.join(', ') : 'none detected')}</td>
+                        <td>Combined contribution: ${vulnerabilityContribution.toFixed(4)}</td>
+                    </tr>
+                    <tr>
+                        <th>Prior Assistance History</th>
+                        <td>${Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)))} prior approved/active/completed records</td>
+                        <td>Fairness adjustment: ${toFiniteNumber(repeatFactor.contribution, 0).toFixed(4)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    function renderScoreBreakdownModal(profile) {
+        const breakdown = profile.score_breakdown || {};
+        const caseFactor = breakdown.case_severity_factor || {};
+        const incomeFactor = breakdown.income_vulnerability_factor || {};
+        const householdFactor = breakdown.household_vulnerability_factor || {};
+        const repeatFactor = breakdown.repeat_beneficiary_penalty_factor || {};
+
+        const totalScore = (
+            toFiniteNumber(caseFactor.contribution, 0) +
+            toFiniteNumber(incomeFactor.contribution, 0) +
+            toFiniteNumber(householdFactor.contribution, 0) +
+            toFiniteNumber(repeatFactor.contribution, 0)
+        );
+        const priorityBand = getPriorityBand(totalScore);
+
+        const profileChips = [
+            { label: 'Solo Parent', state: !!profile.is_solo_parent },
+            { label: 'Student', state: !!profile.is_student },
+            { label: 'PWD', state: !!profile.is_pwd },
+            { label: 'Senior Citizen', state: !!profile.is_senior },
+        ];
+
+        const chipsHtml = profileChips.map(function(chip) {
+            return `<span class="ranked-badge-chip ${chip.state ? 'ranked-badge-chip-yes' : 'ranked-badge-chip-no'}">${chip.state ? 'Yes' : 'No'} ${escapeHtml(chip.label)}</span>`;
+        }).join('');
+
+        const profileHistoryText = profile.past_applications
+            ? `<small class="text-muted d-block mt-1"><strong>Program history text:</strong> ${escapeHtml(profile.past_applications)}</small>`
+            : '';
+
+        const html = `
+            <div class="ranked-score-summary">
+                <small>Composite Priority Score</small>
+                <div class="score-value">${totalScore.toFixed(4)}</div>
+                <small class="font-weight-bold">${priorityBand.label}</small>
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-id-card mr-2"></i>Profile Information</h6>
+                <div class="row">
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Full Name</small><strong>${escapeHtml(profile.name || 'N/A')}</strong></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Email</small><span>${escapeHtml(profile.email || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Municipality</small><span>${escapeHtml(profile.municipality || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Barangay</small><span>${escapeHtml(profile.barangay || 'N/A')}</span></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Family Monthly Income</small><strong>${formatCurrency(profile.income)}</strong></div>
+                    <div class="col-sm-6 mb-2"><small class="text-muted d-block">Case Severity</small><span>${escapeHtml(getCaseSeverityContext(profile.case_severity).label)}</span></div>
+                </div>
+                <div class="mt-1">${chipsHtml}</div>
+                <small class="text-muted d-block mt-2">Prior assistance history count: ${Math.max(0, Math.trunc(toFiniteNumber(profile.past_applications_count, 0)))} records</small>
+                ${profileHistoryText}
+            </div>
+
+            <div class="ranked-detail-section" style="background:#f0f9ff; border-left:4px solid #1cc88a;">
+                <h6 style="color:#0d5d2a;"><i class="fas fa-lightbulb mr-2"></i>Why Was This Person Ranked This Way?</h6>
+                ${buildPlainLanguageExplanation(profile, breakdown, totalScore)}
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-chart-bar mr-2"></i>Score Breakdown</h6>
+                <p class="text-muted small mb-3">This list uses <strong>Need-Focused Weighted Scoring</strong>. Each factor follows contribution = weight x beneficiary value. Penalty factors can lower the final score.</p>
+                ${renderFactorBars(profile, breakdown)}
+            </div>
+
+            <div class="ranked-detail-section" style="background:#e7f3ff; border-left:4px solid #4e73df;">
+                <h6 style="color:#0066cc;"><i class="fas fa-question-circle mr-2"></i>What Does This Score Mean?</h6>
+                <div class="small">
+                    <div class="mb-2"><strong class="text-success">0.65+</strong> = high urgency and strongest overall priority.</div>
+                    <div class="mb-2"><strong class="text-info">0.40 to 0.64</strong> = meaningful need indicators; moderate priority.</div>
+                    <div class="mb-2"><strong class="text-warning">0.20 to 0.39</strong> = eligible but lower urgency than higher-ranked beneficiaries.</div>
+                    <div><strong class="text-secondary">Below 0.20</strong> = weaker need signals or stronger repeat-beneficiary penalty effect.</div>
+                </div>
+            </div>
+
+            <div class="ranked-detail-section">
+                <h6><i class="fas fa-cogs mr-2"></i>Algorithm Used</h6>
+                <span class="badge badge-primary mb-2">Need-Focused Weighted Scoring</span>
+                <p class="text-muted small mb-2">The algorithm computes a transparent weighted score from severity, income vulnerability, household risk indicators, and repeat-beneficiary fairness penalty.</p>
+                ${renderAlgorithmTable(profile, breakdown)}
+            </div>
+        `;
+
+        document.getElementById('breakdownBeneficiaryName').textContent = `Score breakdown for: ${profile.name || 'N/A'}`;
+        document.getElementById('scoreBreakdownDetailBody').innerHTML = html;
+    }
+
+    // Handle score breakdown button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-score-breakdown')) {
+            const btn = e.target.closest('.view-score-breakdown');
+            const encodedPayload = btn.getAttribute('data-explain') || '';
+            if (!encodedPayload) {
+                alert('No score breakdown data available for this row.');
+                return;
+            }
+
+            let profile;
+            try {
+                profile = JSON.parse(decodeURIComponent(encodedPayload));
+            } catch (error) {
+                alert('Unable to parse score breakdown details. Please regenerate the ranked list and try again.');
+                return;
+            }
+
+            renderScoreBreakdownModal(profile);
+            
+            $('#scoreBreakdownModal').modal('show');
+        }
+    });
+});
+</script>
+
+{% endblock %}
+

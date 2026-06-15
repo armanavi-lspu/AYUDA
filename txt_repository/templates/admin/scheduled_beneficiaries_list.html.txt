@@ -1,0 +1,273 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Scheduled Beneficiary Lists - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scheduled-list-shell {
+        animation: listFadeIn 0.35s ease-out;
+    }
+
+    @keyframes listFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .list-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.16), transparent 45%),
+            linear-gradient(125deg, #f8fbff 0%, #ffffff 62%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.1rem 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    .list-hero h1 {
+        margin-bottom: 0.2rem;
+        color: #1e293b;
+        font-weight: 700;
+    }
+
+    .list-hero p {
+        color: #64748b;
+        margin-bottom: 0;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.3rem 0.72rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .status-chip.draft {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .status-chip.saved {
+        background: #ecfeff;
+        color: #155e75;
+    }
+
+    .status-chip.announced {
+        background: #ecfdf3;
+        color: #166534;
+    }
+
+    .summary-card,
+    .table-card,
+    .filter-card {
+        border: 1px solid #e8eef9;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(30, 41, 59, 0.05);
+    }
+
+    .summary-value {
+        font-size: 1.55rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.1;
+    }
+
+    .summary-label {
+        color: #64748b;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
+
+    .list-table th {
+        border-top: none;
+        color: #334155;
+        background: #f8fafc;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .list-table td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 scheduled-list-shell">
+    <div class="list-hero">
+        <div class="d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                {% if ranked_program_id %}
+                <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>Saved Ranked Lists</h1>
+                <p>Access ranked beneficiary lists saved for this program.</p>
+                {% else %}
+                <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>Scheduled Beneficiary Lists</h1>
+                <p>Access all payout beneficiary lists saved and scheduled in the system.</p>
+                {% endif %}
+            </div>
+            <div class="mt-2 mt-md-0">
+                {% if ranked_program_id %}
+                <a href="{{ url_for('admin.program_ranked_list', program_id=ranked_program_id) }}" class="btn btn-outline-primary mr-2">
+                    <i class="fas fa-sort-amount-down mr-2"></i>Back to Ranked List
+                </a>
+                {% endif %}
+                <a href="{{ url_for('admin.adm_subsidy') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Subsidy
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card border-left-warning h-100">
+                <div class="card-body">
+                    <div class="summary-value">{{ status_counts.draft }}</div>
+                    <div class="summary-label">Draft Lists</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="summary-value">{{ status_counts.saved }}</div>
+                    <div class="summary-label">Saved Lists</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card summary-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="summary-value">{{ status_counts.announced }}</div>
+                    <div class="summary-label">Announced Lists</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card filter-card mb-3">
+        <div class="card-body py-3">
+            <form method="GET" action="{{ url_for('admin.scheduled_beneficiaries_list') }}">
+                {% if ranked_program_id %}
+                <input type="hidden" name="ranked_program_id" value="{{ ranked_program_id }}">
+                {% endif %}
+                <div class="form-row align-items-end">
+                    <div class="col-md-6 mb-2">
+                        <label class="font-weight-bold mb-1">Search</label>
+                        <input type="text" name="search" class="form-control" value="{{ search }}" placeholder="Payout ID, category, or location">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <label class="font-weight-bold mb-1">Status</label>
+                        <select name="status" class="form-control">
+                            <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                            <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="saved" {% if status_filter == 'saved' %}selected{% endif %}>Saved</option>
+                            <option value="announced" {% if status_filter == 'announced' %}selected{% endif %}>Announced</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-search mr-2"></i>Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card table-card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table list-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Payout ID</th>
+                            <th>Category</th>
+                            <th>Date and Time</th>
+                            <th>Location</th>
+                            <th>Beneficiaries</th>
+                            <th>Status</th>
+                            <th>Saved</th>
+                            <th class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payout in payout_lists %}
+                        <tr>
+                            <td class="font-weight-bold">{{ payout.payout_id }}</td>
+                            <td>{{ payout.category_label }}</td>
+                            <td>{{ payout.payout_datetime|manila('%b %d, %Y %I:%M %p') }}</td>
+                            <td>{{ payout.payout_location }}</td>
+                            <td>{{ payout.beneficiary_count }}</td>
+                            <td>
+                                <span class="status-chip {{ payout.status }}">{{ payout.status }}</span>
+                            </td>
+                            <td>
+                                {% if payout.saved_in_system %}
+                                <span class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Yes</span>
+                                {% else %}
+                                <span class="text-muted"><i class="fas fa-times-circle mr-1"></i>No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('admin.scheduled_beneficiaries', payout_id=payout.payout_id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye mr-1"></i>Open
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No scheduled beneficiary lists found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div class="card-footer bg-white">
+            <nav aria-label="Scheduled lists pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.prev_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=1, right_edge=1) %}
+                        {% if page_num %}
+                            {% if page_num == pagination.page %}
+                            <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                            {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=page_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.scheduled_beneficiaries_list', page=pagination.next_num, search=search, status=status_filter, ranked_program_id=ranked_program_id) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

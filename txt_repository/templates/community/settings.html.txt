@@ -1,0 +1,852 @@
+{% extends "community/community_base.html" %}
+{% block title %}Settings - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 15px 15px;
+    }
+    
+    .settings-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        transition: transform 0.3s ease;
+    }
+    
+    .settings-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .settings-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #3a3b45;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .settings-title i {
+        margin-right: 0.75rem;
+        color: #667eea;
+    }
+    
+    .settings-description {
+        color: #858796;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .danger-zone {
+        border: 2px solid #e74a3b;
+        background: #fff5f5;
+    }
+    
+    .btn-change-password {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+    }
+    
+    .btn-change-password:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        color: white;
+    }
+
+    .settings-page {
+        animation: settingsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes settingsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .settings-header {
+        background: linear-gradient(135deg, #1f3f77 0%, #1f6feb 55%, #0ea5a6 100%);
+        border-radius: 0 0 18px 18px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.24);
+    }
+
+    .settings-header::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 82% 15%, rgba(255, 255, 255, 0.24), transparent 42%);
+        pointer-events: none;
+    }
+
+    .settings-header .container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .settings-overview-card {
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 10px 22px rgba(15, 34, 73, 0.08);
+        height: 100%;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .settings-overview-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.14);
+    }
+
+    .settings-overview-label {
+        color: #60708b;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+        font-weight: 700;
+    }
+
+    .settings-overview-value {
+        color: #1f2a44;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .settings-overview-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.95rem;
+        margin-bottom: 0.6rem;
+        box-shadow: 0 8px 14px rgba(15, 34, 73, 0.14);
+    }
+
+    .settings-overview-icon.blue { background: linear-gradient(135deg, #1f6feb, #1f4f95); }
+    .settings-overview-icon.teal { background: linear-gradient(135deg, #0ea5a6, #0b7f80); }
+    .settings-overview-icon.gold { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+    .settings-card {
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+        box-shadow: 0 12px 24px rgba(15, 34, 73, 0.09);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .settings-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 30px rgba(15, 34, 73, 0.14);
+    }
+
+    .settings-title {
+        font-size: 1.12rem;
+        color: #1f2a44;
+        letter-spacing: 0.2px;
+    }
+
+    .settings-title i {
+        color: #1f6feb;
+    }
+
+    .settings-description {
+        color: #6f8098;
+    }
+
+    .settings-page .form-control {
+        border-radius: 10px;
+        border-color: #d6e0f0;
+        color: #1f2a44;
+        font-weight: 600;
+    }
+
+    .settings-page .form-control:focus {
+        border-color: #1f6feb;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.16);
+    }
+
+    .settings-page .custom-control.custom-switch {
+        border: 1px solid #dce7f7;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 4px 10px rgba(15, 34, 73, 0.06);
+    }
+
+    .settings-page .custom-control-label {
+        color: #334155;
+        font-weight: 600;
+    }
+
+    .settings-page .custom-control-label::before {
+        border-color: #c7d5ec;
+    }
+
+    .custom-switch .custom-control-input:checked ~ .custom-control-label::before {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        border-color: #1f6feb;
+    }
+
+    .btn-change-password,
+    .settings-page .btn-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        border-color: transparent;
+        box-shadow: 0 10px 18px rgba(31, 79, 149, 0.24);
+    }
+
+    .btn-change-password:hover,
+    .settings-page .btn-primary:hover {
+        transform: translateY(-1px);
+    }
+
+    .settings-page .btn-outline-primary,
+    .settings-page .btn-outline-secondary {
+        border-radius: 10px;
+    }
+
+    .danger-zone {
+        border-color: #f3b6bd;
+        background: linear-gradient(180deg, #fff7f8 0%, #fff2f3 100%);
+    }
+
+    .settings-page .modal-content {
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    .settings-page .modal-footer {
+        border-top: 1px solid #ecf1fb;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 767.98px) {
+        .settings-card {
+            padding: 1.2rem;
+        }
+
+        .settings-header {
+            padding: 1.5rem 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+<!-- Header -->
+<div class="settings-header">
+    <div class="container">
+        <h2 class="mb-2">
+            <i class="fas fa-cog mr-2"></i>Settings
+        </h2>
+        <p class="mb-0 text-white-50">Manage your account settings and preferences</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card settings-overview-card h-100">
+                <div class="card-body">
+                    <span class="settings-overview-icon blue"><i class="fas fa-shield-alt"></i></span>
+                    <div class="settings-overview-label">Security</div>
+                    <div class="settings-overview-value">Password protected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card settings-overview-card h-100">
+                <div class="card-body">
+                    <span class="settings-overview-icon teal"><i class="fas fa-envelope"></i></span>
+                    <div class="settings-overview-label">Account Email</div>
+                    <div class="settings-overview-value">{{ user.email }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card settings-overview-card h-100">
+                <div class="card-body">
+                    <span class="settings-overview-icon gold"><i class="fas fa-compass"></i></span>
+                    <div class="settings-overview-label">Areas Selected</div>
+                    <div class="settings-overview-value">{{ (profile.get_areas_of_concern() or [])|length if profile else 0 }} / 2</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            
+            <!-- Security Settings -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-lock"></i>
+                    Security
+                </h5>
+                <p class="settings-description">
+                    Manage your password and security preferences
+                </p>
+                
+                <form method="POST" action="{{ url_for('community.change_password') }}">
+                    <div class="form-group">
+                        <label for="current_password">Current Password</label>
+                        <input type="password" class="form-control" id="current_password" 
+                               name="current_password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="new_password">New Password</label>
+                        <input type="password" class="form-control" id="new_password" 
+                               name="new_password" required minlength="8">
+                        <small class="form-text text-muted">
+                            Password must be at least 8 characters and include upper/lowercase and a symbol
+                        </small>
+                        <div class="mt-2">
+                            <div class="progress" style="height:4px;">
+                                <div id="communityPasswordStrengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                            </div>
+                            <small id="communityPasswordStrengthLabel" class="form-text text-muted"></small>
+                            <div class="password-checklist d-flex flex-wrap mt-1">
+                                <small id="communityChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                    <i class="far fa-circle mr-1"></i>8+ chars
+                                </small>
+                                <small id="communityChecklistCase" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include both uppercase and lowercase letters">
+                                    <i class="far fa-circle mr-1"></i>Upper + lower
+                                </small>
+                                <small id="communityChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                    <i class="far fa-circle mr-1"></i>Symbol
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm New Password</label>
+                        <input type="password" class="form-control" id="confirm_password" 
+                               name="confirm_password" required>
+                        <small id="communityPasswordMatchText" class="form-text"></small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-change-password">
+                        <i class="fas fa-key mr-2"></i>Change Password
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Notification Settings -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-bell"></i>
+                    Notifications
+                </h5>
+                <p class="settings-description">
+                    Control how you receive notifications
+                </p>
+                
+                <form method="POST" action="{{ url_for('community.update_notification_settings') }}">
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="application_updates" 
+                               name="application_updates" {% if notification_settings.get('application_updates', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="application_updates">
+                            <strong>Application Updates</strong>
+                            <br>
+                            <small class="text-muted">Get notified about application status changes</small>
+                        </label>
+                    </div>
+                    
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="announcement_notifications" 
+                               name="announcement_notifications" {% if notification_settings.get('announcement_notifications', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="announcement_notifications">
+                            <strong>Announcement Notifications</strong>
+                            <br>
+                            <small class="text-muted">Be notified of new announcements</small>
+                        </label>
+                    </div>
+                    
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="program_notifications" 
+                               name="program_notifications" {% if notification_settings.get('program_notifications', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="program_notifications">
+                            <strong>New Program Notifications</strong>
+                            <br>
+                            <small class="text-muted">Get alerts when new programs are available</small>
+                        </label>
+                    </div>
+                    
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="claim_reminders" 
+                               name="claim_reminders" {% if notification_settings.get('claim_reminders', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="claim_reminders">
+                            <strong>Claim Schedule Reminders</strong>
+                            <br>
+                            <small class="text-muted">Receive reminders about scheduled claims</small>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>Save Notification Settings
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Privacy Settings -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-user-shield"></i>
+                    Privacy
+                </h5>
+                <p class="settings-description">
+                    Control your privacy and data settings
+                </p>
+
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div>
+                        <strong>Data Privacy Consent</strong>
+                        <br>
+                        <small class="text-muted">Review how your personal data is used.</small>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.data_privacy_consent') }}">
+                        <i class="fas fa-file-alt mr-1"></i>View Notice
+                    </a>
+                </div>
+
+                <form method="POST" action="{{ url_for('community.update_privacy_settings') }}">
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="profile_visibility" name="profile_visibility" {% if privacy_settings.get('profile_visibility', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="profile_visibility">
+                            <strong>Profile Visibility</strong>
+                            <br>
+                            <small class="text-muted">Allow MSWD staff to view your profile information</small>
+                        </label>
+                    </div>
+                    
+                    <div class="custom-control custom-switch mb-3">
+                        <input type="checkbox" class="custom-control-input" id="activity_tracking" name="activity_tracking" {% if privacy_settings.get('activity_tracking', True) %}checked{% endif %}>
+                        <label class="custom-control-label" for="activity_tracking">
+                            <strong>Activity Tracking</strong>
+                            <br>
+                            <small class="text-muted">Track my activity for analytics and improvements</small>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mb-3">
+                        <i class="fas fa-save mr-2"></i>Save Privacy Settings
+                    </button>
+                </form>
+                
+                <hr class="my-4">
+                
+                <h6 class="font-weight-bold mb-3">Data Management</h6>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div>
+                        <strong>Download Your Data</strong>
+                        <br>
+                        <small class="text-muted">Get a copy of your personal information</small>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('community.export_user_data') }}">
+                        <i class="fas fa-download mr-1"></i>Export
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Account Management -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-user-cog"></i>
+                    Account Management
+                </h5>
+                <p class="settings-description">
+                    Manage your account information
+                </p>
+                
+                <div class="mb-4">
+                    <h6 class="font-weight-bold">Account Information</h6>
+                    <p class="mb-2">
+                        <strong>Email:</strong> {{ user.email }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Account Created:</strong> {{ user.created_at|manila('%B %d, %Y', 'N/A') }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Account Type:</strong> <span class="badge badge-primary">Community User</span>
+                    </p>
+                </div>
+                
+                <a href="{{ url_for('community.profile') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-user mr-2"></i>View Full Profile
+                </a>
+                <a href="{{ url_for('community.edit_profile') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-edit mr-2"></i>Edit Profile
+                </a>
+            </div>
+            
+            <!-- Areas of Concern -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-compass"></i>
+                    Areas of Concern
+                </h5>
+                <p class="settings-description">
+                    Update your areas of interest for personalized recommendations
+                </p>
+                
+                <form method="POST" action="{{ url_for('community.settings') }}" id="areasForm">
+                    <input type="hidden" name="form_type" value="areas_of_concern">
+                    
+                    <div class="mb-3">
+                        <p class="text-muted mb-3">
+                            <i class="fas fa-lightbulb mr-2"></i>
+                            Select exactly 2 areas of concern:
+                        </p>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsBusinessConcern" name="areasOfConcern" value="Business"
+                                           {% if profile and 'Business' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsBusinessConcern">
+                                        <i class="fas fa-briefcase mr-2"></i><strong>Business</strong>
+                                        <br><small class="text-muted">Business development, startups</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsEducationConcern" name="areasOfConcern" value="Education"
+                                           {% if profile and 'Education' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsEducationConcern">
+                                        <i class="fas fa-book mr-2"></i><strong>Education</strong>
+                                        <br><small class="text-muted">Scholarships, training programs</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsMedicalConcern" name="areasOfConcern" value="Medical"
+                                           {% if profile and 'Medical' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsMedicalConcern">
+                                        <i class="fas fa-heartbeat mr-2"></i><strong>Medical</strong>
+                                        <br><small class="text-muted">Healthcare assistance</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" 
+                                           id="settingsEmergencyConcern" name="areasOfConcern" value="Emergency"
+                                           {% if profile and 'Emergency' in profile.get_areas_of_concern() %}checked{% endif %}>
+                                    <label class="custom-control-label" for="settingsEmergencyConcern">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i><strong>Emergency</strong>
+                                        <br><small class="text-muted">Emergency relief, disaster aid</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-2"></i>Update Areas of Concern
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Activity Logs -->
+            <div class="settings-card">
+                <h5 class="settings-title">
+                    <i class="fas fa-history"></i>
+                    Activity Logs
+                </h5>
+                <p class="settings-description">
+                    View your activity history and interactions on the platform
+                </p>
+                
+                <p class="text-muted mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Track your actions, applications, and interactions on AYUDA to maintain a complete audit trail of your activities.
+                </p>
+                
+                <a href="{{ url_for('community.activity_logs') }}" class="btn btn-primary">
+                    <i class="fas fa-eye mr-2"></i>View My Activity Logs
+                </a>
+            </div>
+            
+            <!-- Danger Zone -->
+            <div class="settings-card danger-zone">
+                <h5 class="settings-title text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Danger Zone
+                </h5>
+                <p class="settings-description">
+                    Irreversible and destructive actions
+                </p>
+                
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Warning:</strong> Deleting your account will permanently remove all your data, 
+                    applications, and information. This action cannot be undone.
+                </div>
+                
+                <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#deleteAccountModal">
+                    <i class="fas fa-trash-alt mr-2"></i>Delete Account
+                </button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" role="dialog" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteAccountModalLabel">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Confirm Account Deletion
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="POST" action="{{ url_for('community.delete_account') }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>This action cannot be undone!</strong>
+                    </div>
+                    
+                    <p>Are you absolutely sure you want to delete your account?</p>
+                    
+                    <p class="text-muted mb-3">This will:</p>
+                    <ul class="text-muted">
+                        <li>Permanently delete your profile</li>
+                        <li>Remove all your applications</li>
+                        <li>Delete all your personal information</li>
+                        <li>Cancel any pending assistance requests</li>
+                    </ul>
+                    
+                    <div class="form-group">
+                        <label for="confirm_password_delete">
+                            Please enter your password to confirm:
+                        </label>
+                        <input type="password" class="form-control" id="confirm_password_delete" 
+                               name="confirm_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt mr-2"></i>Delete My Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    if ($.fn && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+
+    function updateMatchText() {
+        const newPassword = $('#new_password').val();
+        const confirmPassword = $('#confirm_password').val();
+        const matchText = $('#communityPasswordMatchText');
+
+        if (!confirmPassword) {
+            matchText.text('');
+            matchText.removeClass('text-danger text-success');
+            return;
+        }
+
+        if (newPassword === confirmPassword) {
+            matchText.text('Passwords match');
+            matchText.removeClass('text-danger').addClass('text-success');
+        } else {
+            matchText.text('Passwords do not match');
+            matchText.removeClass('text-success').addClass('text-danger');
+        }
+    }
+
+    // Password validation
+    $('#confirm_password').on('input', function() {
+        const newPassword = $('#new_password').val();
+        const confirmPassword = $(this).val();
+        
+        if (newPassword !== confirmPassword && confirmPassword.length > 0) {
+            this.setCustomValidity('Passwords do not match');
+            $(this).addClass('is-invalid');
+        } else {
+            this.setCustomValidity('');
+            $(this).removeClass('is-invalid');
+        }
+
+        updateMatchText();
+    });
+    
+    function evaluatePasswordStrength(password) {
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+        const hasCase = hasLower && hasUpper;
+
+        let score = 0;
+        if (password.length >= 8) score += 40;
+        if (password.length >= 12) score += 10;
+        if (hasCase) score += 30;
+        if (hasSymbol) score += 30;
+        score = Math.min(score, 100);
+
+        let label = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            label = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            label = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        return {
+            score,
+            label,
+            barClass,
+            hasCase,
+            hasSymbol,
+            lengthOk: password.length >= 8,
+        };
+    }
+
+    function setChecklistItem(item, met) {
+        if (!item) {
+            return;
+        }
+        const icon = item.querySelector('i');
+        if (icon) {
+            icon.className = met
+                ? 'fas fa-check-circle mr-1 text-success'
+                : 'far fa-circle mr-1 text-muted';
+        }
+        item.classList.toggle('text-success', met);
+        item.classList.toggle('text-muted', !met);
+    }
+
+    function renderPasswordStrength(password) {
+        const bar = document.getElementById('communityPasswordStrengthBar');
+        const label = document.getElementById('communityPasswordStrengthLabel');
+        const checklistLength = document.getElementById('communityChecklistLength');
+        const checklistCase = document.getElementById('communityChecklistCase');
+        const checklistSymbol = document.getElementById('communityChecklistSymbol');
+
+        if (!bar || !label) {
+            return;
+        }
+
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar';
+            label.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistCase, false);
+            setChecklistItem(checklistSymbol, false);
+            return;
+        }
+
+        const result = evaluatePasswordStrength(password);
+        bar.style.width = result.score + '%';
+        bar.className = 'progress-bar ' + result.barClass;
+        label.textContent = 'Strength: ' + result.label;
+        setChecklistItem(checklistLength, result.lengthOk);
+        setChecklistItem(checklistCase, result.hasCase);
+        setChecklistItem(checklistSymbol, result.hasSymbol);
+    }
+
+    $('#new_password').on('input', function() {
+        renderPasswordStrength($(this).val());
+        updateMatchText();
+    });
+    
+    // Areas of Concern validation
+    const areasCheckboxes = document.querySelectorAll('input[name="areasOfConcern"]');
+    const areasForm = document.getElementById('areasForm');
+    const areasSubmitBtn = areasForm ? areasForm.querySelector('button[type="submit"]') : null;
+    const MAX_SELECTIONS = 2;
+    
+    function updateAreasCheckboxStates() {
+        if (!areasSubmitBtn) return;
+        
+        const checkedCount = Array.from(areasCheckboxes).filter(cb => cb.checked).length;
+        
+        // Enable submit button only if exactly 2 selected
+        if (checkedCount === MAX_SELECTIONS) {
+            areasSubmitBtn.disabled = false;
+        } else {
+            areasSubmitBtn.disabled = true;
+        }
+        
+        // Disable unchecked checkboxes if max selections reached
+        areasCheckboxes.forEach(checkbox => {
+            if (checkedCount >= MAX_SELECTIONS && !checkbox.checked) {
+                checkbox.disabled = true;
+            } else if (checkedCount < MAX_SELECTIONS) {
+                checkbox.disabled = false;
+            }
+        });
+    }
+    
+    // Add change event listeners
+    areasCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const checkedCount = Array.from(areasCheckboxes).filter(cb => cb.checked).length;
+            
+            // Prevent selecting more than MAX_SELECTIONS
+            if (checkedCount > MAX_SELECTIONS) {
+                this.checked = false;
+            }
+            
+            updateAreasCheckboxStates();
+        });
+    });
+    
+    // Initial state
+    updateAreasCheckboxStates();
+});
+</script>
+{% endblock %}
+

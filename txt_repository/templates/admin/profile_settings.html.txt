@@ -1,0 +1,922 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Profile & Settings - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --profile-font: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        --profile-bg: #f3f6fb;
+        --profile-card: #ffffff;
+        --profile-primary: #0f766e;
+        --profile-primary-dark: #115e59;
+        --profile-accent: #f59e0b;
+        --profile-ink: #22313f;
+        --profile-muted: #6b7280;
+        --profile-line: #e5e7eb;
+    }
+
+    .profile-page-shell {
+        font-family: var(--profile-font);
+        position: relative;
+        isolation: isolate;
+    }
+
+    .profile-page-shell::before {
+        content: '';
+        position: absolute;
+        inset: -1.2rem -1.2rem auto -1.2rem;
+        height: 270px;
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 85% 10%, rgba(245, 158, 11, 0.2), transparent 42%),
+            radial-gradient(circle at 15% 15%, rgba(15, 118, 110, 0.18), transparent 50%),
+            linear-gradient(180deg, #f7fbff 0%, #f3f6fb 70%);
+        z-index: -1;
+    }
+
+    .profile-hero {
+        background: linear-gradient(130deg, var(--profile-primary) 0%, #1f7a8c 58%, #2d8e99 100%);
+        color: #fff;
+        border-radius: 1rem;
+        padding: 1.4rem 1.6rem;
+        box-shadow: 0 18px 36px -24px rgba(16, 71, 91, 0.75);
+    }
+
+    .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.17);
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        border-radius: 999px;
+        padding: 0.28rem 0.72rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .hero-title {
+        font-weight: 700;
+        line-height: 1.15;
+        margin-bottom: 0.2rem;
+    }
+
+    .hero-subtitle {
+        margin-bottom: 0;
+        opacity: 0.92;
+        font-size: 0.93rem;
+    }
+
+    .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.38rem 0.78rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.23);
+        margin-left: 0.38rem;
+        margin-top: 0.35rem;
+    }
+
+    .settings-card {
+        border: 1px solid var(--profile-line);
+        border-radius: 1rem;
+        background: var(--profile-card);
+        box-shadow: 0 20px 36px -34px rgba(30, 41, 59, 0.68);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .settings-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 28px 45px -34px rgba(15, 23, 42, 0.7);
+    }
+
+    .settings-card .card-header {
+        background: #fcfdff;
+        border-bottom: 1px solid var(--profile-line);
+        border-radius: 1rem 1rem 0 0 !important;
+        padding: 1rem 1.3rem;
+    }
+
+    .settings-card .card-header h6 {
+        font-weight: 700;
+        color: var(--profile-primary);
+        margin: 0;
+        font-size: 0.89rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .profile-avatar,
+    .profile-avatar-placeholder {
+        width: 124px;
+        height: 124px;
+        border-radius: 50%;
+        border: 5px solid #fff;
+        box-shadow: 0 14px 28px -20px rgba(15, 23, 42, 0.9);
+    }
+
+    .profile-avatar {
+        object-fit: cover;
+    }
+
+    .profile-avatar-placeholder {
+        background: linear-gradient(135deg, #136f63 0%, #21867a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.4rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .avatar-overlay {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        background: linear-gradient(135deg, var(--profile-accent) 0%, #f97316 100%);
+        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #fff;
+        transition: transform 0.2s ease;
+    }
+
+    .avatar-overlay:hover {
+        transform: scale(1.06);
+    }
+
+    .avatar-overlay i {
+        color: #fff;
+        font-size: 0.82rem;
+    }
+
+    .profile-avatar-wrapper.clickable {
+        cursor: pointer;
+    }
+
+    .profile-avatar-wrapper.clickable .profile-avatar,
+    .profile-avatar-wrapper.clickable .profile-avatar-placeholder {
+        transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .profile-avatar-wrapper.clickable:hover .profile-avatar,
+    .profile-avatar-wrapper.clickable:hover .profile-avatar-placeholder {
+        transform: scale(1.05);
+        filter: brightness(1.05);
+    }
+
+    .profile-role-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.85rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: #0f5132;
+        background: #dcfce7;
+        border: 1px solid #86efac;
+    }
+
+    .stat-badge {
+        background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.8rem;
+        padding: 0.8rem 0.65rem;
+        text-align: center;
+    }
+
+    .stat-badge .stat-number {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #0f766e;
+        line-height: 1;
+    }
+
+    .stat-badge .stat-label {
+        font-size: 0.73rem;
+        color: var(--profile-muted);
+        margin-top: 0.22rem;
+        letter-spacing: 0.03em;
+    }
+
+    .info-list-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.65rem;
+        padding: 0.62rem 0;
+        border-bottom: 1px solid #eef2f7;
+        align-items: center;
+    }
+
+    .info-list-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-timeline {
+        position: relative;
+        padding-left: 1.45rem;
+    }
+
+    .activity-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.42rem;
+        top: 0.22rem;
+        bottom: 0.2rem;
+        width: 2px;
+        background: #dbe6f2;
+    }
+
+    .activity-item {
+        position: relative;
+        padding-bottom: 1.02rem;
+    }
+
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -1.07rem;
+        top: 0.33rem;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--profile-accent);
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.38);
+    }
+
+    .activity-item .activity-time {
+        font-size: 0.74rem;
+        color: #7b8798;
+    }
+
+    .tab-nav {
+        gap: 0.45rem;
+        border-bottom: none;
+    }
+
+    .tab-nav .nav-link {
+        color: #64748b;
+        font-weight: 600;
+        border: 1px solid transparent;
+        padding: 0.58rem 1rem;
+        border-radius: 999px;
+        transition: all 0.2s ease;
+    }
+
+    .tab-nav .nav-link.active {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        box-shadow: 0 10px 20px -16px rgba(15, 118, 110, 0.95);
+    }
+
+    .tab-nav .nav-link:hover {
+        color: var(--profile-primary);
+        border-color: #d1d5db;
+    }
+
+    .section-kicker {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: #0f766e;
+        background: #ccfbf1;
+        border: 1px solid #99f6e4;
+        border-radius: 999px;
+        padding: 0.25rem 0.62rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .settings-card .form-control,
+    .settings-card .custom-select,
+    .settings-card select {
+        border-radius: 0.75rem;
+        border-color: #d7dde6;
+        min-height: 42px;
+        box-shadow: none;
+    }
+
+    .settings-card .form-control:focus,
+    .settings-card .custom-select:focus,
+    .settings-card select:focus {
+        border-color: #2aa198;
+        box-shadow: 0 0 0 0.18rem rgba(15, 118, 110, 0.14);
+    }
+
+    .btn-brand {
+        border: none;
+        border-radius: 0.7rem;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        box-shadow: 0 16px 24px -20px rgba(15, 118, 110, 1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-brand:hover,
+    .btn-brand:focus {
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 20px 28px -20px rgba(15, 118, 110, 1);
+    }
+
+    .btn-soft-danger {
+        border-radius: 0.7rem;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #be123c;
+        font-weight: 600;
+    }
+
+    .security-note {
+        border-radius: 0.8rem;
+        border: 1px solid #bae6fd;
+        background: #eff6ff;
+        color: #0c4a6e;
+    }
+
+    .modal-modern .modal-content {
+        border: none;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 32px 48px -24px rgba(15, 23, 42, 0.88);
+    }
+
+    .modal-header-gradient {
+        border-bottom: none;
+        background: linear-gradient(120deg, var(--profile-primary) 0%, #1f7a8c 100%);
+        color: #fff;
+    }
+
+    .modal-header-gradient .close {
+        color: #fff;
+        opacity: 0.9;
+        text-shadow: none;
+    }
+
+    .password-strength {
+        height: 4px;
+        border-radius: 999px;
+        transition: all 0.3s;
+    }
+
+    @media (max-width: 991.98px) {
+        .profile-hero {
+            padding: 1.2rem 1.1rem;
+        }
+
+        .hero-chip {
+            margin-left: 0;
+            margin-right: 0.35rem;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .profile-avatar,
+        .profile-avatar-placeholder {
+            width: 106px;
+            height: 106px;
+        }
+
+        .settings-card .card-body,
+        .settings-card .card-footer,
+        .tab-content.card-body {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid profile-page-shell">
+    <!-- Page Header -->
+    <div class="profile-hero mb-4">
+        <div class="d-lg-flex align-items-center justify-content-between">
+            <div>
+                <span class="hero-eyebrow"><i class="fas fa-shield-alt mr-2"></i>Account Center</span>
+                <h1 class="hero-title h3">Profile &amp; Settings</h1>
+                <p class="hero-subtitle">Manage your account details, security controls, and profile visibility.</p>
+            </div>
+            <div class="text-lg-right mt-3 mt-lg-0">
+                <span class="hero-chip"><i class="fas fa-user-check mr-2"></i>Administrator</span>
+                <span class="hero-chip"><i class="fas fa-clock mr-2"></i>Last Active: {{ user.last_activity|manila('%b %d, %Y', 'N/A') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Profile Card -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <!-- Profile Summary Card -->
+            <div class="settings-card card mb-4">
+                <div class="card-body text-center py-4">
+                    <!-- Avatar -->
+                    <form id="photoForm" action="{{ url_for('admin.upload_admin_photo') }}" method="POST" enctype="multipart/form-data">
+                        <div class="profile-avatar-wrapper mb-3 d-inline-block {% if user.profile_pic %}clickable{% endif %}" {% if user.profile_pic %}onclick="showPhotoModal()"{% endif %}>
+                            {% if user.profile_pic %}
+                                <img src="{{ url_for('files.profile_pic', user_id=user.id) }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
+                            {% else %}
+                                <div class="profile-avatar-placeholder" id="avatarPlaceholder">
+                                    {{ user.first_name[0] | upper }}{{ user.last_name[0] | upper }}
+                                </div>
+                                <img src="" alt="Profile Photo" class="profile-avatar d-none" id="avatarPreview">
+                            {% endif %}
+                            <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo" onclick="event.stopPropagation()">
+                                <i class="fas fa-camera"></i>
+                            </label>
+                            <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="d-none" onchange="previewAndSubmit(this)">
+                        </div>
+                    </form>
+
+                    <h5 class="font-weight-bold mb-0">
+                        {{ user.first_name }}
+                        {% if user.middle_name %}{{ user.middle_name }} {% endif %}
+                        {{ user.last_name }}
+                    </h5>
+                    <p class="text-muted small mb-1">{{ user.email }}</p>
+                    <span class="profile-role-badge">Administrator</span>
+                    <div class="small text-muted mt-2">
+                        <i class="fas fa-map-marker-alt mr-1"></i>
+                        {{ user.admin_profile.municipality if user.admin_profile and user.admin_profile.municipality else 'Municipality not set' }}
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Stats Row -->
+                    <div class="row no-gutters">
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ programs_created }}</div>
+                                <div class="stat-label">Programs</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ announcements_created }}</div>
+                                <div class="stat-label">Posts</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-badge mx-1">
+                                <div class="stat-number">{{ applications_reviewed }}</div>
+                                <div class="stat-label">Reviewed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Info -->
+                <div class="card-footer bg-white border-top-0 px-4 pb-4">
+                    <ul class="list-unstyled small mb-0">
+                        <li class="info-list-item">
+                            <span class="text-muted"><i class="fas fa-envelope mr-2"></i>Email</span>
+                            <span class="font-weight-600 text-truncate ml-2" style="max-width:160px">{{ user.email }}</span>
+                        </li>
+                        <li class="info-list-item">
+                            <span class="text-muted"><i class="fas fa-user-shield mr-2"></i>Role</span>
+                            <span class="font-weight-600">Administrator</span>
+                        </li>
+                        <li class="info-list-item">
+                            <span class="text-muted"><i class="fas fa-map-marker-alt mr-2"></i>Municipality</span>
+                            <span class="font-weight-600">{{ user.admin_profile.municipality if user.admin_profile and user.admin_profile.municipality else 'Not set' }}</span>
+                        </li>
+                        <li class="info-list-item">
+                            <span class="text-muted"><i class="fas fa-calendar mr-2"></i>Member Since</span>
+                            <span class="font-weight-600">{{ user.created_at|manila('%b %d, %Y', 'N/A') }}</span>
+                        </li>
+                        <li class="info-list-item">
+                            <span class="text-muted"><i class="fas fa-clock mr-2"></i>Last Active</span>
+                            <span class="font-weight-600">{{ user.last_activity|manila('%b %d, %Y', 'N/A') }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="settings-card card">
+                <div class="card-header">
+                    <h6><i class="fas fa-history mr-2"></i>Recent Activity</h6>
+                </div>
+                <div class="card-body py-3" style="max-height: 320px; overflow-y: auto;">
+                    {% if recent_logs %}
+                    <div class="activity-timeline">
+                        {% for log in recent_logs %}
+                        <div class="activity-item">
+                            <div class="small font-weight-600">{{ log.action | replace('_', ' ') | title }}</div>
+                            {% if log.description %}
+                            <div class="small text-muted text-truncate">{{ log.description }}</div>
+                            {% endif %}
+                            <div class="activity-time">
+                                <i class="fas fa-clock mr-1"></i>
+                                {{ log.created_at|manila('%b %d, %Y %I:%M %p', '') }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center small mb-0 py-3">No recent activity recorded.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Settings Tabs -->
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="settings-card card">
+                <div class="card-header pb-0">
+                    <ul class="nav tab-nav" id="settingsTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="tab-profile" data-toggle="tab" href="#pane-profile">
+                                <i class="fas fa-user mr-1"></i>Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tab-security" data-toggle="tab" href="#pane-security">
+                                <i class="fas fa-lock mr-1"></i>Security
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="tab-content card-body px-4 py-4">
+                    <!-- Profile Tab -->
+                    <div class="tab-pane fade show active" id="pane-profile">
+                        <div class="section-kicker"><i class="fas fa-id-badge mr-2"></i>Personal Details</div>
+                        <h6 class="font-weight-bold mb-1">Personal Information</h6>
+                        <p class="text-muted small mb-4">Update your name and assigned municipality as displayed across the system.</p>
+
+                        <form action="{{ url_for('admin.update_admin_profile') }}" method="POST">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">First Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="first_name" class="form-control" value="{{ user.first_name }}" required>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">Middle Name</label>
+                                    <input type="text" name="middle_name" class="form-control" value="{{ user.middle_name or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="font-weight-600 small">Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="last_name" class="form-control" value="{{ user.last_name }}" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">Municipality <span class="text-danger">*</span></label>
+                                <select name="municipality" class="form-control" required>
+                                    <option value="">Select Municipality</option>
+                                    {% for municipality in municipalities %}
+                                    <option value="{{ municipality }}" {% if user.admin_profile and user.admin_profile.municipality == municipality %}selected{% endif %}>{{ municipality }}</option>
+                                    {% endfor %}
+                                    {% if user.admin_profile and user.admin_profile.municipality and user.admin_profile.municipality not in municipalities %}
+                                    <option value="{{ user.admin_profile.municipality }}" selected>{{ user.admin_profile.municipality }} (Legacy)</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">Email Address</label>
+                                <input type="email" class="form-control bg-light" value="{{ user.email }}" disabled>
+                                <small class="text-muted">Email address cannot be changed. Contact the system administrator if needed.</small>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="submit" class="btn btn-brand px-4">
+                                    <i class="fas fa-save mr-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div class="tab-pane fade" id="pane-security">
+                        <div class="section-kicker"><i class="fas fa-lock mr-2"></i>Security Controls</div>
+                        <h6 class="font-weight-bold mb-1">Change Password</h6>
+                        <p class="text-muted small mb-4">Use a strong password to keep your account secure.</p>
+
+                        <form action="{{ url_for('admin.change_admin_password') }}" method="POST" id="passwordForm">
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">Current Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="current_password" id="currentPassword" class="form-control" required placeholder="Enter current password">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('currentPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="font-weight-600 small">New Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="new_password" id="newPassword" class="form-control" required placeholder="Min. 8 characters" oninput="checkStrength(this.value)">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Strength bar -->
+                                <div class="mt-2">
+                                    <div class="progress" style="height:4px;">
+                                        <div id="strengthBar" class="progress-bar password-strength" role="progressbar" style="width:0%"></div>
+                                    </div>
+                                    <small id="strengthText" class="text-muted"></small>
+                                    <div class="password-checklist d-flex flex-wrap mt-1">
+                                        <small id="adminChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                            <i class="far fa-circle mr-1"></i>8+ chars
+                                        </small>
+                                        <small id="adminChecklistLower" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a lowercase letter">
+                                            <i class="far fa-circle mr-1"></i>Lowercase
+                                        </small>
+                                        <small id="adminChecklistUpper" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include an uppercase letter">
+                                            <i class="far fa-circle mr-1"></i>Uppercase
+                                        </small>
+                                        <small id="adminChecklistNumber" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a number">
+                                            <i class="far fa-circle mr-1"></i>Number
+                                        </small>
+                                        <small id="adminChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                            <i class="far fa-circle mr-1"></i>Symbol
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="font-weight-600 small">Confirm New Password <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="password" name="confirm_password" id="confirmPassword" class="form-control" required placeholder="Re-enter new password" oninput="checkMatch()">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmPassword', this)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <small id="matchText" class="text-muted"></small>
+                            </div>
+
+                            <div class="alert security-note small py-2 mb-4">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Password must be at least 8 characters. Use a mix of letters, numbers, and symbols for better security.
+                            </div>
+
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-brand px-4" id="changePasswordBtn">
+                                    <i class="fas fa-key mr-2"></i>Change Password
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Preview Modal (for existing photo) -->
+<div class="modal fade modal-modern" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header modal-header-gradient">
+                <h5 class="modal-title" id="photoPreviewTitle">Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <img id="previewImage" src="" alt="Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-brand mr-2" onclick="document.getElementById('profilePicInput').click()">
+                    <i class="fas fa-camera mr-2"></i>Change Photo
+                </button>
+                <button type="button" class="btn btn-soft-danger" onclick="removePhoto()">
+                    <i class="fas fa-trash-alt mr-2"></i>Remove Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Upload Confirmation Modal -->
+<div class="modal fade modal-modern" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header modal-header-gradient">
+                <h5 class="modal-title" id="photoConfirmTitle">Confirm Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelPhotoUpload()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="text-muted mb-3">Preview your new profile picture:</p>
+                <img id="confirmPreviewImage" src="" alt="New Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center">
+                <button type="button" class="btn btn-secondary" onclick="cancelPhotoUpload()">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-brand ml-2" onclick="confirmPhotoUpload()">
+                    <i class="fas fa-check mr-2"></i>Confirm & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for removing photo -->
+<form id="removePhotoForm" action="{{ url_for('admin.remove_admin_photo') }}" method="POST" style="display: none;"></form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Show photo preview modal (for viewing current photo)
+    function showPhotoModal() {
+        const image = document.getElementById('avatarPreview');
+        if (image && image.src) {
+            document.getElementById('previewImage').src = image.src;
+            $('#photoPreviewModal').modal('show');
+        }
+    }
+    
+    // Remove photo
+    function removePhoto() {
+        if (confirm('Are you sure you want to remove your profile photo?')) {
+            $('#photoPreviewModal').modal('hide');
+            document.getElementById('removePhotoForm').submit();
+        }
+    }
+
+    // Preview & show confirmation modal for new photo
+    function previewAndSubmit(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Show the confirmation modal with preview
+                document.getElementById('confirmPreviewImage').src = e.target.result;
+                $('#photoConfirmModal').modal('show');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Confirm and upload the photo
+    function confirmPhotoUpload() {
+        $('#photoConfirmModal').modal('hide');
+        document.getElementById('photoForm').submit();
+    }
+    
+    // Cancel photo upload and clear input
+    function cancelPhotoUpload() {
+        document.getElementById('profilePicInput').value = '';
+        $('#photoConfirmModal').modal('hide');
+    }
+
+    // Toggle password visibility
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    // Password strength checker
+    function checkStrength(password) {
+        const bar = document.getElementById('strengthBar');
+        const text = document.getElementById('strengthText');
+        const checklistLength = document.getElementById('adminChecklistLength');
+        const checklistLower = document.getElementById('adminChecklistLower');
+        const checklistUpper = document.getElementById('adminChecklistUpper');
+        const checklistNumber = document.getElementById('adminChecklistNumber');
+        const checklistSymbol = document.getElementById('adminChecklistSymbol');
+
+        function setChecklistItem(item, met) {
+            if (!item) {
+                return;
+            }
+            const icon = item.querySelector('i');
+            if (icon) {
+                icon.className = met
+                    ? 'fas fa-check-circle mr-1 text-success'
+                    : 'far fa-circle mr-1 text-muted';
+            }
+            item.classList.toggle('text-success', met);
+            item.classList.toggle('text-muted', !met);
+        }
+
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar password-strength bg-secondary';
+            text.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistLower, false);
+            setChecklistItem(checklistUpper, false);
+            setChecklistItem(checklistNumber, false);
+            setChecklistItem(checklistSymbol, false);
+            checkMatch();
+            return;
+        }
+
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasDigit = /[0-9]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+        let score = 0;
+        if (password.length >= 8) score += 25;
+        if (password.length >= 12) score += 10;
+        if (hasLower) score += 15;
+        if (hasUpper) score += 15;
+        if (hasDigit) score += 15;
+        if (hasSymbol) score += 20;
+        score = Math.min(score, 100);
+
+        let label = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            label = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            label = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        bar.style.width = score + '%';
+        bar.className = 'progress-bar password-strength ' + barClass;
+        text.textContent = 'Strength: ' + label;
+        setChecklistItem(checklistLength, password.length >= 8);
+        setChecklistItem(checklistLower, hasLower);
+        setChecklistItem(checklistUpper, hasUpper);
+        setChecklistItem(checklistNumber, hasDigit);
+        setChecklistItem(checklistSymbol, hasSymbol);
+        checkMatch();
+    }
+
+    // Match checker
+    function checkMatch() {
+        const pw = document.getElementById('newPassword').value;
+        const cpw = document.getElementById('confirmPassword').value;
+        const text = document.getElementById('matchText');
+        if (!cpw) { text.textContent = ''; return; }
+        if (pw === cpw) {
+            text.textContent = '✓ Passwords match';
+            text.className = 'text-success small';
+        } else {
+            text.textContent = '✗ Passwords do not match';
+            text.className = 'text-danger small';
+        }
+    }
+
+    // Keep active tab across page reload (flash messages)
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+            window.jQuery('[data-toggle="tooltip"]').tooltip();
+        }
+        const hash = window.location.hash;
+        if (hash) {
+            const tabLink = document.querySelector('.tab-nav a[href="' + hash + '"]');
+            if (tabLink) { $(tabLink).tab('show'); }
+        }
+        // On tab click, update URL hash
+        document.querySelectorAll('.tab-nav a').forEach(function(link) {
+            link.addEventListener('shown.bs.tab', function(e) {
+                history.replaceState(null, null, e.target.getAttribute('href'));
+            });
+        });
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,997 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Admin Dashboard - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-surface: #ffffff;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+        --dash-soft: #f6f8fb;
+    }
+
+    .dashboard-shell {
+        animation: dashboardFadeIn 0.45s ease-out;
+    }
+
+    @keyframes dashboardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .dashboard-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .dashboard-hero h1 {
+        font-size: 1.9rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+    }
+
+    .dashboard-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .last-updated {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 0.7rem 1rem;
+        color: #334155;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .quick-actions-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .quick-action-btn {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #d7dff2;
+        padding: 0.8rem 0.9rem;
+        color: #22304e;
+        font-weight: 700;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        transition: all 0.25s ease;
+        text-align: left;
+    }
+
+    .quick-action-btn i {
+        width: 20px;
+    }
+
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 18px rgba(20, 52, 105, 0.08);
+        border-color: #abc0ef;
+        color: #123268;
+        text-decoration: none;
+    }
+
+    .quick-action-empty {
+        border: 1px dashed #c9d5ef;
+        background: #f8fbff;
+        border-radius: 10px;
+        padding: 0.8rem;
+        color: #48658f;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.9rem;
+    }
+
+    .quick-actions-config-item {
+        border: 1px solid #e6ecfa;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        margin-bottom: 0.45rem;
+        background: #fbfcff;
+    }
+
+    .quick-actions-config-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .kpi-card {
+        border-radius: 14px;
+        border: none;
+        box-shadow: 0 8px 20px rgba(15, 34, 73, 0.08);
+        overflow: hidden;
+    }
+
+    .kpi-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    .kpi-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.06);
+        color: #334155;
+    }
+
+    .border-left-primary { border-left: 0.3rem solid var(--dash-blue) !important; }
+    .border-left-success { border-left: 0.3rem solid #0ea565 !important; }
+    .border-left-info { border-left: 0.3rem solid var(--dash-cyan) !important; }
+    .border-left-warning { border-left: 0.3rem solid var(--dash-gold) !important; }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .chart-container { position: relative; height: 300px; }
+    .chart-area { position: relative; height: 320px; }
+    .chart-pie { position: relative; height: 280px; }
+
+    .quick-table {
+        margin-bottom: 0;
+    }
+
+    .quick-table thead th {
+        border-top: none;
+        border-bottom: 2px solid #eaf0fb;
+        color: #39507a;
+        font-size: 0.75rem;
+        letter-spacing: 0.55px;
+    }
+
+    .quick-table td {
+        vertical-align: middle;
+        border-top: 1px solid #eef2f7;
+    }
+
+    .status-pill {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 0.28rem 0.72rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.45px;
+    }
+
+    .status-pending { background: #fff4d6; color: #8a6400; }
+    .status-approved { background: #dff5e8; color: #0b6a3d; }
+    .status-active { background: #def3f4; color: #0e6162; }
+    .status-rejected { background: #fde8e8; color: #a12727; }
+    .status-completed { background: #e6ecff; color: #244598; }
+
+    .program-rank-list {
+        list-style: none;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .program-rank-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        border-bottom: 1px solid #edf2fa;
+        padding: 0.72rem 0;
+        gap: 0.8rem;
+    }
+
+    .program-rank-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .program-rank-badge {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e8f0ff;
+        color: #2552a4;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .program-count {
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 991px) {
+        .dashboard-hero {
+            padding: 1.1rem;
+        }
+
+        .dashboard-hero h1 {
+            font-size: 1.55rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid dashboard-shell">
+    <div class="dashboard-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="font-weight-bold mb-2">Admin Dashboard</h1>
+                <p class="subtitle">Monitor applications, jump to key admin tasks, and quickly inspect recent records from one screen.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <span class="last-updated">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    Updated {{ current_date|manila('%b %d, %Y %I:%M %p', '') }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions-panel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </h6>
+            <div class="d-flex align-items-center">
+                <small class="text-muted mr-2">One-click admin shortcuts</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="openQuickActionsEditor" data-toggle="modal" data-target="#editQuickActionsModal">
+                    <i class="fas fa-sliders-h mr-1"></i>Edit
+                </button>
+            </div>
+        </div>
+        <div class="row" id="quickActionsContainer">
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="review_applications">
+                <a class="quick-action-btn d-block" href="{{ url_for('admin.applications') }}">
+                    <i class="fas fa-inbox mr-2"></i>Review Applications
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="verify_profiles">
+                <a class="quick-action-btn d-block" href="{{ url_for('admin.community_verify') }}">
+                    <i class="fas fa-user-check mr-2"></i>Verify Community Profiles
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="create_program">
+                <a class="quick-action-btn d-block" href="{{ url_for('admin.add_program') }}">
+                    <i class="fas fa-folder-plus mr-2"></i>Create Program
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="post_announcement">
+                <a class="quick-action-btn d-block" href="{{ url_for('admin.adm_announcements') }}">
+                    <i class="fas fa-bullhorn mr-2"></i>Post Announcement
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="open_analytics">
+                <a class="quick-action-btn d-block" href="{{ url_for('admin.analytics') }}">
+                    <i class="fas fa-chart-area mr-2"></i>Open Analytics
+                </a>
+            </div>
+        </div>
+        <div id="quickActionsEmptyState" class="quick-action-empty d-none">
+            <i class="fas fa-info-circle mr-2"></i>No quick actions selected. Click <strong>Edit</strong> to choose what to show.
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-primary">Community Users</div>
+                            <div class="kpi-value">{{ community_count or 0 }}</div>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-users"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-success">Total Applications</div>
+                            <div class="kpi-value">{{ total_applications or 0 }}</div>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-clipboard-list"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-warning">Pending Applications</div>
+                            <div class="kpi-value">{{ pending_applications or 0 }}</div>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-hourglass-half"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-info">Active Programs</div>
+                            <div class="kpi-value">{{ active_programs or 0 }}</div>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-folder-open"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-line mr-2"></i>Monthly Application Trend
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="monthlyTrendChart" width="300" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie mr-2"></i>Application Status
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie">
+                        <canvas id="statusPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-8 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-table mr-2"></i>Quick View: Recent Applications
+                    </h6>
+                    <a href="{{ url_for('admin.applications') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table quick-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="pl-4">ID</th>
+                                    <th>Applicant</th>
+                                    <th>Program</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th class="text-right pr-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_applications %}
+                                    {% for application in recent_applications %}
+                                    {% set normalized_status = (application.application_status or 'pending')|lower %}
+                                    <tr>
+                                        <td class="pl-4 font-weight-bold text-primary">#{{ application.id }}</td>
+                                        <td>
+                                            {% if application.applicant %}
+                                                {{ application.applicant.first_name }} {{ application.applicant.last_name }}
+                                            {% else %}
+                                                Unknown Applicant
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ application.program.program_name if application.program else 'No Program' }}</td>
+                                        <td>
+                                            <span class="status-pill status-{{ normalized_status|replace('_', '-') }}">
+                                                {{ (application.application_status or 'pending')|replace('_', ' ')|title }}
+                                            </span>
+                                        </td>
+                                        <td>{{ application.application_date|manila('%b %d, %Y', 'N/A') }}</td>
+                                        <td class="text-right pr-4">
+                                            <a href="{{ url_for('admin.view_application', application_id=application.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye mr-1"></i>View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">No recent applications found.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-trophy mr-2"></i>Top Programs (Quick View)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="program-rank-list">
+                        {% if top_programs %}
+                            {% for program in top_programs %}
+                            <li class="program-rank-item">
+                                <div class="d-flex align-items-start">
+                                    <span class="program-rank-badge mr-2">{{ loop.index }}</span>
+                                    <div>
+                                        <div class="font-weight-bold text-dark">{{ program.program_name }}</div>
+                                        <small class="text-muted">{{ program.program_type }}</small>
+                                    </div>
+                                </div>
+                                <span class="program-count">{{ program.application_count }}</span>
+                            </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="text-muted">No program data available.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-bar mr-2"></i>Applications by Program Type
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="applicationsByProgramChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6 col-lg-6 mb-4">
+            <div class="card section-card h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-users mr-2"></i>Applicants by Age Group
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="ageDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editQuickActionsModal" tabindex="-1" role="dialog" aria-labelledby="editQuickActionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuickActionsModalLabel">
+                        <i class="fas fa-sliders-h mr-2"></i>Edit Quick Actions
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Choose which quick actions are visible on your dashboard.</p>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaReviewApplications" value="review_applications">
+                            <label class="custom-control-label" for="qaReviewApplications">
+                                <i class="fas fa-inbox mr-2 text-primary"></i>Review Applications
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaVerifyProfiles" value="verify_profiles">
+                            <label class="custom-control-label" for="qaVerifyProfiles">
+                                <i class="fas fa-user-check mr-2 text-primary"></i>Verify Community Profiles
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaCreateProgram" value="create_program">
+                            <label class="custom-control-label" for="qaCreateProgram">
+                                <i class="fas fa-folder-plus mr-2 text-primary"></i>Create Program
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaPostAnnouncement" value="post_announcement">
+                            <label class="custom-control-label" for="qaPostAnnouncement">
+                                <i class="fas fa-bullhorn mr-2 text-primary"></i>Post Announcement
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaOpenAnalytics" value="open_analytics">
+                            <label class="custom-control-label" for="qaOpenAnalytics">
+                                <i class="fas fa-chart-area mr-2 text-primary"></i>Open Analytics
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="resetQuickActionsBtn">
+                        <i class="fas fa-undo mr-1"></i>Reset Defaults
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveQuickActionsBtn">
+                        <i class="fas fa-save mr-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden data elements for JavaScript -->
+<script type="application/json" id="monthly-trend-data">{{ monthly_trend_json | safe }}</script>
+<script type="application/json" id="status-distribution-data">{{ status_distribution_json | safe }}</script>
+<script type="application/json" id="applications-by-program-data">{{ applications_by_program_json | safe }}</script>
+<script type="application/json" id="age-distribution-data">{{ age_distribution_json | safe }}</script>
+<script type="application/json" id="weekly-trend-data">{{ weekly_trend_json | safe }}</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Add this debug check FIRST
+console.log('Chart.js loaded:', typeof Chart !== 'undefined');
+
+function initializeAdminDashboard() {
+    console.log('DOM Content Loaded');
+
+    const quickActionStorageKey = 'admin-dashboard-quick-actions:{{ user.id if user else "default" }}';
+    const defaultQuickActionKeys = [
+        'review_applications',
+        'verify_profiles',
+        'create_program',
+        'post_announcement',
+        'open_analytics'
+    ];
+
+    const quickActionItems = document.querySelectorAll('.quick-action-item');
+    const quickActionToggles = document.querySelectorAll('.quick-action-toggle');
+    const saveQuickActionsBtn = document.getElementById('saveQuickActionsBtn');
+    const resetQuickActionsBtn = document.getElementById('resetQuickActionsBtn');
+    const openQuickActionsEditor = document.getElementById('openQuickActionsEditor');
+    const quickActionsEmptyState = document.getElementById('quickActionsEmptyState');
+
+    const normalizeSelection = function(value) {
+        if (!Array.isArray(value)) {
+            return [...defaultQuickActionKeys];
+        }
+
+        const allowedKeys = defaultQuickActionKeys;
+        const filtered = value.filter(function(key) {
+            return allowedKeys.includes(key);
+        });
+
+        if (!filtered.length) {
+            return [];
+        }
+
+        return filtered;
+    };
+
+    const readSavedQuickActions = function() {
+        try {
+            const saved = localStorage.getItem(quickActionStorageKey);
+            if (!saved) {
+                return [...defaultQuickActionKeys];
+            }
+            return normalizeSelection(JSON.parse(saved));
+        } catch (error) {
+            console.warn('Unable to read quick action preferences:', error);
+            return [...defaultQuickActionKeys];
+        }
+    };
+
+    const writeSavedQuickActions = function(keys) {
+        try {
+            localStorage.setItem(quickActionStorageKey, JSON.stringify(normalizeSelection(keys)));
+        } catch (error) {
+            console.warn('Unable to save quick action preferences:', error);
+        }
+    };
+
+    const applyQuickActions = function(visibleKeys) {
+        let visibleCount = 0;
+
+        quickActionItems.forEach(function(item) {
+            const actionKey = item.dataset.actionKey;
+            const showItem = visibleKeys.includes(actionKey);
+            item.classList.toggle('d-none', !showItem);
+            if (showItem) {
+                visibleCount += 1;
+            }
+        });
+
+        if (quickActionsEmptyState) {
+            quickActionsEmptyState.classList.toggle('d-none', visibleCount > 0);
+        }
+    };
+
+    const syncQuickActionEditor = function(selectedKeys) {
+        quickActionToggles.forEach(function(toggle) {
+            toggle.checked = selectedKeys.includes(toggle.value);
+        });
+    };
+
+    let currentQuickActionSelection = readSavedQuickActions();
+    applyQuickActions(currentQuickActionSelection);
+    syncQuickActionEditor(currentQuickActionSelection);
+
+    if (openQuickActionsEditor) {
+        openQuickActionsEditor.addEventListener('click', function() {
+            syncQuickActionEditor(currentQuickActionSelection);
+        });
+    }
+
+    if (resetQuickActionsBtn) {
+        resetQuickActionsBtn.addEventListener('click', function() {
+            syncQuickActionEditor(defaultQuickActionKeys);
+        });
+    }
+
+    if (saveQuickActionsBtn) {
+        saveQuickActionsBtn.addEventListener('click', function() {
+            const selectedKeys = Array.from(quickActionToggles)
+                .filter(function(toggle) { return toggle.checked; })
+                .map(function(toggle) { return toggle.value; });
+
+            currentQuickActionSelection = normalizeSelection(selectedKeys);
+            writeSavedQuickActions(currentQuickActionSelection);
+            applyQuickActions(currentQuickActionSelection);
+
+            if (window.jQuery) {
+                window.jQuery('#editQuickActionsModal').modal('hide');
+            }
+        });
+    }
+    
+    // Check if data elements exist
+    const monthlyElement = document.getElementById('monthly-trend-data');
+    const weeklyElement = document.getElementById('weekly-trend-data');
+    const statusElement = document.getElementById('status-distribution-data');
+    
+    console.log('Monthly element exists:', !!monthlyElement);
+    console.log('Weekly element exists:', !!weeklyElement);
+    console.log('Status element exists:', !!statusElement);
+    
+    if (!monthlyElement || !weeklyElement || !statusElement) {
+        console.error('Missing data elements!');
+        return;
+    }
+    
+    // Parse JSON data from hidden script tags
+    let monthlyTrendData, weeklyTrendData, statusData, programData, ageData;
+    
+    try {
+        monthlyTrendData = JSON.parse(monthlyElement.textContent);
+        weeklyTrendData = JSON.parse(weeklyElement.textContent);
+        statusData = JSON.parse(statusElement.textContent);
+        programData = JSON.parse(document.getElementById('applications-by-program-data').textContent);
+        ageData = JSON.parse(document.getElementById('age-distribution-data').textContent);
+        
+        console.log('Monthly Trend Data:', monthlyTrendData);
+        console.log('Weekly Trend Data:', weeklyTrendData);
+        console.log('Status Data:', statusData);
+        console.log('Program Data:', programData);
+        console.log('Age Data:', ageData);
+        
+    } catch (error) {
+        console.error('Error parsing JSON:', error);
+        return;
+    }
+
+    // Check if canvas elements exist
+    const monthlyCanvas = document.getElementById('monthlyTrendChart');
+    console.log('Monthly canvas exists:', !!monthlyCanvas);
+    
+    if (!monthlyCanvas) {
+        console.error('Canvas element not found!');
+        return;
+    }
+
+    // Monthly Trend Chart
+    const monthlyTrendCtx = monthlyCanvas.getContext('2d');
+    try {
+        new Chart(monthlyTrendCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyTrendData.labels,
+                datasets: [{
+                    label: 'Applications',
+                    data: monthlyTrendData.data,
+                    borderColor: 'rgba(255, 206, 86, 0.8)',
+                    backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Monthly chart created successfully');
+    } catch (error) {
+        console.error('Error creating monthly chart:', error);
+    }  
+
+    // Status Pie Chart
+    const statusCtx = document.getElementById('statusPieChart').getContext('2d');
+    try {
+        new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: statusData.labels,
+                datasets: [{
+                    data: statusData.data,
+                    backgroundColor: [
+                        'rgba(255, 206, 86, 0.8)',
+                        'rgba(31, 111, 235, 0.72)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        console.log('Status chart created successfully');
+    } catch (error) {
+        console.error('Error creating status chart:', error);
+    }
+
+    // Applications by Program Chart
+    const programCtx = document.getElementById('applicationsByProgramChart').getContext('2d');
+    try {
+        new Chart(programCtx, {
+            type: 'bar',
+            data: {
+                labels: programData.labels,
+                datasets: [{
+                    label: 'Applications',
+                    data: programData.data,
+                    backgroundColor: 'rgba(31, 111, 235, 0.65)',
+                    borderColor: 'rgba(31, 111, 235, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Program chart created successfully');
+    } catch (error) {
+        console.error('Error creating program chart:', error);
+    }
+
+    // Age Distribution Chart
+    const ageCtx = document.getElementById('ageDistributionChart').getContext('2d');
+    try {
+        new Chart(ageCtx, {
+            type: 'bar',
+            data: {
+                labels: ageData.labels,
+                datasets: [{
+                    label: 'Applicants',
+                    data: ageData.data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Age chart created successfully');
+    } catch (error) {
+        console.error('Error creating age chart:', error);
+    }
+}
+
+window.initializeAdminDashboard = initializeAdminDashboard;
+document.addEventListener('DOMContentLoaded', initializeAdminDashboard);
+
+let dashboardRealtimeReloadTimer = null;
+let adminDashboardRefreshInFlight = false;
+
+async function softRefreshAdminDashboard() {
+    if (adminDashboardRefreshInFlight) {
+        return;
+    }
+
+    adminDashboardRefreshInFlight = true;
+
+    try {
+        const response = await fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const nextDoc = parser.parseFromString(html, 'text/html');
+        const nextShell = nextDoc.querySelector('.dashboard-shell');
+        const currentShell = document.querySelector('.dashboard-shell');
+
+        if (!nextShell || !currentShell) {
+            throw new Error('Dashboard shell not found for soft refresh');
+        }
+
+        currentShell.replaceWith(nextShell);
+        initializeAdminDashboard();
+
+        if (window.showRealtimeToast) {
+            window.showRealtimeToast('Dashboard refreshed with latest updates');
+        }
+    } catch (error) {
+        console.error('Soft dashboard refresh failed:', error);
+    } finally {
+        adminDashboardRefreshInFlight = false;
+    }
+}
+
+if (!window.adminDashboardRealtimeBound) {
+    document.addEventListener('ayuda:admin-dashboard-update', function() {
+        if (document.hidden) {
+            return;
+        }
+
+        if (dashboardRealtimeReloadTimer) {
+            clearTimeout(dashboardRealtimeReloadTimer);
+        }
+
+        dashboardRealtimeReloadTimer = setTimeout(function() {
+            softRefreshAdminDashboard();
+        }, 1200);
+    });
+
+    window.adminDashboardRealtimeBound = true;
+}
+</script>
+
+{% endblock %}

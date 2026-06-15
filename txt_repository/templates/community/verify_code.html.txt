@@ -1,0 +1,126 @@
+{% extends "community/community_base.html" %}
+
+{% block title %}Verify Application Code{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-key mr-2"></i>Verify Application Code
+                </h1>
+            </div>
+            
+            <!-- Verification Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-shield-alt mr-2"></i>Enter Your Verification Code
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Instructions -->
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-info-circle mr-2"></i>Instructions
+                        </h5>
+                        <hr>
+                        <ol class="mb-0 pl-3">
+                            <li>After submitting your documents at the MSWD Office, you received an <strong>Application Slip</strong>.</li>
+                            <li>The slip contains an <strong>8-character Verification Code</strong>.</li>
+                            <li>Enter the code below to confirm your document submission.</li>
+                            <li>Your application status will be updated to <strong>"Pending Review"</strong>.</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- Verification Form -->
+                    <form method="POST" action="{{ url_for('community.verify_code') }}">
+                        <div class="form-group">
+                            <label for="verification_code" class="font-weight-bold">
+                                <i class="fas fa-key mr-1"></i>Verification Code <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control form-control-lg text-center" 
+                                id="verification_code" 
+                                name="verification_code" 
+                                placeholder="XXXXXXXX" 
+                                maxlength="8"
+                                pattern="[A-Z0-9]{8}"
+                                style="letter-spacing: 8px; font-size: 1.5rem; font-family: 'Courier New', monospace; text-transform: uppercase;"
+                                required
+                                autocomplete="off">
+                            <small class="form-text text-muted">
+                                Enter the 8-character code exactly as shown on your application slip
+                            </small>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-check-circle mr-2"></i>Verify Code
+                            </button>
+                            <a href="{{ url_for('community.applications') }}" class="btn btn-secondary btn-lg px-5 ml-2">
+                                <i class="fas fa-times mr-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Card -->
+            <div class="card shadow">
+                <div class="card-header py-3 bg-warning text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-question-circle mr-2"></i>Need Help?
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="font-weight-bold text-warning">I don't have a verification code</h6>
+                    <p class="mb-3">
+                        Verification codes are only provided when you submit your physical documents at the MSWD Office. 
+                        Please visit the office with your required documents to receive your application slip with the verification code.
+                    </p>
+                    
+                    <h6 class="font-weight-bold text-warning">My code isn't working</h6>
+                    <p class="mb-3">
+                        Make sure you're entering the code exactly as shown on your slip (8 uppercase letters and numbers).
+                        If the problem persists, please contact the MSWD Office.
+                    </p>
+                    
+                    <h6 class="font-weight-bold text-warning">Can I view my application slip online?</h6>
+                    <p class="mb-0">
+                        No, application slips are only available as hard copies from the MSWD Office. This ensures proper document verification
+                        and prevents unauthorized access to your application details.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-uppercase input
+    document.getElementById('verification_code').addEventListener('input', function(e) {
+        this.value = this.value.toUpperCase();
+    });
+    
+    // Validate format on submit
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const code = document.getElementById('verification_code').value;
+        if (code.length !== 8) {
+            e.preventDefault();
+            alert('Verification code must be exactly 8 characters long.');
+            return false;
+        }
+        if (!/^[A-Z0-9]{8}$/.test(code)) {
+            e.preventDefault();
+            alert('Verification code must contain only uppercase letters and numbers.');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

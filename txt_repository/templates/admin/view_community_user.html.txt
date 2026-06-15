@@ -1,0 +1,821 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}User Profile - {{ community_user.first_name }} {{ community_user.last_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .user-view-shell {
+        animation: userViewFadeIn 0.45s ease-out;
+    }
+
+    @keyframes userViewFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .user-breadcrumb .breadcrumb {
+        background: #fff;
+        border: 1px solid var(--dash-border);
+        border-radius: 10px;
+        margin-bottom: 0.85rem;
+        padding: 0.5rem 0.85rem;
+    }
+
+    .user-view-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.2rem 1.35rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .user-view-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        letter-spacing: 0.2px;
+    }
+
+    .user-view-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .profile-side-card,
+    .profile-section-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .profile-section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 50%;
+        box-shadow: 0 8px 20px rgba(31, 111, 235, 0.24);
+    }
+
+    .profile-avatar-fallback {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+        font-size: 2.3rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 20px rgba(31, 111, 235, 0.24);
+    }
+
+    .profile-meta-line {
+        margin-bottom: 0.55rem;
+        color: #4f6285;
+        font-size: 0.92rem;
+    }
+
+    .profile-meta-line strong {
+        color: #1f355b;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-warning:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-danger:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .profile-actions .btn {
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    .info-label {
+        color: #4f6285;
+        font-size: 0.78rem;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .info-value {
+        color: #1f355b;
+        margin-bottom: 0;
+        font-weight: 500;
+    }
+
+    .summary-pill {
+        border: 1px solid #dbe5fa;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+        padding: 0.9rem 0.65rem;
+        text-align: center;
+        height: 100%;
+    }
+
+    .summary-pill .value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+
+    .summary-pill .label {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-bottom: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
+
+    .history-table thead th,
+    .activity-table thead th {
+        border-top: none;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .history-table td,
+    .activity-table td {
+        vertical-align: middle;
+    }
+
+    .badge-status-pill {
+        border-radius: 999px;
+        font-weight: 600;
+        padding: 0.35rem 0.65rem;
+    }
+
+    .badge-action-view { background-color: #4e73df; color: white; }
+    .badge-action-create { background-color: #1cc88a; color: white; }
+    .badge-action-update { background-color: #f6c23e; color: #333; }
+    .badge-action-delete { background-color: #e74a3b; color: white; }
+    .badge-action-search { background-color: #6f42c1; color: white; }
+    .badge-action-auth { background-color: #5a5c69; color: white; }
+    .badge-action-upload { background-color: #36b9cc; color: white; }
+    .badge-action-save { background-color: #fd7e14; color: white; }
+    .badge-action-hide { background-color: #858796; color: white; }
+
+    .badge-entity-program { background-color: #4e73df; color: white; }
+    .badge-entity-application { background-color: #1cc88a; color: white; }
+    .badge-entity-document { background-color: #36b9cc; color: white; }
+    .badge-entity-profile { background-color: #f6c23e; color: #333; }
+    .badge-entity-session { background-color: #5a5c69; color: white; }
+    .badge-entity-search { background-color: #6f42c1; color: white; }
+
+    .profile-modal .modal-dialog {
+        max-width: 560px;
+    }
+
+    .profile-modal .modal-content {
+        border: 1px solid #dbe6ff;
+        border-radius: 14px;
+        box-shadow: 0 24px 50px rgba(15, 34, 73, 0.2);
+        overflow: hidden;
+    }
+
+    .profile-modal .modal-header {
+        border-bottom: 1px solid transparent;
+        padding: 1rem 1.2rem;
+    }
+
+    .profile-modal .modal-title {
+        font-weight: 700;
+    }
+
+    .profile-modal .modal-body {
+        padding: 1.2rem 1.25rem;
+    }
+
+    .profile-modal .modal-footer {
+        border-top: 1px solid #e8eefb;
+        background: #fbfdff;
+        padding: 0.85rem 1.1rem;
+    }
+
+    .modal-header-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        color: #fff;
+    }
+
+    .modal-header-info {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        color: #fff;
+    }
+
+    .modal-info-card,
+    .modal-warning-card {
+        border-radius: 10px;
+        border: 1px solid;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-info-card {
+        background: rgba(8, 145, 178, 0.08);
+        border-color: rgba(14, 116, 144, 0.25);
+        color: #0e5f74;
+    }
+
+    .modal-warning-card {
+        background: rgba(216, 159, 29, 0.12);
+        border-color: rgba(183, 121, 8, 0.25);
+        color: #8a5a00;
+    }
+
+    .modal-context-block {
+        border: 1px solid #d9e5fa;
+        background: linear-gradient(180deg, #fcfdff 0%, #f5f9ff 100%);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .user-view-hero {
+            padding: 1.05rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid user-view-shell">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="user-breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.community') }}">Community Users</a></li>
+            <li class="breadcrumb-item active">User Profile</li>
+        </ol>
+    </nav>
+
+    <div class="user-view-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="h3 mb-1">Community User Profile</h1>
+                <p class="subtitle">Review account profile, applications, and activity history in one place.</p>
+            </div>
+            <div class="mt-2 mt-md-0">
+                <a href="{{ url_for('admin.community') }}" class="btn btn-outline-custom">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- User Profile Card -->
+        <div class="col-lg-4 mb-4">
+            <div class="card profile-side-card">
+                <div class="card-body text-center">
+                    {% if community_user.profile_pic %}
+                        <img src="{{ url_for('files.profile_pic', user_id=community_user.id) }}" class="profile-avatar mb-3" alt="Profile picture">
+                    {% else %}
+                        <div class="profile-avatar-fallback mb-3 mx-auto">
+                            {{ community_user.first_name[0] }}{{ community_user.last_name[0] }}
+                        </div>
+                    {% endif %}
+                    
+                    <h4 class="font-weight-bold">{{ community_user.first_name }} {{ community_user.last_name }}</h4>
+                    <p class="text-muted">{{ community_user.email }}</p>
+                    
+                    <hr>
+                    
+                    <div class="text-left">
+                        <p class="profile-meta-line"><strong>Role:</strong> <span class="badge badge-primary badge-status-pill">Community User</span></p>
+                        <p class="profile-meta-line"><strong>Member Since:</strong> {{ community_user.created_at|manila('%B %d, %Y') }}</p>
+                        {% if community_user.last_activity %}
+                        <p class="profile-meta-line mb-0"><strong>Last Active:</strong> {{ community_user.last_activity|manila('%B %d, %Y %I:%M %p') }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="btn-group-vertical btn-group-sm w-100 profile-actions">
+                        <button class="btn btn-gradient-warning" data-toggle="modal" data-target="#confirmResetPasswordModal">
+                            <i class="fas fa-key mr-2"></i>Reset Password
+                        </button>
+                        <button class="btn btn-gradient-primary" data-toggle="modal" data-target="#toggleStatusModal">
+                            <i class="fas fa-ban mr-2"></i>Restrict Account
+                        </button>
+                        <a href="{{ url_for('admin.community') }}" class="btn btn-outline-custom">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Details -->
+        <div class="col-lg-8">
+            <!-- Personal Information -->
+            <div class="card profile-section-card mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user mr-2"></i>Personal Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if community_user.community_profile %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Full Name</div>
+                            <p class="info-value">{{ community_user.first_name }} {% if community_user.middle_name %}{{ community_user.middle_name }}{% endif %} {{ community_user.last_name }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Age</div>
+                            <p class="info-value">{{ community_user.community_profile.age }} years old</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Birthday</div>
+                            <p class="info-value">
+                                {% if community_user.community_profile.birth_month and community_user.community_profile.birth_day and community_user.community_profile.birth_year %}
+                                {{ community_user.community_profile.birth_month }}/{{ community_user.community_profile.birth_day }}/{{ community_user.community_profile.birth_year }}
+                                {% else %}
+                                Not provided
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Mobile Number</div>
+                            <p class="info-value">{{ community_user.community_profile.mobile_no or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Barangay</div>
+                            <p class="info-value">{{ community_user.community_profile.barangay or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Complete Address</div>
+                            <p class="info-value">{{ community_user.community_profile.address or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Municipality</div>
+                            <p class="info-value">{{ community_user.community_profile.municipality or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Employment Status</div>
+                            <p class="info-value">
+                                {% if community_user.community_profile.is_currently_employed %}
+                                    <span class="badge badge-success badge-status-pill">Employed</span>
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Student Status</div>
+                            <p class="info-value">
+                                {% if community_user.community_profile.is_student %}
+                                    <span class="badge badge-info badge-status-pill">Yes</span>
+                                {% else %}
+                                    <span class="badge badge-secondary badge-status-pill">No</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Solo Parent</div>
+                            <p class="info-value">
+                                {% if community_user.community_profile.is_solo_parent %}
+                                    <span class="badge badge-warning badge-status-pill">Yes</span>
+                                {% else %}
+                                    <span class="badge badge-secondary badge-status-pill">No</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-12 mb-3">
+                            <div class="info-label">Family Monthly Income</div>
+                            {% if community_user.community_profile.family_annual_income is not none %}
+                                {% set income_val = community_user.community_profile.family_annual_income %}
+                                {% if income_val <= 10000 %}
+                                    <p class="info-value">Below ₱10,000 (Indigent Families)</p>
+                                {% elif income_val <= 20000 %}
+                                    <p class="info-value">₱10,000 - ₱20,000 (Low Income Families)</p>
+                                {% elif income_val <= 30000 %}
+                                    <p class="info-value">₱20,001 - ₱30,000 (Low Income Families)</p>
+                                {% elif income_val <= 40000 %}
+                                    <p class="info-value">₱30,001 - ₱40,000</p>
+                                {% elif income_val <= 50000 %}
+                                    <p class="info-value">₱40,001 - ₱50,000</p>
+                                {% elif income_val <= 75000 %}
+                                    <p class="info-value">₱50,001 - ₱75,000</p>
+                                {% elif income_val <= 100000 %}
+                                    <p class="info-value">₱75,001 - ₱100,000</p>
+                                {% elif income_val <= 150000 %}
+                                    <p class="info-value">₱100,001 - ₱150,000</p>
+                                {% elif income_val <= 200000 %}
+                                    <p class="info-value">₱150,001 - ₱200,000</p>
+                                {% elif income_val <= 300000 %}
+                                    <p class="info-value">₱200,001 - ₱300,000</p>
+                                {% elif income_val <= 400000 %}
+                                    <p class="info-value">₱300,001 - ₱400,000</p>
+                                {% elif income_val <= 500000 %}
+                                    <p class="info-value">₱400,001 - ₱500,000</p>
+                                {% else %}
+                                    <p class="info-value">₱500,001 and above</p>
+                                {% endif %}
+                            {% else %}
+                                <p class="info-value">Not provided</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No profile information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Personal Details -->
+            <div class="card profile-section-card mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-id-card mr-2"></i>Personal Details
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if community_user.community_profile %}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Religion</div>
+                            <p class="info-value">{{ community_user.community_profile.religion or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Civil Status</div>
+                            <p class="info-value">{{ community_user.community_profile.civil_status or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Place of Birth</div>
+                            <p class="info-value">{{ community_user.community_profile.place_of_birth or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="info-label">Highest Education Attainment</div>
+                            <p class="info-value">{{ community_user.community_profile.highest_education_attainment or 'Not provided' }}</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No personal details information available.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Application Statistics -->
+            <div class="card profile-section-card mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-bar mr-2"></i>Application Statistics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="summary-pill">
+                                <div class="value text-primary">{{ total_apps }}</div>
+                                <p class="label">Total</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-pill">
+                                <div class="value text-warning">{{ pending_apps }}</div>
+                                <p class="label">Pending</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-pill">
+                                <div class="value text-success">{{ approved_apps }}</div>
+                                <p class="label">Approved</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-pill">
+                                <div class="value text-danger">{{ rejected_apps }}</div>
+                                <p class="label">Rejected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications List -->
+            <div class="card profile-section-card mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-list mr-2"></i>Application History
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if applications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover history-table">
+                            <thead>
+                                <tr>
+                                    <th>Program</th>
+                                    <th>Status</th>
+                                    <th>Applied On</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for app in applications %}
+                                <tr>
+                                    <td>{{ app.program.program_name }}</td>
+                                    <td>
+                                        {% if app.application_status == 'pending' %}
+                                            <span class="badge badge-warning badge-status-pill">Pending</span>
+                                        {% elif app.application_status == 'approved' %}
+                                            <span class="badge badge-success badge-status-pill">Approved</span>
+                                        {% elif app.application_status == 'rejected' %}
+                                            <span class="badge badge-danger badge-status-pill">Rejected</span>
+                                        {% elif app.application_status == 'active' %}
+                                            <span class="badge badge-info badge-status-pill">Active</span>
+                                        {% elif app.application_status == 'completed' %}
+                                            <span class="badge badge-primary badge-status-pill">Completed</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary badge-status-pill">{{ app.application_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ app.application_date|manila('%b %d, %Y') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('admin.view_application', application_id=app.id) }}" class="btn btn-sm btn-outline-custom">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        No applications yet
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Activity Logs Section -->
+            <div class="card profile-section-card">
+                <div class="card-header py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="fas fa-history mr-2"></i>Recent Activity
+                        </h6>
+                        <a href="{{ url_for('admin.user_activity_logs', user_id=community_user.id) }}" class="btn btn-sm btn-outline-custom">
+                            <i class="fas fa-external-link-alt mr-1"></i>View All Activity Logs
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if user_activities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 activity-table">
+                            <thead>
+                                <tr>
+                                    <th class="py-3 pl-4">Date & Time</th>
+                                    <th class="py-3">Action</th>
+                                    <th class="py-3">Entity</th>
+                                    <th class="py-3">Description</th>
+                                    <th class="py-3">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in user_activities %}
+                                <tr>
+                                    <td class="pl-4">
+                                        <div class="small font-weight-bold">{{ activity.created_at|manila('%b %d, %Y') }}</div>
+                                        <div class="small text-muted">{{ activity.created_at|manila('%I:%M:%S %p') }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-action-{{ activity.action_type }} px-2 py-1">
+                                            {% if activity.action_type == 'view' %}
+                                                <i class="fas fa-eye mr-1"></i>
+                                            {% elif activity.action_type == 'create' %}
+                                                <i class="fas fa-plus mr-1"></i>
+                                            {% elif activity.action_type == 'update' %}
+                                                <i class="fas fa-edit mr-1"></i>
+                                            {% elif activity.action_type == 'search' %}
+                                                <i class="fas fa-search mr-1"></i>
+                                            {% elif activity.action_type == 'upload' %}
+                                                <i class="fas fa-upload mr-1"></i>
+                                            {% elif activity.action_type == 'save' %}
+                                                <i class="fas fa-bookmark mr-1"></i>
+                                            {% elif activity.action_type == 'hide' %}
+                                                <i class="fas fa-eye-slash mr-1"></i>
+                                            {% elif activity.action_type == 'auth' %}
+                                                <i class="fas fa-sign-in-alt mr-1"></i>
+                                            {% elif activity.action_type == 'delete' %}
+                                                <i class="fas fa-trash mr-1"></i>
+                                            {% else %}
+                                                <i class="fas fa-cog mr-1"></i>
+                                            {% endif %}
+                                            {{ activity.action_type|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-entity-{{ activity.entity_type }} px-2 py-1">
+                                            {{ activity.entity_type|title }}
+                                        </span>
+                                        {% if activity.entity_id %}
+                                        <small class="text-muted d-block">#{{ activity.entity_id }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="small" style="max-width: 350px;" title="{{ activity.description }}">
+                                            {{ activity.description[:100] }}{% if activity.description|length > 100 %}...{% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ activity.ip_address or 'N/A' }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                        No activity logs yet
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Reset Password Modal -->
+<div class="modal fade profile-modal" id="confirmResetPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header modal-header-warning">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Confirm Password Reset</h5>
+                <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-warning-card" role="alert">
+                    <i class="fas fa-warning mr-2"></i>
+                    <strong>Are you sure?</strong> You are about to reset the password for:
+                </div>
+                <div class="modal-context-block mb-3">
+                    <strong>{{ community_user.first_name }} {{ community_user.last_name }}</strong><br>
+                    <small class="text-muted">{{ community_user.email }}</small>
+                </div>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    An 8-digit reset code will be sent to the user via notification and shown to you in a flash message.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-custom" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-gradient-warning" data-toggle="modal" data-target="#resetPasswordModal" data-dismiss="modal">
+                    <i class="fas fa-key mr-1"></i>Continue to Reset
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade profile-modal" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.reset_user_password', user_id=community_user.id) }}">
+                <div class="modal-header modal-header-warning">
+                    <h5 class="modal-title"><i class="fas fa-key mr-2"></i>Reset Password</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        An 8-digit reset code will be sent to the user via notification and shown to you in a flash message.
+                    </div>
+                    <div class="modal-context-block">
+                        <p class="mb-0">Reset password for: <strong>{{ community_user.first_name }} {{ community_user.last_name }}</strong></p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-warning">Reset Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toggle Status Modal -->
+<div class="modal fade profile-modal" id="toggleStatusModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=community_user.id) }}">
+                <div class="modal-header modal-header-info">
+                    <h5 class="modal-title"><i class="fas fa-ban mr-2"></i>Account Access Control</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-context-block">
+                        <p class="mb-0">Manage account access for: <strong>{{ community_user.first_name }} {{ community_user.last_name }}</strong></p>
+                    </div>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="action" id="disable" value="disable" checked>
+                        <label class="form-check-label" for="disable">
+                            <strong class="text-danger">Disable Account</strong>
+                            <br><small class="text-muted">User will not be able to login</small>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="action" id="enable" value="enable">
+                        <label class="form-check-label" for="enable">
+                            <strong class="text-success">Enable Account</strong>
+                            <br><small class="text-muted">Restore user's access</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-primary">Apply Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

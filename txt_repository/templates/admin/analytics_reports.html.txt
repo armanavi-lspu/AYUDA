@@ -1,0 +1,487 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Report Configuration - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .analytics-shell {
+        animation: analyticsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes analyticsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .analytics-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .analytics-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .analytics-nav-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        padding: 0.55rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-nav {
+        gap: 0.55rem;
+    }
+
+    .analytics-nav .nav-link {
+        color: #2a4b79;
+        font-weight: 600;
+        padding: 0.62rem 1.1rem;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
+    }
+
+    .analytics-nav .nav-link:hover {
+        color: #1942a8;
+        background: #f4f8ff;
+        border-color: #dbe7fd;
+    }
+
+    .analytics-nav .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 6px 16px rgba(31, 111, 235, 0.28);
+    }
+
+    .quick-card,
+    .report-panel-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .quick-card {
+        padding: 1rem;
+        height: 100%;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .quick-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .quick-card h6 {
+        color: #1c3e73;
+        font-weight: 700;
+    }
+
+    .quick-card p {
+        color: var(--dash-muted);
+        font-size: 0.92rem;
+        min-height: 2.6rem;
+    }
+
+    .report-panel-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .report-panel-card .card-body {
+        padding: 1.2rem;
+    }
+
+    .section-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #486184;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+    }
+
+    .form-control,
+    .custom-select {
+        border-radius: 8px;
+        border: 1px solid #d8deea;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .filter-box {
+        border: 1px solid #e1e8f7;
+        border-radius: 12px;
+        padding: 0.95rem;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
+
+    .format-option {
+        margin-bottom: 0.7rem;
+        padding-left: 0;
+    }
+
+    .format-card {
+        border: 1px solid #d7e1f3;
+        border-radius: 11px;
+        background: #fff;
+        padding: 0.85rem 0.95rem;
+        cursor: pointer;
+        transition: all 0.22s ease;
+        margin-bottom: 0;
+    }
+
+    .format-card:hover {
+        border-color: #7ea9f2;
+        box-shadow: 0 6px 14px rgba(24, 68, 146, 0.12);
+    }
+
+    .format-option .custom-control-input:checked ~ .format-card {
+        border-color: #1f6feb;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.12);
+        background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.62rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+        background: #fff;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    @media (max-width: 991.98px) {
+        .analytics-hero {
+            padding: 1.15rem;
+        }
+
+        .analytics-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .analytics-nav .nav-link,
+        .btn-gradient-primary,
+        .btn-outline-custom {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid analytics-shell py-4">
+    <div class="analytics-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-9 mb-2 mb-lg-0">
+                <h1 class="h2 font-weight-bold mb-0">
+                    <i class="fas fa-file-export mr-2"></i>Report Configuration & Generation
+                </h1>
+                <p class="subtitle">Configure report type, date filters, and export format before generating output.</p>
+            </div>
+            <div class="col-lg-3 text-lg-right">
+                <a href="{{ url_for('admin.analytics_analysis') }}" class="btn btn-outline-custom">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Analysis
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics-nav-panel">
+        <ul class="nav nav-pills analytics-nav mb-0">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_analysis') }}">
+                    <i class="fas fa-chart-line mr-2"></i>Analysis
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_recommend') }}">
+                    <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('admin.analytics_reports') }}">
+                    <i class="fas fa-file-export mr-2"></i>Reports
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="row mb-3">
+        {% for preset in quick_report_presets %}
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="quick-card">
+                <h6 class="mb-2">{{ preset.name }}</h6>
+                <p class="mb-3">{{ preset.description }}</p>
+                <div class="d-flex flex-wrap">
+                    <a href="{{ preset.generate_url }}" class="btn btn-sm btn-gradient-primary mr-2 mb-2">
+                        <i class="fas fa-bolt mr-1"></i>Generate Now
+                    </a>
+                    <a href="{{ preset.configure_url }}" class="btn btn-sm btn-outline-custom mb-2">
+                        <i class="fas fa-sliders-h mr-1"></i>Customize
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card report-panel-card">
+        <div class="card-header py-3 px-4">
+            <h6 class="m-0 font-weight-bold d-flex align-items-center">
+                <i class="fas fa-cogs mr-2"></i>
+                Report Setup
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin.analytics_generate_report') }}">
+                <div class="row">
+                    <div class="col-lg-4 mb-3">
+                        <div class="section-label">Report Type</div>
+                        <select class="form-control" id="report_type" name="report_type" required>
+                            {% for option in report_type_options %}
+                            <option value="{{ option.value }}" {% if form_values.get('report_type') == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-lg-4 mb-3">
+                        <div class="section-label">Date Range</div>
+                        <select class="form-control" id="date_preset" name="date_preset" required>
+                            {% for option in date_preset_options %}
+                            <option value="{{ option.value }}" {% if form_values.get('date_preset') == option.value %}selected{% endif %}>{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-lg-4 mb-3">
+                        <div class="section-label">Export Format</div>
+                        <div class="small text-muted mt-2">PDF is marked as recommended for better accessibility.</div>
+                    </div>
+                </div>
+
+                <div class="row mt-1 {% if form_values.get('date_preset') != 'custom' %}d-none{% endif %}" id="customDateRangeRow">
+                    <div class="col-md-6 mb-3">
+                        <label class="font-weight-bold mb-1" for="start_date">Start Date</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ form_values.get('start_date', '') }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="font-weight-bold mb-1" for="end_date">End Date</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ form_values.get('end_date', '') }}">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-6 mb-3 {% if form_values.get('report_type') not in ['applications', 'summary'] %}d-none{% endif %}" id="applicationFilters">
+                        <div class="filter-box h-100">
+                            <div class="section-label mb-3">Application Filters</div>
+                            <div class="form-group mb-2">
+                                <label class="font-weight-bold mb-1" for="application_status">Application Status</label>
+                                <select class="form-control" id="application_status" name="application_status">
+                                    <option value="">All statuses</option>
+                                    {% for status in application_status_options %}
+                                    <option value="{{ status }}" {% if form_values.get('application_status') == status %}selected{% endif %}>{{ status|replace('_', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="font-weight-bold mb-1" for="program_type">Program Type</label>
+                                <select class="form-control" id="program_type" name="program_type">
+                                    <option value="">All program types</option>
+                                    {% for program_type in program_type_options %}
+                                    <option value="{{ program_type }}" {% if form_values.get('program_type') == program_type %}selected{% endif %}>{{ program_type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6 mb-3 {% if form_values.get('report_type') != 'activity_logs' %}d-none{% endif %}" id="activityFilters">
+                        <div class="filter-box h-100">
+                            <div class="section-label mb-3">Activity Log Filters</div>
+                            <div class="form-group mb-2">
+                                <label class="font-weight-bold mb-1" for="log_scope">Log Scope</label>
+                                <select class="form-control" id="log_scope" name="log_scope">
+                                    <option value="all" {% if form_values.get('log_scope') == 'all' %}selected{% endif %}>All Logs</option>
+                                    <option value="admin" {% if form_values.get('log_scope') == 'admin' %}selected{% endif %}>Admin Logs Only</option>
+                                    <option value="community" {% if form_values.get('log_scope') == 'community' %}selected{% endif %}>Community Logs Only</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label class="font-weight-bold mb-1" for="activity_focus">Focus</label>
+                                <select class="form-control" id="activity_focus" name="activity_focus">
+                                    <option value="all" {% if form_values.get('activity_focus') == 'all' %}selected{% endif %}>All Activity</option>
+                                    <option value="sessions" {% if form_values.get('activity_focus') == 'sessions' %}selected{% endif %}>Sessions / Authentication</option>
+                                    <option value="applications" {% if form_values.get('activity_focus') == 'applications' %}selected{% endif %}>Application-Related Activity</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <div class="section-label">Exporting Format</div>
+                    </div>
+                    {% for option in export_format_options %}
+                    <div class="col-lg-4">
+                        <div class="format-option">
+                            <input
+                                class="custom-control-input"
+                                type="radio"
+                                name="export_format"
+                                id="format_{{ option.value }}"
+                                value="{{ option.value }}"
+                                {% if form_values.get('export_format', 'pdf') == option.value %}checked{% endif %}
+                            >
+                            <label class="format-card" for="format_{{ option.value }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ option.label }}</strong>
+                                    {% if option.recommended %}
+                                    <span class="badge badge-success">Recommended</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small mt-1">{{ option.description }}</div>
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="d-flex flex-wrap mt-3">
+                    <button type="submit" class="btn btn-gradient-primary mr-2 mb-2">
+                        <i class="fas fa-download mr-2"></i>Generate Report
+                    </button>
+                    <a href="{{ url_for('admin.analytics_reports') }}" class="btn btn-outline-custom mb-2">
+                        <i class="fas fa-undo-alt mr-2"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function toggleDateRangeInputs() {
+        const datePreset = document.getElementById('date_preset');
+        const customDateRangeRow = document.getElementById('customDateRangeRow');
+        if (!datePreset || !customDateRangeRow) {
+            return;
+        }
+
+        if (datePreset.value === 'custom') {
+            customDateRangeRow.classList.remove('d-none');
+        } else {
+            customDateRangeRow.classList.add('d-none');
+        }
+    }
+
+    function toggleFilterGroups() {
+        const reportType = document.getElementById('report_type');
+        const applicationFilters = document.getElementById('applicationFilters');
+        const activityFilters = document.getElementById('activityFilters');
+
+        if (!reportType) {
+            return;
+        }
+
+        const selectedType = reportType.value;
+
+        if (applicationFilters) {
+            if (selectedType === 'applications' || selectedType === 'summary') {
+                applicationFilters.classList.remove('d-none');
+            } else {
+                applicationFilters.classList.add('d-none');
+            }
+        }
+
+        if (activityFilters) {
+            if (selectedType === 'activity_logs') {
+                activityFilters.classList.remove('d-none');
+            } else {
+                activityFilters.classList.add('d-none');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const datePreset = document.getElementById('date_preset');
+        const reportType = document.getElementById('report_type');
+
+        toggleDateRangeInputs();
+        toggleFilterGroups();
+
+        if (datePreset) {
+            datePreset.addEventListener('change', toggleDateRangeInputs);
+        }
+
+        if (reportType) {
+            reportType.addEventListener('change', toggleFilterGroups);
+        }
+    });
+})();
+</script>
+{% endblock %}

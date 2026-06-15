@@ -1,0 +1,288 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    middle_name VARCHAR(50),
+    last_name VARCHAR(50) NOT NULL,     
+    role VARCHAR(20) NOT NULL,
+    profile_pic VARCHAR(255),
+    last_activity TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes in the users table for easier accessibility
+CREATE INDEX idx_user_email ON users(email);
+CREATE INDEX idx_user_role ON users(role);
+CREATE INDEX idx_user_created_at ON users(created_at);
+CREATE INDEX idx_user_last_activity ON users(last_activity);
+
+-- Create file_attachment table (moved before programs for foreign key reference)
+CREATE TABLE file_attachment (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    file_size INTEGER,
+    file_type VARCHAR(100),
+    uploaded_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    attachment_type VARCHAR(50)
+);
+
+CREATE INDEX idx_file_attachment_uploaded_by ON file_attachment(uploaded_by_id);
+CREATE INDEX idx_file_attachment_uploaded_at ON file_attachment(uploaded_at DESC);
+
+-- Create table for financial programs 
+CREATE TABLE programs (
+    id SERIAL PRIMARY KEY,
+    program_name VARCHAR(200) NOT NULL,
+    description TEXT,
+    program_type VARCHAR(50) NOT NULL,
+    program_period VARCHAR(50) NOT NULL,
+    priority_group VARCHAR(255),
+    beneficiary_limit INTEGER,
+    income_range VARCHAR(100),
+    start_date DATE,
+    end_date DATE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who created the program
+    file_attachment_id INTEGER REFERENCES file_attachment(id) ON DELETE SET NULL, -- application form file
+    is_active BOOLEAN DEFAULT TRUE, -- NEW: Track active programs
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+--Create index on programs 
+CREATE INDEX idx_programs_user_id ON programs(user_id);
+CREATE INDEX idx_programs_type ON programs(program_type);
+CREATE INDEX idx_programs_period ON programs(program_period);
+CREATE INDEX idx_programs_date ON programs(date DESC);
+CREATE INDEX idx_programs_file_attachment ON programs(file_attachment_id);
+CREATE INDEX idx_programs_is_active ON programs(is_active);
+CREATE INDEX idx_programs_type_active ON programs(program_type, is_active);
+
+-- Create table for applications
+CREATE TABLE applications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    application_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    application_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    review_date TIMESTAMP,
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    submission_deadline TIMESTAMP, -- NEW: Deadline for document submission
+    
+    -- Claim scheduling fields
+    claim_date TIMESTAMP, -- Scheduled date for claiming assistance
+    claim_time VARCHAR(10), -- Time slot (e.g., "09:00 AM", "02:00 PM")
+    claim_location VARCHAR(255), -- Location for claiming (office address, etc.)
+    claim_instructions TEXT, -- Special instructions for claiming
+    claim_status VARCHAR(20) DEFAULT 'not_scheduled', -- not_scheduled, scheduled, claimed, missed
+    claim_scheduled_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- Admin who scheduled
+    claim_scheduled_at TIMESTAMP, -- When the claim was scheduled
+    
+    -- Verification code for document submission (from migration: add_verification_code_fields.py)
+    verification_code VARCHAR(20) UNIQUE, -- Unique code for verification
+    code_generated_at TIMESTAMP, -- When code was generated
+    code_used_at TIMESTAMP, -- When code was used
+    documents_submitted_at TIMESTAMP, -- When documents were physically submitted
+    
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for applications
+CREATE INDEX idx_applications_user_id ON applications(user_id);
+CREATE INDEX idx_applications_program_id ON applications(program_id);
+CREATE INDEX idx_applications_status ON applications(application_status);
+CREATE INDEX idx_applications_date ON applications(application_date DESC);
+CREATE INDEX idx_applications_reviewed_by ON applications(reviewed_by);
+CREATE INDEX idx_applications_review_date ON applications(review_date);
+CREATE INDEX idx_applications_submission_deadline ON applications(submission_deadline);
+CREATE INDEX idx_verification_code ON applications(verification_code);  -- NEW: From migration
+CREATE INDEX idx_applications_claim_date ON applications(claim_date);  -- NEW: For claim scheduling
+CREATE INDEX idx_applications_claim_status ON applications(claim_status);  -- NEW: For claim status filtering
+-- Composite indexes for common query patterns
+CREATE INDEX idx_app_user_date ON applications(user_id, application_date);
+CREATE INDEX idx_app_program_status ON applications(program_id, application_status);
+CREATE INDEX idx_app_status_date ON applications(application_status, application_date DESC);
+
+-- Create table for Announcements
+CREATE TABLE announcements (
+    id SERIAL PRIMARY KEY, 
+    announcement_title VARCHAR(200) NOT NULL, 
+    announcement_content TEXT NOT NULL, 
+    category VARCHAR(100) NOT NULL DEFAULT 'General',
+    status VARCHAR(50) NOT NULL DEFAULT 'draft',
+    author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    program_id INTEGER REFERENCES programs(id) ON DELETE SET NULL, -- NEW: Link to program
+    attachment_url VARCHAR(500), -- NEW: External link or attachment URL
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for announcements
+CREATE INDEX idx_announcements_author_id ON announcements(author_id);
+CREATE INDEX idx_announcements_program_id ON announcements(program_id); -- NEW: Index for program links
+CREATE INDEX idx_announcements_status ON announcements(status);
+CREATE INDEX idx_announcements_created_at ON announcements(created_at DESC);
+CREATE INDEX idx_announcements_category ON announcements(category);
+CREATE INDEX idx_announcements_status_created ON announcements(status, created_at DESC);
+
+-- Create announcement_images table
+CREATE TABLE announcement_images (
+    id SERIAL PRIMARY KEY,
+    announcement_id INTEGER NOT NULL REFERENCES announcements(id) ON DELETE CASCADE,
+    image_path VARCHAR(255) NOT NULL,
+    caption VARCHAR(255),
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_announcement_images_announcement_id ON announcement_images(announcement_id);
+CREATE INDEX idx_announcement_images_display_order ON announcement_images(announcement_id, display_order);
+
+-- Create notifications table
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    notif_title VARCHAR(255) NOT NULL,
+    notif_message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    related_id INTEGER, -- ID of related resource (application, announcement, etc.)
+    related_type VARCHAR(50), -- Type: 'application', 'announcement', 'program', 'schedule', 'profile', etc.
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX idx_notifications_related ON notifications(related_type, related_id);
+
+-- Create community_users table
+CREATE TABLE community_users (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    age INTEGER NOT NULL,
+    mobile_no VARCHAR(20),
+    birth_month INTEGER,
+    birth_day INTEGER,
+    birth_year INTEGER,
+    gender VARCHAR(50),  -- Gender identity (Male, Female, Other, Prefer not to say)
+    barangay VARCHAR(100),
+    sitio VARCHAR(100),
+    municipality VARCHAR(100),
+    address TEXT,
+    is_currently_employed BOOLEAN DEFAULT FALSE,
+    occupation VARCHAR(100),
+    is_student BOOLEAN DEFAULT FALSE,
+    is_solo_parent BOOLEAN DEFAULT FALSE,
+    is_pwd BOOLEAN DEFAULT FALSE,
+    disability_type VARCHAR(100),  -- Type of disability (e.g., 'Physical', 'Hearing', 'Visual', etc.) - from migration: add_disability_type_field.py
+    family_annual_income DECIMAL(12,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for community_users (for analytics and filtering)
+CREATE INDEX idx_community_users_user_id ON community_users(user_id);
+CREATE INDEX idx_community_users_age ON community_users(age);
+CREATE INDEX idx_community_users_barangay ON community_users(barangay);
+CREATE INDEX idx_community_users_employed ON community_users(is_currently_employed);
+CREATE INDEX idx_community_users_student ON community_users(is_student);
+CREATE INDEX idx_community_users_solo_parent ON community_users(is_solo_parent);
+CREATE INDEX idx_community_users_pwd ON community_users(is_pwd); -- NEW: Index for PWD status
+CREATE INDEX idx_community_users_income ON community_users(family_annual_income);
+-- Composite indexes for common analytics queries
+CREATE INDEX idx_community_barangay_income ON community_users(barangay, family_annual_income);
+CREATE INDEX idx_community_age_employed ON community_users(age, is_currently_employed);
+
+-- Create requirements table (updated to match models.Requirements)
+CREATE TABLE requirements (
+    id SERIAL PRIMARY KEY,
+    requirement_name VARCHAR(255) NOT NULL,
+    requirement_type VARCHAR(50) NOT NULL DEFAULT 'document', -- 'document' or 'qualification'
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_requirements_created_at ON requirements(created_at DESC);
+CREATE INDEX idx_requirements_type ON requirements(requirement_type);
+
+-- Create program_requirements junction table (many-to-many)
+CREATE TABLE program_requirements (
+    id SERIAL PRIMARY KEY,
+    program_id INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+    requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+    is_mandatory BOOLEAN DEFAULT TRUE,
+    is_completed BOOLEAN DEFAULT TRUE,
+    document_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(program_id, requirement_id) -- prevent duplicate requirements per program
+);
+
+CREATE INDEX idx_program_requirements_program_id ON program_requirements(program_id);
+CREATE INDEX idx_program_requirements_requirement_id ON program_requirements(requirement_id);
+CREATE INDEX idx_program_requirements_mandatory ON program_requirements(is_mandatory);
+
+-- Create application_documents table (admin checklist for physical documents and qualifications)
+CREATE TABLE application_documents (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    requirement_id INTEGER NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+    submission_status VARCHAR(20), -- approved, rejected, incomplete, on-hold, under-review
+    qualification_met BOOLEAN DEFAULT FALSE, -- For qualification-type requirements
+    verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL, -- admin who verified
+    verified_at TIMESTAMP,
+    admin_feedback TEXT, -- feedback if document is incorrect/missing
+    notes TEXT, -- additional admin notes
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_application_documents_application_id ON application_documents(application_id);
+CREATE INDEX idx_application_documents_requirement_id ON application_documents(requirement_id);
+CREATE INDEX idx_application_documents_status ON application_documents(submission_status);
+CREATE INDEX idx_application_documents_qualification_met ON application_documents(qualification_met);
+CREATE INDEX idx_application_documents_verified_by ON application_documents(verified_by);
+CREATE INDEX idx_application_documents_app_status ON application_documents(application_id, submission_status);
+
+-- Create admin_users table (extended admin info)
+CREATE TABLE admin_users (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_admin_users_user_id ON admin_users(user_id);
+
+-- Create shelter_photos table (for ESA applications)
+CREATE TABLE shelter_photos (
+    id SERIAL PRIMARY KEY,
+    application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+    photo_path VARCHAR(255) NOT NULL,
+    caption VARCHAR(255),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    verified_at TIMESTAMP,
+    verification_status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    admin_notes TEXT
+);
+
+-- Create indexes for shelter_photos
+CREATE INDEX idx_shelter_photos_application_id ON shelter_photos(application_id);
+CREATE INDEX idx_shelter_photos_verified_by ON shelter_photos(verified_by);
+CREATE INDEX idx_shelter_photos_status ON shelter_photos(verification_status);
+CREATE INDEX idx_shelter_photos_uploaded_at ON shelter_photos(uploaded_at DESC);
+CREATE INDEX idx_shelter_photos_app_status ON shelter_photos(application_id, verification_status);
+
+-- Create table for community user activity log
+
+-- Create table for Admin Activity Logs
+
+###################################
+
+-- INSERT VALUES 
+
+###################################
+
+-- INSERT (CREATE ACCOUNT FOR 1 ADMIN and 1 USER)

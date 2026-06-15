@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+      integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
+      crossorigin="anonymous"
+    />
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Google Fonts - Elegant & Formal Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Cinzel:wght@600;700&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+    
+    <!-- Global Font Style -->
+    <style>
+        * {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .navbar-brand-elegant {
+            font-family: 'Cinzel', serif;
+            font-size: 2rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .navbar-brand-elegant::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ffffff, #ffd700);
+            transition: width 0.3s ease;
+        }
+        
+        .navbar-brand-elegant:hover::after {
+            width: 100%;
+        }
+        
+        .navbar-brand-elegant:hover {
+            transform: scale(1.05);
+            filter: brightness(1.2);
+        }
+
+        .navbar-brand-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-logo-image {
+            height: 50px;
+            width: auto;
+            display: block;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-logo-text {
+            font-family: 'Cinzel', serif;
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #ffffff;
+            line-height: 1;
+            display: inline-block;
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .navbar-brand-logo:hover .navbar-logo-image,
+        .navbar-brand-logo:focus .navbar-logo-image,
+        .navbar-brand-logo:hover .navbar-logo-text,
+        .navbar-brand-logo:focus .navbar-logo-text {
+            transform: scale(1.05);
+            filter: brightness(1.12);
+        }
+
+        @media (max-width: 575.98px) {
+            .navbar-logo-image {
+                height: 32px;
+            }
+
+            .navbar-logo-text {
+                font-size: 1rem;
+                letter-spacing: 1.5px;
+            }
+        }
+
+        /* Flash Messages Styling */
+        .flash-messages {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .flash-message {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Navbar Gradient Styling */
+        .navbar {
+            background: linear-gradient(135deg, #0032A0 0%, #002270 100%) !important;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1040;
+        }
+
+        /* Center navbar navigation items */
+        .navbar-collapse {
+            justify-content: center;
+        }
+
+        .navbar-nav {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .navbar-nav .nav-link {
+            margin: 0 15px;
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-nav .nav-link.active {
+            color: #ffd700 !important;
+            font-weight: 600;
+        }
+
+        .navbar-nav .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #ffd700, transparent);
+        }
+
+        /* Buttons container - push to the right */
+        .navbar-buttons {
+            margin-left: auto;
+        }
+    </style>
+    
+    <!-- Custom Base CSS -->
+    <link
+      href="{{ url_for('static', filename='css/base.css') }}"
+      rel="stylesheet"
+    />  
+
+    <!-- Custom styles block for child templates -->
+    {% block styles %}{% endblock %}
+    {% block extra_css %}{% endblock %}
+    
+    <title>{% block title %}AYUDA - Municipal Social Welfare and Development{% endblock %}</title>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark d-flex">
+        <a class="navbar-brand navbar-brand-logo" href="/about">
+            <img class="navbar-logo-image" src="{{ url_for('static', filename='images/logo-white.png') }}" alt="AYUDA">
+            <span class="navbar-logo-text">AYUDA</span>
+        </a>
+        <button 
+            class="navbar-toggler"  
+            type="button" 
+            data-toggle="collapse" 
+            data-target="#navbar"
+            aria-controls="navbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse w-100" id="navbar">
+            <div class="navbar-nav">
+                <a class="nav-item nav-link text-white{% if request.path == '/about' %} active{% endif %}" id="About" href="/about">About</a>
+                <a class="nav-item nav-link text-white{% if request.path == '/programs' %} active{% endif %}" id="Programs" href="/programs">Programs</a>
+                <a class="nav-item nav-link text-white{% if request.path == '/privacy' %} active{% endif %}" id="Privacy" href="/privacy">Privacy</a>
+            </div>
+            <div class="navbar-buttons">
+                <a class="btn btn-outline-light mr-2" id="login" href="/login">Login</a>
+                <a class="btn btn-light text-dark" id="signUp" href="/sign-up">Sign Up</a>
+            </div>   
+        </div>     
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+        {% for category, message in messages %}
+        <div class="alert flash-message {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% elif category == 'warning' %}alert-warning{% else %}alert-info{% endif %} alert-dismissible fade show mb-3" role="alert" style="border-left: 4px solid {% if category == 'success' %}#28a745{% elif category == 'error' %}#dc3545{% elif category == 'warning' %}#ffc107{% else %}#17a2b8{% endif %};">
+            <div class="d-flex align-items-center">
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle mr-2"></i>
+                {% elif category == 'error' %}
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle mr-2"></i>
+                {% endif %}
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- jQuery -->
+    <script
+      src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+      integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+      crossorigin="anonymous"
+    ></script>
+    
+    <!-- Popper.js -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+      integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+      crossorigin="anonymous"
+    ></script>
+    
+    <!-- Bootstrap JS -->
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+      integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+        (function() {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+            const methodsNeedingCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+            function needsCsrf(method) {
+                return methodsNeedingCsrf.includes(String(method || 'GET').toUpperCase());
+            }
+
+            function ensureFormCsrf(form) {
+                if (!form || !(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                const method = (form.getAttribute('method') || 'GET').toUpperCase();
+                if (!csrfToken || !needsCsrf(method)) {
+                    return;
+                }
+
+                if (form.querySelector('input[name="csrf_token"]')) {
+                    return;
+                }
+
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+            }
+
+            if (csrfToken && window.fetch) {
+                const originalFetch = window.fetch.bind(window);
+                window.fetch = function(input, init) {
+                    const requestInit = init ? { ...init } : {};
+                    const method = ((requestInit.method || (input && input.method)) || 'GET').toUpperCase();
+
+                    if (needsCsrf(method)) {
+                        const headers = new Headers(requestInit.headers || (input instanceof Request ? input.headers : undefined));
+                        if (!headers.has('X-CSRFToken') && !headers.has('X-CSRF-Token')) {
+                            headers.set('X-CSRFToken', csrfToken);
+                        }
+                        requestInit.headers = headers;
+
+                        if (requestInit.body instanceof FormData && !requestInit.body.has('csrf_token')) {
+                            requestInit.body.append('csrf_token', csrfToken);
+                        }
+                    }
+
+                    return originalFetch(input, requestInit);
+                };
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('form').forEach(function(form) {
+                    ensureFormCsrf(form);
+                });
+
+                document.addEventListener('submit', function(event) {
+                    ensureFormCsrf(event.target);
+                }, true);
+
+                if (csrfToken && window.jQuery && window.jQuery.ajaxSetup) {
+                    window.jQuery.ajaxSetup({
+                        beforeSend: function(xhr, settings) {
+                            const method = (settings.type || 'GET').toUpperCase();
+                            if (needsCsrf(method)) {
+                                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+                                if (settings.data instanceof FormData && !settings.data.has('csrf_token')) {
+                                    settings.data.append('csrf_token', csrfToken);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        })();
+    </script>
+
+    <!-- Flash Messages Auto-dismiss Script -->
+    <script>
+        // Auto-dismiss flash messages after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.flash-message');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+        });
+    </script>
+
+    <!-- Custom UI Scripts -->
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+
+    <!-- Extra JS block for child templates -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

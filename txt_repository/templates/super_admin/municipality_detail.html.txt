@@ -1,0 +1,392 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}{{ municipality_name }} Performance - AYUDA{% endblock %}
+
+{% block super_admin_content %}
+    <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1">{{ municipality_name }} Performance</h1>
+            <p class="subtitle">Account footprint and operational activity for this municipality.</p>
+        </div>
+        <a href="{{ url_for('super_admin.municipalities') }}" class="btn btn-outline-custom btn-sm mt-3 mt-md-0">Back to Municipality Controls</a>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a
+                class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+                href="{{ url_for('super_admin.municipality_detail', municipality_name=municipality_name, tab='overview') }}"
+            >
+                Overview
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a
+                class="nav-link {% if active_tab == 'users' %}active{% endif %}"
+                href="{{ url_for('super_admin.municipality_detail', municipality_name=municipality_name, tab='users') }}"
+            >
+                Users
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a
+                class="nav-link {% if active_tab == 'admins' %}active{% endif %}"
+                href="{{ url_for('super_admin.municipality_detail', municipality_name=municipality_name, tab='admins') }}"
+            >
+                Admins
+            </a>
+        </li>
+    </ul>
+
+    {% if active_tab == 'overview' %}
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card sa-stats-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="sa-stat-label">Admin Accounts</div>
+                                <div class="sa-stat-value">{{ total_admins }}</div>
+                            </div>
+                            <div class="sa-stat-icon icon-info">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Active (7d): {{ active_admins }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card sa-stats-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="sa-stat-label">Community Accounts</div>
+                                <div class="sa-stat-value">{{ total_community_users }}</div>
+                            </div>
+                            <div class="sa-stat-icon icon-primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Active (7d): {{ active_community_users }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card sa-stats-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="sa-stat-label">Total Accounts</div>
+                                <div class="sa-stat-value">{{ total_accounts }}</div>
+                            </div>
+                            <div class="sa-stat-icon icon-success">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">Active (7d): {{ active_accounts }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="card sa-stats-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="sa-stat-label">Inactive Accounts (7d)</div>
+                                <div class="sa-stat-value">{{ inactive_accounts }}</div>
+                            </div>
+                            <div class="sa-stat-icon icon-warning">
+                                <i class="fas fa-user-slash"></i>
+                            </div>
+                        </div>
+                        <small class="text-muted">No activity in 7 days</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-3">
+                <div class="card sa-panel h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Recorded Activity Over Time (Last 7 Days)</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="municipalityActivityChart" style="height: 320px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-3">
+                <div class="card sa-panel h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Barangay User Counts</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm sa-table mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Barangay</th>
+                                    <th class="text-right">Users</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for barangay, residents in top_barangays %}
+                                <tr>
+                                    <td>{{ barangay }}</td>
+                                    <td class="text-right"><span class="badge badge-light">{{ residents }}</span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">No barangay data yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card sa-panel h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Recent Admin Activity</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm sa-table mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>When</th>
+                                    <th>Admin</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_admin_logs %}
+                                <tr>
+                                    <td>{{ log.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                                    <td>{{ log.admin_name }}</td>
+                                    <td>{{ log.action }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">No admin logs recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card sa-panel h-100">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Recent Community Activity</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm sa-table mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>When</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_user_logs %}
+                                <tr>
+                                    <td>{{ log.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                                    <td>{{ log.user_name }}</td>
+                                    <td>{{ log.action }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">No community logs recorded yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script type="application/json" id="municipality-activity-data">{{ municipality_activity_chart | tojson }}</script>
+    {% elif active_tab == 'users' %}
+        <div class="card sa-panel">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Municipality Users</h6>
+                <span class="badge badge-light">{{ community_users|length }} total</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover sa-table mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Barangay</th>
+                            <th>Created</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in community_users %}
+                        <tr>
+                            <td>{{ account.first_name }} {{ account.last_name }}</td>
+                            <td>{{ account.email }}</td>
+                            <td>
+                                {% if account.community_profile and account.community_profile.barangay %}
+                                    {{ account.community_profile.barangay }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ account.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                            <td>{{ account.last_activity | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No community users found for this municipality.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="card sa-panel">
+            <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center">
+                <h6 class="mb-2 mb-md-0">Municipality Admins</h6>
+                <button type="button" class="btn btn-custom btn-sm" data-toggle="modal" data-target="#addMunicipalityAdminModal">
+                    <i class="fas fa-user-plus mr-1"></i>Add Admin
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover sa-table mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Created</th>
+                            <th>Last Activity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in admin_users %}
+                        <tr>
+                            <td>{{ account.first_name }} {{ account.last_name }}</td>
+                            <td>{{ account.email }}</td>
+                            <td>{{ account.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                            <td>{{ account.last_activity | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No admins found for this municipality.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal fade" id="addMunicipalityAdminModal" tabindex="-1" role="dialog" aria-labelledby="addMunicipalityAdminModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addMunicipalityAdminModalLabel">Add Admin for {{ municipality_name }}</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form method="POST" action="{{ url_for('super_admin.add_admin') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <input type="hidden" name="municipality" value="{{ municipality_name }}" />
+                        <input type="hidden" name="redirect_next" value="{{ url_for('super_admin.municipality_detail', municipality_name=municipality_name, tab='admins') }}" />
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="modal-admin-first-name">First Name</label>
+                                <input type="text" class="form-control" id="modal-admin-first-name" name="first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modal-admin-middle-name">Middle Name</label>
+                                <input type="text" class="form-control" id="modal-admin-middle-name" name="middle_name">
+                            </div>
+                            <div class="form-group">
+                                <label for="modal-admin-last-name">Last Name</label>
+                                <input type="text" class="form-control" id="modal-admin-last-name" name="last_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modal-admin-email">Email</label>
+                                <input type="email" class="form-control" id="modal-admin-email" name="email" required>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label>Municipality</label>
+                                <input type="text" class="form-control" value="{{ municipality_name }}" readonly>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-custom">Create Admin</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+(function () {
+    function parseData(id, fallback) {
+        const node = document.getElementById(id);
+        if (!node) return fallback;
+        try {
+            return JSON.parse(node.textContent || '{}');
+        } catch (e) {
+            console.error('Failed to parse chart data for', id, e);
+            return fallback;
+        }
+    }
+
+    const activityData = parseData('municipality-activity-data', { labels: [], admin: [], community: [] });
+    const activityCtx = document.getElementById('municipalityActivityChart');
+    if (activityCtx) {
+        new Chart(activityCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: activityData.labels,
+                datasets: [
+                    {
+                        label: 'Admin Activity',
+                        data: activityData.admin,
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        backgroundColor: 'rgba(54, 185, 204, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: 'Community Activity',
+                        data: activityData.community,
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        backgroundColor: 'rgba(28, 200, 138, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                },
+            },
+        });
+    }
+})();
+</script>
+{% endblock %}

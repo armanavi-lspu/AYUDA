@@ -1,0 +1,2859 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Add New Program - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+    }
+
+    .create-program-shell {
+        animation: addProgramFadeIn 0.45s ease-out;
+    }
+
+    @keyframes addProgramFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .create-program-breadcrumb {
+        margin-bottom: 0.85rem;
+    }
+
+    .create-program-breadcrumb .breadcrumb {
+        background: #fff;
+        border: 1px solid var(--dash-border);
+        border-radius: 10px;
+        margin-bottom: 0;
+        padding: 0.5rem 0.85rem;
+    }
+
+    .create-program-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.25rem 1.35rem;
+        margin-bottom: 1rem;
+    }
+
+    .create-program-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        font-size: 1.7rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .create-program-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .hero-quick-notes {
+        margin-top: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .hero-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid #d7e5ff;
+        background: rgba(255, 255, 255, 0.9);
+        color: #315285;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .hero-note i {
+        color: #1f6feb;
+    }
+
+    .wizard-shell {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 10px 28px rgba(31, 42, 68, 0.08);
+        margin-bottom: 0.9rem;
+        overflow: hidden;
+    }
+
+    .wizard-layout {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        min-height: 100%;
+    }
+
+    .wizard-step-sidebar {
+        padding: 1rem 0.75rem;
+        border-right: 1px solid #e4ecfb;
+        background: linear-gradient(180deg, #f7fbff 0%, #eef5ff 100%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        position: sticky;
+        top: 0.8rem;
+        align-self: start;
+    }
+
+    .wizard-content-area {
+        padding: 0.95rem 1rem 1rem;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
+
+    .wizard-step-chip {
+        border: 1px solid #d4def4;
+        border-radius: 12px;
+        padding: 0.55rem 0.4rem;
+        background: #fff;
+        color: #37527f;
+        font-size: 0.84rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        text-align: center;
+    }
+
+    .wizard-step-chip:hover {
+        background: #f2f7ff;
+    }
+
+    .wizard-step-number {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: #fff;
+        background: #1ecfa6;
+        box-shadow: 0 6px 14px rgba(30, 207, 166, 0.28);
+    }
+
+    .wizard-step-label {
+        line-height: 1.3;
+        color: #2f4c77;
+    }
+
+    .wizard-step-chip.active {
+        border-color: #9ed5f5;
+        background: linear-gradient(180deg, #f0f9ff 0%, #e6f4ff 100%);
+        box-shadow: 0 8px 18px rgba(31, 111, 235, 0.14);
+    }
+
+    .wizard-step-chip.active .wizard-step-number {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        box-shadow: 0 7px 16px rgba(31, 111, 235, 0.36);
+    }
+
+    .wizard-step-chip.active .wizard-step-label {
+        color: #1d4ed8;
+    }
+
+    .wizard-step-chip.completed {
+        border-color: #8fd1be;
+        background: #ecfdf5;
+    }
+
+    .wizard-step-chip.completed .wizard-step-number {
+        background: linear-gradient(135deg, #16a34a 0%, #12803c 100%);
+        box-shadow: 0 7px 16px rgba(22, 163, 74, 0.28);
+    }
+
+    .wizard-step-chip.completed .wizard-step-label {
+        color: #15715a;
+    }
+
+    .wizard-step-pane {
+        display: none;
+    }
+
+    .wizard-step-pane.active {
+        display: block;
+        animation: wizardPaneIn 0.24s ease;
+    }
+
+    @keyframes wizardPaneIn {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .step-helper {
+        border: 1px solid #dbe6ff;
+        border-left: 4px solid #1f6feb;
+        border-radius: 11px;
+        background: #f8fbff;
+        color: #3e557b;
+        padding: 0.7rem 0.85rem;
+        margin-bottom: 0.95rem;
+        font-size: 0.9rem;
+    }
+
+    .wizard-nav-actions {
+        border-top: 1px dashed #d9e5fb;
+        margin-top: 1rem;
+        padding-top: 0.9rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+    }
+
+    .wizard-nav-actions .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.5rem 0.95rem;
+    }
+
+    .btn-step-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        box-shadow: 0 5px 16px rgba(25, 66, 168, 0.3);
+    }
+
+    .btn-step-primary:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-step-soft {
+        border: 1px solid #cad8f1;
+        background: #f5f8ff;
+        color: #294d83;
+    }
+
+    .btn-step-soft:hover {
+        background: #eaf1ff;
+        color: #1f457f;
+    }
+
+    .friendly-label {
+        font-weight: 700;
+        color: #2b3d5f;
+    }
+
+    .create-program-main-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 12px 30px rgba(31, 42, 68, 0.08);
+        overflow: hidden;
+    }
+
+    .create-program-main-card > .card-header {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card {
+        border: 1px solid #d6e3fa;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(20, 46, 92, 0.08);
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header.bg-light {
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%) !important;
+        border-bottom: 1px solid #d7e3f8;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header h6 {
+        color: #1f4b99 !important;
+        font-weight: 700;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header small {
+        color: #516689 !important;
+        font-weight: 500;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header .btn {
+        border-radius: 8px;
+        font-weight: 600;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header .btn-outline-primary {
+        color: #1f4b99;
+        border-color: #93afe4;
+        background: #ffffff;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header .btn-outline-primary:hover {
+        color: #ffffff;
+        border-color: #1f4b99;
+        background: #1f4b99;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header .btn-outline-success {
+        color: #127a3f;
+        border-color: #8dcfb0;
+        background: #ffffff;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .card-header .btn-outline-success:hover {
+        color: #ffffff;
+        border-color: #127a3f;
+        background: #127a3f;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .requirement-item {
+        border: 1px solid #d9e4f5;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 10px 12px;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .requirement-item .custom-control-label strong {
+        color: #1f2a44;
+    }
+
+    .wizard-step-pane[data-step-pane="2"] .requirement-item .text-muted {
+        color: #5f7090 !important;
+    }
+
+    .wizard-step-pane .form-group > label,
+    .wizard-step-pane .friendly-label {
+        color: #2b3d5f;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .wizard-step-pane .form-control,
+    .wizard-step-pane .custom-file-label,
+    .wizard-step-pane .custom-select,
+    .wizard-step-pane .copy-type-select,
+    .wizard-step-pane .copy-count-input {
+        border-radius: 10px;
+        border-color: #d7dfef;
+        min-height: 42px;
+        box-shadow: none;
+    }
+
+    .wizard-step-pane textarea.form-control {
+        min-height: 108px;
+    }
+
+    .wizard-step-pane .form-control:focus,
+    .wizard-step-pane .custom-select:focus,
+    .wizard-step-pane .custom-file-input:focus ~ .custom-file-label {
+        border-color: #5b9bff;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .wizard-step-pane .custom-control-label {
+        color: #344f78;
+    }
+
+    .wizard-step-pane .alert {
+        border-radius: 11px;
+        border-width: 1px;
+        font-size: 0.92rem;
+    }
+
+    .wizard-step-pane .card {
+        border: 1px solid #dbe5f7;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(22, 41, 76, 0.07);
+    }
+
+    .wizard-step-pane .card .card-header {
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+
+    .requirements-list {
+        border: 1px solid #e8eefb;
+        border-radius: 10px;
+        background: #fbfdff;
+    }
+
+    .requirements-search-wrap {
+        margin-bottom: 0.75rem;
+    }
+
+    .requirements-search-wrap .input-group-text {
+        border-radius: 10px 0 0 10px;
+        background: #f4f8ff;
+        border-color: #d5e1f6;
+        color: #40649b;
+    }
+
+    .requirements-search-wrap .form-control {
+        border-radius: 0 10px 10px 0;
+    }
+
+    .requirement-search-no-match {
+        border: 1px dashed #c9d9f7;
+        border-radius: 10px;
+        background: #f8fbff;
+        color: #4f6282;
+        text-align: center;
+        padding: 0.7rem;
+        margin-top: 0.45rem;
+        font-size: 0.87rem;
+        font-weight: 600;
+    }
+
+    .workflow-step-card {
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .workflow-step-card.drag-over {
+        background: #edf5ff;
+        box-shadow: inset 0 0 0 2px #8cb8ff;
+    }
+
+    .workflow-step-card.dragging {
+        opacity: 0.65;
+    }
+
+    .workflow-drag-handle {
+        cursor: grab;
+        color: #355c94;
+        border-color: #b7caec;
+        background: #f4f8ff;
+    }
+
+    .workflow-drag-handle:active {
+        cursor: grabbing;
+    }
+
+    .workflow-step-main-row {
+        align-items: center;
+    }
+
+    .workflow-step-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .workflow-step-checkbox-col {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .workflow-step-checkbox-col .custom-control {
+        margin-bottom: 0;
+    }
+
+    .workflow-step-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+    }
+
+    .workflow-step-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .create-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem 0.75rem;
+    }
+
+    .create-summary-item {
+        border: 1px solid #d8e4fb;
+        border-radius: 10px;
+        background: #f8fbff;
+        padding: 0.5rem 0.65rem;
+    }
+
+    .create-summary-item .summary-label {
+        display: block;
+        font-size: 0.76rem;
+        color: #5d7092;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        margin-bottom: 0.16rem;
+    }
+
+    .create-summary-item .summary-value {
+        color: #1f2a44;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .create-summary-section-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #2b3d5f;
+        margin-bottom: 0.45rem;
+    }
+
+    .create-summary-divider {
+        margin: 0.8rem 0;
+        border-top: 1px dashed #cdddff;
+    }
+
+    .create-summary-workflow {
+        margin: 0;
+        padding-left: 1.15rem;
+        color: #2f4c77;
+    }
+
+    .create-summary-workflow li {
+        margin-bottom: 0.22rem;
+    }
+
+    .create-summary-link {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: #1f6feb;
+        font-weight: 700;
+        text-decoration: underline;
+        cursor: pointer;
+    }
+
+    .create-summary-link:hover {
+        color: #1942a8;
+    }
+
+    .requirements-summary-list {
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+
+    .requirements-summary-list li {
+        margin-bottom: 0.25rem;
+        color: #2f4c77;
+    }
+
+    @media (max-width: 767.98px) {
+        .create-summary-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        .wizard-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .wizard-step-sidebar {
+            border-right: 0;
+            border-bottom: 1px solid #e4ecfb;
+            flex-direction: row;
+            overflow-x: auto;
+            padding-bottom: 0.8rem;
+            position: static;
+        }
+
+        .wizard-step-chip {
+            min-width: 150px;
+        }
+    }
+
+    .requirement-item {
+        padding: 8px;
+        border: 1px solid #e3e6f0;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        transition: background-color 0.2s;
+    }
+    
+    .requirement-item:hover {
+        background-color: #f8f9fc;
+    }
+    
+    .requirement-item label {
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+    
+    .requirements-list {
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .req-checkbox:checked ~ .custom-control-label {
+        color: #1cc88a;
+        font-weight: 600;
+    }
+    
+    .add-req-form {
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .add-req-form .border {
+        border: 2px dashed #dee2e6 !important;
+    }
+    
+    .add-req-form input:focus,
+    .add-req-form textarea:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid create-program-shell">
+    <nav aria-label="breadcrumb" class="create-program-breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.adm_programs') }}">Programs</a></li>
+            <li class="breadcrumb-item active">Add Program</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="create-program-hero">
+        <h1>
+            <i class="fas fa-plus-circle mr-2"></i>Create New Program
+        </h1>
+        <p class="subtitle">Follow 3 simple steps to set up a program. Fill one section at a time for easier encoding.</p>
+        <div class="hero-quick-notes">
+            <span class="hero-note"><i class="fas fa-route"></i>Guided 3-step process</span>
+            <span class="hero-note"><i class="fas fa-asterisk"></i>Fields with * are required</span>
+            <span class="hero-note"><i class="fas fa-file-import"></i>Workflow templates available</span>
+        </div>
+    </div>
+
+    <!-- Add Program Form -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card create-program-main-card mb-4">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-route mr-2"></i>Program Setup Wizard</h6>
+                </div>
+                <div class="card-body">
+                    <form id="addProgramForm" method="POST" action="{{ url_for('admin.add_program') }}" enctype="multipart/form-data">
+                        <!-- Define copy field functions early so they're available to inline event handlers -->
+                        <script>
+                            const COPY_TYPE_LIMIT = 3;
+
+                            function toggleCopyFieldsAdd(reqId, isChecked) {
+                                const copyFieldsDiv = document.querySelector(`.copy-fields-add-${reqId}`);
+                                if (copyFieldsDiv) {
+                                    copyFieldsDiv.style.display = isChecked ? 'block' : 'none';
+                                    if (isChecked) {
+                                        updateCopyTypeOptionsAdd(reqId);
+                                    }
+                                }
+                            }
+
+                            function getSelectedCopyTypesFromList(list) {
+                                const selected = new Set();
+                                if (!list) {
+                                    return selected;
+                                }
+
+                                list.querySelectorAll('.copy-type-select').forEach((select) => {
+                                    const value = String(select.value || '').trim();
+                                    if (value) {
+                                        selected.add(value);
+                                    }
+                                });
+
+                                return selected;
+                            }
+
+                            function updateCopyTypeOptionsAdd(reqId) {
+                                const list = document.querySelector(`.copy-specs-list-${reqId}`);
+                                if (!list) {
+                                    return;
+                                }
+
+                                const selects = list.querySelectorAll('.copy-type-select');
+                                const selected = getSelectedCopyTypesFromList(list);
+                                const rowCount = list.querySelectorAll('.copy-spec-row').length;
+
+                                selects.forEach((select) => {
+                                    const currentValue = String(select.value || '').trim();
+                                    Array.from(select.options).forEach((option) => {
+                                        if (!option.value) {
+                                            return;
+                                        }
+
+                                        const isTaken = selected.has(option.value) && option.value !== currentValue;
+                                        option.hidden = isTaken;
+                                        option.disabled = isTaken;
+                                    });
+                                });
+
+                                const container = list.closest('.copy-fields-add');
+                                if (container) {
+                                    const addBtn = container.querySelector('.add-copy-spec-btn');
+                                    if (addBtn) {
+                                        addBtn.style.display = rowCount >= COPY_TYPE_LIMIT ? 'none' : '';
+                                    }
+                                }
+                            }
+                            
+                            // Add new copy specification row
+                            function addCopySpecRow(reqId) {
+                                const container = document.querySelector(`.copy-specs-list-${reqId}`);
+                                if (!container) {
+                                    return;
+                                }
+
+                                const rowCount = container.querySelectorAll('.copy-spec-row').length;
+                                if (rowCount >= COPY_TYPE_LIMIT) {
+                                    updateCopyTypeOptionsAdd(reqId);
+                                    return;
+                                }
+
+                                const rowId = Date.now();
+                                const row = document.createElement('div');
+                                row.className = 'copy-spec-row form-row align-items-end mb-2';
+                                row.id = `spec-row-${rowId}`;
+                                row.innerHTML = `
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Copy Type</label>
+                                        <select class="form-control form-control-sm copy-type-select" name="copy_type_${reqId}[]" required>
+                                            <option value="">-- Select --</option>
+                                            <option value="original">Original</option>
+                                            <option value="photocopy">Photocopy</option>
+                                            <option value="certified_true_copy">Certified True Copy</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group col-md-5">
+                                        <label class="small font-weight-bold">Number of Copies</label>
+                                        <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_${reqId}[]" value="1" min="1" max="10" required>
+                                    </div>
+                                    <div class="form-group col-md-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow('${rowId}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                `;
+                                container.appendChild(row);
+
+                                const newSelect = row.querySelector('.copy-type-select');
+                                if (newSelect) {
+                                    newSelect.addEventListener('change', () => updateCopyTypeOptionsAdd(reqId));
+                                }
+
+                                updateCopyTypeOptionsAdd(reqId);
+                            }
+                            
+                            // Remove copy specification row
+                            function removeCopySpecRow(rowIdOrBtn) {
+                                let row = null;
+                                if (typeof rowIdOrBtn === 'string') {
+                                    row = document.getElementById(`spec-row-${rowIdOrBtn}`);
+                                } else if (rowIdOrBtn) {
+                                    row = rowIdOrBtn.closest('.copy-spec-row');
+                                }
+
+                                if (!row) {
+                                    return;
+                                }
+
+                                const container = row.closest('.copy-fields-add');
+                                row.remove();
+
+                                if (container && container.dataset.reqId) {
+                                    updateCopyTypeOptionsAdd(container.dataset.reqId);
+                                }
+                            }
+
+                            function initializeCopyTypeOptionsAdd() {
+                                const containers = document.querySelectorAll('.copy-fields-add');
+                                containers.forEach((container) => {
+                                    const reqId = container.dataset.reqId;
+                                    if (!reqId) {
+                                        return;
+                                    }
+
+                                    container.querySelectorAll('.copy-type-select').forEach((select) => {
+                                        select.addEventListener('change', () => updateCopyTypeOptionsAdd(reqId));
+                                    });
+
+                                    updateCopyTypeOptionsAdd(reqId);
+                                });
+                            }
+                            
+                            // Collect copy specifications before form submission
+                            function collectCopySpecs(form) {
+                                const requirements = form.querySelectorAll('input[name="requirements"]:checked');
+                                requirements.forEach(req => {
+                                    const reqId = req.value;
+                                    const container = document.querySelector(`.copy-specs-list-${reqId}`);
+                                    
+                                    if (container) {
+                                        const specs = [];
+                                        const rows = container.querySelectorAll('.copy-spec-row');
+                                        
+                                        rows.forEach(row => {
+                                            const typeSelect = row.querySelector(`select[name="copy_type_${reqId}[]"]`);
+                                            const countInput = row.querySelector(`input[name="copy_count_${reqId}[]"]`);
+                                            
+                                            if (typeSelect && countInput && typeSelect.value) {
+                                                specs.push({
+                                                    type: typeSelect.value,
+                                                    count: parseInt(countInput.value) || 1
+                                                });
+                                            }
+                                        });
+                                        
+                                        // Create hidden input with JSON specs
+                                        let specsInput = document.querySelector(`input[name="copy_specs_${reqId}"]`);
+                                        if (!specsInput) {
+                                            specsInput = document.createElement('input');
+                                            specsInput.type = 'hidden';
+                                            specsInput.name = `copy_specs_${reqId}`;
+                                            form.appendChild(specsInput);
+                                        }
+                                        specsInput.value = JSON.stringify(specs);
+                                    }
+                                });
+                            }
+                            
+                            // Intercept form submission
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const form = document.querySelector('form');
+                                if (form) {
+                                    form.addEventListener('submit', function(e) {
+                                        collectCopySpecs(form);
+                                    });
+                                }
+
+                                initializeCopyTypeOptionsAdd();
+                            });
+                        </script>
+
+                        <div class="wizard-shell">
+                            <div class="wizard-layout">
+                                <aside class="wizard-step-sidebar" aria-label="Program creation steps">
+                                    <button type="button" class="wizard-step-chip active" data-step="1">
+                                        <span class="wizard-step-number">1</span>
+                                        <span class="wizard-step-label">Program Information</span>
+                                    </button>
+                                    <button type="button" class="wizard-step-chip" data-step="2">
+                                        <span class="wizard-step-number">2</span>
+                                        <span class="wizard-step-label">Program Requirements</span>
+                                    </button>
+                                    <button type="button" class="wizard-step-chip" data-step="3">
+                                        <span class="wizard-step-number">3</span>
+                                        <span class="wizard-step-label">Application Workflow Steps</span>
+                                    </button>
+                                </aside>
+
+                                <div class="wizard-content-area">
+                        <div class="wizard-step-pane active" data-step-pane="1">
+                        <div class="step-helper">
+                            <i class="fas fa-lightbulb mr-1"></i>
+                            <strong>Step 1:</strong> Enter the basic program details first. Required fields are marked with a red asterisk.
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Program Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="program_name" 
+                                   placeholder="e.g., Financial Assistance for Senior Citizens" required>
+                        </div>
+                        
+                        <div class="form-group">
+                        <label>Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="description" rows="4" required
+                                  placeholder="Provide a detailed description of the program..."></textarea>
+                        </div>
+
+                    <div class="row workflow-step-main-row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program Type <span class="text-danger">*</span></label>
+                                <select class="form-control" name="program_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="AICS">AICS</option>
+                                    <option value="ESA">ESA</option>
+                                    <option value="CA">CA</option>                                    
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program Period <span class="text-danger">*</span></label>
+                                <select class="form-control" name="program_period" id="programPeriod" required>
+                                    <option value="">Select Period</option>
+                                    <option value="Ongoing">Ongoing</option>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="Quarterly">Quarterly</option>
+                                    <option value="Semi-Annual">Semi-Annual</option>
+                                    <option value="Annual">Annual</option>
+                                    <option value="One-time">One-time</option>
+                                    <option value="Emergency">Emergency</option>
+                                    <option value="Seasonal">Seasonal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Program Duration Fields -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program Start Date</label>
+                                <input type="date" class="form-control" name="start_date" id="startDate">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> When the program begins accepting applications (optional)
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Program End Date / Deadline</label>
+                                <input type="date" class="form-control" name="end_date" id="endDate">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Last day for application/document submission (optional but recommended for one-time programs)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <!-- Beneficiary Limit Toggle -->
+                            <div class="form-group">
+                                <label class="font-weight-bold">
+                                    <i class="fas fa-users mr-2"></i>Beneficiary Limit Control
+                                </label>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" name="use_beneficiary_limit" id="useBeneficiaryLimit">
+                                    <label class="custom-control-label" for="useBeneficiaryLimit">
+                                        Enable beneficiary limit for this program
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> When enabled, the program will have a maximum number of accepted beneficiaries.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group" id="beneficiaryLimitGroup" style="display: none;">
+                                <label>Beneficiary Limit <i class="fas fa-arrow-left text-success ml-2" style="display: none;" id="beneficiaryArrow"></i></label>
+                                <input type="number" class="form-control" name="beneficiary_limit" min="1" 
+                                    placeholder="e.g., 100">
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Maximum number of beneficiaries that can be accepted for this program.
+                                </small>
+                            </div>
+                            
+                            <!-- Target Income Range Toggle -->
+                            <div class="form-group">
+                                <label class="font-weight-bold">
+                                    <i class="fas fa-chart-line mr-2"></i>Income Range Filtering
+                                </label>
+                                <div class="custom-control custom-switch">
+                                    <input type="checkbox" class="custom-control-input" name="use_income_range" id="useIncomeRange">
+                                    <label class="custom-control-label" for="useIncomeRange">
+                                        Enable income range targeting for this program
+                                    </label>
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> When enabled, the program will target specific income ranges.
+                                </small>
+                            </div>
+                            
+                            <div class="form-group" id="incomeRangeGroup" style="display: none;">
+                                <label>Target Income Range</label>
+                                <select class="form-control" name="income_range">
+                                    <option value="">Select Income Range</option>
+                                    <option value="Below 10,000">Below ₱10,000</option>
+                                    <option value="10,000 - 15,000">₱10,000 - ₱15,000</option>
+                                    <option value="15,001 - 20,000">₱15,001 - ₱20,000</option>
+                                    <option value="20,001 - 30,000">₱20,001 - ₱30,000</option>
+                                    <option value="30,001 - 50,000">₱30,001 - ₱50,000</option>
+                                    <option value="Above 50,000">Above ₱50,000</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Monthly household income range targeted by this program.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Priority Groups (Target Beneficiaries)</label>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input" name="priority_group" value="Low Income Families" id="priority1">
+                                        <label class="custom-control-label" for="priority1">Low Income Families</label>
+                                    </div>
+
+<script>
+// Inline toggle functionality - runs immediately after elements are created
+(function() {
+    setTimeout(function() {
+        console.log('🎯 Setting up toggles...');
+        
+        // Beneficiary Limit Toggle
+        const beneficiaryToggle = document.getElementById('useBeneficiaryLimit');
+        const beneficiaryGroup = document.getElementById('beneficiaryLimitGroup');
+        
+        if (beneficiaryToggle && beneficiaryGroup) {
+            console.log('✅ Found beneficiary elements');
+            beneficiaryToggle.addEventListener('change', function() {
+                console.log('Toggle changed:', this.checked);
+                if (this.checked) {
+                    beneficiaryGroup.style.display = 'block';
+                    console.log('🟢 Showing beneficiary group');
+                } else {
+                    beneficiaryGroup.style.display = 'none';
+                    document.querySelector('input[name="beneficiary_limit"]').value = '';
+                    console.log('🔴 Hiding beneficiary group');
+                }
+            });
+        }
+        
+        // Income Range Toggle
+        const incomeToggle = document.getElementById('useIncomeRange');
+        const incomeGroup = document.getElementById('incomeRangeGroup');
+        
+        if (incomeToggle && incomeGroup) {
+            console.log('✅ Found income elements');
+            incomeToggle.addEventListener('change', function() {
+                console.log('Income toggle changed:', this.checked);
+                if (this.checked) {
+                    incomeGroup.style.display = 'block';
+                    console.log('🟢 Showing income group');
+                } else {
+                    incomeGroup.style.display = 'none';
+                    document.querySelector('select[name="income_range"]').value = '';
+                    console.log('🔴 Hiding income group');
+                }
+            });
+        }
+    }, 100);
+})();
+</script>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input" name="priority_group" value="Students" id="priority2">
+                                        <label class="custom-control-label" for="priority2">Students</label>
+                                    </div>                                    
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input" name="priority_group" value="Senior Citizens" id="priority4">
+                                        <label class="custom-control-label" for="priority4">Senior Citizens</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input" name="priority_group" value="Single Parents" id="priority5">
+                                        <label class="custom-control-label" for="priority5">Single Parents</label>
+                                    </div>
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input type="checkbox" class="custom-control-input" name="priority_group" value="Indigent Families" id="priority6">
+                                        <label class="custom-control-label" for="priority6">Indigent Families</label>
+                                    </div> 
+                                </div>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle"></i> Select one or more groups to restrict who can apply. Leave unchecked if the program is open to all profiles.
+                                </small>
+                        </div>
+                    </div>                                      
+                    
+                    <!-- Online Document Upload Toggle -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-cloud-upload-alt mr-2"></i>Online Document Submission
+                        </label>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" name="allow_online_upload" id="allowOnlineUpload" checked>
+                            <label class="custom-control-label" for="allowOnlineUpload">
+                                Enable online document upload for this program
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> When enabled, applicants can upload their documents online for pre-verification before visiting the MSWD office. When disabled, applicants will need to submit documents physically.
+                        </small>
+                    </div>
+                    
+                    <!-- Application Slip Toggle -->
+                    <div class="form-group">
+                        <label class="font-weight-bold">
+                            <i class="fas fa-print mr-2"></i>Application Slip Printing
+                        </label>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" name="enable_application_slip" id="enableApplicationSlip" checked>
+                            <label class="custom-control-label" for="enableApplicationSlip">
+                                Enable application slip printing for this program
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> When enabled, applicants and admins can print an official application slip as proof of submission. When disabled, this option will not be available.
+                        </small>
+                    </div>
+                    
+                        <div class="form-group">
+                            <label>Attachment (Optional)</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" name="attachment" id="programAttachment"
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                <label class="custom-file-label" for="programAttachment">Choose file...</label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Allowed: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+                            </small>
+                        </div>
+
+                        <div class="wizard-nav-actions">
+                            <small class="text-muted mb-0">Complete Step 1 before moving to requirements.</small>
+                            <button type="button" class="btn btn-step-primary" id="goToStep2Btn">
+                                Next: Program Requirements <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                        </div>
+
+                        <div class="wizard-step-pane" data-step-pane="2">
+                        <div class="step-helper">
+                            <i class="fas fa-lightbulb mr-1"></i>
+                            <strong>Step 2:</strong> Select required documents and qualifications. Add new ones if needed.
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="font-weight-bold mb-3">
+                                <i class="fas fa-clipboard-check mr-2"></i>Program Requirements
+                            </label>
+                            
+                            <!-- Document Requirements Section -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-primary">
+                                            <i class="fas fa-file-alt mr-2"></i>Document Requirements
+                                        </h6>
+                                        <small class="text-muted">Select documents that applicants need to submit</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleAddDocForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="requirements-search-wrap">
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            </div>
+                                            <input type="text"
+                                                   id="documentReqSearch"
+                                                   class="form-control"
+                                                   placeholder="Search document requirements..."
+                                                   autocomplete="off">
+                                        </div>
+                                    </div>
+
+                                    <!-- Add New Document Requirement Form -->
+                                    <div id="addDocForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Document Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="newDocName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="newDocDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddDocForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="addNewRequirement('document')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 350px;" id="documentReqsList">
+                                        {% if requirements %}
+                                            {% set document_reqs = requirements|selectattr('requirement_type', 'equalto', 'document')|list %}
+                                            {% if document_reqs %}
+                                                {% for req in document_reqs %}
+                                                <div class="requirement-item mb-3 pb-3 border-bottom">
+                                                    <div class="custom-control custom-checkbox mb-2">
+                                                        <input type="checkbox" class="custom-control-input doc-req-checkbox" 
+                                                               name="requirements" 
+                                                               value="{{ req.id }}" 
+                                                               id="addReq{{ req.id }}"
+                                                               onchange="toggleCopyFieldsAdd({{ req.id }}, this.checked)">
+                                                        <label class="custom-control-label" for="addReq{{ req.id }}">
+                                                            <strong>{{ req.requirement_name }}</strong>
+                                                            {% if req.description %}
+                                                                <br><small class="text-muted">{{ req.description }}</small>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="ml-4 copy-fields-add copy-fields-add-{{ req.id }}" style="display: none;" data-req-id="{{ req.id }}">
+                                                        <div class="card card-sm bg-light">
+                                                            <div class="card-header py-2 bg-white">
+                                                                <h6 class="mb-0 small font-weight-bold">Copy Requirements</h6>
+                                                                <small class="text-muted">Specify how many of each copy type are needed</small>
+                                                            </div>
+                                                            <div class="card-body py-2">
+                                                                <div class="copy-specs-list-{{ req.id }}">
+                                                                    <!-- Copy spec rows will be added here -->
+                                                                    <div class="copy-spec-row form-row align-items-end mb-2">
+                                                                        <div class="form-group col-md-5">
+                                                                            <label class="small font-weight-bold">Copy Type</label>
+                                                                            <select class="form-control form-control-sm copy-type-select" name="copy_type_{{ req.id }}[]" required>
+                                                                                <option value="">-- Select --</option>
+                                                                                <option value="original" selected>Original</option>
+                                                                                <option value="photocopy">Photocopy</option>
+                                                                                <option value="certified_true_copy">Certified True Copy</option>
+                                                                            </select>
+                                                                        </div>
+                                                                        <div class="form-group col-md-5">
+                                                                            <label class="small font-weight-bold">Number of Copies</label>
+                                                                            <input type="number" class="form-control form-control-sm copy-count-input" name="copy_count_{{ req.id }}[]" value="1" min="1" max="10" required>
+                                                                        </div>
+                                                                        <div class="form-group col-md-2">
+                                                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCopySpecRow(this)">
+                                                                                <i class="fas fa-trash"></i>
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <button type="button" class="btn btn-sm btn-outline-primary add-copy-spec-btn" data-req-id="{{ req.id }}" onclick="addCopySpecRow({{ req.id }})">
+                                                                    <i class="fas fa-plus mr-1"></i>Add Another Copy Type
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="text-center text-muted py-3">
+                                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                    <p class="mb-0">No document requirements available. Click "Add New" to create one.</p>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                <p class="mb-0">No requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Qualification Requirements Section -->
+                            <div class="card">
+                                <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0 text-success">
+                                            <i class="fas fa-user-check mr-2"></i>Qualification Requirements
+                                        </h6>
+                                        <small class="text-muted">Select qualifications that applicants must meet</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="toggleAddQualForm()">
+                                        <i class="fas fa-plus"></i> Add New
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="requirements-search-wrap">
+                                        <div class="input-group input-group-sm">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            </div>
+                                            <input type="text"
+                                                   id="qualificationReqSearch"
+                                                   class="form-control"
+                                                   placeholder="Search qualification requirements..."
+                                                   autocomplete="off">
+                                        </div>
+                                    </div>
+
+                                    <!-- Add New Qualification Requirement Form -->
+                                    <div id="addQualForm" class="add-req-form" style="display: none;">
+                                        <div class="border rounded p-3 mb-3 bg-light">
+                                            <h6 class="font-weight-bold mb-3">
+                                                <i class="fas fa-plus-circle mr-2"></i>Add New Qualification Requirement
+                                            </h6>
+                                            <div class="form-group mb-2">
+                                                <input type="text" class="form-control" id="newQualName" placeholder="Requirement Name *">
+                                            </div>
+                                            <div class="form-group mb-2">
+                                                <textarea class="form-control" id="newQualDesc" rows="2" placeholder="Description (optional)"></textarea>
+                                            </div>
+                                            <div class="text-right">
+                                                <button type="button" class="btn btn-sm btn-secondary" onclick="toggleAddQualForm()">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-success" onclick="addNewRequirement('qualification')">
+                                                    <i class="fas fa-plus"></i> Add Requirement
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="requirements-list" style="max-height: 250px;" id="qualificationReqsList">
+                                        {% if requirements %}
+                                            {% set qualification_reqs = requirements|selectattr('requirement_type', 'equalto', 'qualification')|list %}
+                                            {% if qualification_reqs %}
+                                                {% for req in qualification_reqs %}
+                                                <div class="requirement-item">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input req-checkbox" 
+                                                               name="requirements" 
+                                                               value="{{ req.id }}" 
+                                                               id="addReq{{ req.id }}">
+                                                        <label class="custom-control-label" for="addReq{{ req.id }}">
+                                                            <strong>{{ req.requirement_name }}</strong>
+                                                            {% if req.description %}
+                                                                <br><small class="text-muted">{{ req.description }}</small>
+                                                            {% endif %}
+                                                        </label>
+                                                    </div>
+                                                    <div class="ml-4 mt-1">
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="text-center text-muted py-3">
+                                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                    <p class="mb-0">No qualification requirements available. Click "Add New" to create one.</p>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                                <p class="mb-0">No requirements available. Click "Add New" to create one.</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="wizard-nav-actions">
+                            <button type="button" class="btn btn-step-soft" id="backToStep1Btn">
+                                <i class="fas fa-arrow-left mr-1"></i>Back to Program Information
+                            </button>
+                            <button type="button" class="btn btn-step-primary" id="goToStep3Btn">
+                                Next: Application Workflow <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                        </div>
+
+                        <div class="wizard-step-pane" data-step-pane="3">
+                        <div class="step-helper">
+                            <i class="fas fa-lightbulb mr-1"></i>
+                            <strong>Step 3:</strong> Set the application workflow. You can load a template to save time.
+                        </div>
+                        
+                        <!-- Workflow Steps Section -->
+                        <div class="form-group">
+                            <label class="font-weight-bold mb-3">
+                                <i class="fas fa-tasks mr-2"></i>Application Workflow Steps
+                            </label>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Define the steps applicants must complete. Steps marked as "Pre-Approval" must be completed before application approval.
+                                <br><small>You can load a template or add custom steps. Default steps will be added if none are specified.</small>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header bg-light py-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-0 text-primary">
+                                                <i class="fas fa-stream mr-2"></i>Workflow Steps
+                                            </h6>
+                                            <small class="text-muted">Add steps to define the application process</small>
+                                        </div>
+                                        <div>
+                                            <div class="btn-group mr-2">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                    <i class="fas fa-file-import mr-1"></i>Load Template
+                                                </button>
+                                                <div class="dropdown-menu dropdown-menu-right">
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('default'); return false;">
+                                                        <i class="fas fa-clipboard-list mr-2"></i>Standard Workflow
+                                                    </a>
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('online_upload'); return false;">
+                                                        <i class="fas fa-cloud-upload-alt mr-2"></i>Online Upload Workflow
+                                                    </a>
+                                                    <div class="dropdown-divider"></div>
+                                                    <a class="dropdown-item" href="#" onclick="applyWorkflowTemplate('ESA'); return false;">
+                                                        <i class="fas fa-home mr-2"></i>ESA Workflow
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addWorkflowStep()">
+                                                <i class="fas fa-plus"></i> Add Step
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div id="workflowStepsList">
+                                        <div class="text-center text-muted py-3" id="noStepsMessage">
+                                            <i class="fas fa-stream fa-2x mb-2"></i>
+                                            <p class="mb-0">No custom steps defined. Default steps will be added based on program type.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden input to store workflow steps data -->
+                            <input type="hidden" name="workflow_steps_json" id="workflowStepsJson" value="[]">
+                        </div>
+
+                        <div class="wizard-nav-actions">
+                            <button type="button" class="btn btn-step-soft" id="backToStep2Btn">
+                                <i class="fas fa-arrow-left mr-1"></i>Back to Requirements
+                            </button>
+                            <div>
+                            <a href="{{ url_for('admin.adm_programs') }}" class="btn btn-secondary">
+                                <i class="fas fa-times mr-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-step-primary">
+                                <i class="fas fa-save mr-1"></i>Create Program
+                            </button>
+                            </div>
+                        </div>
+                        </div>
+
+                        <div class="modal fade" id="workflowTemplateReplaceModal" tabindex="-1" role="dialog" aria-labelledby="workflowTemplateReplaceModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-light">
+                                        <h5 class="modal-title" id="workflowTemplateReplaceModalLabel">
+                                            <i class="fas fa-exclamation-triangle text-warning mr-2"></i>Replace Workflow Steps?
+                                        </h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelWorkflowTemplateReplacement()">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="mb-2">This will replace all current workflow steps.</p>
+                                        <div class="alert alert-warning py-2 mb-2">
+                                            <i class="fas fa-file-import mr-1"></i>
+                                            Selected template: <strong id="workflowTemplateModalName">Standard Workflow</strong>
+                                        </div>
+                                        <small class="text-muted">You can still edit or reorder steps after loading the template.</small>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelWorkflowTemplateReplacement()">Cancel</button>
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="confirmWorkflowTemplateReplacement()">
+                                            <i class="fas fa-check mr-1"></i>Yes, Replace Steps
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="createProgramConfirmModal" tabindex="-1" role="dialog" aria-labelledby="createProgramConfirmModalLabel" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-light">
+                                        <h5 class="modal-title" id="createProgramConfirmModalLabel">
+                                            <i class="fas fa-clipboard-check text-primary mr-2"></i>Confirm Program Creation
+                                        </h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="mb-2">Please review the summary below before creating the program.</p>
+                                        <div id="createProgramSummaryContent"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Back to Edit</button>
+                                        <button type="button" class="btn btn-step-primary" id="confirmCreateProgramBtn">
+                                            <i class="fas fa-check mr-1"></i>Yes, Create Program
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="selectedRequirementsModal" tabindex="-1" role="dialog" aria-labelledby="selectedRequirementsModalLabel" aria-hidden="true" data-backdrop="false">
+                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-light">
+                                        <h5 class="modal-title" id="selectedRequirementsModalLabel">
+                                            <i class="fas fa-list-check text-primary mr-2"></i>Included Requirements
+                                        </h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body" id="selectedRequirementsModalBody"></div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentWizardStep = 1;
+const ADD_PROGRAM_DRAFT_KEY = 'ayuda.add_program_draft_v1';
+let draggedWorkflowStepId = null;
+let pendingWorkflowTemplateType = null;
+let isCreateProgramSubmitConfirmed = false;
+let selectedRequirementsSnapshot = {
+    document: [],
+    qualification: []
+};
+const WORKFLOW_TEMPLATE_LABELS = {
+    default: 'Standard Workflow',
+    online_upload: 'Online Upload Workflow',
+    ESA: 'ESA Workflow',
+    CA: 'CA Workflow'
+};
+
+function getAddProgramForm() {
+    return document.getElementById('addProgramForm') || document.querySelector('form[action*="/programs/add"]') || document.querySelector('form');
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatDateSummary(dateValue) {
+    if (!dateValue) {
+        return 'Not set';
+    }
+
+    const parsed = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+        return dateValue;
+    }
+
+    return parsed.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function formatCopyTypeLabel(copyType) {
+    const value = String(copyType || '').replace(/_/g, ' ').trim();
+    if (!value) {
+        return 'Unspecified copy type';
+    }
+
+    return value.replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function collectCopySpecsForRequirement(reqId, form) {
+    const specs = [];
+    const rows = form.querySelectorAll(`.copy-specs-list-${reqId} .copy-spec-row`);
+
+    rows.forEach((row) => {
+        const typeSelect = row.querySelector(`select[name="copy_type_${reqId}[]"]`);
+        const countInput = row.querySelector(`input[name="copy_count_${reqId}[]"]`);
+        const typeValue = typeSelect ? String(typeSelect.value || '').trim() : '';
+        const countValue = countInput ? parseInt(countInput.value, 10) : NaN;
+
+        if (typeValue) {
+            specs.push({
+                type: typeValue,
+                count: Number.isNaN(countValue) || countValue < 1 ? 1 : countValue
+            });
+        }
+    });
+
+    if (specs.length > 0) {
+        return specs;
+    }
+
+    const legacyTypeSelect = form.querySelector(`#copyType${reqId}`) || form.querySelector(`[name="copy_type_${reqId}"]`);
+    const legacyCountInput = form.querySelector(`#copies${reqId}`) || form.querySelector(`[name="copies_${reqId}"]`);
+
+    if (legacyTypeSelect || legacyCountInput) {
+        const legacyTypeValue = legacyTypeSelect ? String(legacyTypeSelect.value || '').trim() : '';
+        const legacyCountValue = legacyCountInput ? parseInt(legacyCountInput.value, 10) : NaN;
+
+        return [{
+            type: legacyTypeValue || 'original',
+            count: Number.isNaN(legacyCountValue) || legacyCountValue < 1 ? 1 : legacyCountValue
+        }];
+    }
+
+    return [];
+}
+
+function renderSelectedRequirementsOverlayContent() {
+    const container = document.getElementById('selectedRequirementsModalBody');
+    if (!container) {
+        return;
+    }
+
+    const docItems = Array.isArray(selectedRequirementsSnapshot.document) ? selectedRequirementsSnapshot.document : [];
+    const qualItems = Array.isArray(selectedRequirementsSnapshot.qualification) ? selectedRequirementsSnapshot.qualification : [];
+
+    const docHtml = docItems.length > 0
+        ? `<ol class="requirements-summary-list">${docItems.map((item) => {
+            const name = typeof item === 'string' ? item : (item && item.name ? item.name : 'Unnamed document requirement');
+            const copySpecs = item && Array.isArray(item.copySpecs) ? item.copySpecs : [];
+            const copySpecsText = copySpecs.length > 0
+                ? copySpecs.map((spec) => `${spec.count} ${formatCopyTypeLabel(spec.type)}`).join(', ')
+                : 'Not specified';
+            return `<li><strong>${escapeHtml(name)}</strong><br><small class="text-muted">${escapeHtml(copySpecsText)}</small></li>`;
+        }).join('')}</ol>`
+        : '<p class="text-muted mb-0">No document requirements selected.</p>';
+
+    const qualHtml = qualItems.length > 0
+        ? `<ol class="requirements-summary-list">${qualItems.map((name) => `<li>${escapeHtml(name)}</li>`).join('')}</ol>`
+        : '<p class="text-muted mb-0">No qualification requirements selected.</p>';
+
+    container.innerHTML = `
+        <div class="mb-3">
+            <h6 class="font-weight-bold text-primary mb-2">Document Requirements (${docItems.length})</h6>
+            ${docHtml}
+        </div>
+        <div>
+            <h6 class="font-weight-bold text-success mb-2">Qualification Requirements (${qualItems.length})</h6>
+            ${qualHtml}
+        </div>
+    `;
+}
+
+function showSelectedRequirementsModal() {
+    renderSelectedRequirementsOverlayContent();
+
+    if (typeof $ === 'function' && $('#selectedRequirementsModal').length) {
+        $('#selectedRequirementsModal').modal('show');
+    }
+}
+
+function validateBeforeCreateSubmit() {
+    const form = getAddProgramForm();
+    if (!form) {
+        return false;
+    }
+
+    const requiredFields = [
+        { name: 'program_name', label: 'Program Name', step: 1 },
+        { name: 'description', label: 'Description', step: 1 },
+        { name: 'program_type', label: 'Program Type', step: 1 },
+        { name: 'program_period', label: 'Program Period', step: 1 }
+    ];
+
+    for (const fieldConfig of requiredFields) {
+        const field = form.querySelector(`[name="${fieldConfig.name}"]`);
+        if (field && !String(field.value || '').trim()) {
+            setWizardStep(fieldConfig.step);
+            if (typeof showToast === 'function') {
+                showToast(`Please complete ${fieldConfig.label} before creating the program.`, 'warning');
+            }
+            field.focus();
+            return false;
+        }
+    }
+
+    const selectedRequirements = form.querySelectorAll('input[name="requirements"]:checked').length;
+    if (selectedRequirements === 0) {
+        setWizardStep(2);
+        if (typeof showToast === 'function') {
+            showToast('Please select at least one requirement before creating the program.', 'warning');
+        }
+        const firstRequirement = form.querySelector('input[name="requirements"]');
+        if (firstRequirement) {
+            firstRequirement.focus();
+        }
+        return false;
+    }
+
+    const invalidWorkflowStep = workflowSteps.find((step) => !String(step.step_name || '').trim());
+    if (invalidWorkflowStep) {
+        setWizardStep(3);
+        if (typeof showToast === 'function') {
+            showToast('Please provide a step name for each workflow step before creating the program.', 'warning');
+        }
+        return false;
+    }
+
+    return true;
+}
+
+function renderCreateProgramSummary() {
+    const form = getAddProgramForm();
+    const summaryContainer = document.getElementById('createProgramSummaryContent');
+    if (!form || !summaryContainer) {
+        return;
+    }
+
+    const valueOf = (name) => {
+        const input = form.querySelector(`[name="${name}"]`);
+        return input ? String(input.value || '').trim() : '';
+    };
+
+    const checkedValues = (name) => Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => String(el.value || '').trim());
+    const enabledBadge = (enabled) => enabled
+        ? '<span class="badge badge-success">Enabled</span>'
+        : '<span class="badge badge-secondary">Disabled</span>';
+
+    const selectedRequirements = Array.from(form.querySelectorAll('input[name="requirements"]:checked'));
+    const documentRequirementsCount = selectedRequirements.filter((el) => el.classList.contains('doc-req-checkbox')).length;
+    const qualificationRequirementsCount = selectedRequirements.length - documentRequirementsCount;
+
+    const documentRequirementNames = [];
+    const qualificationRequirementNames = [];
+
+    selectedRequirements.forEach((inputEl) => {
+        const labelStrong = form.querySelector(`label[for="${inputEl.id}"] strong`);
+        const fallbackLabel = form.querySelector(`label[for="${inputEl.id}"]`);
+        const requirementName = (labelStrong ? labelStrong.textContent : (fallbackLabel ? fallbackLabel.textContent : '')).trim();
+        const reqId = String(inputEl.value || '').trim();
+
+        if (inputEl.classList.contains('doc-req-checkbox')) {
+            documentRequirementNames.push({
+                name: requirementName || 'Unnamed document requirement',
+                copySpecs: collectCopySpecsForRequirement(reqId, form)
+            });
+        } else {
+            qualificationRequirementNames.push(requirementName || 'Unnamed qualification requirement');
+        }
+    });
+
+    selectedRequirementsSnapshot = {
+        document: documentRequirementNames,
+        qualification: qualificationRequirementNames
+    };
+
+    const workflowStepsPreview = Array.isArray(workflowSteps) ? [...workflowSteps] : [];
+    workflowStepsPreview.sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
+
+    const workflowHtml = workflowStepsPreview.length > 0
+        ? workflowStepsPreview.map((step) => {
+            const stepName = String(step.step_name || '').trim() || stepTypes[step.step_type]?.label || 'Unnamed Step';
+            return `<li>${escapeHtml(stepName)}</li>`;
+        }).join('')
+        : '<li>No custom workflow steps selected. Default workflow will be auto-generated.</li>';
+
+    const description = valueOf('description');
+    const descriptionPreview = description.length > 220 ? `${description.slice(0, 220)}...` : (description || 'No description provided');
+
+    const priorityGroups = checkedValues('priority_group');
+    const startDate = valueOf('start_date');
+    const endDate = valueOf('end_date');
+    const attachmentField = form.querySelector('#programAttachment');
+    const attachmentName = attachmentField && attachmentField.files && attachmentField.files[0]
+        ? attachmentField.files[0].name
+        : 'No attachment';
+
+    summaryContainer.innerHTML = `
+        <div class="create-summary-section-title">Program Information</div>
+        <div class="create-summary-grid">
+            <div class="create-summary-item"><span class="summary-label">Program Name</span><span class="summary-value">${escapeHtml(valueOf('program_name') || 'Not set')}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Program Type</span><span class="summary-value">${escapeHtml(valueOf('program_type') || 'Not set')}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Program Period</span><span class="summary-value">${escapeHtml(valueOf('program_period') || 'Not set')}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Attachment</span><span class="summary-value">${escapeHtml(attachmentName)}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Start Date</span><span class="summary-value">${escapeHtml(formatDateSummary(startDate))}</span></div>
+            <div class="create-summary-item"><span class="summary-label">End Date / Deadline</span><span class="summary-value">${escapeHtml(formatDateSummary(endDate))}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Beneficiary Limit</span><span class="summary-value">${form.querySelector('#useBeneficiaryLimit')?.checked ? escapeHtml(valueOf('beneficiary_limit') || 'Enabled (no value set)') : 'Disabled'}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Income Range Filter</span><span class="summary-value">${form.querySelector('#useIncomeRange')?.checked ? escapeHtml(valueOf('income_range') || 'Enabled (no range selected)') : 'Disabled'}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Online Document Submission</span><span class="summary-value">${enabledBadge(!!form.querySelector('#allowOnlineUpload')?.checked)}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Application Slip Printing</span><span class="summary-value">${enabledBadge(!!form.querySelector('#enableApplicationSlip')?.checked)}</span></div>
+        </div>
+
+        <div class="create-summary-divider"></div>
+
+        <div class="create-summary-section-title">Description</div>
+        <div class="create-summary-item mb-2">
+            <span class="summary-value">${escapeHtml(descriptionPreview)}</span>
+        </div>
+
+        <div class="create-summary-section-title">Requirements and Workflow</div>
+        <div class="create-summary-grid mb-2">
+            <div class="create-summary-item"><span class="summary-label">Priority Groups</span><span class="summary-value">${priorityGroups.length ? escapeHtml(priorityGroups.join(', ')) : 'Open to all profiles'}</span></div>
+            <div class="create-summary-item"><span class="summary-label">Selected Requirements</span><span class="summary-value"><button type="button" class="create-summary-link" onclick="showSelectedRequirementsModal()">${selectedRequirements.length} total (${documentRequirementsCount} document, ${qualificationRequirementsCount} qualification) <i class="fas fa-external-link-alt ml-1"></i></button></span></div>
+        </div>
+        <div class="create-summary-item">
+            <span class="summary-label">Workflow Steps</span>
+            <ol class="create-summary-workflow">${workflowHtml}</ol>
+        </div>
+    `;
+}
+
+function saveDraftData() {
+    const form = getAddProgramForm();
+    if (!form) {
+        return;
+    }
+
+    const fields = {};
+    const elements = form.querySelectorAll('input[name], select[name], textarea[name]');
+
+    elements.forEach((el) => {
+        const name = el.name;
+        if (!name || el.type === 'file') {
+            return;
+        }
+
+        if (el.type === 'radio') {
+            if (el.checked) {
+                fields[name] = el.value;
+            }
+            return;
+        }
+
+        if (el.type === 'checkbox') {
+            if (!Object.prototype.hasOwnProperty.call(fields, name)) {
+                fields[name] = [];
+            }
+            if (el.checked) {
+                fields[name].push(el.value || 'on');
+            }
+            return;
+        }
+
+        if (name.endsWith('[]')) {
+            if (!Array.isArray(fields[name])) {
+                fields[name] = [];
+            }
+            fields[name].push(el.value);
+            return;
+        }
+
+        fields[name] = el.value;
+    });
+
+    const draft = {
+        fields: fields,
+        workflowSteps: Array.isArray(workflowSteps) ? workflowSteps : []
+    };
+
+    localStorage.setItem(ADD_PROGRAM_DRAFT_KEY, JSON.stringify(draft));
+}
+
+function restoreDraftData() {
+    const form = getAddProgramForm();
+    if (!form) {
+        return;
+    }
+
+    const rawDraft = localStorage.getItem(ADD_PROGRAM_DRAFT_KEY);
+    if (!rawDraft) {
+        return;
+    }
+
+    let draft;
+    try {
+        draft = JSON.parse(rawDraft);
+    } catch (error) {
+        return;
+    }
+
+    if (!draft || typeof draft !== 'object') {
+        return;
+    }
+
+    const fields = draft.fields || {};
+    const repeatedIndexes = {};
+    const elements = form.querySelectorAll('input[name], select[name], textarea[name]');
+
+    elements.forEach((el) => {
+        const name = el.name;
+        if (!name || el.type === 'file') {
+            return;
+        }
+
+        const savedValue = fields[name];
+
+        if (el.type === 'radio') {
+            if (typeof savedValue !== 'undefined') {
+                el.checked = String(savedValue) === String(el.value);
+            }
+            return;
+        }
+
+        if (el.type === 'checkbox') {
+            const selectedValues = Array.isArray(savedValue) ? savedValue.map(String) : [];
+            el.checked = selectedValues.includes(String(el.value || 'on'));
+            return;
+        }
+
+        if (name.endsWith('[]') && Array.isArray(savedValue)) {
+            const idx = repeatedIndexes[name] || 0;
+            el.value = typeof savedValue[idx] === 'undefined' ? '' : savedValue[idx];
+            repeatedIndexes[name] = idx + 1;
+            return;
+        }
+
+        if (typeof savedValue !== 'undefined') {
+            el.value = savedValue;
+        }
+    });
+
+    ['programPeriod', 'useBeneficiaryLimit', 'useIncomeRange'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    if (Array.isArray(draft.workflowSteps) && draft.workflowSteps.length > 0) {
+        workflowSteps = draft.workflowSteps.map((step, index) => ({
+            id: step.id || Date.now() + index + 1,
+            step_order: index + 1,
+            step_name: step.step_name || '',
+            step_description: step.step_description || '',
+            step_type: step.step_type || 'approval',
+            is_pre_approval: !!step.is_pre_approval,
+            requires_verification: typeof step.requires_verification === 'boolean' ? step.requires_verification : true,
+            min_items: step.min_items || 1,
+            allowed_file_types: step.allowed_file_types || '',
+            step_config: step.step_config || null
+        }));
+        renderWorkflowSteps();
+    }
+
+    applyRequirementSearchFilters();
+}
+
+function initializeDraftPersistence() {
+    const form = getAddProgramForm();
+    if (!form) {
+        return;
+    }
+
+    let draftSaveTimeout;
+    const scheduleDraftSave = () => {
+        clearTimeout(draftSaveTimeout);
+        draftSaveTimeout = setTimeout(saveDraftData, 120);
+    };
+
+    form.addEventListener('input', scheduleDraftSave);
+    form.addEventListener('change', scheduleDraftSave);
+    window.addEventListener('beforeunload', saveDraftData);
+}
+
+function setWizardStep(step) {
+    const panes = document.querySelectorAll('[data-step-pane]');
+    const chips = document.querySelectorAll('.wizard-step-chip');
+
+    panes.forEach((pane) => {
+        const paneStep = parseInt(pane.getAttribute('data-step-pane'), 10);
+        pane.classList.toggle('active', paneStep === step);
+    });
+
+    chips.forEach((chip) => {
+        const chipStep = parseInt(chip.getAttribute('data-step'), 10);
+        chip.classList.toggle('active', chipStep === step);
+        chip.classList.toggle('completed', chipStep < step);
+    });
+
+    currentWizardStep = step;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function validateStepFields(step) {
+    const pane = document.querySelector(`[data-step-pane="${step}"]`);
+    if (!pane) {
+        return true;
+    }
+
+    const requiredFields = Array.from(
+        pane.querySelectorAll('input[required], select[required], textarea[required]')
+    ).filter((field) => !field.disabled && field.offsetParent !== null);
+
+    for (const field of requiredFields) {
+        const fieldType = (field.type || '').toLowerCase();
+        const isTextLike = field.tagName === 'TEXTAREA' || (field.tagName === 'INPUT' && !['checkbox', 'radio', 'file'].includes(fieldType));
+
+        if (isTextLike && !String(field.value || '').trim()) {
+            const label = pane.querySelector(`label[for="${field.id}"]`);
+            const fieldName = label ? label.textContent.replace('*', '').trim() : 'the required field';
+            if (typeof showToast === 'function') {
+                showToast(`Please complete ${fieldName} before proceeding.`, 'warning');
+            }
+            field.focus();
+            if (typeof field.reportValidity === 'function') {
+                field.reportValidity();
+            }
+            return false;
+        }
+
+        if (typeof field.checkValidity === 'function' && !field.checkValidity()) {
+            field.reportValidity();
+            field.focus();
+            return false;
+        }
+    }
+
+    if (step === 2) {
+        const selectedRequirements = pane.querySelectorAll('input[name="requirements"]:checked').length;
+        if (selectedRequirements === 0) {
+            if (typeof showToast === 'function') {
+                showToast('Please select at least one requirement before proceeding.', 'warning');
+            } else {
+                alert('Please select at least one requirement before proceeding.');
+            }
+
+            const firstRequirement = pane.querySelector('input[name="requirements"]');
+            if (firstRequirement) {
+                firstRequirement.focus();
+            }
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function filterRequirementList(listId, query) {
+    const list = document.getElementById(listId);
+    if (!list) {
+        return;
+    }
+
+    const keyword = String(query || '').toLowerCase().trim();
+    const items = Array.from(list.querySelectorAll('.requirement-item'));
+    let visibleCount = 0;
+
+    items.forEach((item) => {
+        const nameElement = item.querySelector('strong');
+        const nameText = (nameElement ? nameElement.textContent : '').toLowerCase().trim();
+        const isVisible = !keyword || nameText.includes(keyword);
+        item.style.display = isVisible ? '' : 'none';
+        if (isVisible) {
+            visibleCount += 1;
+        }
+    });
+
+    let noMatch = list.querySelector('.requirement-search-no-match');
+    if (!noMatch) {
+        noMatch = document.createElement('div');
+        noMatch.className = 'requirement-search-no-match d-none';
+        noMatch.innerHTML = '<i class="fas fa-search mr-1"></i>No matching requirements found';
+        list.appendChild(noMatch);
+    }
+
+    const showNoMatch = items.length > 0 && visibleCount === 0;
+    noMatch.classList.toggle('d-none', !showNoMatch);
+}
+
+function applyRequirementSearchFilters() {
+    const docInput = document.getElementById('documentReqSearch');
+    const qualInput = document.getElementById('qualificationReqSearch');
+
+    filterRequirementList('documentReqsList', docInput ? docInput.value : '');
+    filterRequirementList('qualificationReqsList', qualInput ? qualInput.value : '');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const toStep2Btn = document.getElementById('goToStep2Btn');
+    const toStep3Btn = document.getElementById('goToStep3Btn');
+    const backToStep1Btn = document.getElementById('backToStep1Btn');
+    const backToStep2Btn = document.getElementById('backToStep2Btn');
+    const documentReqSearch = document.getElementById('documentReqSearch');
+    const qualificationReqSearch = document.getElementById('qualificationReqSearch');
+    const addProgramForm = getAddProgramForm();
+    const confirmCreateProgramBtn = document.getElementById('confirmCreateProgramBtn');
+
+    if (toStep2Btn) {
+        toStep2Btn.addEventListener('click', function() {
+            if (!validateStepFields(1)) {
+                return;
+            }
+            setWizardStep(2);
+        });
+    }
+
+    if (toStep3Btn) {
+        toStep3Btn.addEventListener('click', function() {
+            if (!validateStepFields(2)) {
+                return;
+            }
+            setWizardStep(3);
+        });
+    }
+
+    if (backToStep1Btn) {
+        backToStep1Btn.addEventListener('click', function() {
+            setWizardStep(1);
+        });
+    }
+
+    if (backToStep2Btn) {
+        backToStep2Btn.addEventListener('click', function() {
+            setWizardStep(2);
+        });
+    }
+
+    document.querySelectorAll('.wizard-step-chip').forEach((chip) => {
+        chip.addEventListener('click', function() {
+            const targetStep = parseInt(chip.getAttribute('data-step'), 10);
+
+            if (targetStep > currentWizardStep) {
+                for (let step = currentWizardStep; step < targetStep; step += 1) {
+                    if (!validateStepFields(step)) {
+                        return;
+                    }
+                }
+            }
+
+            setWizardStep(targetStep);
+        });
+    });
+
+    if (documentReqSearch) {
+        documentReqSearch.addEventListener('input', function() {
+            filterRequirementList('documentReqsList', documentReqSearch.value);
+        });
+    }
+
+    if (qualificationReqSearch) {
+        qualificationReqSearch.addEventListener('input', function() {
+            filterRequirementList('qualificationReqsList', qualificationReqSearch.value);
+        });
+    }
+
+    applyRequirementSearchFilters();
+    restoreDraftData();
+    initializeDraftPersistence();
+
+    if (addProgramForm && confirmCreateProgramBtn) {
+        addProgramForm.addEventListener('submit', function(e) {
+            if (isCreateProgramSubmitConfirmed) {
+                return;
+            }
+
+            e.preventDefault();
+
+            if (!validateBeforeCreateSubmit()) {
+                return;
+            }
+
+            if (typeof collectCopySpecs === 'function') {
+                collectCopySpecs(addProgramForm);
+            }
+
+            if (typeof updateWorkflowStepsJson === 'function') {
+                updateWorkflowStepsJson();
+            }
+
+            renderCreateProgramSummary();
+
+            if (typeof $ === 'function' && $('#createProgramConfirmModal').length) {
+                $('#createProgramConfirmModal').modal('show');
+                return;
+            }
+
+            if (window.confirm('Create this program now?')) {
+                isCreateProgramSubmitConfirmed = true;
+                addProgramForm.submit();
+            }
+        });
+
+        confirmCreateProgramBtn.addEventListener('click', function() {
+            if (confirmCreateProgramBtn.disabled) {
+                return;
+            }
+
+            confirmCreateProgramBtn.disabled = true;
+            confirmCreateProgramBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Creating...';
+
+            if (typeof collectCopySpecs === 'function') {
+                collectCopySpecs(addProgramForm);
+            }
+
+            if (typeof updateWorkflowStepsJson === 'function') {
+                updateWorkflowStepsJson();
+            }
+
+            isCreateProgramSubmitConfirmed = true;
+
+            if (typeof $ === 'function' && $('#createProgramConfirmModal').length) {
+                $('#createProgramConfirmModal').modal('hide');
+            }
+
+            addProgramForm.submit();
+        });
+
+        if (typeof $ === 'function' && $('#createProgramConfirmModal').length) {
+            $('#createProgramConfirmModal').on('hidden.bs.modal', function() {
+                if (isCreateProgramSubmitConfirmed) {
+                    return;
+                }
+                confirmCreateProgramBtn.disabled = false;
+                confirmCreateProgramBtn.innerHTML = '<i class="fas fa-check mr-1"></i>Yes, Create Program';
+            });
+        }
+
+        if (typeof $ === 'function' && $('#selectedRequirementsModal').length) {
+            $('#selectedRequirementsModal').on('hidden.bs.modal', function() {
+                if ($('#createProgramConfirmModal').hasClass('show')) {
+                    $('body').addClass('modal-open');
+                }
+            });
+        }
+    }
+
+    setWizardStep(1);
+});
+
+$(document).ready(function() {
+    console.log('🎯 Initializing toggle functionality...');
+    
+    // Beneficiary Limit Toggle
+    const beneficiaryToggle = $('#useBeneficiaryLimit');
+    const beneficiaryGroup = $('#beneficiaryLimitGroup');
+    
+    if (beneficiaryToggle.length && beneficiaryGroup.length) {
+        console.log('✅ Beneficiary toggle elements found');
+        
+        // Initial state check
+        if (beneficiaryToggle.is(':checked')) {
+            beneficiaryGroup.show();
+        }
+        
+        beneficiaryToggle.on('change', function() {
+            console.log('🔄 Beneficiary toggle changed:', this.checked);
+            if (this.checked) {
+                beneficiaryGroup.slideDown(200);
+                console.log('👁️ Showing beneficiary group');
+            } else {
+                beneficiaryGroup.slideUp(200);
+                // Clear the input when disabled
+                $('input[name="beneficiary_limit"]').val('');
+                console.log('🙈 Hiding beneficiary group');
+            }
+        });
+    } else {
+        console.error('❌ Beneficiary toggle elements not found');
+        console.log('Toggle element:', beneficiaryToggle.length);
+        console.log('Group element:', beneficiaryGroup.length);
+    }
+    
+    // Income Range Toggle
+    const incomeToggle = $('#useIncomeRange');
+    const incomeGroup = $('#incomeRangeGroup');
+    
+    if (incomeToggle.length && incomeGroup.length) {
+        console.log('✅ Income toggle elements found');
+        
+        // Initial state check
+        if (incomeToggle.is(':checked')) {
+            incomeGroup.show();
+        }
+        
+        incomeToggle.on('change', function() {
+            console.log('🔄 Income toggle changed:', this.checked);
+            if (this.checked) {
+                incomeGroup.slideDown(200);
+                console.log('👁️ Showing income group');
+            } else {
+                incomeGroup.slideUp(200);
+                // Reset the select when disabled
+                $('select[name="income_range"]').val('');
+                console.log('🙈 Hiding income group');
+            }
+        });
+    } else {
+        console.error('❌ Income toggle elements not found');
+        console.log('Toggle element:', incomeToggle.length);
+        console.log('Group element:', incomeGroup.length);
+    }
+    
+    console.log('🎉 Toggle functionality initialization complete!');
+});
+    
+    // Toggle Add Document Form
+    function toggleAddDocForm() {
+        const form = document.getElementById('addDocForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('newDocName').focus();
+        }
+    }
+    
+    // Toggle Add Qualification Form
+    function toggleAddQualForm() {
+        const form = document.getElementById('addQualForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            document.getElementById('newQualName').focus();
+        }
+    }
+    
+    // Add New Requirement via AJAX
+    function addNewRequirement(type) {
+        const nameField = type === 'document' ? 'newDocName' : 'newQualName';
+        const descField = type === 'document' ? 'newDocDesc' : 'newQualDesc';
+        const listId = type === 'document' ? 'documentReqsList' : 'qualificationReqsList';
+        
+        const name = document.getElementById(nameField).value.trim();
+        const description = document.getElementById(descField).value.trim();
+        
+        if (!name) {
+            alert('Requirement name is required!');
+            document.getElementById(nameField).focus();
+            return;
+        }
+        
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Adding...';
+        
+        fetch('{{ url_for("admin.add_requirement_ajax") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                requirement_name: name,
+                requirement_type: type,
+                description: description
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const list = document.getElementById(listId);
+                const emptyMsg = list.querySelector('.text-center.text-muted');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+                
+                const reqItem = document.createElement('div');
+                reqItem.className = 'requirement-item';
+                
+                let copyFieldsHtml = '';
+                if (type === 'document') {
+                    copyFieldsHtml = `
+                        <div class="ml-4 copy-fields-add copy-fields-add-${data.requirement.id}" style="display: none;" data-req-id="${data.requirement.id}">
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label for="copies${data.requirement.id}" class="small font-weight-bold">Number of Copies</label>
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="decrementCopies(${data.requirement.id})">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                        </div>
+                                        <input type="number" class="form-control form-control-sm text-center" id="copies${data.requirement.id}" name="copies_${data.requirement.id}" value="1" min="1" max="10">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="incrementCopies(${data.requirement.id})">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="copyType${data.requirement.id}" class="small font-weight-bold">Copy Type</label>
+                                    <select class="form-control form-control-sm" id="copyType${data.requirement.id}" name="copy_type_${data.requirement.id}">
+                                        <option value="original" selected>Original</option>
+                                        <option value="photocopy">Photocopy</option>
+                                        <option value="certified_true_copy">Certified True Copy</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                reqItem.innerHTML = `
+                    <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input req-checkbox doc-req-checkbox" 
+                               name="requirements" 
+                               value="${data.requirement.id}" 
+                               id="addReq${data.requirement.id}"
+                               onchange="toggleCopyFieldsAdd(${data.requirement.id}, this.checked)">
+                        <label class="custom-control-label" for="addReq${data.requirement.id}">
+                            <strong>${data.requirement.name}</strong>
+                            ${description ? '<br><small class="text-muted">' + description + '</small>' : ''}
+                        </label>
+                    </div>
+                    ${copyFieldsHtml}
+                `;
+                
+                list.appendChild(reqItem);
+                setupRequirementCheckbox(data.requirement.id);
+                applyRequirementSearchFilters();
+                
+                document.getElementById(nameField).value = '';
+                document.getElementById(descField).value = '';
+                if (type === 'document') {
+                    toggleAddDocForm();
+                } else {
+                    toggleAddQualForm();
+                }
+                
+                showToast('Success! Requirement added.', 'success');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the requirement.');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+    
+    function showToast(message, type = 'info') {
+        let toastContainer = document.getElementById('ayudaToastStackContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'ayudaToastStackContainer';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; width: min(92vw, 400px); pointer-events: none;';
+            document.body.appendChild(toastContainer);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show mb-0`;
+        toast.style.cssText = 'width: 400px; max-width: calc(100vw - 1rem); box-shadow: 0 8px 20px rgba(0,0,0,0.18); pointer-events: auto;';
+        toast.innerHTML = `
+            <i class="fas fa-check-circle mr-2"></i>${message}
+            <button type="button" class="close" onclick="this.parentElement.remove()">
+                <span>&times;</span>
+            </button>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
+    document.querySelectorAll('.custom-file-input').forEach(input => {
+        input.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            const label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+    
+    // Date validation
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const programPeriodSelect = document.getElementById('programPeriod');
+
+    // Highlight duration fields for one-time programs
+    if (programPeriodSelect && startDateInput && endDateInput) {
+        programPeriodSelect.addEventListener('change', function() {
+            const durationRow = startDateInput.closest('.row');
+            if (!durationRow) {
+                return;
+            }
+
+            if (this.value === 'One-time') {
+                durationRow.classList.add('border', 'border-warning', 'rounded', 'p-2', 'bg-light');
+                endDateInput.closest('.form-group').querySelector('label').innerHTML =
+                    'Program End Date / Deadline <span class="badge badge-warning">Recommended</span>';
+            } else {
+                durationRow.classList.remove('border', 'border-warning', 'rounded', 'p-2', 'bg-light');
+                endDateInput.closest('.form-group').querySelector('label').innerHTML =
+                    'Program End Date / Deadline';
+            }
+        });
+    }
+    
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    startDateInput.setAttribute('min', today);
+    
+    // Validate end date is after start date
+    startDateInput.addEventListener('change', function() {
+        if (this.value) {
+            endDateInput.setAttribute('min', this.value);
+            if (endDateInput.value && endDateInput.value < this.value) {
+                endDateInput.value = '';
+                alert('End date must be after start date');
+            }
+        }
+    });
+    
+    endDateInput.addEventListener('change', function() {
+        if (startDateInput.value && this.value && this.value < startDateInput.value) {
+            this.value = '';
+            alert('End date must be after start date');
+        }
+    });
+    
+    // ===================================
+    // WORKFLOW STEPS MANAGEMENT
+    // ===================================
+    
+    let workflowSteps = [];
+    
+    const stepTypes = {
+        'photo_upload': { label: 'Photo Upload', icon: 'fas fa-camera', color: 'info' },
+        'document_upload': { label: 'Document Upload', icon: 'fas fa-file-upload', color: 'primary' },
+        'approval': { label: 'Admin Approval', icon: 'fas fa-check-circle', color: 'success' },
+        'document_submission': { label: 'Physical Submission', icon: 'fas fa-building', color: 'secondary' },
+        'assessment': { label: 'Assessment / SCSR', icon: 'fas fa-clipboard-list', color: 'purple' },
+        'scheduling': { label: 'Scheduling', icon: 'fas fa-calendar-alt', color: 'dark' }
+    };
+    
+    function addWorkflowStep() {
+        const stepOrder = workflowSteps.length + 1;
+        const newStep = {
+            id: Date.now(),
+            step_order: stepOrder,
+            step_name: '',
+            step_description: '',
+            step_type: 'approval',
+            is_pre_approval: false,
+            requires_verification: true,
+            min_items: 1,
+            allowed_file_types: '',
+            step_config: null
+        };
+        workflowSteps.push(newStep);
+        renderWorkflowSteps();
+    }
+    
+    function removeWorkflowStep(stepId) {
+        workflowSteps = workflowSteps.filter(s => s.id !== stepId);
+        // Reorder steps
+        workflowSteps.forEach((s, index) => s.step_order = index + 1);
+        renderWorkflowSteps();
+    }
+    
+    function updateWorkflowStep(stepId, field, value) {
+        const step = workflowSteps.find(s => s.id === stepId);
+        if (step) {
+            hideWorkflowTooltips();
+            step[field] = value;
+            updateWorkflowStepsJson();
+        }
+    }
+
+    function initializeWorkflowTooltips() {
+        if (typeof $ === 'undefined' || typeof $.fn.tooltip !== 'function') {
+            return;
+        }
+
+        const $tooltipTargets = $('#workflowStepsList [data-toggle="tooltip"]');
+        $tooltipTargets.tooltip('dispose');
+        $tooltipTargets.tooltip({
+            container: 'body',
+            trigger: 'hover'
+        });
+    }
+
+    function hideWorkflowTooltips() {
+        if (typeof $ === 'undefined' || typeof $.fn.tooltip !== 'function') {
+            return;
+        }
+
+        $('#workflowStepsList [data-toggle="tooltip"]').tooltip('hide');
+        $('.tooltip').remove();
+    }
+    
+    function updateWorkflowStepsJson() {
+        document.getElementById('workflowStepsJson').value = JSON.stringify(workflowSteps);
+        saveDraftData();
+    }
+
+    function reorderWorkflowSteps(sourceStepId, targetStepId) {
+        const sourceIndex = workflowSteps.findIndex(step => step.id === sourceStepId);
+        const targetIndex = workflowSteps.findIndex(step => step.id === targetStepId);
+
+        if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+            return;
+        }
+
+        const moved = workflowSteps.splice(sourceIndex, 1)[0];
+        workflowSteps.splice(targetIndex, 0, moved);
+        workflowSteps.forEach((step, index) => {
+            step.step_order = index + 1;
+        });
+
+        renderWorkflowSteps();
+    }
+
+    function initWorkflowDragAndDrop() {
+        const container = document.getElementById('workflowStepsList');
+        if (!container) {
+            return;
+        }
+
+        const cards = container.querySelectorAll('.workflow-step-card');
+        const handles = container.querySelectorAll('.workflow-drag-handle');
+
+        handles.forEach((handle) => {
+            handle.addEventListener('dragstart', function(event) {
+                draggedWorkflowStepId = Number(handle.getAttribute('data-step-id'));
+                event.dataTransfer.effectAllowed = 'move';
+                const card = handle.closest('.workflow-step-card');
+                if (card) {
+                    card.classList.add('dragging');
+                }
+            });
+
+            handle.addEventListener('dragend', function() {
+                draggedWorkflowStepId = null;
+                cards.forEach((card) => {
+                    card.classList.remove('dragging', 'drag-over');
+                });
+            });
+        });
+
+        cards.forEach((card) => {
+            card.addEventListener('dragover', function(event) {
+                if (draggedWorkflowStepId === null) {
+                    return;
+                }
+                event.preventDefault();
+                card.classList.add('drag-over');
+            });
+
+            card.addEventListener('dragleave', function() {
+                card.classList.remove('drag-over');
+            });
+
+            card.addEventListener('drop', function(event) {
+                if (draggedWorkflowStepId === null) {
+                    return;
+                }
+                event.preventDefault();
+                card.classList.remove('drag-over');
+
+                const targetStepId = Number(card.getAttribute('data-step-id'));
+                reorderWorkflowSteps(draggedWorkflowStepId, targetStepId);
+            });
+        });
+    }
+    
+    function renderWorkflowSteps() {
+        const container = document.getElementById('workflowStepsList');
+        const noStepsMsg = document.getElementById('noStepsMessage');
+        
+        if (workflowSteps.length === 0) {
+            container.innerHTML = '';
+            container.appendChild(noStepsMsg.cloneNode(true));
+            noStepsMsg.style.display = 'block';
+            updateWorkflowStepsJson();
+            return;
+        }
+        
+        container.innerHTML = workflowSteps.map(step => `
+            <div class="card mb-2 border-left-${stepTypes[step.step_type]?.color || 'primary'} workflow-step-card" data-step-id="${step.id}" style="border-left-width: 4px !important;">
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-md-1 d-flex align-items-center justify-content-center">
+                            <button type="button" class="btn btn-sm workflow-drag-handle" data-step-id="${step.id}" draggable="true" title="Drag to reorder">
+                                <i class="fas fa-grip-vertical"></i>
+                            </button>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-center">
+                            <span class="badge badge-${stepTypes[step.step_type]?.color || 'primary'} rounded-circle workflow-step-badge" style="width:30px;height:30px;line-height:22px;font-size:14px;">
+                                ${step.step_order}
+                            </span>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" placeholder="Step Name *" 
+                                   value="${step.step_name}" onchange="updateWorkflowStep(${step.id}, 'step_name', this.value)">
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-control form-control-sm" onchange="updateWorkflowStep(${step.id}, 'step_type', this.value)">
+                                ${Object.entries(stepTypes).map(([key, val]) => 
+                                    `<option value="${key}" ${step.step_type === key ? 'selected' : ''}>${val.label}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="col-md-2 workflow-step-checkbox-col">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="preApproval${step.id}" 
+                                       ${step.is_pre_approval ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'is_pre_approval', this.checked)">
+                                <label class="custom-control-label small" for="preApproval${step.id}" data-toggle="tooltip" data-placement="top" title="Use Pre-Approval for steps that must be completed before an application can be approved.">Pre-Approval <i class="fas fa-info-circle text-muted ml-1"></i></label>
+                            </div>
+                        </div>
+                        <div class="col-md-2 workflow-step-checkbox-col">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="reqVerify${step.id}" 
+                                       ${step.requires_verification ? 'checked' : ''} 
+                                       onchange="updateWorkflowStep(${step.id}, 'requires_verification', this.checked)">
+                                <label class="custom-control-label small" for="reqVerify${step.id}" data-toggle="tooltip" data-placement="top" title="Enable Admin Verify when this step needs manual confirmation by an admin before applicants can proceed.">Admin Verify <i class="fas fa-info-circle text-muted ml-1"></i></label>
+                            </div>
+                        </div>
+                        <div class="col-md-1 workflow-step-actions">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleStepDetails(${step.id})" title="More options">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeWorkflowStep(${step.id})" title="Remove step">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-2" id="stepDetails${step.id}" style="display:none;">
+                        <div class="col-md-4">
+                            <label class="small text-muted">Description</label>
+                            <textarea class="form-control form-control-sm" rows="2" placeholder="Instructions for this step..."
+                                      onchange="updateWorkflowStep(${step.id}, 'step_description', this.value)">${step.step_description || ''}</textarea>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small text-muted">Allowed File Types</label>
+                            <input type="text" class="form-control form-control-sm" placeholder="jpg,png,pdf" 
+                                   value="${step.allowed_file_types || ''}"
+                                   onchange="updateWorkflowStep(${step.id}, 'allowed_file_types', this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        initWorkflowDragAndDrop();
+        initializeWorkflowTooltips();
+        updateWorkflowStepsJson();
+    }
+    
+    function toggleStepDetails(stepId) {
+        const details = document.getElementById('stepDetails' + stepId);
+        details.style.display = details.style.display === 'none' ? 'flex' : 'none';
+    }
+    
+    // ===================================
+    // WORKFLOW TEMPLATE FUNCTIONS
+    // ===================================
+    
+    function showWorkflowTemplateReplaceModal(templateType) {
+        pendingWorkflowTemplateType = templateType;
+        const nameEl = document.getElementById('workflowTemplateModalName');
+        if (nameEl) {
+            nameEl.textContent = WORKFLOW_TEMPLATE_LABELS[templateType] || templateType;
+        }
+
+        if (typeof $ === 'function') {
+            $('#workflowTemplateReplaceModal').modal('show');
+        }
+    }
+
+    function cancelWorkflowTemplateReplacement() {
+        pendingWorkflowTemplateType = null;
+        if (typeof $ === 'function') {
+            $('#workflowTemplateReplaceModal').modal('hide');
+        }
+    }
+
+    function confirmWorkflowTemplateReplacement() {
+        const templateType = pendingWorkflowTemplateType;
+        pendingWorkflowTemplateType = null;
+        if (typeof $ === 'function') {
+            $('#workflowTemplateReplaceModal').modal('hide');
+        }
+
+        if (!templateType) {
+            return;
+        }
+
+        applyWorkflowTemplateDirect(templateType);
+    }
+
+    function applyWorkflowTemplate(templateType) {
+        if (workflowSteps.length > 0) {
+            showWorkflowTemplateReplaceModal(templateType);
+            return;
+        }
+
+        applyWorkflowTemplateDirect(templateType);
+    }
+
+    function applyWorkflowTemplateDirect(templateType) {
+        const templates = {
+            'ESA': [
+                {step_name: 'Upload Shelter Photos', step_description: 'Upload at least 3 photos of your current shelter/housing situation', step_type: 'photo_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,gif'},
+                {step_name: 'Application Review', step_description: 'Admin reviews shelter photos and application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
+            ],
+            'CA': [
+                {step_name: 'Upload Certificate of Participation', step_description: 'Upload your Certificate of Participation from the livelihood training seminar', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf'},
+                {step_name: 'Upload Capital Assistance Proposal', step_description: 'Upload your business plan/proposal for the capital assistance', step_type: 'document_upload', is_pre_approval: true, requires_verification: true, allowed_file_types: 'jpg,jpeg,png,pdf,doc,docx'},
+                {step_name: 'Application Review', step_description: 'Admin reviews documents and approves application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
+            ],
+            'online_upload': [
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Documents Online', step_description: 'Upload required documents through the online system', step_type: 'document_upload', is_pre_approval: false, requires_verification: true, allowed_file_types: 'pdf,jpg,jpeg,png'},
+                {step_name: 'Document Verification', step_description: 'Admin verifies uploaded documents', step_type: 'verification', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Physical Documents', step_description: 'Submit original documents at MSWD Office for final verification', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
+            ],
+            'default': [
+                {step_name: 'Application Review', step_description: 'Admin reviews and approves your application', step_type: 'approval', is_pre_approval: true, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Submit Required Documents', step_description: 'Submit all required documents at MSWD Office', step_type: 'document_submission', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Assessment / SCSR', step_description: 'Admin schedules interview or home visit and uploads Social Case Study Report', step_type: 'assessment', is_pre_approval: false, requires_verification: true, allowed_file_types: ''},
+                {step_name: 'Schedule Release', step_description: 'Schedule your assistance release date', step_type: 'scheduling', is_pre_approval: false, requires_verification: false, allowed_file_types: ''}
+            ]
+        };
+        
+        const templateSteps = templates[templateType] || templates['default'];
+        
+        // Create new workflow steps with unique IDs
+        workflowSteps = templateSteps.map((step, index) => ({
+            id: Date.now() + index + 1,
+            step_order: index + 1,
+            step_name: step.step_name,
+            step_description: step.step_description,
+            step_type: step.step_type,
+            is_pre_approval: step.is_pre_approval,
+            requires_verification: step.requires_verification,
+            min_items: step.min_items,
+            allowed_file_types: step.allowed_file_types,
+            step_config: null
+        }));
+        
+        renderWorkflowSteps();
+        
+        // Show success toast
+        showToast(`Applied ${WORKFLOW_TEMPLATE_LABELS[templateType] || templateType.replace('_', ' ')} template`, 'success');
+    }
+</script>
+{% endblock %}

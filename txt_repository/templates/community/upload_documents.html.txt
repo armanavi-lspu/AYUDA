@@ -1,0 +1,490 @@
+{% extends "community/community_base.html" %}
+{% block title %}Upload Documents - Application #{{ application.id }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-header {
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        border-radius: 15px;
+        padding: 3rem;
+        color: white;
+        margin-bottom: 2.5rem;
+        box-shadow: 0 10px 30px rgba(0, 50, 160, 0.2);
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3rem;
+        position: relative;
+    }
+    
+    .step-indicator::before {
+        content: '';
+        position: absolute;
+        top: 25px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #e9ecef;
+        z-index: -1;
+    }
+    
+    .step {
+        background: white;
+        border: 3px solid #e9ecef;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: #6c757d;
+        position: relative;
+    }
+    
+    .step.active {
+        background: #0032A0;
+        border-color: #0032A0;
+        color: white;
+        box-shadow: 0 0 0 4px rgba(0, 50, 160, 0.2);
+    }
+    
+    .step.completed {
+        background: #1cc88a;
+        border-color: #1cc88a;
+        color: white;
+    }
+    
+    .step-label {
+        position: absolute;
+        top: 60px;
+        white-space: nowrap;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .upload-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+    
+    .upload-card:hover {
+        border-color: #0032A0;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 50, 160, 0.1);
+    }
+    
+    .upload-card.mandatory {
+        border-left: 5px solid #dc3545;
+    }
+    
+    .upload-card.optional {
+        border-left: 5px solid #ffc107;
+    }
+    
+    .upload-card.uploaded {
+        border-color: #1cc88a;
+        background: #f0fdf4;
+    }
+    
+    .file-input-wrapper {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        width: 100%;
+    }
+    
+    .file-input-wrapper input[type=file] {
+        position: absolute;
+        left: -9999px;
+    }
+    
+    .file-input-label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: #f8f9fc;
+        border: 2px dashed #cbd5e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .file-input-label:hover {
+        background: #edf2f7;
+        border-color: #0032A0;
+    }
+    
+    .file-preview {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f0fdf4;
+        border: 1px solid #1cc88a;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .progress-summary {
+        background: white;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .requirement-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .badge-mandatory {
+        background: #fee;
+        color: #dc3545;
+    }
+    
+    .badge-optional {
+        background: #fffbeb;
+        color: #d97706;
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 2rem;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        border-radius: 5px;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('community.applications') }}">My Applications</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('community.application_detail', application_id=application.id) }}">Application #{{ application.id }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Upload Documents</li>
+    </ol>
+</nav>
+
+<!-- Upload Header -->
+<div class="upload-header text-center">
+    <h1 class="display-4 font-weight-bold mb-3">
+        <i class="fas fa-cloud-upload-alt mr-3"></i>Upload Your Documents
+    </h1>
+    <p class="lead mb-0">{{ application.program.program_name }}</p>
+    <p class="mt-2 mb-0 text-white-50">Application ID: #{{ application.id }}</p>
+</div>
+
+<!-- Step Indicator -->
+<div class="step-indicator container mb-5">
+    <div class="step completed">
+        <i class="fas fa-check"></i>
+        <span class="step-label">Application<br>Submitted</span>
+    </div>
+    <div class="step active">
+        2
+        <span class="step-label">Upload<br>Documents</span>
+    </div>
+    <div class="step">
+        3
+        <span class="step-label">Admin<br>Verification</span>
+    </div>
+    <div class="step">
+        4
+        <span class="step-label">Physical<br>Submission</span>
+    </div>
+    <div class="step">
+        5
+        <span class="step-label">Active &<br>Claim</span>
+    </div>
+</div>
+
+<!-- Info Box -->
+<div class="info-box">
+    <h5 class="mb-2"><i class="fas fa-info-circle mr-2"></i>Why Upload Documents Online?</h5>
+    <p class="mb-0">
+        <strong>Pre-verification helps reduce unnecessary follow-ups!</strong> Upload clear photos or scans of your documents here. 
+        Our admins will review them to ensure they meet requirements before you proceed to physical submission at the MSWD office.
+    </p>
+</div>
+
+{% if mandatory_count > 0 %}
+<div class="warning-box">
+    <h5 class="mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Mandatory Documents Required</h5>
+    <p class="mb-0">
+        You must upload <strong>{{ mandatory_count }} mandatory document(s)</strong> before your application can proceed to the next step.
+    </p>
+</div>
+{% endif %}
+
+<!-- Progress Summary -->
+<div class="progress-summary">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h4 class="mb-3">Upload Progress</h4>
+            <div class="progress" style="height: 30px;">
+                <div class="progress-bar bg-success" role="progressbar" 
+                     style="width: {{ upload_progress }}%;" 
+                     aria-valuenow="{{ upload_progress }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ upload_progress }}%
+                </div>
+            </div>
+            <p class="mt-2 mb-0 text-muted">
+                <i class="fas fa-file-upload mr-2"></i>
+                {{ uploaded_count }} of {{ total_documents }} documents uploaded
+            </p>
+        </div>
+        <div class="col-md-4 text-right">
+            <h2 class="text-primary mb-0">{{ uploaded_count }}/{{ total_documents }}</h2>
+            <p class="text-muted mb-0">Uploaded</p>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<form method="POST" action="{{ url_for('community.submit_documents', application_id=application.id) }}" enctype="multipart/form-data" id="uploadForm">
+    
+    {% for req in document_requirements %}
+    <div class="upload-card mandatory {% if req.has_upload %}uploaded{% endif %}">
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Requirement Header -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <span class="requirement-badge badge-mandatory">
+                            <i class="fas fa-asterisk mr-1"></i>REQUIRED
+                        </span>
+                        <h5 class="mb-2 mt-2">
+                            {{ req.requirement_name }}
+                            {% if req.has_upload %}
+                                <i class="fas fa-check-circle text-success ml-2"></i>
+                            {% endif %}
+                        </h5>
+                        {% if req.description %}
+                        <p class="text-muted mb-0"><small>{{ req.description }}</small></p>
+                        {% endif %}
+                    </div>
+                    <div class="text-right small">
+                        {% for copy_spec in req.copy_specs %}
+                            <div class="mb-1">
+                                <strong>{{ copy_spec['count'] }}</strong>
+                                <i>{{ copy_spec['type'].replace('_', ' ')|title }}</i>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- File Input -->
+                <div class="file-input-wrapper">
+                    <input type="file" 
+                           name="document_{{ req.id }}" 
+                           id="file_{{ req.id }}" 
+                           accept=".pdf,.jpg,.jpeg,.png"
+                           onchange="handleFileSelect(this, {{ req.id }})"
+                           {% if not req.has_upload and req.is_mandatory %}required{% endif %}>
+                    <label for="file_{{ req.id }}" class="file-input-label mb-0">
+                        <div class="text-center">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                            <p class="mb-0 font-weight-bold">Click to upload or drag and drop</p>
+                            <p class="mb-0 text-muted small">PDF, JPG, JPEG, or PNG (Max 10MB)</p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- File Preview -->
+                <div id="preview_{{ req.id }}" class="file-preview" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-file-alt fa-2x text-success mr-3"></i>
+                        <div>
+                            <p class="mb-0 font-weight-bold" id="filename_{{ req.id }}"></p>
+                            <p class="mb-0 text-muted small" id="filesize_{{ req.id }}"></p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile({{ req.id }})">
+                        <i class="fas fa-times"></i> Remove
+                    </button>
+                </div>
+
+                <!-- Existing Upload Info -->
+                {% if req.has_upload %}
+                <div class="mt-3 p-3 bg-light border rounded">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="mb-1"><strong>Current Upload:</strong> {{ req.upload.original_filename }}</p>
+                            <p class="mb-0 text-muted small">
+                                <i class="far fa-clock mr-1"></i>Uploaded {{ req.upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
+                            </p>
+                            <p class="mb-0">
+                                <span class="badge badge-{% if req.upload.verification_status == 'approved' %}success{% elif req.upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                    {% if req.upload.verification_status == 'approved' %}
+                                        <i class="fas fa-check-circle"></i> Verified
+                                    {% elif req.upload.verification_status == 'rejected' %}
+                                        <i class="fas fa-times-circle"></i> Rejected
+                                    {% else %}
+                                        <i class="fas fa-clock"></i> Pending Review
+                                    {% endif %}
+                                </span>
+                            </p>
+                            {% if req.upload.admin_feedback %}
+                            <div class="alert alert-info mt-2 mb-0">
+                                <small><strong>Admin Feedback:</strong> {{ req.upload.admin_feedback }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{{ url_for('community.view_uploaded_document', upload_id=req.upload.id) }}" 
+                               class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </div>
+                    </div>
+                    {% if req.upload.verification_status == 'rejected' %}
+                    <p class="mb-0 mt-2 text-danger"><small><i class="fas fa-info-circle"></i> Please upload a new document to replace this rejected file.</small></p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Action Buttons -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="{{ url_for('community.application_detail', application_id=application.id) }}" 
+                       class="btn btn-outline-secondary btn-block btn-lg">
+                        <i class="fas fa-arrow-left mr-2"></i>Save & Continue Later
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">
+                        <i class="fas fa-paper-plane mr-2"></i>Submit Documents for Verification
+                    </button>
+                </div>
+            </div>
+            <p class="text-center text-muted mt-3 mb-0">
+                <i class="fas fa-shield-alt mr-1"></i>
+                Your documents are securely encrypted and stored
+            </p>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function handleFileSelect(input, reqId) {
+    const file = input.files[0];
+    if (file) {
+        // Validate file size (10MB max)
+        const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxSize) {
+            alert('File size exceeds 10MB limit. Please choose a smaller file.');
+            input.value = '';
+            return;
+        }
+
+        // Validate file type
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Invalid file type. Please upload PDF, JPG, JPEG, or PNG files only.');
+            input.value = '';
+            return;
+        }
+
+        // Show preview
+        document.getElementById('preview_' + reqId).style.display = 'flex';
+        document.getElementById('filename_' + reqId).textContent = file.name;
+        document.getElementById('filesize_' + reqId).textContent = formatFileSize(file.size);
+        
+        // Hide upload label
+        const label = document.querySelector('label[for="file_' + reqId + '"]');
+        label.style.display = 'none';
+    }
+}
+
+function removeFile(reqId) {
+    const input = document.getElementById('file_' + reqId);
+    input.value = '';
+    
+    // Hide preview
+    document.getElementById('preview_' + reqId).style.display = 'none';
+    
+    // Show upload label
+    const label = document.querySelector('label[for="file_' + reqId + '"]');
+    label.style.display = 'flex';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Form submission validation
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+    
+    // Allow form to submit
+    return true;
+});
+
+// Drag and drop support
+document.querySelectorAll('.file-input-label').forEach(label => {
+    label.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#0032A0';
+        this.style.background = '#e3f2fd';
+    });
+    
+    label.addEventListener('dragleave', function(e) {
+        this.style.borderColor = '#cbd5e0';
+        this.style.background = '#f8f9fc';
+    });
+    
+    label.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.style.borderColor = '#cbd5e0';
+        this.style.background = '#f8f9fc';
+        
+        const input = document.getElementById(this.getAttribute('for'));
+        if (input && e.dataTransfer.files.length > 0) {
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+});
+</script>
+{% endblock %}

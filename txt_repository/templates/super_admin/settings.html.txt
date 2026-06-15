@@ -1,0 +1,201 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}Settings - AYUDA Super Admin{% endblock %}
+
+{% block super_admin_content %}
+<div class="super-admin-shell">
+    <div class="super-admin-hero mb-4">
+        <h1 class="h4 mb-2"><i class="fas fa-sliders-h mr-2"></i>Settings</h1>
+        <p class="subtitle mb-0">Manage account security and access preferences for your super admin account.</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="sa-panel p-4 h-100">
+                <h2 class="h5 mb-3">Change Password</h2>
+                <form method="post" action="{{ url_for('super_admin.change_password') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-group">
+                        <label class="sa-filter-label mb-2">Current Password</label>
+                        <input type="password" class="form-control" name="current_password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="sa-filter-label mb-2">New Password</label>
+                        <input type="password" class="form-control" id="superAdminNewPassword" name="new_password" minlength="8" required>
+                        <small class="form-text text-muted">Use at least 8 characters with uppercase, lowercase, and symbols.</small>
+                        <div class="mt-2">
+                            <div class="progress" style="height:4px;">
+                                <div id="superAdminPasswordStrengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                            </div>
+                            <small id="superAdminPasswordStrengthLabel" class="form-text text-muted"></small>
+                            <div class="password-checklist d-flex flex-wrap mt-1">
+                                <small id="superAdminChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                    <i class="far fa-circle mr-1"></i>8+ chars
+                                </small>
+                                <small id="superAdminChecklistCase" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include both uppercase and lowercase letters">
+                                    <i class="far fa-circle mr-1"></i>Upper + lower
+                                </small>
+                                <small id="superAdminChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                    <i class="far fa-circle mr-1"></i>Symbol
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="sa-filter-label mb-2">Confirm New Password</label>
+                        <input type="password" class="form-control" id="superAdminConfirmPassword" name="confirm_password" minlength="8" required>
+                        <small id="superAdminPasswordMatchText" class="form-text"></small>
+                    </div>
+
+                    <button type="submit" class="btn btn-gradient-primary">
+                        <i class="fas fa-key mr-2"></i>Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-5 mb-4">
+            <div class="sa-panel p-4 mb-3">
+                <h2 class="h6 text-uppercase text-muted">Account</h2>
+                <p class="mb-1"><strong>Name:</strong> {{ current_user.first_name }} {{ current_user.last_name }}</p>
+                <p class="mb-1"><strong>Email:</strong> {{ current_user.email }}</p>
+                <p class="mb-0"><strong>Role:</strong> Super Admin</p>
+            </div>
+
+            <div class="sa-note p-3">
+                <h3 class="h6 mb-2"><i class="fas fa-shield-alt mr-2"></i>Security Notes</h3>
+                <ul class="mb-0 pl-3">
+                    <li>Change your password regularly.</li>
+                    <li>Do not share super admin credentials.</li>
+                    <li>Review notifications for access alerts.</li>
+                </ul>
+            </div>
+
+            <div class="mt-3">
+                <a href="{{ url_for('super_admin.profile') }}" class="btn btn-outline-custom btn-block">
+                    <i class="fas fa-user mr-2"></i>Open Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('superAdminNewPassword');
+    const bar = document.getElementById('superAdminPasswordStrengthBar');
+    const label = document.getElementById('superAdminPasswordStrengthLabel');
+    const checklistLength = document.getElementById('superAdminChecklistLength');
+    const checklistCase = document.getElementById('superAdminChecklistCase');
+    const checklistSymbol = document.getElementById('superAdminChecklistSymbol');
+    const confirmInput = document.getElementById('superAdminConfirmPassword');
+    const matchText = document.getElementById('superAdminPasswordMatchText');
+
+    if (!passwordInput || !bar || !label) {
+        return;
+    }
+
+    function evaluatePasswordStrength(password) {
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+        const hasCase = hasLower && hasUpper;
+
+        let score = 0;
+        if (password.length >= 8) score += 40;
+        if (password.length >= 12) score += 10;
+        if (hasCase) score += 30;
+        if (hasSymbol) score += 30;
+        score = Math.min(score, 100);
+
+        let labelText = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            labelText = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            labelText = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        return {
+            score,
+            labelText,
+            barClass,
+            hasCase,
+            hasSymbol,
+            lengthOk: password.length >= 8,
+        };
+    }
+
+    function setChecklistItem(item, met) {
+        if (!item) {
+            return;
+        }
+        const icon = item.querySelector('i');
+        if (icon) {
+            icon.className = met
+                ? 'fas fa-check-circle mr-1 text-success'
+                : 'far fa-circle mr-1 text-muted';
+        }
+        item.classList.toggle('text-success', met);
+        item.classList.toggle('text-muted', !met);
+    }
+
+    function renderPasswordStrength(password) {
+        if (!password) {
+            bar.style.width = '0%';
+            bar.className = 'progress-bar';
+            label.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistCase, false);
+            setChecklistItem(checklistSymbol, false);
+            return;
+        }
+
+        const result = evaluatePasswordStrength(password);
+        bar.style.width = result.score + '%';
+        bar.className = 'progress-bar ' + result.barClass;
+        label.textContent = 'Strength: ' + result.labelText;
+        setChecklistItem(checklistLength, result.lengthOk);
+        setChecklistItem(checklistCase, result.hasCase);
+        setChecklistItem(checklistSymbol, result.hasSymbol);
+    }
+
+    function updateMatchText() {
+        if (!confirmInput || !matchText) {
+            return;
+        }
+        if (!confirmInput.value) {
+            matchText.textContent = '';
+            matchText.className = 'form-text';
+            return;
+        }
+        if (passwordInput.value === confirmInput.value) {
+            matchText.textContent = 'Passwords match';
+            matchText.className = 'form-text text-success';
+        } else {
+            matchText.textContent = 'Passwords do not match';
+            matchText.className = 'form-text text-danger';
+        }
+    }
+
+    passwordInput.addEventListener('input', function() {
+        renderPasswordStrength(passwordInput.value);
+        updateMatchText();
+    });
+
+    if (confirmInput) {
+        confirmInput.addEventListener('input', updateMatchText);
+    }
+
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+        window.jQuery('[data-toggle="tooltip"]').tooltip();
+    }
+});
+</script>
+{% endblock %}

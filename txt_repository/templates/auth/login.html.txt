@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% block title %}Log In - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-shell {
+        min-height: calc(100vh - 76px);
+        display: flex;
+        align-items: center;
+        padding: 2.5rem 0;
+        background:
+            radial-gradient(circle at 10% 10%, rgba(38, 166, 154, 0.15), transparent 42%),
+            radial-gradient(circle at 90% 15%, rgba(242, 182, 50, 0.18), transparent 40%),
+            linear-gradient(180deg, #f4f8ff 0%, #ffffff 58%, #f5fbff 100%);
+    }
+
+    .auth-card {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 18px 48px rgba(11, 44, 95, 0.14);
+    }
+
+    .auth-banner {
+        background: linear-gradient(135deg, #0b2c5f 0%, #1f5ea8 62%, #26a69a 100%);
+        color: #ffffff;
+        padding: 1.5rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .auth-banner h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.5rem, 2.5vw, 2rem);
+        margin-bottom: 0.8rem;
+    }
+
+    .auth-banner p {
+        opacity: 0.92;
+        margin-bottom: 0;
+        line-height: 1.6;
+    }
+
+    .auth-form-wrap {
+        padding: 2rem 1.4rem;
+        background: #ffffff;
+    }
+
+    .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #1f5ea8;
+        font-weight: 700;
+        margin-bottom: 0.7rem;
+    }
+
+    .auth-form-title {
+        margin-bottom: 1.1rem;
+        font-weight: 700;
+        color: #1f2a37;
+    }
+
+    .form-control {
+        border-radius: 12px;
+        min-height: 46px;
+        border: 1px solid #d4deeb;
+    }
+
+    .form-control:focus {
+        border-color: #1f5ea8;
+        box-shadow: 0 0 0 0.15rem rgba(31, 94, 168, 0.17);
+    }
+
+    .input-group .btn {
+        border-radius: 0 12px 12px 0;
+        border-color: #d4deeb;
+    }
+
+    .btn-login {
+        border: none;
+        border-radius: 12px;
+        min-height: 46px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1f5ea8, #26a69a);
+        color: #ffffff;
+    }
+
+    .btn-login:hover {
+        filter: brightness(1.05);
+        color: #ffffff;
+    }
+
+    .auth-footnote {
+        margin-top: 1rem;
+        color: #65758a;
+        font-size: 0.93rem;
+    }
+
+    .login-alert {
+        border-radius: 10px;
+        font-size: 0.92rem;
+        padding: 0.65rem 0.8rem;
+    }
+
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+
+    .field-error {
+        color: #dc3545;
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+        display: none;
+    }
+
+    .field-error.show {
+        display: block;
+    }
+
+    @media (max-width: 991.98px) {
+        .auth-shell {
+            min-height: auto;
+            padding: 1.3rem 0 2rem;
+        }
+
+        .auth-banner {
+            border-radius: 16px 16px 0 0;
+            padding: 1.25rem;
+        }
+
+        .auth-form-wrap {
+            padding: 1.35rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-9">
+                <div class="card auth-card">
+                    <div class="row no-gutters">
+                        <div class="col-lg-5 d-none d-lg-block">
+                            <div class="auth-banner">
+                                <h2>Welcome Back</h2>
+                                <p>
+                                    Sign in to continue your AYUDA journey and track your financial assistance applications securely.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <div class="auth-form-wrap">
+                                <h3 class="auth-form-title">Log in to your account</h3>
+
+                                <form method="POST" id="loginForm" novalidate>
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <div id="loginAlert" class="alert alert-danger login-alert d-none" role="alert"></div>
+
+                                    <div class="form-group">
+                                        <label for="email">Email</label>
+                                        <input
+                                            type="email"
+                                            class="form-control"
+                                            id="email"
+                                            name="email"
+                                            placeholder="you@example.com"
+                                            required
+                                        />
+                                        <div id="emailError" class="field-error">Please enter a valid email address.</div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="password">Password</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="password"
+                                                class="form-control"
+                                                id="password"
+                                                name="password"
+                                                placeholder="Enter your password"
+                                                required
+                                            />
+                                            <div class="input-group-append">
+                                                <button
+                                                    class="btn btn-outline-secondary"
+                                                    type="button"
+                                                    id="togglePassword"
+                                                    aria-label="Toggle password visibility"
+                                                >
+                                                    <i class="fas fa-eye" id="eyeIcon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div id="passwordError" class="field-error">Password is required.</div>
+                                    </div>
+
+                                    <button type="submit" id="loginBtn" class="btn btn-login btn-block">Log In</button>
+
+                                    <div class="text-center auth-footnote">
+                                        Don&apos;t have an account?
+                                        <a href="{{ url_for('auth.sign_up') }}" class="font-weight-bold">Create one</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginAlert = document.getElementById('loginAlert');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const emailError = document.getElementById('emailError');
+    const passwordError = document.getElementById('passwordError');
+
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    if (togglePassword && password && eyeIcon) {
+        togglePassword.addEventListener('click', function() {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+
+            if (type === 'password') {
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            } else {
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            }
+        });
+    }
+
+    function showAlert(message) {
+        loginAlert.textContent = message;
+        loginAlert.classList.remove('d-none');
+    }
+
+    function clearAlert() {
+        loginAlert.classList.add('d-none');
+        loginAlert.textContent = '';
+    }
+
+    function setFieldError(field, errorEl, message) {
+        field.classList.add('is-invalid');
+        if (message) {
+            errorEl.textContent = message;
+        }
+        errorEl.classList.add('show');
+    }
+
+    function clearFieldError(field, errorEl) {
+        field.classList.remove('is-invalid');
+        errorEl.classList.remove('show');
+    }
+
+    function validateInputs() {
+        let isValid = true;
+        const email = emailInput.value.trim();
+        const passwordValue = passwordInput.value;
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        clearFieldError(emailInput, emailError);
+        clearFieldError(passwordInput, passwordError);
+        clearAlert();
+
+        if (!email) {
+            setFieldError(emailInput, emailError, 'Email is required.');
+            isValid = false;
+        } else if (!emailPattern.test(email)) {
+            setFieldError(emailInput, emailError, 'Please enter a valid email address.');
+            isValid = false;
+        }
+
+        if (!passwordValue) {
+            setFieldError(passwordInput, passwordError, 'Password is required.');
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    if (loginForm) {
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!validateInputs()) {
+                return;
+            }
+
+            const formData = new FormData(loginForm);
+            const originalBtnText = loginBtn.textContent;
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Signing in...';
+
+            try {
+                const csrfTokenInput = loginForm.querySelector('input[name="csrf_token"]');
+                const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
+                const response = await fetch(loginForm.action || window.location.pathname, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                });
+
+                const payload = await response.json();
+
+                if (response.ok && payload.success && payload.redirect_url) {
+                    window.location.href = payload.redirect_url;
+                    return;
+                }
+
+                showAlert(payload.message || 'Login failed. Please try again.');
+
+                if (payload.field === 'email') {
+                    setFieldError(emailInput, emailError, payload.message);
+                } else if (payload.field === 'password') {
+                    setFieldError(passwordInput, passwordError, payload.message);
+                }
+            } catch (error) {
+                showAlert('Unable to process login right now. Please try again.');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = originalBtnText;
+            }
+        });
+    }
+
+    emailInput.addEventListener('input', function() {
+        clearFieldError(emailInput, emailError);
+        clearAlert();
+    });
+
+    passwordInput.addEventListener('input', function() {
+        clearFieldError(passwordInput, passwordError);
+        clearAlert();
+    });
+});
+</script>
+{% endblock %}

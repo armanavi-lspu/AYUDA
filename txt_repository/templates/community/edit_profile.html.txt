@@ -1,0 +1,911 @@
+{% extends "community/community_base.html" %}
+{% block title %}Edit Profile - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 15px 15px;
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .section-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #3a3b45;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #667eea;
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-header i {
+        margin-right: 0.75rem;
+        color: #667eea;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.9rem;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: transform 0.2s ease;
+    }
+    
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #e74a3b;
+    }
+    
+    .missing-field {
+        background-color: rgba(231, 74, 59, 0.08) !important;
+        border-color: #e74a3b !important;
+        border-width: 2px !important;
+    }
+    
+    .missing-field:focus {
+        background-color: rgba(231, 74, 59, 0.08) !important;
+        border-color: #e74a3b !important;
+        box-shadow: 0 0 0 0.2rem rgba(231, 74, 59, 0.25) !important;
+    }
+    
+    .missing-field-label {
+        color: #e74a3b !important;
+        font-weight: 700;
+    }
+
+    .profile-avatar-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .profile-avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #fff;
+        border: 4px solid #fff;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+    }
+    .avatar-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: #667eea;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 2px solid #fff;
+        transition: background 0.2s;
+    }
+    .avatar-overlay:hover { background: #5568d3; }
+    .avatar-overlay i { color: #fff; font-size: 0.8rem; }
+    
+    .profile-avatar-wrapper.clickable {
+        cursor: pointer;
+    }
+    
+    .profile-avatar-wrapper.clickable .profile-avatar,
+    .profile-avatar-wrapper.clickable .profile-avatar-placeholder {
+        transition: transform 0.2s ease, filter 0.2s ease;
+    }
+    
+    .profile-avatar-wrapper.clickable:hover .profile-avatar,
+    .profile-avatar-wrapper.clickable:hover .profile-avatar-placeholder {
+        transform: scale(1.05);
+        filter: brightness(1.1);
+    }
+
+    .edit-profile-page {
+        animation: profileEditFadeIn 0.45s ease-out;
+    }
+
+    @keyframes profileEditFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .edit-profile-header {
+        background: linear-gradient(135deg, #1f3f77 0%, #1f6feb 55%, #0ea5a6 100%);
+        border-radius: 0 0 18px 18px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.24);
+    }
+
+    .edit-profile-header::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 82% 15%, rgba(255, 255, 255, 0.26), transparent 42%);
+        pointer-events: none;
+    }
+
+    .edit-profile-header .container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .quick-summary-card {
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 34, 73, 0.08);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        height: 100%;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .quick-summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.14);
+    }
+
+    .quick-summary-label {
+        color: #60708b;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+        font-weight: 700;
+    }
+
+    .quick-summary-value {
+        color: #1f2a44;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    .quick-summary-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.95rem;
+        margin-bottom: 0.6rem;
+        box-shadow: 0 8px 14px rgba(15, 34, 73, 0.14);
+    }
+
+    .quick-summary-icon.blue { background: linear-gradient(135deg, #1f6feb, #1f4f95); }
+    .quick-summary-icon.teal { background: linear-gradient(135deg, #0ea5a6, #0b7f80); }
+    .quick-summary-icon.gold { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+    .form-section {
+        background: linear-gradient(180deg, #ffffff 0%, #f9fcff 100%);
+        border: 1px solid #dce7f7;
+        border-radius: 14px;
+        box-shadow: 0 12px 24px rgba(15, 34, 73, 0.1);
+    }
+
+    .section-header {
+        font-size: 1.12rem;
+        color: #1f2a44;
+        border-bottom: 1px solid #dbe5f7;
+        letter-spacing: 0.2px;
+    }
+
+    .section-header i {
+        color: #1f6feb;
+    }
+
+    .form-label {
+        font-weight: 700;
+        color: #5f6f88;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+    }
+
+    .form-control,
+    .custom-file-label {
+        border-radius: 10px;
+        border-color: #d6e0f0;
+        color: #1f2a44;
+        font-weight: 600;
+    }
+
+    .form-control::placeholder {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .form-control:focus {
+        border-color: #1f6feb;
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.16);
+    }
+
+    .form-text {
+        color: #6e7f97 !important;
+    }
+
+    .custom-control-label {
+        color: #334155;
+        font-weight: 600;
+    }
+
+    .custom-control-label::before {
+        border-color: #c7d5ec;
+        border-radius: 6px;
+    }
+
+    .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        border-color: #1f6feb;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        border-radius: 10px;
+        box-shadow: 0 10px 18px rgba(31, 79, 149, 0.25);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-save:hover {
+        box-shadow: 0 14px 22px rgba(31, 79, 149, 0.34);
+    }
+
+    .profile-avatar-wrapper .profile-avatar,
+    .profile-avatar-wrapper .profile-avatar-placeholder {
+        box-shadow: 0 14px 24px rgba(15, 34, 73, 0.22);
+    }
+
+    .profile-avatar-placeholder {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+    }
+
+    .avatar-overlay {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4f95 100%);
+        box-shadow: 0 6px 12px rgba(15, 34, 73, 0.22);
+    }
+
+    .avatar-overlay:hover {
+        background: linear-gradient(135deg, #1b60cf 0%, #1a447f 100%);
+    }
+
+    .edit-profile-page .modal-content {
+        border: none;
+        border-radius: 14px;
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    .edit-profile-page .modal-footer {
+        border-top: 1px solid #ecf1fb;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 767.98px) {
+        .form-section {
+            padding: 1.2rem;
+        }
+
+        .edit-profile-header {
+            padding: 1.5rem 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-profile-page">
+<!-- Header -->
+<div class="edit-profile-header">
+    <div class="container">
+        <h2 class="mb-2">
+            <i class="fas fa-user-edit mr-2"></i>Edit Profile
+        </h2>
+        <p class="mb-0 text-white-50">Update your personal information and preferences</p>
+    </div>
+</div>
+
+<div class="container pb-5">
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card quick-summary-card h-100">
+                <div class="card-body">
+                    <span class="quick-summary-icon blue"><i class="fas fa-user-check"></i></span>
+                    <div class="quick-summary-label">Profile Readiness</div>
+                    <div class="quick-summary-value">
+                        {% if missing_fields and missing_fields|length > 0 %}
+                            {{ missing_fields|length }} fields to complete
+                        {% else %}
+                            All required fields complete
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card quick-summary-card h-100">
+                <div class="card-body">
+                    <span class="quick-summary-icon teal"><i class="fas fa-envelope"></i></span>
+                    <div class="quick-summary-label">Account Email</div>
+                    <div class="quick-summary-value">{{ user.email }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card quick-summary-card h-100">
+                <div class="card-body">
+                    <span class="quick-summary-icon gold"><i class="fas fa-map-marker-alt"></i></span>
+                    <div class="quick-summary-label">Current Location</div>
+                    <div class="quick-summary-value">{{ profile.barangay if profile and profile.barangay else 'Not specified' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Picture Section -->
+    <div class="form-section">
+        <h5 class="section-header">
+            <i class="fas fa-image"></i>
+            Profile Picture
+        </h5>
+        <div class="text-center py-3">
+            <form id="photoForm" action="{{ url_for('community.upload_community_photo') }}" method="POST" enctype="multipart/form-data">
+                <div class="profile-avatar-wrapper mb-3 d-inline-block {% if user.profile_pic %}clickable{% endif %}" {% if user.profile_pic %}onclick="showPhotoModal()"{% endif %}>
+                    {% if user.profile_pic %}
+                        <img src="{{ url_for('files.profile_pic', user_id=user.id) }}" alt="Profile Photo" class="profile-avatar" id="avatarPreview">
+                    {% else %}
+                        <div class="profile-avatar-placeholder" id="avatarPlaceholder">
+                            {{ user.first_name[0] | upper }}{{ user.last_name[0] | upper }}
+                        </div>
+                        <img src="" alt="Profile Photo" class="profile-avatar d-none" id="avatarPreview">
+                    {% endif %}
+                    <label class="avatar-overlay mb-0" for="profilePicInput" title="Change photo" onclick="event.stopPropagation()">
+                        <i class="fas fa-camera"></i>
+                    </label>
+                    <input type="file" id="profilePicInput" name="profile_pic" accept="image/*" class="d-none" onchange="previewAndSubmit(this)">
+                </div>
+            </form>
+            <p class="text-muted small mt-2">Click the image or camera icon to upload a new profile picture</p>
+        </div>
+    </div>
+    
+    <form method="POST" action="{{ url_for('community.edit_profile') }}" id="editProfileForm">
+        <!-- Basic Information -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-id-card"></i>
+                Basic Information
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="first_name" class="form-label required-field {% if 'First Name' in missing_fields %}missing-field-label{% endif %}">First Name</label>
+                    <input type="text" class="form-control {% if 'First Name' in missing_fields %}missing-field{% endif %}" id="first_name" name="first_name" 
+                           value="{{ user.first_name }}" required>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="middle_name" class="form-label">Middle Name</label>
+                    <input type="text" class="form-control" id="middle_name" name="middle_name" 
+                           value="{{ user.middle_name or '' }}">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="last_name" class="form-label required-field {% if 'Last Name' in missing_fields %}missing-field-label{% endif %}">Last Name</label>
+                    <input type="text" class="form-control {% if 'Last Name' in missing_fields %}missing-field{% endif %}" id="last_name" name="last_name" 
+                           value="{{ user.last_name }}" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="mobile_no" class="form-label {% if 'Mobile Number' in missing_fields %}missing-field-label{% endif %}">Mobile Number</label>
+                    <input type="tel" class="form-control {% if 'Mobile Number' in missing_fields %}missing-field{% endif %}" id="mobile_no" name="mobile_no" 
+                           value="{{ profile.mobile_no or '' }}" placeholder="09XXXXXXXXX">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="gender" class="form-label {% if 'Gender' in missing_fields %}missing-field-label{% endif %}">Gender</label>
+                    <select class="form-control {% if 'Gender' in missing_fields %}missing-field{% endif %}" id="gender" name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="Male" {% if profile and profile.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if profile and profile.gender == 'Female' %}selected{% endif %}>Female</option>
+                        <option value="Other" {% if profile and profile.gender == 'Other' %}selected{% endif %}>Other</option>
+                        <option value="Prefer not to say" {% if profile and profile.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="birth_month" class="form-label">Birth Month</label>
+                    <select class="form-control" id="birth_month" name="birth_month">
+                        <option value="">Select Month</option>
+                        {% for month in range(1, 13) %}
+                        <option value="{{ month }}" {% if profile and profile.birth_month == month %}selected{% endif %}>
+                            {{ ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][month-1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="birth_day" class="form-label">Birth Day</label>
+                    <select class="form-control" id="birth_day" name="birth_day">
+                        <option value="">Select Day</option>
+                        {% for day in range(1, 32) %}
+                        <option value="{{ day }}" {% if profile and profile.birth_day == day %}selected{% endif %}>{{ day }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="birth_year" class="form-label {% if 'Birth Year' in missing_fields %}missing-field-label{% endif %}">Birth Year</label>
+                    <select class="form-control {% if 'Birth Year' in missing_fields %}missing-field{% endif %}" id="birth_year" name="birth_year">
+                        <option value="">Select Year</option>
+                        {% for year in range(2024, 1899, -1) %}
+                        <option value="{{ year }}" {% if profile and profile.birth_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Address Information -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-map-marker-alt"></i>
+                Address Information
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="barangay" class="form-label {% if 'Barangay' in missing_fields %}missing-field-label{% endif %}">Barangay</label>
+                    {% set selected_municipality = profile.municipality if profile and profile.municipality else '' %}
+                    {% set selected_barangay = profile.barangay if profile and profile.barangay else '' %}
+                    <select class="form-control {% if 'Barangay' in missing_fields %}missing-field{% endif %}" id="barangay" name="barangay" required>
+                        <option value="">Select Barangay</option>
+                        {% if selected_municipality and municipality_barangays.get(selected_municipality) %}
+                            {% for barangay_option in municipality_barangays[selected_municipality] %}
+                            <option value="{{ barangay_option }}" {% if selected_barangay == barangay_option %}selected{% endif %}>{{ barangay_option }}</option>
+                            {% endfor %}
+                        {% endif %}
+                        {% if selected_barangay and (not selected_municipality or selected_barangay not in municipality_barangays.get(selected_municipality, [])) %}
+                        <option value="{{ selected_barangay }}" selected>{{ selected_barangay }} (Legacy)</option>
+                        {% endif %}
+                    </select>
+                    <small class="form-text text-muted">Select municipality first to load its barangays.</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label for="municipality" class="form-label {% if 'Municipality' in missing_fields %}missing-field-label{% endif %}">Municipality</label>
+                    <select class="form-control {% if 'Municipality' in missing_fields %}missing-field{% endif %}" id="municipality" name="municipality" required>
+                        <option value="">Select Municipality</option>
+                        {% for municipality_option in municipalities %}
+                        <option value="{{ municipality_option }}" {% if profile and profile.municipality == municipality_option %}selected{% endif %}>{{ municipality_option }}</option>
+                        {% endfor %}
+                        {% if profile and profile.municipality and profile.municipality not in municipalities %}
+                        <option value="{{ profile.municipality }}" selected>{{ profile.municipality }} (Legacy)</option>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="address" class="form-label {% if 'Complete Address' in missing_fields %}missing-field-label{% endif %}">Complete Address</label>
+                <textarea class="form-control {% if 'Complete Address' in missing_fields %}missing-field{% endif %}" id="address" name="address" rows="3">{{ profile.address or '' }}</textarea>
+            </div>
+        </div>
+        
+        <!-- Personal Details -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-user-circle"></i>
+                Personal Details
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="religion" class="form-label">Religion</label>
+                    <select class="form-control" id="religion" name="religion">
+                        <option value="">Select Religion</option>
+                        <option value="Roman Catholic" {% if profile and profile.religion == 'Roman Catholic' %}selected{% endif %}>Roman Catholic</option>
+                        <option value="Protestant" {% if profile and profile.religion == 'Protestant' %}selected{% endif %}>Protestant</option>
+                        <option value="Islam" {% if profile and profile.religion == 'Islam' %}selected{% endif %}>Islam</option>
+                        <option value="Jehovah's Witness" {% if profile and profile.religion == "Jehovah's Witness" %}selected{% endif %}>Jehovah's Witness</option>
+                        <option value="Buddhist" {% if profile and profile.religion == 'Buddhist' %}selected{% endif %}>Buddhist</option>
+                        <option value="Christian Orthodox" {% if profile and profile.religion == 'Christian Orthodox' %}selected{% endif %}>Christian Orthodox</option>
+                        <option value="Hindu" {% if profile and profile.religion == 'Hindu' %}selected{% endif %}>Hindu</option>
+                        <option value="Atheist/Agnostic" {% if profile and profile.religion == 'Atheist/Agnostic' %}selected{% endif %}>Atheist/Agnostic</option>
+                        <option value="Others" {% if profile and profile.religion == 'Others' %}selected{% endif %}>Others</option>
+                        <option value="Prefer not to say" {% if profile and profile.religion == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="civil_status" class="form-label required-field {% if 'Civil Status' in missing_fields %}missing-field-label{% endif %}">Civil Status</label>
+                    <select class="form-control {% if 'Civil Status' in missing_fields %}missing-field{% endif %}" id="civil_status" name="civil_status" required>
+                        <option value="">Select Civil Status</option>
+                        <option value="Single" {% if profile and profile.civil_status == 'Single' %}selected{% endif %}>Single</option>
+                        <option value="Married" {% if profile and profile.civil_status == 'Married' %}selected{% endif %}>Married</option>
+                        <option value="Divorced" {% if profile and profile.civil_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                        <option value="Widowed" {% if profile and profile.civil_status == 'Widowed' %}selected{% endif %}>Widowed</option>
+                        <option value="Separated" {% if profile and profile.civil_status == 'Separated' %}selected{% endif %}>Separated</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="place_of_birth" class="form-label">Place of Birth</label>
+                    <input type="text" class="form-control" id="place_of_birth" name="place_of_birth" 
+                           value="{{ profile.place_of_birth or '' }}" placeholder="City/Municipality, Province">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="highest_education_attainment" class="form-label required-field {% if 'Highest Education Attainment' in missing_fields %}missing-field-label{% endif %}">Highest Education Attainment</label>
+                    <select class="form-control {% if 'Highest Education Attainment' in missing_fields %}missing-field{% endif %}" id="highest_education_attainment" name="highest_education_attainment" required>
+                        <option value="">Select Education Level</option>
+                        <option value="No Formal Education" {% if profile and profile.highest_education_attainment == 'No Formal Education' %}selected{% endif %}>No Formal Education</option>
+                        <option value="Elementary School" {% if profile and profile.highest_education_attainment == 'Elementary School' %}selected{% endif %}>Elementary School</option>
+                        <option value="High School" {% if profile and profile.highest_education_attainment == 'High School' %}selected{% endif %}>High School</option>
+                        <option value="Vocational/Technical" {% if profile and profile.highest_education_attainment == 'Vocational/Technical' %}selected{% endif %}>Vocational/Technical</option>
+                        <option value="Some College" {% if profile and profile.highest_education_attainment == 'Some College' %}selected{% endif %}>Some College</option>
+                        <option value="Bachelor's Degree" {% if profile and profile.highest_education_attainment == "Bachelor's Degree" %}selected{% endif %}>Bachelor's Degree</option>
+                        <option value="Master's Degree" {% if profile and profile.highest_education_attainment == "Master's Degree" %}selected{% endif %}>Master's Degree</option>
+                        <option value="Doctorate" {% if profile and profile.highest_education_attainment == 'Doctorate' %}selected{% endif %}>Doctorate</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Employment & Education -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-briefcase"></i>
+                Employment & Education
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_currently_employed" 
+                               name="is_currently_employed" {% if profile and profile.is_currently_employed %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_currently_employed">Currently Employed</label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_student" 
+                               name="is_student" {% if profile and profile.is_student %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_student">Currently a Student</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="occupation" class="form-label {% if 'Occupation' in missing_fields %}missing-field-label{% endif %}">Occupation</label>
+                    <input type="text" class="form-control {% if 'Occupation' in missing_fields %}missing-field{% endif %}" id="occupation" name="occupation" 
+                           value="{{ profile.occupation or '' }}" placeholder="e.g., Teacher, Farmer, Driver">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="family_annual_income" class="form-label {% if 'Family Monthly Income' in missing_fields %}missing-field-label{% endif %}">Family Monthly Income <span class="text-danger">*</span></label>
+                    <select class="form-control {% if 'Family Monthly Income' in missing_fields %}missing-field{% endif %}" id="family_annual_income" name="family_annual_income" required>
+                        <option value="">-- Select Income Range --</option>
+                        {% for range in income_ranges %}
+                        <option value="{{ range.min }}" 
+                            {% if profile and profile.family_annual_income is not none %}
+                                {% if (range.max and profile.family_annual_income >= range.min and profile.family_annual_income <= range.max) or (not range.max and profile.family_annual_income >= range.min) %}
+                                    selected
+                                {% endif %}
+                            {% endif %}>
+                            {{ range.display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select your family monthly income range</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Special Categories -->
+        <div class="form-section">
+            <h5 class="section-header">
+                <i class="fas fa-heart"></i>
+                Special Categories
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_solo_parent" 
+                               name="is_solo_parent" {% if profile and profile.is_solo_parent %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_solo_parent">Solo Parent</label>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_pwd" 
+                               name="is_pwd" {% if profile and profile.is_pwd %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_pwd">Person with Disability (PWD)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3" id="disability_type_container" style="display: {% if profile and profile.is_pwd %}block{% else %}none{% endif %};">
+                <label for="disability_type" class="form-label">Disability Type</label>
+                <select class="form-control" id="disability_type" name="disability_type">
+                    <option value="">Select Disability Type</option>
+                    <option value="Physical" {% if profile and profile.disability_type == 'Physical' %}selected{% endif %}>Physical</option>
+                    <option value="Visual" {% if profile and profile.disability_type == 'Visual' %}selected{% endif %}>Visual</option>
+                    <option value="Hearing" {% if profile and profile.disability_type == 'Hearing' %}selected{% endif %}>Hearing</option>
+                    <option value="Speech" {% if profile and profile.disability_type == 'Speech' %}selected{% endif %}>Speech</option>
+                    <option value="Intellectual" {% if profile and profile.disability_type == 'Intellectual' %}selected{% endif %}>Intellectual</option>
+                    <option value="Psychosocial" {% if profile and profile.disability_type == 'Psychosocial' %}selected{% endif %}>Psychosocial</option>
+                    <option value="Other" {% if profile and profile.disability_type == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="text-center">
+            <button type="submit" class="btn btn-save btn-lg">
+                <i class="fas fa-save mr-2"></i>Save Changes
+            </button>
+            <a href="{{ url_for('community.profile') }}" class="btn btn-secondary btn-lg ml-2">
+                <i class="fas fa-times mr-2"></i>Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Photo Preview Modal (for viewing current photo) -->
+<div class="modal fade" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoPreviewTitle">Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <img id="previewImage" src="" alt="Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('profilePicInput').click()">
+                    <i class="fas fa-camera mr-2"></i>Change Photo
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="removePhoto()">
+                    <i class="fas fa-trash-alt mr-2"></i>Remove Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Upload Confirmation Modal -->
+<div class="modal fade" id="photoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="photoConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 450px;">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-0 pb-0">
+                <h5 class="modal-title" id="photoConfirmTitle">Confirm Profile Picture</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" onclick="cancelPhotoUpload()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="text-muted mb-3">Preview your new profile picture:</p>
+                <img id="confirmPreviewImage" src="" alt="New Profile Photo" style="width: 240px; height: 240px; border-radius: 50%; object-fit: cover; border: 4px solid #f0f0f0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            </div>
+            <div class="modal-footer border-top-0 d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-secondary" onclick="cancelPhotoUpload()">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmPhotoUpload()">
+                    <i class="fas fa-check mr-2"></i>Confirm & Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for removing photo -->
+<form id="removePhotoForm" action="{{ url_for('community.remove_community_photo') }}" method="POST" style="display: none;"></form>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Show photo preview modal (for viewing current photo)
+    function showPhotoModal() {
+        const image = document.getElementById('avatarPreview');
+        if (image && image.src) {
+            document.getElementById('previewImage').src = image.src;
+            $('#photoPreviewModal').modal('show');
+        }
+    }
+    
+    // Remove photo
+    function removePhoto() {
+        if (confirm('Are you sure you want to remove your profile photo?')) {
+            $('#photoPreviewModal').modal('hide');
+            document.getElementById('removePhotoForm').submit();
+        }
+    }
+
+    // Preview & show confirmation modal for new photo
+    function previewAndSubmit(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('File size must be less than 5MB.');
+                input.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Show the confirmation modal with preview
+                document.getElementById('confirmPreviewImage').src = e.target.result;
+                $('#photoConfirmModal').modal('show');
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Confirm and upload the photo
+    function confirmPhotoUpload() {
+        $('#photoConfirmModal').modal('hide');
+        document.getElementById('photoForm').submit();
+    }
+    
+    // Cancel photo upload and clear input
+    function cancelPhotoUpload() {
+        document.getElementById('profilePicInput').value = '';
+        $('#photoConfirmModal').modal('hide');
+    }
+
+$(document).ready(function() {
+    const municipalityBarangays = {{ municipality_barangays | tojson }};
+    const municipalitySelect = $('#municipality');
+    const barangaySelect = $('#barangay');
+    const initialBarangay = barangaySelect.val();
+
+    function renderBarangays(municipality, selectedBarangay) {
+        barangaySelect.empty();
+        barangaySelect.append(new Option('Select Barangay', ''));
+
+        if (!municipality || !municipalityBarangays[municipality]) {
+            return;
+        }
+
+        municipalityBarangays[municipality].forEach(function(brgy) {
+            const option = new Option(brgy, brgy);
+            if (selectedBarangay && selectedBarangay === brgy) {
+                option.selected = true;
+            }
+            barangaySelect.append(option);
+        });
+    }
+
+    if (municipalitySelect.val()) {
+        renderBarangays(municipalitySelect.val(), initialBarangay);
+    }
+
+    municipalitySelect.on('change', function() {
+        renderBarangays($(this).val(), '');
+    });
+
+    // Show/hide disability type field based on PWD checkbox
+    $('#is_pwd').change(function() {
+        if ($(this).is(':checked')) {
+            $('#disability_type_container').slideDown();
+        } else {
+            $('#disability_type_container').slideUp();
+            $('#disability_type').val('');
+        }
+    });
+    
+    // Family income is now a dropdown, no complex validation needed
+    
+    // Form validation
+    $('form#editProfileForm').submit(function(e) {
+        let isValid = true;
+        
+        // Check required fields
+        if (!$('#first_name').val().trim()) {
+            alert('First name is required');
+            isValid = false;
+        }
+        
+        if (!$('#last_name').val().trim()) {
+            alert('Last name is required');
+            isValid = false;
+        }
+
+        if (!$('#family_annual_income').val().trim()) {
+            alert('Family Monthly Income is required. Please select an income range');
+            isValid = false;
+        }
+
+        const selectedMunicipality = municipalitySelect.val();
+        const selectedBarangay = barangaySelect.val();
+
+        if (selectedBarangay && !selectedMunicipality) {
+            alert('Please select a municipality before selecting a barangay.');
+            isValid = false;
+        }
+
+        if (selectedMunicipality && selectedBarangay) {
+            const validBarangays = municipalityBarangays[selectedMunicipality] || [];
+            if (validBarangays.indexOf(selectedBarangay) === -1) {
+                alert('Selected barangay is not valid for the chosen municipality.');
+                isValid = false;
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

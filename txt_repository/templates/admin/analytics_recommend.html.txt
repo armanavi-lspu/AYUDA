@@ -1,0 +1,2787 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Recommend Beneficiaries - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .analytics-shell {
+        animation: analyticsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes analyticsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .analytics-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .analytics-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .analytics-nav-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        padding: 0.55rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-nav {
+        gap: 0.55rem;
+    }
+
+    .analytics-nav .nav-link {
+        color: #2a4b79;
+        font-weight: 600;
+        padding: 0.62rem 1.1rem;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
+    }
+
+    .analytics-nav .nav-link:hover {
+        color: #1942a8;
+        background: #f4f8ff;
+        border-color: #dbe7fd;
+    }
+
+    .analytics-nav .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 6px 16px rgba(31, 111, 235, 0.28);
+    }
+
+    .analytics-panel-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .analytics-panel-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%) !important;
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273 !important;
+    }
+
+    .analytics-panel-card .card-body {
+        padding: 1.15rem;
+    }
+
+    .form-control,
+    .custom-select {
+        border-radius: 8px;
+        border: 1px solid #d8deea;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.25s ease;
+        background: #fff;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .parameter-card {
+        border: 0;
+        transition: all 0.3s ease;
+    }
+
+    .score-badge {
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        color: #fff;
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.84rem;
+        letter-spacing: 0.2px;
+    }
+
+    .recommendation-item {
+        cursor: pointer;
+        transition: all 0.25s ease;
+        border: 1px solid var(--dash-border) !important;
+        border-left: 4px solid #dbe5fa !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06);
+    }
+
+    .recommendation-item:hover {
+        border-left-color: var(--dash-blue) !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.13);
+    }
+
+    .ml-badge {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        padding: 0.3rem 0.72rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    /* Detail modal styles */
+    .detail-section {
+        background: #f8f9fc;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .detail-section h6 {
+        color: #4e73df;
+        margin-bottom: 0.75rem;
+    }
+    .score-bar-container {
+        margin-bottom: 0.6rem;
+    }
+    .score-bar-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.2rem;
+        font-size: 0.85rem;
+    }
+    .score-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e3e6f0;
+        overflow: hidden;
+    }
+    .score-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.6s ease;
+    }
+    .detail-badge {
+        display: inline-block;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.4rem;
+        margin-bottom: 0.4rem;
+    }
+    .detail-badge-yes {
+        background: #d4edda;
+        color: #155724;
+    }
+    .detail-badge-no {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .total-score-display {
+        text-align: center;
+        padding: 1rem;
+        background: linear-gradient(135deg, #159947 0%, #0f7e37 100%);
+        border-radius: 10px;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    .total-score-display .score-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+    }
+    .total-score-display .score-label {
+        font-size: 0.85rem;
+        opacity: 0.9;
+    }
+
+    /* Recommendation history list item contrast fix */
+    .saved-list-item.active {
+        background-color: var(--dash-blue) !important;
+        color: #fff !important;
+        border-color: var(--dash-blue) !important;
+    }
+
+    .saved-list-item.active .text-muted {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    .saved-list-item.active .font-weight-bold {
+        color: #fff !important;
+    }
+
+    .saved-list-item.active small {
+        color: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    @media (max-width: 991.98px) {
+        .analytics-hero {
+            padding: 1.15rem;
+        }
+
+        .analytics-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .analytics-nav .nav-link,
+        .btn-gradient-primary,
+        .btn-outline-custom {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid analytics-shell py-4">
+    <div class="analytics-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-2 mb-lg-0">
+                <h1 class="h2 font-weight-bold mb-0">
+                    <i class="fas fa-users mr-2"></i>Beneficiary Recommendation
+                </h1>
+                <p class="subtitle">Generate prioritized beneficiary lists using data-driven scoring.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <button type="button" class="btn btn-outline-custom mr-2" data-toggle="modal" data-target="#recommendationInfoModal">
+                    <i class="fas fa-info-circle mr-2"></i>Page Info
+                </button>
+                <a href="{{ url_for('admin.analytics_reports') }}" class="btn btn-outline-custom">
+                    <i class="fas fa-file-export mr-2"></i>Generate Report
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics-nav-panel">
+        <ul class="nav nav-pills analytics-nav mb-0">
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_analysis') }}">
+                    <i class="fas fa-chart-line mr-2"></i>Analysis
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('admin.analytics_recommend') }}">
+                    <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_reports') }}">
+                    <i class="fas fa-file-export mr-2"></i>Reports
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Parameter Selection -->
+        <div class="col-lg-4 mb-4">
+            <div class="card analytics-panel-card parameter-card">
+                <div class="card-header py-3 px-4">
+                    <h6 class="m-0 font-weight-bold d-flex align-items-center">
+                        <i class="fas fa-sliders-h mr-2"></i>
+                        Selection Parameters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="recommendationForm">
+                        <!-- Program Selection -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-clipboard-list mr-2 text-primary"></i>Target Program
+                            </label>
+                            <select class="form-control" id="program_id" name="program_id" required>
+                                <option value="">Select a program...</option>
+                                {% for program in programs %}
+                                <option value="{{ program.id }}" {% if preselected_program_id == program.id %}selected{% endif %}>{{ program.program_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Select the program for beneficiary selection</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Max Beneficiaries -->
+                        <div class="form-group">
+                            <label class="font-weight-bold">
+                                <i class="fas fa-users mr-2 text-success"></i>Maximum Beneficiaries
+                            </label>
+                            <input type="number" class="form-control" id="max_beneficiaries" 
+                                   name="max_beneficiaries" value="50" min="1" max="500" required>
+                            <small class="form-text text-muted">Maximum number of recommendations to generate</small>
+                        </div>
+
+                        <hr>
+
+                        <!-- Priority Filters -->
+                        <h6 class="font-weight-bold mb-3">
+                            <i class="fas fa-filter mr-2 text-info"></i>Priority Filters
+                        </h6>
+
+                        <div class="form-group mb-2">
+                            <label class="font-weight-bold mb-1">
+                                <i class="fas fa-map-marked-alt mr-2 text-primary"></i>Municipality Scope
+                            </label>
+                            <div class="form-control-plaintext border rounded px-3 py-2 bg-light" id="priorityMunicipalityScope">
+                                Loading municipality scope...
+                            </div>
+                            <small class="form-text text-muted">Recommendations are automatically scoped to your assigned municipality.</small>
+                        </div>
+
+                        <!-- Barangay Priority - Checkboxes -->
+                        <div class="form-group">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="mb-0">Priority Barangays <small class="text-muted">(Select one or more)</small></label>
+                                <button type="button" class="btn btn-outline-custom btn-sm" id="selectAllBarangaysBtn">
+                                    <i class="fas fa-check-square mr-1"></i>Select All
+                                </button>
+                            </div>
+                            <div class="barangay-checkbox-container" id="barangayCheckboxContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #e3e6f0; border-radius: 5px; padding: 10px;">
+                                <small class="text-muted">Loading barangays for your municipality...</small>
+                            </div>
+                            <small class="form-text text-muted">Leave all unchecked to include all barangays in your municipality</small>
+                        </div>
+
+                        <!-- Income Range -->
+                        <div class="form-group">
+                            <label>Family Monthly Income Range</label>
+                            <select class="form-control form-control-sm" id="income_range_filter" name="income_range_filter">
+                                <option value="0|150000" selected>Below 150,000</option>
+                                <option value="0|100000">Below 100,000</option>
+                                <option value="0|75000">Below 75,000</option>
+                                <option value="0|50000">Below 50,000</option>
+                                <option value="0|40000">Below 40,000</option>
+                                <option value="0|30000">Below 30,000</option>
+                            </select>
+                            <input type="hidden" id="min_income" name="min_income" value="0">
+                            <input type="hidden" id="max_income" name="max_income" value="150000">
+                            <small class="form-text text-muted">Selecting a threshold includes all beneficiaries from lower income brackets up to that "Below" value.</small>
+                        </div>
+
+                        <!-- ML Model Note -->
+                        <div class="alert alert-info">
+                            <i class="fas fa-robot mr-2"></i>
+                            <strong>Content-Based Filtering:</strong> Using TF-IDF vectorization and nearest neighbors for intelligent beneficiary scoring and ranking.
+                        </div>
+
+                        <!-- Generate Button -->
+                        <button type="submit" class="btn btn-gradient-primary btn-block" id="generateBtn">
+                            <i class="fas fa-magic mr-2"></i>Generate Recommendations
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Results -->
+        <div class="col-lg-8 mb-4">
+            <div class="card analytics-panel-card">
+                <div class="card-header py-3 px-4 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-list-ol mr-2"></i>Recommended Beneficiaries
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-outline-custom btn-sm mr-2" id="viewSavedListsBtn" type="button">
+                            <i class="fas fa-history mr-2"></i>Recommendation History
+                        </button>
+                        <div id="resultActionButtons" style="display: none;">
+                        <button class="btn btn-gradient-primary btn-sm mr-2" id="notifyUsersBtn" type="button">
+                            <i class="fas fa-bell mr-2"></i>Notify Users
+                        </button>
+                        <button class="btn btn-outline-custom btn-sm" id="exportBtn" type="button">
+                            <i class="fas fa-download mr-2"></i>Export List
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="actionFeedback" style="display: none;"></div>
+
+                    <!-- Initial State -->
+                    <div id="initialState" class="text-center py-5">
+                        <i class="fas fa-users-cog fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Recommendations Generated</h5>
+                        <p class="text-muted">Set your parameters and click "Generate Recommendations" to begin</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingState" class="text-center py-5" style="display: none;">
+                        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <h5 class="text-primary">Analyzing Data...</h5>
+                        <p class="text-muted">Please wait while we generate recommendations</p>
+                    </div>
+
+                    <!-- Results Container -->
+                    <div id="resultsContainer" style="display: none;">
+                        <!-- Summary -->
+                        <div class="alert alert-success mb-4">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-check-circle mr-2"></i>
+                                        Generated <strong id="resultCount">0</strong> recommendations
+                                    </h6>
+                                </div>
+                                <div class="col-md-4 text-md-right">
+                                    <small class="text-muted" id="resultTimestamp"></small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning mb-4" id="filteredOutRecommendationsSection" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                <div>
+                                    <i class="fas fa-filter mr-2"></i>
+                                    <strong id="filteredOutRecommendationsCount">0</strong> recommended user(s) were filtered out due to Active Application/Cooldown restrictions.
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-warning btn-sm mt-2 mt-md-0"
+                                    data-toggle="collapse"
+                                    data-target="#filteredOutRecommendationsCollapse"
+                                    aria-expanded="false"
+                                    aria-controls="filteredOutRecommendationsCollapse"
+                                >
+                                    <i class="fas fa-chevron-down mr-1"></i>Show Filtered Out Users
+                                </button>
+                            </div>
+                            <div class="collapse mt-3" id="filteredOutRecommendationsCollapse">
+                                <div id="filteredOutRecommendationsList"></div>
+                            </div>
+                        </div>
+
+                        <!-- Results List -->
+                        <div id="resultsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Beneficiary Recommendation Info Modal -->
+<div class="modal fade" id="recommendationInfoModal" tabindex="-1" role="dialog" aria-labelledby="recommendationInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="recommendationInfoModalLabel">
+                    <i class="fas fa-info-circle mr-2"></i>About Beneficiary Recommendation
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    This page generates a prioritized list of beneficiaries for the selected program using profile matching and need-based scoring.
+                </p>
+
+                <div class="detail-section">
+                    <h6><i class="fas fa-user-check mr-2"></i>Who Is Included</h6>
+                    <ul class="mb-0 pl-3">
+                        <li>Community users under your assigned municipality (<strong>{{ admin_municipality or 'Your municipality scope' }}</strong>).</li>
+                        <li>Users who match the selected filters, including Family Monthly Income threshold and selected priority barangays.</li>
+                        <li>Users ranked by recommendation score/similarity for the selected program.</li>
+                        <li>Only users without active application/cooldown restrictions are included in the main list and notification target.</li>
+                    </ul>
+                </div>
+
+                <div class="detail-section mb-0">
+                    <h6><i class="fas fa-user-times mr-2"></i>Why Some Users Are Not Included</h6>
+                    <ul class="mb-0 pl-3">
+                        <li>They belong to a different municipality than your admin assignment.</li>
+                        <li>They have an active application or are still within an active cooldown period.</li>
+                        <li>Their Family Monthly Income is outside the selected income range.</li>
+                        <li>They are outside selected priority barangays (when barangays are selected).</li>
+                        <li>The recommendation limit is reached (for example, only top <em>Max Beneficiaries</em> are returned).</li>
+                        <li>The selected program is not recommendation-eligible (ESA or Emergency programs are excluded).</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+ </div>
+
+<!-- Notify Recommendations Confirmation Modal -->
+<div class="modal fade" id="notifyRecommendationsModal" tabindex="-1" role="dialog" aria-labelledby="notifyRecommendationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="notifyRecommendationsModalLabel">
+                    <i class="fas fa-bell mr-2"></i>Confirm Notifications
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="notifyRecommendationsSummaryText">Send recommendation notifications to selected users?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-primary" id="confirmNotifyRecommendationsBtn">
+                    <i class="fas fa-paper-plane mr-2"></i>Send Notifications
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendation Export Modal -->
+<div class="modal fade" id="exportRecommendationModal" tabindex="-1" role="dialog" aria-labelledby="exportRecommendationModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="exportRecommendationModalLabel">
+                    <i class="fas fa-file-export mr-2"></i>Export Recommendation List
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3 text-muted" id="exportRecommendationSummaryText">Select the file type for exporting this recommendation list.</p>
+                <div class="form-group mb-0">
+                    <label class="font-weight-bold d-block mb-2">File Type</label>
+                    <div class="custom-control custom-radio mb-2">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportCsv" value="csv" checked>
+                        <label class="custom-control-label" for="recommendationExportCsv">CSV (.csv)</label>
+                    </div>
+                    <div class="custom-control custom-radio mb-2">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportExcel" value="excel">
+                        <label class="custom-control-label" for="recommendationExportExcel">Excel (.xls)</label>
+                    </div>
+                    <div class="custom-control custom-radio">
+                        <input class="custom-control-input" type="radio" name="recommendation_export_format" id="recommendationExportPdf" value="pdf">
+                        <label class="custom-control-label" for="recommendationExportPdf">PDF (.pdf)</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient-primary" id="confirmRecommendationExportBtn">
+                    <i class="fas fa-download mr-2"></i>Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Beneficiary Detail Modal -->
+<div class="modal fade" id="beneficiaryDetailModal" tabindex="-1" role="dialog" aria-labelledby="beneficiaryDetailLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="beneficiaryDetailLabel">
+                    <i class="fas fa-user mr-2"></i>Beneficiary Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="beneficiaryDetailBody">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-outline-custom mr-2" id="viewBeneficiaryProfileBtn" style="display: none;">
+                    <i class="fas fa-user-circle mr-2"></i>View Profile
+                </a>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendation History Modal -->
+<div class="modal fade" id="savedListsModal" tabindex="-1" role="dialog" aria-labelledby="savedListsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="savedListsModalLabel">
+                    <i class="fas fa-history mr-2"></i>Recommendation History
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="savedListFeedback" style="display: none;"></div>
+                <div class="row">
+                    <div class="col-lg-5 border-right">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="font-weight-bold mb-0">Generated Recommendations</h6>
+                            <button type="button" class="btn btn-outline-custom btn-sm" id="refreshSavedListsBtn">
+                                <i class="fas fa-sync-alt mr-1"></i>Refresh
+                            </button>
+                        </div>
+                        <div id="savedListsLoading" class="text-center py-4 text-muted" style="display: none;">
+                            <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+                            Loading recommendation history...
+                        </div>
+                        <div class="list-group" id="savedListsContainer"></div>
+                    </div>
+                    <div class="col-lg-7">
+                        <h6 class="font-weight-bold mb-3">History Summary</h6>
+                        <div id="savedListDetailPanel" class="text-muted">
+                            Select a recommendation history record to view parameters and actions.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-gradient-primary" id="notifySavedListUsersBtn" disabled>
+                    <i class="fas fa-bell mr-2"></i>Notify Users
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommendation History Beneficiaries Modal -->
+<div class="modal fade" id="savedListBeneficiariesModal" tabindex="-1" role="dialog" aria-labelledby="savedListBeneficiariesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="savedListBeneficiariesModalLabel">
+                    <i class="fas fa-users mr-2"></i>History Beneficiaries
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="savedBeneficiariesModalFeedback" style="display: none;"></div>
+
+                <div id="savedBeneficiariesLoading" class="text-center py-4 text-muted" style="display: none;">
+                    <div class="spinner-border spinner-border-sm text-primary mr-2" role="status"></div>
+                    Loading beneficiaries...
+                </div>
+
+                <div id="savedBeneficiariesContent" style="display: none;">
+                    <div id="savedBeneficiariesSummary" class="mb-3"></div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th style="width: 70px;">#</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Municipality</th>
+                                    <th>Barangay</th>
+                                    <th style="width: 140px;">Tags</th>
+                                </tr>
+                            </thead>
+                            <tbody id="savedBeneficiariesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="savedBeneficiariesEmpty" class="text-center text-muted py-3" style="display: none;">
+                        No beneficiaries available in this recommendation history record.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-gradient-primary" id="notifySavedBeneficiariesBtn" disabled>
+                    <i class="fas fa-bell mr-2"></i>Notify Users
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Store current recommendations for detail view
+let currentRecommendations = [];
+let currentFilteredRecommendations = [];
+let currentAlgorithm = '';
+let currentPriorityGroups = '';  // Store program's priority groups for explanation generation
+let currentProgramId = null;
+let currentProgramName = '';
+let currentGeneratedAt = null;
+let currentRequestFilters = {};
+let pendingNotificationRequest = null;
+const municipalityBarangays = {{ municipality_barangays_json | safe }};
+const priorityMunicipality = Object.keys(municipalityBarangays || {})[0] || '';
+const RECOMMENDATION_STATE_KEY = 'ayuda_admin_recommend_state_v1';
+const queryParams = new URLSearchParams(window.location.search);
+const requestedProgramIdFromQuery = parseInt(queryParams.get('program_id') || '', 10);
+const requestedProgramId = Number.isInteger(requestedProgramIdFromQuery) && requestedProgramIdFromQuery > 0
+    ? requestedProgramIdFromQuery
+    : ({{ preselected_program_id | tojson }} || null);
+const shouldResetRecommendationState = queryParams.get('reset_state') === '1';
+let savedRecommendationSets = [];
+let selectedSavedListId = null;
+let selectedSavedListDetail = null;
+const savedRecommendationDetailUrlTemplate = '{{ url_for("admin.api_saved_recommendation_detail", saved_list_id=0) }}';
+const communityUserProfileUrlTemplate = '{{ url_for("admin.view_community_user", user_id=0) }}';
+const recommendationExportUrl = '{{ url_for("admin.api_export_recommendations") }}';
+
+function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function formatCurrency(value) {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : 0;
+    return `₱${safeValue.toLocaleString()}`;
+}
+
+function getFamilyMonthlyIncomeDisplay(rec) {
+    const incomeLabel = String((rec && rec.income_range_label) || '').trim();
+    if (incomeLabel) {
+        return incomeLabel;
+    }
+
+    const incomeValue = toFiniteNumber(rec && rec.income, 0);
+    const ranges = [
+        { min: 0, max: 9999, label: 'Below ₱10,000' },
+        { min: 10000, max: 20000, label: '₱10,000 - ₱20,000' },
+        { min: 20001, max: 30000, label: '₱20,001 - ₱30,000' },
+        { min: 30001, max: 40000, label: '₱30,001 - ₱40,000' },
+        { min: 40001, max: 50000, label: '₱40,001 - ₱50,000' },
+        { min: 50001, max: 75000, label: '₱50,001 - ₱75,000' },
+        { min: 75001, max: 100000, label: '₱75,001 - ₱100,000' },
+        { min: 100001, max: 150000, label: '₱100,001 - ₱150,000' },
+        { min: 150001, max: 200000, label: '₱150,001 - ₱200,000' },
+        { min: 200001, max: 300000, label: '₱200,001 - ₱300,000' },
+        { min: 300001, max: 400000, label: '₱300,001 - ₱400,000' },
+        { min: 400001, max: 500000, label: '₱400,001 - ₱500,000' },
+        { min: 500001, max: null, label: '₱500,001 and above' },
+    ];
+
+    const matched = ranges.find(range => {
+        if (range.max === null) {
+            return incomeValue >= range.min;
+        }
+        return incomeValue >= range.min && incomeValue <= range.max;
+    });
+
+    if (matched) {
+        return matched.label;
+    }
+
+    return formatCurrency(incomeValue);
+}
+
+function toFiniteNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clampUnitInterval(value) {
+    return Math.min(1, Math.max(0, toFiniteNumber(value, 0)));
+}
+
+function formatTimestamp(isoValue) {
+    if (!isoValue) return 'N/A';
+    const date = new Date(isoValue);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila'
+    });
+}
+
+function csvEscape(value) {
+    const stringValue = String(value === null || value === undefined ? '' : value);
+    if (/[",\r\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+}
+
+function sanitizeFilename(input) {
+    return String(input || 'program')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'program';
+}
+
+function setResultActionButtonsVisible(isVisible) {
+    const actionWrapper = document.getElementById('resultActionButtons');
+    actionWrapper.style.display = isVisible ? 'flex' : 'none';
+}
+
+function clearActionFeedback() {
+    const feedback = document.getElementById('actionFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function showActionFeedback(message, variant) {
+    const feedback = document.getElementById('actionFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function getUniqueRecommendationUserIds() {
+    return Array.from(new Set(
+        currentRecommendations
+            .map(rec => parseInt(rec.user_id, 10))
+            .filter(id => Number.isInteger(id) && id > 0)
+    ));
+}
+
+function isRecommendationFilteredOut(rec) {
+    return !!(rec && (rec.has_active_application || rec.has_active_cooldown));
+}
+
+function splitRecommendationCandidates(recommendations) {
+    const included = [];
+    const filteredOut = [];
+
+    (Array.isArray(recommendations) ? recommendations : []).forEach(rec => {
+        if (isRecommendationFilteredOut(rec)) {
+            filteredOut.push(rec);
+        } else {
+            included.push(rec);
+        }
+    });
+
+    return { included, filteredOut };
+}
+
+function getRecommendationFilterReasons(rec) {
+    const reasons = [];
+    if (rec && rec.has_active_application) {
+        reasons.push('Has active application');
+    }
+    if (rec && rec.has_active_cooldown) {
+        reasons.push('Cooldown period active');
+    }
+    return reasons.length ? reasons.join(' | ') : 'Eligibility-restricted';
+}
+
+function renderFilteredOutRecommendationsSection(filteredRecommendations) {
+    const section = document.getElementById('filteredOutRecommendationsSection');
+    const countEl = document.getElementById('filteredOutRecommendationsCount');
+    const listEl = document.getElementById('filteredOutRecommendationsList');
+    const collapseEl = document.getElementById('filteredOutRecommendationsCollapse');
+
+    if (!section || !countEl || !listEl) {
+        return;
+    }
+
+    const filtered = Array.isArray(filteredRecommendations) ? filteredRecommendations : [];
+    if (!filtered.length) {
+        section.style.display = 'none';
+        countEl.textContent = '0';
+        listEl.innerHTML = '';
+        if (window.$ && collapseEl) {
+            $(collapseEl).collapse('hide');
+        }
+        return;
+    }
+
+    countEl.textContent = String(filtered.length);
+    section.style.display = 'block';
+    listEl.innerHTML = '';
+
+    filtered.forEach((rec, index) => {
+        const item = document.createElement('div');
+        item.className = 'recommendation-item p-3 mb-2 border rounded';
+        item.setAttribute('data-index', index);
+        item.addEventListener('click', function() {
+            showBeneficiaryDetail(index, rec, {
+                rankNumber: index + 1,
+                totalCount: filtered.length,
+            });
+        });
+
+        item.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="font-weight-bold">${index + 1}. ${escapeHtml(rec.name || 'N/A')}</div>
+                    <small class="text-muted d-block"><i class="fas fa-envelope mr-1"></i>${escapeHtml(rec.email || 'N/A')}</small>
+                    <small class="text-muted d-block"><i class="fas fa-map-marker-alt mr-1"></i>${escapeHtml(rec.barangay || 'N/A')}</small>
+                </div>
+                <div class="text-right">
+                    <small class="text-muted d-block">Family Monthly Income</small>
+                    <strong>${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</strong>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="badge badge-danger mr-1">${escapeHtml(getRecommendationFilterReasons(rec))}</span>
+            </div>
+            <small class="text-muted d-block mt-2"><i class="fas fa-eye mr-1"></i>Click to view details</small>
+        `;
+
+        listEl.appendChild(item);
+    });
+}
+
+function persistRecommendationState(generatedAt) {
+    try {
+        const payload = {
+            generated_at: generatedAt || new Date().toISOString(),
+            program_id: currentProgramId,
+            program_name: currentProgramName,
+            algorithm: currentAlgorithm,
+            priority_groups: currentPriorityGroups,
+            filters: currentRequestFilters || {},
+            recommendations: currentRecommendations || [],
+            filtered_recommendations: currentFilteredRecommendations || [],
+            count: Array.isArray(currentRecommendations) ? currentRecommendations.length : 0,
+        };
+        sessionStorage.setItem(RECOMMENDATION_STATE_KEY, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Unable to persist recommendation state:', error);
+    }
+}
+
+function restoreRecommendationState() {
+    try {
+        const raw = sessionStorage.getItem(RECOMMENDATION_STATE_KEY);
+        if (!raw) return false;
+
+        const payload = JSON.parse(raw);
+        if (!payload || !Array.isArray(payload.recommendations)) {
+            sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+            return false;
+        }
+
+        currentRecommendations = payload.recommendations;
+        currentFilteredRecommendations = Array.isArray(payload.filtered_recommendations)
+            ? payload.filtered_recommendations
+            : [];
+        currentAlgorithm = payload.algorithm || '';
+        currentPriorityGroups = payload.priority_groups || '';
+        currentProgramId = payload.program_id ? parseInt(payload.program_id, 10) : null;
+        currentProgramName = payload.program_name || '';
+        currentGeneratedAt = payload.generated_at || null;
+        currentRequestFilters = payload.filters && typeof payload.filters === 'object' ? payload.filters : {};
+
+        const programSelect = document.getElementById('program_id');
+        if (programSelect && currentProgramId) {
+            const programValue = String(currentProgramId);
+            const optionExists = Array.from(programSelect.options).some(option => option.value === programValue);
+            if (optionExists) {
+                programSelect.value = programValue;
+            }
+        }
+
+        if (currentRequestFilters.max_beneficiaries) {
+            document.getElementById('max_beneficiaries').value = currentRequestFilters.max_beneficiaries;
+        }
+
+        const scopedMunicipality = currentRequestFilters.priority_municipality || priorityMunicipality;
+        renderBarangayOptionsForMunicipality(scopedMunicipality);
+
+        const selectedBarangays = Array.isArray(currentRequestFilters.priority_barangays)
+            ? currentRequestFilters.priority_barangays
+            : [];
+
+        if (selectedBarangays.length > 0) {
+            document.querySelectorAll('.barangay-checkbox').forEach(checkbox => {
+                checkbox.checked = selectedBarangays.includes(checkbox.value);
+            });
+        }
+
+        updateSelectAllBarangaysButtonState();
+
+        if (
+            typeof currentRequestFilters.min_income === 'number' &&
+            typeof currentRequestFilters.max_income === 'number'
+        ) {
+            setIncomeRangeDropdownFromBounds(currentRequestFilters.min_income, currentRequestFilters.max_income);
+            document.getElementById('min_income').value = String(currentRequestFilters.min_income);
+            document.getElementById('max_income').value = String(currentRequestFilters.max_income);
+        }
+
+        const restoredRecommendations = [
+            ...(Array.isArray(payload.recommendations) ? payload.recommendations : []),
+            ...currentFilteredRecommendations,
+        ];
+
+        displayResults({
+            count: payload.count || restoredRecommendations.length,
+            recommendations: restoredRecommendations,
+            generated_at: payload.generated_at,
+        }, { persistState: false });
+
+        showActionFeedback('<i class="fas fa-history mr-2"></i>Restored the last generated recommendation list for this session.', 'info');
+        return true;
+    } catch (error) {
+        console.warn('Unable to restore recommendation state:', error);
+        sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+        return false;
+    }
+}
+
+function clearRecommendationState(options = {}) {
+    const clearStorage = options.clearStorage !== false;
+
+    currentRecommendations = [];
+    currentFilteredRecommendations = [];
+    currentAlgorithm = '';
+    currentPriorityGroups = '';
+    currentGeneratedAt = null;
+    currentRequestFilters = {};
+    pendingNotificationRequest = null;
+
+    const resultsList = document.getElementById('resultsList');
+    if (resultsList) {
+        resultsList.innerHTML = '';
+    }
+
+    document.getElementById('resultCount').textContent = '0';
+    document.getElementById('resultTimestamp').textContent = '';
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('resultsContainer').style.display = 'none';
+    document.getElementById('initialState').style.display = 'block';
+    document.getElementById('notifyUsersBtn').disabled = true;
+    setResultActionButtonsVisible(false);
+    clearActionFeedback();
+    renderFilteredOutRecommendationsSection([]);
+
+    if (clearStorage) {
+        sessionStorage.removeItem(RECOMMENDATION_STATE_KEY);
+    }
+}
+
+function applyRequestedProgramSelection(programId) {
+    if (!Number.isInteger(programId) || programId <= 0) {
+        return false;
+    }
+
+    const programSelect = document.getElementById('program_id');
+    const requestedValue = String(programId);
+    const optionExists = Array.from(programSelect.options).some(option => option.value === requestedValue);
+    if (!optionExists) {
+        return false;
+    }
+
+    programSelect.value = requestedValue;
+    programSelect.dispatchEvent(new Event('change'));
+    return true;
+}
+
+function removeResetFlagFromUrl() {
+    if (!shouldResetRecommendationState) {
+        return;
+    }
+
+    queryParams.delete('reset_state');
+    const queryString = queryParams.toString();
+    const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, document.title, nextUrl);
+}
+
+function renderBarangayOptionsForMunicipality(municipality) {
+    const container = document.getElementById('barangayCheckboxContainer');
+    const selectAllBtn = document.getElementById('selectAllBarangaysBtn');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!municipality) {
+        container.innerHTML = '<small class="text-muted">No municipality scope is assigned to this admin account.</small>';
+        if (selectAllBtn) {
+            selectAllBtn.disabled = true;
+        }
+        updateSelectAllBarangaysButtonState();
+        return;
+    }
+
+    const barangays = municipalityBarangays[municipality] || [];
+    if (!barangays.length) {
+        container.innerHTML = '<small class="text-muted">No barangays available for your municipality.</small>';
+        if (selectAllBtn) {
+            selectAllBtn.disabled = true;
+        }
+        updateSelectAllBarangaysButtonState();
+        return;
+    }
+
+    if (selectAllBtn) {
+        selectAllBtn.disabled = false;
+    }
+
+    barangays.forEach((barangay, index) => {
+        const optionId = `priority_barangay_${index}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-control custom-checkbox mb-1';
+        wrapper.innerHTML = `
+            <input type="checkbox" class="custom-control-input barangay-checkbox" id="${optionId}" name="priority_barangays" value="${barangay}" checked>
+            <label class="custom-control-label" for="${optionId}">${barangay}</label>
+        `;
+        container.appendChild(wrapper);
+    });
+
+    updateSelectAllBarangaysButtonState();
+}
+
+function updateSelectAllBarangaysButtonState() {
+    const selectAllBtn = document.getElementById('selectAllBarangaysBtn');
+    if (!selectAllBtn) return;
+
+    const checkboxes = Array.from(document.querySelectorAll('.barangay-checkbox'));
+    if (!checkboxes.length) {
+        selectAllBtn.disabled = true;
+        selectAllBtn.innerHTML = '<i class="fas fa-check-square mr-1"></i>Select All';
+        return;
+    }
+
+    selectAllBtn.disabled = false;
+    const allChecked = checkboxes.every(checkbox => checkbox.checked);
+    selectAllBtn.innerHTML = allChecked
+        ? '<i class="fas fa-times-circle mr-1"></i>Clear All'
+        : '<i class="fas fa-check-square mr-1"></i>Select All';
+}
+
+function renderPriorityMunicipalityScope() {
+    const scopeEl = document.getElementById('priorityMunicipalityScope');
+    if (!scopeEl) return;
+    scopeEl.textContent = priorityMunicipality || 'No municipality assigned';
+}
+
+// Auto-fill parameters when program is selected
+document.getElementById('program_id').addEventListener('change', function() {
+    const programId = this.value;
+    if (!programId) return;
+    
+    // Fetch program parameters
+    fetch(`/api/program/${programId}/parameters`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                autofillParameters(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching program parameters:', error);
+        });
+});
+
+function autofillParameters(programData) {
+    // Auto-fill beneficiary limit
+    if (programData.beneficiary_limit) {
+        document.getElementById('max_beneficiaries').value = programData.beneficiary_limit;
+    }
+    
+    // Auto-fill income range
+    if (programData.income_range) {
+        parseIncomeRange(programData.income_range);
+    }
+    
+}
+
+function parseIncomeRange(incomeRangeStr) {
+    // Reset dropdown to defaults
+    document.getElementById('income_range_filter').value = '0|150000';
+    syncIncomeRangeBoundsFromDropdown();
+    
+    if (!incomeRangeStr) return;
+    
+    const lowerStr = incomeRangeStr.toLowerCase();
+    
+    // Parse common patterns like "Below 15,000", "15000-30000", "Above 50,000", etc.
+    if (lowerStr.includes('below') || lowerStr.includes('less than')) {
+        const match = incomeRangeStr.match(/[\d,]+/);
+        if (match) {
+            const maxValue = parseFloat(match[0].replace(/,/g, ''));
+            setIncomeRangeDropdownFromBounds(0, maxValue);
+        }
+    } else if (lowerStr.includes('above') || lowerStr.includes('more than') || lowerStr.includes('greater than')) {
+        const match = incomeRangeStr.match(/[\d,]+/);
+        if (match) {
+            const minValue = parseFloat(match[0].replace(/,/g, ''));
+            setIncomeRangeDropdownFromBounds(minValue, 10000000);
+        }
+    } else if (incomeRangeStr.includes('-') || lowerStr.includes('to')) {
+        // Range format like "15000-30000" or "15,000 to 30,000"
+        const numbers = incomeRangeStr.match(/[\d,]+/g);
+        if (numbers && numbers.length >= 2) {
+            setIncomeRangeDropdownFromBounds(
+                parseFloat(numbers[0].replace(/,/g, '')),
+                parseFloat(numbers[1].replace(/,/g, ''))
+            );
+        }
+    }
+}
+
+function setIncomeRangeDropdownFromBounds(minValue, maxValue) {
+    const dropdown = document.getElementById('income_range_filter');
+    const options = Array.from(dropdown.options);
+    const belowThresholds = [30000, 40000, 50000, 75000, 100000, 150000];
+
+    const normalizedMin = Math.max(0, Number(minValue) || 0);
+    const normalizedMax = Math.max(0, Number(maxValue) || 0);
+
+    if (normalizedMin > 0) {
+        dropdown.value = '0|150000';
+        syncIncomeRangeBoundsFromDropdown();
+        return;
+    }
+
+    const selectedThreshold = belowThresholds.find(threshold => normalizedMax <= threshold) || 150000;
+    const matched = options.find(option => option.value === `0|${selectedThreshold}`);
+    dropdown.value = matched ? matched.value : '0|150000';
+    syncIncomeRangeBoundsFromDropdown();
+}
+
+function syncIncomeRangeBoundsFromDropdown() {
+    const selected = (document.getElementById('income_range_filter').value || '0|150000').split('|');
+    const minIncome = parseFloat(selected[0]) || 0;
+    const maxIncome = parseFloat(selected[1]) || 150000;
+    document.getElementById('min_income').value = String(minIncome);
+    document.getElementById('max_income').value = String(maxIncome);
+}
+
+document.getElementById('income_range_filter').addEventListener('change', syncIncomeRangeBoundsFromDropdown);
+document.getElementById('selectAllBarangaysBtn').addEventListener('click', function() {
+    const checkboxes = Array.from(document.querySelectorAll('.barangay-checkbox'));
+    if (!checkboxes.length) {
+        return;
+    }
+
+    const allChecked = checkboxes.every(checkbox => checkbox.checked);
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = !allChecked;
+    });
+    updateSelectAllBarangaysButtonState();
+});
+
+document.getElementById('barangayCheckboxContainer').addEventListener('change', function(event) {
+    if (event.target && event.target.classList.contains('barangay-checkbox')) {
+        updateSelectAllBarangaysButtonState();
+    }
+});
+
+document.getElementById('recommendationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    clearActionFeedback();
+    setResultActionButtonsVisible(false);
+    currentFilteredRecommendations = [];
+    renderFilteredOutRecommendationsSection([]);
+    
+    // Show loading state
+    document.getElementById('initialState').style.display = 'none';
+    document.getElementById('resultsContainer').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'block';
+    
+    // Collect selected barangays from checkboxes
+    const selectedBarangays = [];
+    document.querySelectorAll('.barangay-checkbox:checked').forEach(checkbox => {
+        selectedBarangays.push(checkbox.value);
+    });
+
+    const selectedMunicipality = priorityMunicipality;
+    if (selectedMunicipality && selectedBarangays.length === 0) {
+        const municipalityOptions = municipalityBarangays[selectedMunicipality] || [];
+        selectedBarangays.push(...municipalityOptions);
+    }
+
+    syncIncomeRangeBoundsFromDropdown();
+
+    // Validate income range
+    const minIncome = parseFloat(document.getElementById('min_income').value) || 0;
+    const maxIncome = parseFloat(document.getElementById('max_income').value) || 10000000;
+    
+    // Income validation
+    if (minIncome < 0) {
+        alert('Minimum income cannot be negative.');
+        document.getElementById('income_range_filter').focus();
+        return;
+    }
+    if (maxIncome < 0) {
+        alert('Maximum income cannot be negative.');
+        document.getElementById('income_range_filter').focus();
+        return;
+    }
+    if (minIncome > 10000000) {
+        alert('Minimum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('income_range_filter').focus();
+        return;
+    }
+    if (maxIncome > 10000000) {
+        alert('Maximum income exceeds maximum allowed value (₱10,000,000).');
+        document.getElementById('income_range_filter').focus();
+        return;
+    }
+    if (minIncome > maxIncome) {
+        alert('Minimum income cannot be greater than maximum income.');
+        document.getElementById('income_range_filter').focus();
+        return;
+    }
+    
+    // Collect form data
+    const formData = {
+        program_id: document.getElementById('program_id').value,
+        max_beneficiaries: document.getElementById('max_beneficiaries').value,
+        priority_municipality: selectedMunicipality,
+        priority_barangays: selectedBarangays,
+        min_income: minIncome,
+        max_income: maxIncome
+    };
+
+    const programSelect = document.getElementById('program_id');
+    const selectedOption = programSelect.options[programSelect.selectedIndex];
+    currentProgramId = formData.program_id ? parseInt(formData.program_id, 10) : null;
+    currentProgramName = selectedOption ? selectedOption.text.trim() : '';
+    currentRequestFilters = {
+        max_beneficiaries: parseInt(formData.max_beneficiaries, 10) || 0,
+        priority_municipality: formData.priority_municipality,
+        priority_barangays: [...selectedBarangays],
+        min_income: minIncome,
+        max_income: maxIncome,
+    };
+    
+    // Make API call
+    fetch('{{ url_for("admin.api_generate_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentAlgorithm = data.algorithm || '';
+            currentPriorityGroups = data.priority_groups || '';
+            currentRequestFilters.priority_groups = currentPriorityGroups;
+            currentRequestFilters.area_of_concerns = Array.isArray(data.area_of_concerns)
+                ? data.area_of_concerns
+                : [];
+            displayResults({
+                ...data,
+                generated_at: data.generated_at || new Date().toISOString(),
+            });
+        } else {
+            alert('Error generating recommendations: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while generating recommendations');
+    })
+    .finally(() => {
+        document.getElementById('loadingState').style.display = 'none';
+    });
+});
+
+function displayResults(data, options = {}) {
+    const shouldPersist = options.persistState !== false;
+    const split = splitRecommendationCandidates(data.recommendations || []);
+    const includedRecommendations = split.included;
+    const filteredRecommendations = split.filteredOut;
+
+    currentRecommendations = includedRecommendations;
+    currentFilteredRecommendations = filteredRecommendations;
+    currentGeneratedAt = data.generated_at || new Date().toISOString();
+
+    document.getElementById('initialState').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'none';
+
+    // Update result count
+    document.getElementById('resultCount').textContent = includedRecommendations.length;
+    const generatedDate = data.generated_at ? new Date(data.generated_at) : new Date();
+    document.getElementById('resultTimestamp').textContent = generatedDate.toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila'
+    });
+    
+    // Build results HTML
+    const resultsList = document.getElementById('resultsList');
+    resultsList.innerHTML = '';
+    renderFilteredOutRecommendationsSection(filteredRecommendations);
+    
+    if (includedRecommendations.length === 0) {
+        if (filteredRecommendations.length > 0) {
+            resultsList.innerHTML = '<p class="text-muted text-center">All recommended users are currently filtered out due to Active Application or Cooldown restrictions.</p>';
+        } else {
+            resultsList.innerHTML = '<p class="text-muted text-center">No matching beneficiaries found with the specified criteria.</p>';
+        }
+    } else {
+        includedRecommendations.forEach((rec, index) => {
+            const item = document.createElement('div');
+            item.className = 'recommendation-item p-3 mb-2 border rounded';
+            item.setAttribute('data-index', index);
+            item.addEventListener('click', function() {
+                showBeneficiaryDetail(index);
+            });
+            item.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-1 text-center">
+                        <div class="h5 mb-0 text-primary font-weight-bold">${index + 1}</div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="font-weight-bold">${rec.name}</div>
+                        <small class="text-muted">
+                            <i class="fas fa-envelope mr-1"></i>${rec.email} | 
+                            <i class="fas fa-map-marker-alt mr-1"></i>${rec.barangay || 'N/A'}
+                        </small>
+                        <div class="mt-1">
+                            ${rec.is_solo_parent ? '<span class="badge badge-info mr-1">Solo Parent</span>' : ''}
+                            ${rec.is_student ? '<span class="badge badge-primary mr-1">Student</span>' : ''}
+                            ${rec.is_pwd ? '<span class="badge badge-warning mr-1">PWD</span>' : ''}
+                            ${rec.is_senior ? '<span class="badge badge-secondary mr-1">Senior Citizen</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-right">
+                        <div class="mb-1">
+                            <small class="text-muted">Family Monthly Income:</small>
+                            <div class="font-weight-bold">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</div>
+                        </div>
+                        <div class="score-badge">
+                            ${rec.similarity_score != null ? 'Similarity' : 'Score'}: ${rec.score.toFixed(2)}
+                        </div>
+                        <small class="text-muted d-block mt-1"><i class="fas fa-eye mr-1"></i>Click to view details</small>
+                    </div>
+                </div>
+            `;
+            resultsList.appendChild(item);
+        });
+    }
+    
+    // Show results
+    document.getElementById('resultsContainer').style.display = 'block';
+    setResultActionButtonsVisible(includedRecommendations.length > 0);
+    document.getElementById('notifyUsersBtn').disabled = includedRecommendations.length === 0;
+
+    if (shouldPersist) {
+        persistRecommendationState(data.generated_at);
+    }
+}
+
+function getSelectedRecommendationExportFormat() {
+    const selected = document.querySelector('input[name="recommendation_export_format"]:checked');
+    return selected ? selected.value : 'csv';
+}
+
+function getRecommendationExportPayload(exportFormat) {
+    return {
+        export_format: exportFormat,
+        program_name: currentProgramName,
+        generated_at: currentGeneratedAt || new Date().toISOString(),
+        algorithm: currentAlgorithm,
+        priority_groups: currentPriorityGroups,
+        filters: {
+            ...currentRequestFilters,
+        },
+        recommendations: currentRecommendations,
+    };
+}
+
+function parseDownloadFilenameFromResponse(response, fallbackFilename) {
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utfMatch && utfMatch[1]) {
+        try {
+            return decodeURIComponent(utfMatch[1]);
+        } catch (error) {
+            return utfMatch[1];
+        }
+    }
+
+    const asciiMatch = disposition.match(/filename="?([^";]+)"?/i);
+    if (asciiMatch && asciiMatch[1]) {
+        return asciiMatch[1];
+    }
+
+    return fallbackFilename;
+}
+
+function triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportBtn').addEventListener('click', function() {
+    if (!currentRecommendations.length) {
+        showActionFeedback('No recommendation list available to export.', 'warning');
+        return;
+    }
+
+    const summaryText = document.getElementById('exportRecommendationSummaryText');
+    if (summaryText) {
+        summaryText.textContent = `You are about to export ${currentRecommendations.length} recommended beneficiary record(s). Choose a file type to continue.`;
+    }
+
+    $('#exportRecommendationModal').modal('show');
+});
+
+document.getElementById('confirmRecommendationExportBtn').addEventListener('click', function() {
+    if (!currentRecommendations.length) {
+        showActionFeedback('No recommendation list available to export.', 'warning');
+        $('#exportRecommendationModal').modal('hide');
+        return;
+    }
+
+    const exportBtn = this;
+    const originalText = exportBtn.innerHTML;
+    exportBtn.disabled = true;
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+
+    const exportFormat = getSelectedRecommendationExportFormat();
+    const fallbackExt = exportFormat === 'excel' ? 'xls' : exportFormat;
+    const fallbackFilename = `recommendations_${sanitizeFilename(currentProgramName)}.${fallbackExt}`;
+
+    fetch(recommendationExportUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(getRecommendationExportPayload(exportFormat))
+    })
+    .then(async response => {
+        if (!response.ok) {
+            let message = 'Unable to export recommendation list.';
+            try {
+                const errorData = await response.json();
+                if (errorData && errorData.message) {
+                    message = errorData.message;
+                }
+            } catch (error) {
+                // Keep default message when non-JSON error payload is returned.
+            }
+            throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const filename = parseDownloadFilenameFromResponse(response, fallbackFilename);
+        triggerBlobDownload(blob, filename);
+        return filename;
+    })
+    .then(filename => {
+        const label = exportFormat === 'excel' ? 'Excel' : exportFormat.toUpperCase();
+        showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>Exported recommendation list as ${label}: ${filename}.`, 'success');
+        $('#exportRecommendationModal').modal('hide');
+    })
+    .catch(error => {
+        console.error('Error exporting recommendation list:', error);
+        showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${error.message || 'An unexpected error occurred while exporting.'}`, 'danger');
+    })
+    .finally(() => {
+        exportBtn.disabled = false;
+        exportBtn.innerHTML = originalText;
+    });
+});
+
+function showSavedListFeedback(message, variant) {
+    const feedback = document.getElementById('savedListFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function clearSavedListFeedback() {
+    const feedback = document.getElementById('savedListFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function showSavedBeneficiariesModalFeedback(message, variant) {
+    const feedback = document.getElementById('savedBeneficiariesModalFeedback');
+    const variantClass = {
+        success: 'alert-success',
+        danger: 'alert-danger',
+        warning: 'alert-warning',
+        info: 'alert-info'
+    }[variant || 'info'] || 'alert-info';
+
+    feedback.className = `alert ${variantClass}`;
+    feedback.innerHTML = message;
+    feedback.style.display = 'block';
+}
+
+function clearSavedBeneficiariesModalFeedback() {
+    const feedback = document.getElementById('savedBeneficiariesModalFeedback');
+    feedback.style.display = 'none';
+    feedback.innerHTML = '';
+    feedback.className = '';
+}
+
+function getSavedRecommendationDetailUrl(savedListId) {
+    return savedRecommendationDetailUrlTemplate.replace(/0$/, String(savedListId));
+}
+
+function getCommunityUserProfileUrl(userId) {
+    return communityUserProfileUrlTemplate.replace(/0$/, String(userId));
+}
+
+function buildSavedBeneficiaryTagBadges(beneficiary) {
+    const tags = [];
+    if (beneficiary.is_student) tags.push('<span class="badge badge-primary mr-1">Student</span>');
+    if (beneficiary.is_solo_parent) tags.push('<span class="badge badge-info mr-1">Solo Parent</span>');
+    if (beneficiary.is_pwd) tags.push('<span class="badge badge-warning mr-1">PWD</span>');
+    if (beneficiary.is_senior) tags.push('<span class="badge badge-secondary mr-1">Senior</span>');
+    return tags.length ? tags.join('') : '<span class="text-muted small">-</span>';
+}
+
+function renderSavedBeneficiariesModalContent(savedItem, beneficiaries) {
+    const summaryEl = document.getElementById('savedBeneficiariesSummary');
+    const tableBodyEl = document.getElementById('savedBeneficiariesTableBody');
+    const emptyEl = document.getElementById('savedBeneficiariesEmpty');
+    const notifyBtn = document.getElementById('notifySavedBeneficiariesBtn');
+
+    const filters = savedItem.filters || {};
+    const areaConcerns = Array.isArray(filters.area_of_concerns) ? filters.area_of_concerns : [];
+    const areaConcernLabel = areaConcerns.length ? areaConcerns.join(', ') : 'All areas';
+    summaryEl.innerHTML = `
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-2">
+            <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
+            <small class="text-muted">Recorded ${escapeHtml(formatTimestamp(savedItem.created_at))} by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+        </div>
+        <div class="text-muted small mb-2">Generated: ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</div>
+        <div class="mb-2">
+            <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users recorded</span>
+            <span class="badge badge-light">Priority: ${escapeHtml(filters.priority_groups || 'Not set')}</span>
+            <span class="badge badge-light">Area: ${escapeHtml(areaConcernLabel)}</span>
+        </div>
+    `;
+
+    tableBodyEl.innerHTML = '';
+    if (!beneficiaries.length) {
+        emptyEl.style.display = 'block';
+        notifyBtn.disabled = true;
+        return;
+    }
+
+    emptyEl.style.display = 'none';
+    beneficiaries.forEach((beneficiary, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(beneficiary.name || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.email || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.municipality || 'N/A')}</td>
+            <td>${escapeHtml(beneficiary.barangay || 'N/A')}</td>
+            <td>${buildSavedBeneficiaryTagBadges(beneficiary)}</td>
+        `;
+        tableBodyEl.appendChild(row);
+    });
+
+    notifyBtn.disabled = !(savedItem.program_id && Array.isArray(savedItem.recommended_user_ids) && savedItem.recommended_user_ids.length > 0);
+}
+
+function openSavedRecommendationBeneficiariesModal(savedListId) {
+    const loadingEl = document.getElementById('savedBeneficiariesLoading');
+    const contentEl = document.getElementById('savedBeneficiariesContent');
+    const titleEl = document.getElementById('savedListBeneficiariesModalLabel');
+    const notifyBtn = document.getElementById('notifySavedBeneficiariesBtn');
+
+    clearSavedBeneficiariesModalFeedback();
+    selectedSavedListDetail = null;
+    notifyBtn.disabled = true;
+    titleEl.innerHTML = '<i class="fas fa-users mr-2"></i>History Beneficiaries';
+
+    loadingEl.style.display = 'block';
+    contentEl.style.display = 'none';
+
+    $('#savedListBeneficiariesModal').modal('show');
+
+    fetch(getSavedRecommendationDetailUrl(savedListId))
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history beneficiaries.'}`, 'danger');
+                return;
+            }
+
+            const savedItem = data.saved_list || {};
+            const beneficiaries = Array.isArray(data.beneficiaries) ? data.beneficiaries : [];
+            selectedSavedListDetail = {
+                ...savedItem,
+                beneficiaries,
+            };
+
+            titleEl.innerHTML = `<i class="fas fa-users mr-2"></i>${escapeHtml(savedItem.program_name || 'History Record')} Beneficiaries`;
+            renderSavedBeneficiariesModalContent(savedItem, beneficiaries);
+            contentEl.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading recommendation history details:', error);
+            showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading history beneficiaries.', 'danger');
+        })
+        .finally(() => {
+            loadingEl.style.display = 'none';
+        });
+}
+
+function getSavedListById(savedListId) {
+    return savedRecommendationSets.find(item => item.id === savedListId) || null;
+}
+
+function loadRecommendationHistoryIntoResults(savedListId) {
+    const selected = getSavedListById(savedListId);
+    if (!selected) {
+        showSavedListFeedback('Select a recommendation history record first.', 'warning');
+        return;
+    }
+
+    fetch(getSavedRecommendationDetailUrl(savedListId))
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history record.'}`, 'danger');
+                return;
+            }
+
+            const savedItem = data.saved_list || selected;
+            const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+            if (!recommendations.length) {
+                showSavedListFeedback('This history record does not have recommendation details to display.', 'warning');
+                return;
+            }
+
+            currentProgramId = savedItem.program_id || null;
+            currentProgramName = savedItem.program_name || '';
+            currentRequestFilters = (savedItem.filters && typeof savedItem.filters === 'object')
+                ? { ...savedItem.filters }
+                : {};
+            currentAlgorithm = String(currentRequestFilters.algorithm || '');
+            currentPriorityGroups = String(currentRequestFilters.priority_groups || '');
+
+            displayResults({
+                count: recommendations.length,
+                recommendations,
+                generated_at: savedItem.generated_at || savedItem.created_at || new Date().toISOString(),
+            });
+
+            $('#savedListBeneficiariesModal').modal('hide');
+            $('#savedListsModal').modal('hide');
+            showActionFeedback('<i class="fas fa-history mr-2"></i>Loaded recommendation history into Recommended Beneficiaries.', 'success');
+        })
+        .catch(error => {
+            console.error('Error loading recommendation history into results:', error);
+            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading recommendation history.', 'danger');
+        });
+}
+
+function renderSavedListSummary(savedItem) {
+    const detailPanel = document.getElementById('savedListDetailPanel');
+    const notifyButton = document.getElementById('notifySavedListUsersBtn');
+
+    if (!savedItem) {
+        detailPanel.innerHTML = 'Select a recommendation history record to view parameters and actions.';
+        notifyButton.disabled = true;
+        return;
+    }
+
+    const filters = savedItem.filters || {};
+    const barangays = Array.isArray(filters.priority_barangays) ? filters.priority_barangays : [];
+    const areaConcerns = Array.isArray(filters.area_of_concerns) ? filters.area_of_concerns : [];
+    const userIds = Array.isArray(savedItem.recommended_user_ids) ? savedItem.recommended_user_ids : [];
+
+    const barangayDisplay = barangays.length ? escapeHtml(barangays.join(', ')) : 'All barangays';
+    const areaConcernDisplay = areaConcerns.length ? escapeHtml(areaConcerns.join(', ')) : 'All areas';
+    const minIncome = Number.isFinite(Number(filters.min_income)) ? Number(filters.min_income) : 0;
+    const maxIncome = Number.isFinite(Number(filters.max_income)) ? Number(filters.max_income) : 10000000;
+    const generatedAtText = formatTimestamp(savedItem.generated_at || savedItem.created_at);
+
+    detailPanel.innerHTML = `
+        <div class="mb-3">
+            <h5 class="mb-1">${escapeHtml(savedItem.program_name || 'Unknown Program')}</h5>
+            <div class="text-muted small">Recorded by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')} on ${escapeHtml(formatTimestamp(savedItem.created_at))}</div>
+            <div class="text-muted small">Generated on ${escapeHtml(generatedAtText)}</div>
+        </div>
+        <div class="mb-3">
+            <span class="badge badge-success mr-2">${escapeHtml(savedItem.recommendation_count)} recommended</span>
+            <span class="badge badge-info mr-2">${escapeHtml(savedItem.recommended_user_count)} users recorded</span>
+            ${savedItem.recommended_user_ids_truncated ? '<span class="badge badge-warning">User list truncated in history record</span>' : ''}
+            ${savedItem.recommendation_snapshot_truncated ? '<span class="badge badge-warning">Recommendation details truncated</span>' : ''}
+        </div>
+        <hr>
+        <h6 class="font-weight-bold">Parameter Summary</h6>
+        <ul class="mb-0 pl-3">
+            <li><strong>Priority Groups:</strong> ${escapeHtml(filters.priority_groups || 'Not set')}</li>
+            <li><strong>Municipality:</strong> ${escapeHtml(filters.priority_municipality || 'All municipalities')}</li>
+            <li><strong>Priority Barangays:</strong> ${barangayDisplay}</li>
+            <li><strong>Area of Concern:</strong> ${areaConcernDisplay}</li>
+            <li><strong>Income Range:</strong> ${escapeHtml(formatCurrency(minIncome))} - ${escapeHtml(formatCurrency(maxIncome))}</li>
+            <li><strong>Max Beneficiaries:</strong> ${escapeHtml(filters.max_beneficiaries || 'N/A')}</li>
+            <li><strong>Algorithm:</strong> ${escapeHtml(filters.algorithm || 'N/A')}</li>
+        </ul>
+        <div class="mt-3 d-flex justify-content-end">
+            <button type="button" class="btn btn-outline-custom btn-sm mr-2" data-action="view-history-beneficiaries" data-saved-id="${escapeHtml(savedItem.id)}">
+                <i class="fas fa-users mr-1"></i>View Beneficiaries
+            </button>
+            <button type="button" class="btn btn-gradient-primary btn-sm" data-action="load-history-results" data-saved-id="${escapeHtml(savedItem.id)}">
+                <i class="fas fa-sync-alt mr-1"></i>Load to Results
+            </button>
+        </div>
+    `;
+
+    const viewBtn = detailPanel.querySelector('[data-action="view-history-beneficiaries"]');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', function() {
+            const targetId = parseInt(this.getAttribute('data-saved-id'), 10);
+            if (!Number.isInteger(targetId) || targetId <= 0) {
+                return;
+            }
+            openSavedRecommendationBeneficiariesModal(targetId);
+        });
+    }
+
+    const loadBtn = detailPanel.querySelector('[data-action="load-history-results"]');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', function() {
+            const targetId = parseInt(this.getAttribute('data-saved-id'), 10);
+            if (!Number.isInteger(targetId) || targetId <= 0) {
+                return;
+            }
+            loadRecommendationHistoryIntoResults(targetId);
+        });
+    }
+
+    notifyButton.disabled = !(savedItem.program_id && userIds.length > 0);
+}
+
+function selectSavedRecommendation(savedListId) {
+    selectedSavedListId = savedListId;
+    document.querySelectorAll('.saved-list-item').forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-saved-id') === String(savedListId));
+    });
+    renderSavedListSummary(getSavedListById(savedListId));
+}
+
+function renderSavedRecommendationSets() {
+    const container = document.getElementById('savedListsContainer');
+    container.innerHTML = '';
+
+    if (!savedRecommendationSets.length) {
+        container.innerHTML = '<div class="text-muted small py-2">No recommendation history found.</div>';
+        renderSavedListSummary(null);
+        return;
+    }
+
+    savedRecommendationSets.forEach((savedItem, index) => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action saved-list-item';
+        item.setAttribute('data-saved-id', String(savedItem.id));
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+                <button type="button" class="btn btn-link p-0 text-left flex-grow-1 saved-list-open-btn">
+                    <div class="font-weight-bold">${escapeHtml(savedItem.program_name || 'Unknown Program')}</div>
+                    <small class="text-muted d-block">${escapeHtml(savedItem.recommendation_count)} recommendations</small>
+                    <small class="text-muted d-block mt-1">Generated ${escapeHtml(formatTimestamp(savedItem.generated_at || savedItem.created_at))}</small>
+                    <small class="text-muted d-block mt-1">${savedItem.has_recommendation_snapshot ? 'Detailed recommendation snapshot available' : 'Limited details available'}</small>
+                </button>
+            </div>
+            <small class="text-muted d-block mt-1">Recorded by ${escapeHtml(savedItem.admin_name || 'Unknown Admin')}</small>
+        `;
+
+        const openBtn = item.querySelector('.saved-list-open-btn');
+        if (openBtn) {
+            openBtn.addEventListener('click', function() {
+                selectSavedRecommendation(savedItem.id);
+            });
+        }
+
+        container.appendChild(item);
+
+        if (index === 0) {
+            selectSavedRecommendation(savedItem.id);
+        }
+    });
+}
+
+function loadSavedRecommendationSets() {
+    clearSavedListFeedback();
+
+    const loading = document.getElementById('savedListsLoading');
+    const container = document.getElementById('savedListsContainer');
+    loading.style.display = 'block';
+    container.innerHTML = '';
+
+    fetch('{{ url_for("admin.api_saved_recommendations") }}?limit=50')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to load recommendation history.'}`, 'danger');
+                savedRecommendationSets = [];
+                selectedSavedListId = null;
+                renderSavedRecommendationSets();
+                return;
+            }
+
+            savedRecommendationSets = Array.isArray(data.saved_lists) ? data.saved_lists : [];
+            selectedSavedListId = null;
+            renderSavedRecommendationSets();
+        })
+        .catch(error => {
+            console.error('Error loading recommendation history list:', error);
+            showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while loading recommendation history.', 'danger');
+            savedRecommendationSets = [];
+            selectedSavedListId = null;
+            renderSavedRecommendationSets();
+        })
+        .finally(() => {
+            loading.style.display = 'none';
+        });
+}
+
+document.getElementById('viewSavedListsBtn').addEventListener('click', function() {
+    $('#savedListsModal').modal('show');
+    loadSavedRecommendationSets();
+});
+
+document.getElementById('refreshSavedListsBtn').addEventListener('click', function() {
+    loadSavedRecommendationSets();
+});
+
+document.getElementById('notifySavedListUsersBtn').addEventListener('click', function() {
+    const selected = getSavedListById(selectedSavedListId);
+    if (!selected) {
+        showSavedListFeedback('Select a recommendation history record first.', 'warning');
+        return;
+    }
+
+    const userIds = Array.isArray(selected.recommended_user_ids) ? selected.recommended_user_ids : [];
+    if (!selected.program_id || !userIds.length) {
+        showSavedListFeedback('This history record does not include enough data to notify users.', 'warning');
+        return;
+    }
+
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this recommendation history record?`);
+    if (!confirmed) {
+        return;
+    }
+
+    const notifyBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            program_id: selected.program_id,
+            user_ids: userIds,
+            saved_list_id: selected.id,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
+        } else {
+            showSavedListFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from recommendation history.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying recommendation history users:', error);
+        showSavedListFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+    });
+});
+
+document.getElementById('notifySavedBeneficiariesBtn').addEventListener('click', function() {
+    if (!selectedSavedListDetail) {
+        showSavedBeneficiariesModalFeedback('Select a recommendation history record first.', 'warning');
+        return;
+    }
+
+    const userIds = Array.isArray(selectedSavedListDetail.recommended_user_ids)
+        ? selectedSavedListDetail.recommended_user_ids
+        : [];
+
+    if (!selectedSavedListDetail.program_id || !userIds.length) {
+        showSavedBeneficiariesModalFeedback('This history record does not include enough data to notify users.', 'warning');
+        return;
+    }
+
+    const confirmed = confirm(`Send notifications to ${userIds.length} user(s) from this recommendation history record?`);
+    if (!confirmed) {
+        return;
+    }
+
+    const notifyBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            program_id: selectedSavedListDetail.program_id,
+            user_ids: userIds,
+            saved_list_id: selectedSavedListDetail.id,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSavedBeneficiariesModalFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showSavedListFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            showActionFeedback(`<i class="fas fa-bell mr-2"></i>${data.message}`, 'success');
+        } else {
+            showSavedBeneficiariesModalFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users from recommendation history.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying users from beneficiaries modal:', error);
+        showSavedBeneficiariesModalFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+    });
+});
+
+document.getElementById('notifyUsersBtn').addEventListener('click', function() {
+    if (!currentProgramId) {
+        showActionFeedback('Select a valid target program before sending notifications.', 'warning');
+        return;
+    }
+
+    const userIds = getUniqueRecommendationUserIds();
+    if (userIds.length === 0) {
+        showActionFeedback('No recommended beneficiaries are available for notification.', 'warning');
+        return;
+    }
+
+    pendingNotificationRequest = {
+        program_id: currentProgramId,
+        user_ids: userIds,
+    };
+
+    const summaryText = document.getElementById('notifyRecommendationsSummaryText');
+    if (summaryText) {
+        summaryText.textContent = `Send recommendation notifications to ${userIds.length} user(s) for ${currentProgramName || 'the selected program'}?`;
+    }
+
+    $('#notifyRecommendationsModal').modal('show');
+});
+
+document.getElementById('confirmNotifyRecommendationsBtn').addEventListener('click', function() {
+    if (!pendingNotificationRequest || !Array.isArray(pendingNotificationRequest.user_ids) || !pendingNotificationRequest.user_ids.length) {
+        $('#notifyRecommendationsModal').modal('hide');
+        return;
+    }
+
+    const notifyBtn = document.getElementById('notifyUsersBtn');
+    const confirmBtn = this;
+    const originalText = notifyBtn.innerHTML;
+    const originalConfirmText = confirmBtn.innerHTML;
+    notifyBtn.disabled = true;
+    notifyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+    fetch('{{ url_for("admin.api_notify_recommendations") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pendingNotificationRequest)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showActionFeedback(`<i class="fas fa-check-circle mr-2"></i>${data.message}`, 'success');
+            $('#notifyRecommendationsModal').modal('hide');
+        } else {
+            showActionFeedback(`<i class="fas fa-exclamation-triangle mr-2"></i>${data.message || 'Unable to notify users.'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error notifying users:', error);
+        showActionFeedback('<i class="fas fa-exclamation-triangle mr-2"></i>An unexpected error occurred while sending notifications.', 'danger');
+    })
+    .finally(() => {
+        notifyBtn.disabled = false;
+        notifyBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalConfirmText;
+    });
+});
+
+$('#notifyRecommendationsModal').on('hidden.bs.modal', function() {
+    pendingNotificationRequest = null;
+});
+
+// Helper function to parse priority groups string into tokens
+function parsePriorityGroupTokens(priorityGroupStr) {
+    if (!priorityGroupStr) return [];
+    return priorityGroupStr
+        .split(',')
+        .map(token => token.trim().toLowerCase())
+        .filter(token => token.length > 0);
+}
+
+// Helper function to check if a beneficiary matches specific priority group tokens
+function beneficiaryMatchesPriorityTokens(rec, tokens) {
+    const matchingTokens = [];
+    
+    for (let token of tokens) {
+        if (token.includes('student')) {
+            if (rec.is_student) matchingTokens.push('student');
+        } else if (token.includes('solo') || token.includes('single')) {
+            if (rec.is_solo_parent) matchingTokens.push('solo parent');
+        } else if (token.includes('pwd') || token.includes('disability')) {
+            if (rec.is_pwd) matchingTokens.push('PWD (person with disability)');
+        } else if (token.includes('senior') || token.includes('elderly')) {
+            if (rec.is_senior) matchingTokens.push('senior citizen');
+        } else if (token.includes('low income') || token.includes('indigent')) {
+            // Income-based groups don't have a direct flag but are always relevant for income-based programs
+            matchingTokens.push('low income');
+        } else if (token.includes('unemployed') || token.includes('not employed')) {
+            if (!rec.is_currently_employed) matchingTokens.push('not employed');
+        }
+    }
+    
+    return matchingTokens;
+}
+
+function toTitleCaseWords(value) {
+    return String(value || '')
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(token => token.length > 0)
+        .map(token => {
+            if (token === 'aics') return 'AICS';
+            if (token === 'esa') return 'ESA';
+            if (token === 'ca') return 'CA';
+            if (token === '4ps') return '4Ps';
+            return token.charAt(0).toUpperCase() + token.slice(1);
+        })
+        .join(' ');
+}
+
+function formatProgramHistoryEntries(rec) {
+    const entries = [];
+    const seen = new Set();
+
+    const pushUnique = (label) => {
+        const cleanLabel = String(label || '').trim();
+        if (!cleanLabel) return;
+        const normalized = cleanLabel.toLowerCase();
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        entries.push(cleanLabel);
+    };
+
+    if (Array.isArray(rec.past_applications_readable)) {
+        rec.past_applications_readable.forEach(item => {
+            pushUnique(toTitleCaseWords(item));
+        });
+    }
+
+    if (entries.length > 0) {
+        return entries;
+    }
+
+    const normalized = String(rec.past_applications || '')
+        .replace(/\bhistory_tag\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!normalized) {
+        return [];
+    }
+
+    const pairRegex = /([a-z0-9][a-z0-9\s/&().-]*?)\s+(aics|esa|ca|4ps)\b/gi;
+    let match = pairRegex.exec(normalized);
+    while (match !== null) {
+        const programName = toTitleCaseWords(match[1]);
+        const programTypeRaw = String(match[2] || '').toLowerCase();
+        const programType = programTypeRaw === '4ps' ? '4Ps' : programTypeRaw.toUpperCase();
+        pushUnique(`${programName} (${programType})`);
+        match = pairRegex.exec(normalized);
+    }
+
+    if (!entries.length) {
+        pushUnique(toTitleCaseWords(normalized));
+    }
+
+    return entries.slice(0, 8);
+}
+
+function getCbfScoreContext(rec, breakdown) {
+    const bd = breakdown || {};
+    const rawSimilarity = clampUnitInterval(
+        toFiniteNumber(bd.similarity_score, toFiniteNumber(rec.similarity_score, 0))
+    );
+
+    const incomeProximity = bd.income_proximity != null
+        ? clampUnitInterval(bd.income_proximity)
+        : clampUnitInterval(toFiniteNumber(bd.income_score, 0) / 0.2);
+
+    const repeatPenaltyComponent = toFiniteNumber(
+        bd.repeat_penalty_component,
+        toFiniteNumber(rec.repeat_beneficiary_penalty, 0)
+    );
+
+    const adjustedSimilarity = clampUnitInterval(
+        toFiniteNumber(
+            rec.adjusted_similarity_score,
+            toFiniteNumber(rec.score, rawSimilarity + repeatPenaltyComponent)
+        )
+    );
+
+    return {
+        rawSimilarity,
+        incomeProximity,
+        repeatPenaltyComponent,
+        adjustedSimilarity,
+    };
+}
+
+function generatePlainLanguageExplanation(rec, isCBF, bd) {
+    let reasons = [];
+    
+    // Parse priority groups from the global variable set by the API response
+    const priorityTokens = parsePriorityGroupTokens(currentPriorityGroups);
+    
+    if (isCBF) {
+        // Content-Based Filtering Path
+        const cbfContext = getCbfScoreContext(rec, bd);
+        const similarity = cbfContext.rawSimilarity;
+        const incomeProximity = cbfContext.incomeProximity;
+        
+        if (similarity >= 0.65) {
+            reasons.push(`<strong>${rec.name}</strong> has a strong match with this program. Their profile characteristics align very well with what the program is looking for.`);
+        } else if (similarity >= 0.35) {
+            reasons.push(`<strong>${rec.name}</strong> has a good match with this program. Several aspects of their profile fit what the program is looking for.`);
+        } else if (similarity >= 0.15) {
+            reasons.push(`<strong>${rec.name}</strong> has some qualities that match this program, though they may not be a perfect fit.`);
+        } else if (similarity > 0.001) {
+            reasons.push(`<strong>${rec.name}</strong> has limited similarity with this program. Only a few profile features overlap with the target program profile.`);
+        } else {
+            reasons.push(`<strong>${rec.name}</strong> has near-zero measurable profile similarity to this program based on current CBF features (it may display as 0.0000 after rounding).`);
+        }
+        
+        // Income proximity explanation
+        if (incomeProximity >= 0.5) {
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Income Vulnerability Match:</strong> Their Family Monthly Income range (${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}) falls in a higher-vulnerability band (lower income), which increases income proximity.`);
+        }
+        
+        // FIXED: Only list profile characteristics that actually match the program's priority groups
+        let profileMatches = beneficiaryMatchesPriorityTokens(rec, priorityTokens);
+        
+        if (profileMatches.length > 0) {
+            const profileText = profileMatches.join(', ');
+            reasons.push(`<i class="fas fa-user mr-2" style="color: #4e73df;"></i><strong>Program Requirement Match:</strong> They are a ${profileText}, which is a target group for this program.`);
+        }
+
+        if (cbfContext.repeatPenaltyComponent < -0.0001) {
+            reasons.push(`<i class="fas fa-balance-scale mr-2" style="color: #6c757d;"></i><strong>Fairness Adjustment:</strong> A repeat-beneficiary penalty of ${Math.abs(cbfContext.repeatPenaltyComponent).toFixed(4)} was applied so frequently assisted users are less likely to dominate top recommendations.`);
+        }
+    } else {
+        // Rule-Based Scoring Path
+        const score = rec.score || 0;
+        
+        if (score > 0.7) {
+            reasons.push(`<strong>${rec.name}</strong> is ranked high on the priority list because they meet key criteria that this program prioritizes.`);
+        } else if (score > 0.5) {
+            reasons.push(`<strong>${rec.name}</strong> meets important criteria for this program and deserves consideration.`);
+        } else {
+            reasons.push(`<strong>${rec.name}</strong> qualifies for this program based on the selection criteria.`);
+        }
+        
+        // Income explanation
+        if (bd.income_score > 0.05) {
+            reasons.push(`<i class="fas fa-wallet mr-2" style="color: #1cc88a;"></i><strong>Financial Need:</strong> With a Family Monthly Income range of ${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}, they are among those most in need of financial assistance.`);
+        }
+        
+        // FIXED: Only mention characteristics that match the program's actual priority groups
+        const matchingTokens = beneficiaryMatchesPriorityTokens(rec, priorityTokens);
+        
+        if (rec.is_solo_parent && bd.solo_parent_bonus > 0 && matchingTokens.some(t => t.includes('solo parent'))) {
+            reasons.push(`<i class="fas fa-home mr-2" style="color: #36b9cc;"></i><strong>Solo Parent Status:</strong> As a solo parent, they receive priority consideration as they face additional responsibilities raising children alone.`);
+        }
+        
+        if (rec.is_student && bd.student_bonus > 0 && matchingTokens.some(t => t.includes('student'))) {
+            reasons.push(`<i class="fas fa-book mr-2" style="color: #4e73df;"></i><strong>Student Status:</strong> Being a student, they qualify for educational support programs and are prioritized for programs focused on youth development.`);
+        }
+        
+        if (rec.is_pwd && bd.pwd_bonus > 0 && matchingTokens.some(t => t.includes('PWD'))) {
+            reasons.push(`<i class="fas fa-wheelchair mr-2" style="color: #f6c23e;"></i><strong>PWD Status:</strong> As a person with disability, they are eligible for programs designed to support people with special needs.`);
+        }
+        
+        if (rec.is_senior && bd.senior_bonus > 0 && matchingTokens.includes('senior citizen')) {
+            reasons.push(`<i class="fas fa-birthday-cake mr-2" style="color: #858796;"></i><strong>Senior Citizen Status:</strong> At age ${rec.age}, they qualify for senior citizen programs and receive priority for age-related assistance.`);
+        }
+    }
+    
+    // Add past applications section if available
+    const historyEntries = formatProgramHistoryEntries(rec);
+    if (historyEntries.length > 0) {
+        const readableHistory = historyEntries.map(item => escapeHtml(item)).join('; ');
+        const pastAppsHtml = `<i class="fas fa-history mr-2" style="color: #ff6b6b;"></i><strong>Program History:</strong> They have previously applied to or been approved for assistance programs: <em>${readableHistory}</em>. This shows they are an active beneficiary participant.`;
+        reasons.push(pastAppsHtml);
+    }
+    
+    if (reasons.length === 0) {
+        return '<p class="text-muted mb-0">This person was recommended based on their profile matching the program criteria.</p>';
+    }
+    
+    let html = '<div style="font-size: 0.95rem; line-height: 1.6;">';
+    reasons.forEach((reason, idx) => {
+        html += `<p class="${idx === 0 ? 'mb-3 font-weight-500' : 'mb-2'}" style="margin-bottom: ${idx === 0 ? '12px' : '10px'};">${reason}</p>`;
+    });
+    html += '</div>';
+    return html;
+}
+
+function showBeneficiaryDetail(index, overrideRec = null, overrideMeta = null) {
+    const rec = overrideRec || currentRecommendations[index];
+    if (!rec) return;
+
+    const rankNumber = overrideMeta && Number.isFinite(Number(overrideMeta.rankNumber))
+        ? Number(overrideMeta.rankNumber)
+        : (index + 1);
+    const totalCount = overrideMeta && Number.isFinite(Number(overrideMeta.totalCount))
+        ? Number(overrideMeta.totalCount)
+        : currentRecommendations.length;
+
+    const isCBF = rec.similarity_score != null;
+    const scoreLabel = isCBF ? 'Final Recommendation Score' : 'Priority Score';
+    const bd = rec.score_breakdown || {};
+    const historyEntries = formatProgramHistoryEntries(rec);
+    const readableHistoryText = historyEntries.length
+        ? historyEntries.map(item => escapeHtml(item)).join('; ')
+        : '';
+
+    // Build score bar items
+    const breakdownItems = [];
+
+    if (isCBF) {
+        // CBF breakdown
+        const cbfContext = getCbfScoreContext(rec, bd);
+        const cosineSim = cbfContext.rawSimilarity;
+        const incomeProximity = cbfContext.incomeProximity;
+        const fairnessPenalty = cbfContext.repeatPenaltyComponent;
+        const adjustedSimilarity = cbfContext.adjustedSimilarity;
+        let cosineDescription = 'How closely this beneficiary\'s profile matches the target program profile. ';
+        if (cosineSim >= 0.65) {
+            cosineDescription += '<strong class="text-success">✓ Highly similar:</strong> Strong match across features.';
+        } else if (cosineSim >= 0.35) {
+            cosineDescription += '<strong class="text-info">~ Moderately similar:</strong> Some features match the program profile.';
+        } else if (cosineSim >= 0.15) {
+            cosineDescription += '<strong class="text-warning">! Low similarity:</strong> Limited overlap with the target profile.';
+        } else if (cosineSim > 0.001) {
+            cosineDescription += '<strong class="text-warning">! Very low similarity:</strong> Only a weak overlap with program features.';
+        } else {
+            cosineDescription += '<strong class="text-danger">✗ Near-zero similarity:</strong> No meaningful feature overlap was detected (rounded display may show 0.0000).';
+        }
+
+        breakdownItems.push({
+            label: 'Raw Cosine Similarity',
+            value: cosineSim,
+            max: 1,
+            color: '#4e73df',
+            description: cosineDescription
+        });
+        breakdownItems.push({
+            label: 'Income Proximity',
+            value: incomeProximity,
+            max: 1,
+            color: '#1cc88a',
+            description: 'Income vulnerability proximity (lower income bands, especially near ₱10,000 and below, produce higher proximity)'
+        });
+        breakdownItems.push({
+            label: 'Repeat-Beneficiary Fairness Adjustment',
+            value: fairnessPenalty,
+            max: 0.35,
+            color: '#6c757d',
+            useAbsolute: true,
+            description: fairnessPenalty < -0.0001
+                ? `Applied fairness reduction: ${Math.abs(fairnessPenalty).toFixed(4)} (reduces final score).`
+                : 'No fairness penalty was applied for repeat-beneficiary history.'
+        });
+        breakdownItems.push({
+            label: 'Final Adjusted Similarity',
+            value: adjustedSimilarity,
+            max: 1,
+            color: '#17a2b8',
+            description: 'Final score shown above (raw similarity + fairness adjustment, clamped at 0).'
+        });
+    } else {
+        // Rule-based breakdown
+        breakdownItems.push({
+            label: 'Income Score',
+            value: bd.income_score || 0,
+            max: 0.3,
+            color: '#1cc88a',
+            description: 'Lower income results in a higher score — prioritizes those most in need'
+        });
+        breakdownItems.push({
+            label: 'Solo Parent Bonus',
+            value: bd.solo_parent_bonus || 0,
+            max: 0.3,
+            color: '#36b9cc',
+            description: rec.is_solo_parent ? 'Solo parent priority applied' : 'Not a solo parent — no bonus'
+        });
+        breakdownItems.push({
+            label: 'Student Bonus',
+            value: bd.student_bonus || 0,
+            max: 0.2,
+            color: '#4e73df',
+            description: rec.is_student ? 'Student priority applied' : 'Not a student — no bonus'
+        });
+        breakdownItems.push({
+            label: 'PWD Bonus',
+            value: bd.pwd_bonus || 0,
+            max: 0.3,
+            color: '#f6c23e',
+            description: rec.is_pwd ? 'PWD priority applied' : 'Not a PWD — no bonus'
+        });
+        breakdownItems.push({
+            label: 'Senior Citizen Bonus',
+            value: bd.senior_bonus || 0,
+            max: 0.2,
+            color: '#858796',
+            description: rec.is_senior ? 'Senior citizen priority applied' : 'Not a senior citizen — no bonus'
+        });
+    }
+
+    // Build bars HTML
+    let barsHtml = '';
+    breakdownItems.forEach(item => {
+        const normalizedValue = item.useAbsolute ? Math.abs(item.value) : item.value;
+        const pct = item.max > 0 ? Math.min((normalizedValue / item.max) * 100, 100) : 0;
+        barsHtml += `
+            <div class="score-bar-container">
+                <div class="score-bar-label">
+                    <span>${item.label}</span>
+                    <span class="font-weight-bold">${item.value.toFixed(4)}</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" style="width: ${pct}%; background: ${item.color};"></div>
+                </div>
+                <small class="text-muted">${item.description}</small>
+            </div>
+        `;
+    });
+
+    const html = `
+        <!-- Total Score -->
+        <div class="total-score-display">
+            <div class="score-label">${scoreLabel}</div>
+            <div class="score-value">${toFiniteNumber(rec.score, 0).toFixed(4)}</div>
+            <div class="score-label">Rank #${rankNumber} of ${totalCount}</div>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="detail-section">
+            <h6><i class="fas fa-id-card mr-2"></i>Profile Information</h6>
+            <div class="row">
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Full Name</small>
+                    <span class="font-weight-bold">${rec.name}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Email</small>
+                    <span>${rec.email}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Barangay</small>
+                    <span>${rec.barangay || 'N/A'}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Age</small>
+                    <span>${rec.age != null ? rec.age : 'N/A'}</span>
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <small class="text-muted d-block">Family Monthly Income</small>
+                    <span class="font-weight-bold">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</span>
+                </div>
+            </div>
+            <div class="mt-2">
+                <span class="detail-badge ${rec.is_solo_parent ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_solo_parent ? 'check' : 'times'} mr-1"></i>Solo Parent
+                </span>
+                <span class="detail-badge ${rec.is_student ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_student ? 'check' : 'times'} mr-1"></i>Student
+                </span>
+                <span class="detail-badge ${rec.is_pwd ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_pwd ? 'check' : 'times'} mr-1"></i>PWD
+                </span>
+                <span class="detail-badge ${rec.is_senior ? 'detail-badge-yes' : 'detail-badge-no'}">
+                    <i class="fas fa-${rec.is_senior ? 'check' : 'times'} mr-1"></i>Senior Citizen
+                </span>
+                ${rec.has_active_application ? '<span class="detail-badge detail-badge-no"><i class="fas fa-exclamation-triangle mr-1"></i>Has Active Application</span>' : ''}
+                ${rec.has_active_cooldown ? '<span class="detail-badge detail-badge-no"><i class="fas fa-clock mr-1"></i>Cooldown Active</span>' : ''}
+            </div>
+        </div>
+
+        ${(rec.has_active_application || rec.has_active_cooldown) ? `
+        <div class="detail-section" style="background: #fff5f5; border-left: 4px solid #e74a3b; padding: 15px;">
+            <h6 style="color: #c0392b;"><i class="fas fa-shield-alt mr-2"></i>Eligibility Flags</h6>
+            ${rec.has_active_application ? `
+            <p class="mb-2">
+                <i class="fas fa-exclamation-circle mr-2" style="color: #e74a3b;"></i>
+                <strong>Active Application:</strong>
+                This user currently has a ${escapeHtml((rec.active_application && rec.active_application.status) || 'pending')} application for this program.
+            </p>` : ''}
+            ${rec.has_active_cooldown ? `
+            <p class="mb-0">
+                <i class="fas fa-calendar-times mr-2" style="color: #6c757d;"></i>
+                <strong>Cooldown Active:</strong>
+                Last qualifying program: ${escapeHtml((rec.active_cooldown && rec.active_cooldown.program_name) || 'N/A')}. Cooldown until ${escapeHtml(formatTimestamp((rec.active_cooldown && rec.active_cooldown.lock_until) || ''))}.
+            </p>` : ''}
+        </div>
+        ` : ''}
+
+        <!-- Plain Language Explanation - Why This Person? -->
+        <div class="detail-section" style="background: #f0f9ff; border-left: 4px solid #1cc88a; padding: 15px;">
+            <h6 style="color: #0d5d2a;"><i class="fas fa-lightbulb mr-2"></i>Why Was This Person Recommended?</h6>
+            ${generatePlainLanguageExplanation(rec, isCBF, bd)}
+        </div>
+
+        <!-- Score Breakdown -->
+        <div class="detail-section">
+            <h6><i class="fas fa-chart-bar mr-2"></i>Score Breakdown</h6>
+            <p class="text-muted small mb-3">
+                ${isCBF
+                    ? 'This score is computed using <strong>Content-Based Filtering (CBF)</strong>. The system computes raw cosine similarity, then applies a repeat-beneficiary fairness adjustment to produce the final recommendation score shown above.'
+                    : 'This score is computed using <strong>Rule-Based Priority Scoring</strong>. Each criterion is weighted and combined into a composite priority score.'
+                }
+            </p>
+            ${barsHtml}
+        </div>
+
+        ${isCBF ? `
+        <!-- Cosine Similarity Scale Explanation -->
+        <div class="detail-section" style="background: #e7f3ff; border-left: 4px solid #4e73df;">
+            <h6 style="color: #0066cc;"><i class="fas fa-question-circle mr-2"></i>What Does This Score Mean?</h6>
+            <div style="font-size: 0.9rem;">
+                <div class="mb-2">
+                    <span style="color: #27ae60; font-weight: 600;">✓ 0.50+</span> = strong final recommendation fit
+                </div>
+                <div class="mb-2">
+                    <span style="color: #2980b9; font-weight: 600;">⚬ 0.15 to 0.49</span> = some profile features match the target program
+                </div>
+                <div>
+                    <span style="color: #e74c3c; font-weight: 600;">✗ 0.00 to 0.14</span> = weak final fit after similarity and fairness adjustment
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <!-- Algorithm Info -->
+        <div class="detail-section">
+            <h6><i class="fas fa-cogs mr-2"></i>Algorithm Used</h6>
+            <span class="ml-badge">
+                ${isCBF ? 'Content-Based KNN' : 'Rule-Based Scoring'}
+            </span>
+            ${isCBF ? `
+            <p class="text-muted small mt-3 mb-2">
+                The system converts both the <strong>beneficiary's profile</strong> and the <strong>program's target</strong> into numeric vectors, measures raw cosine similarity, then applies a fairness adjustment for repeat-beneficiary history.
+            </p>
+            <table style="width:100%; font-size: 0.82rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="background:#4e73df; color:white;">
+                        <th style="padding: 6px 10px; border-radius: 4px 0 0 0;">Feature</th>
+                        <th style="padding: 6px 10px;">Beneficiary</th>
+                        <th style="padding: 6px 10px; border-radius: 0 4px 0 0;">Program Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Age</td>
+                        <td style="padding: 6px 10px;">${rec.age != null ? rec.age + ' years old' : 'N/A'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Representative age (30 general / 60 for seniors)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Family Monthly Income</td>
+                        <td style="padding: 6px 10px;">${escapeHtml(getFamilyMonthlyIncomeDisplay(rec))}</td>
+                        <td style="padding: 6px 10px; color:#666;">Mapped to vulnerability scale (lower income bands => higher income proximity)</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Barangay</td>
+                        <td style="padding: 6px 10px;">${rec.barangay || 'N/A'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Not matched (all barangays considered)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Solo Parent</td>
+                        <td style="padding: 6px 10px;">${rec.is_solo_parent ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Student</td>
+                        <td style="padding: 6px 10px;">${rec.is_student ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">PWD</td>
+                        <td style="padding: 6px 10px;">${rec.is_pwd ? 'Yes' : 'No'}</td>
+                        <td style="padding: 6px 10px; color:#666;">From program's priority group</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Occupation / Skills</td>
+                        <td style="padding: 6px 10px; color:#666;">TF-IDF text vector</td>
+                        <td style="padding: 6px 10px; color:#666;">Program requirements &amp; description keywords</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 10px; font-weight:600;">Past Applications</td>
+                        <td style="padding: 6px 10px; color:#666;">${readableHistoryText || '<em>None on record</em>'}</td>
+                        <td style="padding: 6px 10px; color:#666;">Program name, type &amp; priority group keywords</td>
+                    </tr>
+                    <tr style="background:#f8f9fc;">
+                        <td style="padding: 6px 10px; font-weight:600;">Final Score Formula</td>
+                        <td style="padding: 6px 10px; color:#666;" colspan="2">
+                            max(0, raw cosine similarity + fairness adjustment)
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            ` : `
+            <p class="text-muted small mt-2 mb-0">
+                Weighted priority scoring: income level, solo parent, student, PWD, and senior citizen status are each assigned a weight and summed into a final score.
+            </p>
+            `}
+        </div>
+    `;
+
+    document.getElementById('beneficiaryDetailLabel').innerHTML =
+        `<i class="fas fa-user mr-2"></i>${rec.name}`;
+    document.getElementById('beneficiaryDetailBody').innerHTML = html;
+
+    const profileBtn = document.getElementById('viewBeneficiaryProfileBtn');
+    const profileUserId = parseInt(rec.user_id, 10);
+    if (profileBtn) {
+        if (Number.isInteger(profileUserId) && profileUserId > 0) {
+            profileBtn.href = getCommunityUserProfileUrl(profileUserId);
+            profileBtn.style.display = 'inline-block';
+        } else {
+            profileBtn.href = '#';
+            profileBtn.style.display = 'none';
+        }
+    }
+
+    $('#beneficiaryDetailModal').modal('show');
+}
+
+// Restore recommendations after page reload for the same browser session.
+(function initializeRecommendationState() {
+    renderPriorityMunicipalityScope();
+    renderBarangayOptionsForMunicipality(priorityMunicipality);
+    syncIncomeRangeBoundsFromDropdown();
+    updateSelectAllBarangaysButtonState();
+
+    if (shouldResetRecommendationState) {
+        clearRecommendationState();
+    } else {
+        restoreRecommendationState();
+    }
+
+    if (applyRequestedProgramSelection(requestedProgramId) && shouldResetRecommendationState) {
+        showActionFeedback(
+            '<i class="fas fa-info-circle mr-2"></i>Target program pre-selected. Previous generated recommendation list was cleared.',
+            'info'
+        );
+    }
+
+    removeResetFlagFromUrl();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,296 @@
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+    /* Keep layout width stable when pages toggle between scroll/no-scroll */
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+}
+
+/* Thin system-like scrollbar for supported browsers */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 50, 160, 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 50, 160, 0.4);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 50, 160, 0.55);
+}
+
+.flash-messages {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1050;
+    width: 90%;
+    max-width: 600px;
+}
+
+.flash-message.alert {
+    border: 1px solid transparent;
+    border-left-width: 6px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    animation: slideDown 0.35s ease-out;
+}
+
+.flash-message.alert-success {
+    background-color: #e9f8ef;
+    border-color: #bde7cb;
+    border-left-color: #279855;
+    color: #155d35;
+}
+
+.flash-message.alert-danger {
+    background-color: #fdeeee;
+    border-color: #f4c4c4;
+    border-left-color: #c93b3b;
+    color: #7c1f23;
+}
+
+.flash-message.alert-warning {
+    background-color: #fff9e8;
+    border-color: #f3e2b2;
+    border-left-color: #d39b1f;
+    color: #7a5a05;
+}
+
+.flash-message.alert-info {
+    background-color: #eaf4ff;
+    border-color: #bdd9f8;
+    border-left-color: #2d78c4;
+    color: #174a78;
+}
+
+.flash-message .close {
+    color: inherit;
+    opacity: 0.65;
+}
+
+.flash-message .close:hover {
+    opacity: 0.9;
+}
+
+/* Global modal polish: keep modals above fixed navbars and visually modern */
+.modal {
+    z-index: 2050;
+}
+
+.modal-backdrop {
+    z-index: 2040;
+    background: rgba(9, 20, 46, 0.62);
+}
+
+.modal-backdrop.show {
+    opacity: 1;
+}
+
+.modal.show {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    overflow-y: auto;
+}
+
+.modal.show .modal-dialog {
+    margin: 1rem auto;
+}
+
+@media (min-width: 576px) {
+    .modal.show .modal-dialog {
+        margin: 1.75rem auto;
+    }
+}
+
+.modal-content {
+    border: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    max-height: calc(100vh - 2rem);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 26px 60px rgba(9, 20, 46, 0.3), 0 10px 25px rgba(9, 20, 46, 0.18);
+}
+
+@media (min-width: 576px) {
+    .modal-content {
+        max-height: calc(100vh - 3.5rem);
+    }
+}
+
+.modal-header {
+    border-bottom: 1px solid #e8ecf4;
+    padding: 0.85rem 1rem;
+}
+
+.modal-header:not([class*="bg-"]) {
+    background: linear-gradient(135deg, #c79012 0%, #aa780f 100%);
+    color: #ffffff;
+}
+
+.modal-header:not([class*="bg-"]) .close {
+    color: #ffffff;
+    opacity: 0.92;
+}
+
+.modal-title {
+    font-weight: 700;
+}
+
+.modal-body {
+    padding: 1.1rem;
+    background: #f9fbff;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.modal-footer {
+    border-top: 1px solid #e8ecf4;
+    background: #f3f6fb;
+}
+
+.modal .form-control,
+.modal .custom-select {
+    border-radius: 9px;
+    border-color: #d3dbe9;
+}
+
+.modal .form-control:focus,
+.modal .custom-select:focus {
+    border-color: #7ea3dc;
+    box-shadow: 0 0 0 0.14rem rgba(31, 94, 168, 0.2);
+}
+
+/* Keep horizontal table scrolling stable when hover effects are applied */
+.table-responsive {
+    scrollbar-gutter: stable both-edges;
+}
+
+@media (max-width: 576px) {
+    .flash-messages {
+        top: 64px;
+        width: 94%;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Toast Animations */
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes toastSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+}
+
+@keyframes toastScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes toastScaleOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+}
+
+@keyframes toastFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toastFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+/* Toast animation classes */
+.toast-animate-in {
+    animation: toastSlideIn 0.3s ease-out;
+}
+
+.toast-animate-out {
+    animation: toastSlideOut 0.3s ease-in;
+}
+
+.toast-scale-in {
+    animation: toastScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.toast-scale-out {
+    animation: toastScaleOut 0.3s ease-in;
+}
+
+.toast-fade-in-up {
+    animation: toastFadeInUp 0.4s ease-out;
+}
+
+.toast-fade-out {
+    animation: toastFadeOut 0.3s ease-in;
+}

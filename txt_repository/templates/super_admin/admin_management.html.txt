@@ -1,0 +1,980 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}Admin Management - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+        --dash-danger: #dc3545;
+        --dash-warning: #d89f1d;
+        --dash-success: #159947;
+    }
+
+    .admin-mgmt-shell {
+        animation: adminManagementFadeIn 0.45s ease-out;
+    }
+
+    @keyframes adminManagementFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .admin-mgmt-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .admin-mgmt-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .admin-mgmt-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-gradient-info {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-info:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-warning:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-gradient-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+    }
+
+    .btn-gradient-danger:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+    .btn-outline-custom {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-custom:hover {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        color: #fff;
+        border-color: transparent;
+    }
+
+    .stats-mini-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        transition: all 0.28s ease;
+        overflow: hidden;
+    }
+
+    .stats-mini-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.12);
+    }
+
+    .stats-mini-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #46618f;
+        margin-bottom: 0.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        color: #1f355b;
+        font-weight: 700;
+    }
+
+    .stat-icon-shell {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(31, 111, 235, 0.28);
+    }
+
+    .icon-primary { background: linear-gradient(135deg, #1f6feb, #1942a8); }
+    .icon-success { background: linear-gradient(135deg, #159947, #0f7e37); }
+    .icon-info { background: linear-gradient(135deg, #0891b2, #0e7490); }
+
+    .admin-filter-card,
+    .admin-list-card,
+    .activity-panel-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .admin-filter-card .card-header,
+    .admin-list-card .card-header,
+    .activity-panel-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .admin-filter-card .form-control,
+    .admin-filter-card .form-select,
+    .admin-modal .form-control,
+    .admin-modal .form-select {
+        border-radius: 9px;
+        border: 1px solid #d8deea;
+        padding: 0.4rem 0.85rem;
+    }
+
+    .admin-filter-card .form-control:focus,
+    .admin-filter-card .form-select:focus,
+    .admin-modal .form-control:focus,
+    .admin-modal .form-select:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.14);
+    }
+
+    .filter-label {
+        color: #4f6285;
+        font-size: 0.78rem;
+        letter-spacing: 0.35px;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 0.38rem;
+    }
+
+    .admin-card {
+        border: 1px solid var(--dash-border);
+        border-left: 4px solid #dbe5fa;
+        border-radius: 12px;
+        transition: all 0.25s ease;
+        box-shadow: 0 6px 18px rgba(31, 42, 68, 0.06);
+    }
+
+    .admin-card:hover {
+        border-left-color: var(--dash-blue);
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(15, 34, 73, 0.13);
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+    }
+
+    .admin-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        object-fit: cover;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 1.15rem;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 4px 12px rgba(31, 111, 235, 0.28);
+    }
+
+    .admin-avatar img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .admin-name {
+        color: #1f2a44;
+        letter-spacing: 0.1px;
+    }
+
+    .you-badge {
+        border-radius: 999px;
+        background: rgba(31, 111, 235, 0.16);
+        color: #1d4ed8;
+        font-size: 0.72rem;
+        padding: 0.3rem 0.6rem;
+        font-weight: 700;
+    }
+
+    .admin-meta {
+        color: #627089;
+        font-size: 0.84rem;
+    }
+
+    .admin-stat-line {
+        color: #4d5e7c;
+        font-size: 0.83rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .admin-stat-line strong {
+        color: #1f355b;
+    }
+
+    .admin-actions .btn {
+        border-radius: 9px;
+        min-width: 38px;
+    }
+
+    .btn-soft-warning {
+        background: rgba(216, 159, 29, 0.14);
+        color: #9a6500;
+        border: 1px solid rgba(154, 101, 0, 0.2);
+    }
+
+    .btn-soft-warning:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+    }
+
+    .btn-soft-info {
+        background: rgba(8, 145, 178, 0.12);
+        color: #0e7490;
+        border: 1px solid rgba(14, 116, 144, 0.22);
+    }
+
+    .btn-soft-info:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+    }
+
+    .btn-soft-danger {
+        background: rgba(220, 53, 69, 0.12);
+        color: #b91c1c;
+        border: 1px solid rgba(185, 28, 28, 0.2);
+    }
+
+    .btn-soft-danger:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+    }
+
+    .activity-log {
+        max-height: 610px;
+        overflow-y: auto;
+        padding-right: 0.2rem;
+    }
+
+    .activity-item {
+        border-left: 3px solid #e3e6f0;
+        padding-left: 0.9rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -7px;
+        top: 5px;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #fff;
+        border: 3px solid #4e73df;
+    }
+
+    .activity-item.create::before { border-color: #1cc88a; }
+    .activity-item.update::before { border-color: #f6c23e; }
+    .activity-item.delete::before { border-color: #e74a3b; }
+    .activity-item.approve::before { border-color: #36b9cc; }
+    .activity-item.reject::before { border-color: #e74a3b; }
+
+    .activity-title {
+        color: #1f2a44;
+        font-weight: 700;
+    }
+
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.2rem;
+        border: 1px solid #d6dfef;
+        color: #315389;
+        font-weight: 600;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .pagination .page-item.active .page-link {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .pagination .page-link:hover {
+        background: #eef3ff;
+        color: #1f4cb1;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #667085;
+        padding: 3rem 1rem;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        border: 2px dashed #d3ddf5;
+        border-radius: 16px;
+    }
+
+    .empty-state i {
+        font-size: 2.75rem;
+        color: #bcc8de;
+        margin-bottom: 0.9rem;
+    }
+
+    .admin-modal .modal-dialog {
+        max-width: 560px;
+    }
+
+    .admin-modal .modal-content {
+        border: 1px solid #dbe6ff;
+        border-radius: 14px;
+        box-shadow: 0 24px 50px rgba(15, 34, 73, 0.2);
+        overflow: hidden;
+    }
+
+    .admin-modal .modal-header {
+        border-bottom: 1px solid transparent;
+        padding: 1rem 1.2rem;
+    }
+
+    .admin-modal .modal-title {
+        font-weight: 700;
+        letter-spacing: 0.1px;
+    }
+
+    .modal-header-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+        color: #fff;
+    }
+
+    .modal-header-warning {
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%);
+        color: #fff;
+    }
+
+    .modal-header-info {
+        background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+        color: #fff;
+    }
+
+    .modal-header-danger {
+        background: linear-gradient(135deg, #e74a3b 0%, #c92a1c 100%);
+        color: #fff;
+    }
+
+    .admin-modal .close {
+        color: #fff;
+        opacity: 0.92;
+        text-shadow: none;
+    }
+
+    .admin-modal .close:hover {
+        opacity: 1;
+    }
+
+    .admin-modal .modal-body {
+        padding: 1.2rem 1.25rem;
+    }
+
+    .admin-modal .modal-footer {
+        border-top: 1px solid #e8eefb;
+        background: #fbfdff;
+        padding: 0.85rem 1.1rem;
+    }
+
+    .modal-info-card,
+    .modal-danger-card {
+        border-radius: 10px;
+        border: 1px solid;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-info-card {
+        background: rgba(8, 145, 178, 0.08);
+        border-color: rgba(14, 116, 144, 0.25);
+        color: #0e5f74;
+    }
+
+    .modal-danger-card {
+        background: rgba(231, 74, 59, 0.09);
+        border-color: rgba(201, 42, 28, 0.25);
+        color: #97261d;
+    }
+
+    .admin-modal label {
+        font-weight: 700;
+        color: #334e7a;
+        margin-bottom: 0.35rem;
+        font-size: 0.88rem;
+    }
+
+    .modal-context-block {
+        border: 1px solid #d9e5fa;
+        background: linear-gradient(180deg, #fcfdff 0%, #f5f9ff 100%);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .admin-mgmt-hero {
+            padding: 1.1rem;
+        }
+
+        .admin-mgmt-hero .btn {
+            width: 100%;
+            margin-top: 0.8rem;
+        }
+
+        .admin-actions {
+            margin-top: 0.5rem;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .admin-card .text-right {
+            text-align: left !important;
+            margin-top: 0.75rem;
+        }
+
+        .admin-card .text-center {
+            text-align: left !important;
+            margin-top: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block super_admin_content %}
+<div class="container-fluid admin-mgmt-shell">
+    <div class="admin-mgmt-hero">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h1 class="mb-1">Admin Management</h1>
+                <p class="subtitle">Manage administrator accounts and monitor account activities in one place.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Total Admins</div>
+                            <div class="stat-value">{{ total_admins }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-primary"><i class="fas fa-user-shield"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">Active Admins</div>
+                            <div class="stat-value">{{ active_admins }}</div>
+                            <small class="text-muted">Last 7 days</small>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-success"><i class="fas fa-user-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card stats-mini-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="stat-label">New This Month</div>
+                            <div class="stat-value">{{ new_this_month }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="stat-icon-shell icon-info"><i class="fas fa-user-plus"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Admin List -->
+        <div class="col-lg-12 mb-4">
+            <!-- Filters -->
+            <div class="card admin-filter-card mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-filter mr-2"></i>Filter Admins
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('super_admin.admin_management') }}">
+                        <div class="row">
+                            <div class="col-md-5 mb-2">
+                                <label class="filter-label" for="admin-search">Search</label>
+                                <input type="text" class="form-control" name="search" 
+                                       id="admin-search"
+                                       placeholder="Search by name or email..." 
+                                       value="{{ request.args.get('search', '') }}">
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label class="filter-label" for="admin-municipality">Municipality</label>
+                                <select class="form-control" name="municipality" id="admin-municipality">
+                                    <option value="">All Municipalities</option>
+                                    {% for municipality in municipalities %}
+                                    <option value="{{ municipality }}" {% if request.args.get('municipality') == municipality %}selected{% endif %}>{{ municipality }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label class="filter-label d-block">Apply</label>
+                                <button type="submit" class="btn btn-gradient-primary btn-block">
+                                    <i class="fas fa-search mr-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Admin Users List -->
+            <div class="card admin-list-card">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Administrator Accounts</h6>
+                </div>
+                <div class="card-body">
+                    {% if admins %}
+                        {% for admin in admins %}
+                        <div class="admin-card card mb-3">
+                            <div class="card-body p-3">
+                                <div class="row align-items-center">
+                                    <div class="col-lg-6">
+                                        <div class="d-flex align-items-center">
+                                            <div class="admin-avatar mr-3">
+                                                {% if admin.profile_pic %}
+                                                    <img src="{{ admin.profile_pic }}" alt="Avatar">
+                                                {% else %}
+                                                    {{ admin.first_name[0] }}{{ admin.last_name[0] }}
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <h5 class="font-weight-bold mb-1">
+                                                    {{ admin.first_name }} 
+                                                    {% if admin.middle_name %}{{ admin.middle_name[0] }}.{% endif %} 
+                                                    {{ admin.last_name }}
+                                                    {% if admin.id == current_user.id %}
+                                                        <span class="you-badge ml-1">You</span>
+                                                    {% endif %}
+                                                </h5>
+                                                <small class="admin-meta d-block">
+                                                    <i class="fas fa-envelope mr-1"></i>{{ admin.email }}
+                                                </small>
+                                                <small class="admin-meta d-block">
+                                                    <i class="fas fa-map-marker-alt mr-1"></i>{{ admin.municipality }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-3 text-center small">
+                                        <div class="admin-stat-line">
+                                            <i class="fas fa-clipboard-list text-primary mr-1"></i>
+                                            <strong>{{ admin.programs_created }}</strong> Programs
+                                        </div>
+                                        <div class="admin-stat-line">
+                                            <i class="fas fa-bullhorn text-info mr-1"></i>
+                                            <strong>{{ admin.announcements_created }}</strong> Announcements
+                                        </div>
+                                        <div class="admin-stat-line mb-0">
+                                            <i class="fas fa-check-circle text-success mr-1"></i>
+                                            <strong>{{ admin.applications_reviewed }}</strong> Reviewed
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-3 text-right">
+                                        <small class="admin-meta d-block mb-2">
+                                            <i class="fas fa-calendar mr-1"></i>
+                                            Joined: {{ admin.created_at|manila('%b %d, %Y') }}
+                                        </small>
+                                        <small class="{% if admin.last_activity %}text-success{% else %}text-muted{% endif %} d-block mb-2" style="font-size: 0.83rem;">
+                                            {% if admin.last_activity %}
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            {% else %}
+                                            <i class="fas fa-clock"></i>
+                                            {% endif %}
+                                            Last Active: {{ admin.last_activity|manila('%b %d, %Y %I:%M %p', 'N/A') }}
+                                        </small>
+                                        
+                                        {% if admin.id != current_user.id %}
+                                        <div class="action-buttons admin-actions" role="group">
+                                            <button type="button" class="btn btn-soft-warning" 
+                                                    data-toggle="modal" 
+                                                    data-target="#editAdminModal{{ admin.id }}"
+                                                    title="Edit Admin">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-soft-info" 
+                                                    data-toggle="modal" 
+                                                    data-target="#resetPasswordModal{{ admin.id }}"
+                                                    title="Reset Password">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-soft-danger" 
+                                                    data-toggle="modal" 
+                                                    data-target="#deleteAdminModal{{ admin.id }}"
+                                                    title="Delete Admin">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Current User</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Pagination -->
+                        {% if pagination.pages > 1 %}
+                        <nav aria-label="Admin pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('super_admin.admin_management', page=pagination.prev_num, search=request.args.get('search', ''), municipality=request.args.get('municipality', '')) }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for page_num in pagination.iter_pages() %}
+                                    {% if page_num %}
+                                        {% if page_num != pagination.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('super_admin.admin_management', page=page_num, search=request.args.get('search', ''), municipality=request.args.get('municipality', '')) }}">
+                                                {{ page_num }}
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                        {% endif %}
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('super_admin.admin_management', page=pagination.next_num, search=request.args.get('search', ''), municipality=request.args.get('municipality', '')) }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                        
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-user-shield"></i>
+                            <h5>No Admin Users Found</h5>
+                            <p>Add your first administrator.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Admin Modal -->
+<div class="modal fade admin-modal" id="addAdminModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('super_admin.add_admin') }}">
+                <div class="modal-header modal-header-primary">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus mr-2"></i>Add New Admin
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        A temporary password will be generated and sent to the admin.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" 
+                               placeholder="admin@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="first_name" 
+                               placeholder="John" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Middle Name</label>
+                        <input type="text" class="form-control" name="middle_name" 
+                               placeholder="Optional">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="last_name" 
+                               placeholder="Doe" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Municipality <span class="text-danger">*</span></label>
+                        <select class="form-control" name="municipality" required>
+                            <option value="">Select Municipality</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}">{{ municipality }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-primary">
+                        <i class="fas fa-user-plus mr-1"></i>Create Admin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit, Reset Password, and Delete Modals for Each Admin -->
+{% for admin in admins %}
+{% if admin.id != current_user.id %}
+<!-- Edit Admin Modal -->
+<div class="modal fade admin-modal" id="editAdminModal{{ admin.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('super_admin.edit_admin', admin_id=admin.id) }}">
+                <div class="modal-header modal-header-warning">
+                    <h5 class="modal-title">
+                        <i class="fas fa-edit mr-2"></i>Edit Admin
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" name="email" 
+                               value="{{ admin.email }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>First Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="first_name" 
+                               value="{{ admin.first_name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Middle Name</label>
+                        <input type="text" class="form-control" name="middle_name" 
+                               value="{{ admin.middle_name or '' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Last Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="last_name" 
+                               value="{{ admin.last_name }}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Municipality <span class="text-danger">*</span></label>
+                        <select class="form-control" name="municipality" required>
+                            <option value="">Select Municipality</option>
+                            {% for municipality in municipalities %}
+                            <option value="{{ municipality }}" {% if admin.admin_profile and admin.admin_profile.municipality == municipality %}selected{% endif %}>{{ municipality }}</option>
+                            {% endfor %}
+                            {% if admin.admin_profile and admin.admin_profile.municipality and admin.admin_profile.municipality not in municipalities %}
+                            <option value="{{ admin.admin_profile.municipality }}" selected>{{ admin.admin_profile.municipality }} (Legacy)</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-warning">
+                        <i class="fas fa-save mr-1"></i>Update Admin
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade admin-modal" id="resetPasswordModal{{ admin.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('super_admin.reset_admin_password', admin_id=admin.id) }}">
+                <div class="modal-header modal-header-info">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key mr-2"></i>Reset Password
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-info-card">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        An 8-digit reset code will be sent to the admin via notification and shown to you in a flash message.
+                    </div>
+                    <p class="mb-2">Reset password for:</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ admin.first_name }} {{ admin.last_name }}</p>
+                        <small class="text-muted">{{ admin.email }}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-info">
+                        <i class="fas fa-key mr-1"></i>Reset Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Admin Modal -->
+<div class="modal fade admin-modal" id="deleteAdminModal{{ admin.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('super_admin.delete_admin', admin_id=admin.id) }}">
+                <div class="modal-header modal-header-danger">
+                    <h5 class="modal-title">
+                        <i class="fas fa-trash mr-2"></i>Delete Admin
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-danger-card">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+                    <p class="mb-2">Are you sure you want to permanently delete this admin account?</p>
+                    <div class="modal-context-block">
+                        <p class="font-weight-bold mb-1">{{ admin.first_name }} {{ admin.last_name }}</p>
+                        <small class="text-muted">{{ admin.email }}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gradient-danger">
+                        <i class="fas fa-trash mr-1"></i>Delete Permanently
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}
+

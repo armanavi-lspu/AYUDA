@@ -1,0 +1,473 @@
+{% extends "super_admin/superadmin_base.html" %}
+{% block title %}Super Admin Dashboard - AYUDA{% endblock %}
+
+{% block super_admin_content %}
+    <style>
+        .dashboard-stat-card {
+            position: relative;
+            border: none;
+            background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
+            box-shadow: 0 12px 26px rgba(18, 44, 90, 0.08);
+        }
+
+        .dashboard-stat-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            border-radius: 14px 0 0 14px;
+            background: linear-gradient(180deg, #1f6feb 0%, #1942a8 100%);
+        }
+
+        .dashboard-stat-card .card-body {
+            padding: 1.15rem 1.15rem 1rem 1.2rem;
+        }
+
+        .dashboard-stat-card .sa-stat-value {
+            font-size: 1.75rem;
+            letter-spacing: 0.2px;
+        }
+
+        .dashboard-stat-icon-wrap {
+            min-width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(31, 111, 235, 0.22);
+        }
+
+        .dashboard-metric-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.55rem;
+        }
+
+        .dashboard-chip {
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 999px;
+            padding: 0.24rem 0.58rem;
+            letter-spacing: 0.15px;
+            border: 1px solid transparent;
+        }
+
+        .dashboard-chip.active {
+            color: #0f6d3c;
+            background: rgba(21, 153, 71, 0.12);
+            border-color: rgba(21, 153, 71, 0.3);
+        }
+
+        .dashboard-chip.inactive {
+            color: #7a3f0d;
+            background: rgba(216, 159, 29, 0.14);
+            border-color: rgba(216, 159, 29, 0.3);
+        }
+
+        .dashboard-chip.neutral {
+            color: #1f4d8c;
+            background: rgba(31, 111, 235, 0.11);
+            border-color: rgba(31, 111, 235, 0.25);
+        }
+
+        .dashboard-mini-stat-card {
+            border: 1px solid #dfe8f7;
+            box-shadow: 0 10px 22px rgba(18, 44, 90, 0.06);
+        }
+
+        .dashboard-mini-stat-card .card-body {
+            padding: 1rem 1.08rem;
+        }
+
+        .dashboard-mini-title {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #4a5f86;
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+        }
+
+        .dashboard-mini-value {
+            font-size: 1.55rem;
+            line-height: 1.1;
+            color: #163a6b;
+            font-weight: 800;
+            margin-bottom: 0.28rem;
+        }
+
+        .dashboard-mini-note {
+            color: #5f6f89;
+            font-size: 0.8rem;
+            margin-bottom: 0;
+        }
+    </style>
+
+    <div class="super-admin-hero d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1">System Performance Overview</h1>
+            <p class="subtitle">Quick system health snapshot across municipalities, accounts, and activity trends.</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card dashboard-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Municipalities</div>
+                            <div class="sa-stat-value">{{ total_municipalities }}</div>
+                            <div class="dashboard-metric-chips">
+                                <span class="dashboard-chip active">Active {{ active_municipalities }}</span>
+                                <span class="dashboard-chip inactive">Inactive {{ inactive_municipalities }}</span>
+                            </div>
+                        </div>
+                        <div class="sa-stat-icon icon-primary dashboard-stat-icon-wrap">
+                            <i class="fas fa-city"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card dashboard-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Admins</div>
+                            <div class="sa-stat-value">{{ total_admins }}</div>
+                            <div class="dashboard-metric-chips">
+                                <span class="dashboard-chip active">Active {{ active_admins }}</span>
+                                <span class="dashboard-chip inactive">Inactive {{ inactive_admins }}</span>
+                            </div>
+                        </div>
+                        <div class="sa-stat-icon icon-info dashboard-stat-icon-wrap">
+                            <i class="fas fa-user-cog"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card dashboard-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">Active Users</div>
+                            <div class="sa-stat-value">{{ total_community }}</div>
+                            <div class="dashboard-metric-chips">
+                                <span class="dashboard-chip active">Active {{ active_community_users }}</span>
+                                <span class="dashboard-chip inactive">Inactive {{ inactive_community_users }}</span>
+                            </div>
+                        </div>
+                        <div class="sa-stat-icon icon-success dashboard-stat-icon-wrap">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card sa-stats-card dashboard-stat-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="sa-stat-label">System Activities</div>
+                            <div class="sa-stat-value">{{ recent_applications_7d }}</div>
+                            <div class="dashboard-metric-chips">
+                                <span class="dashboard-chip neutral">Apps (7d)</span>
+                                <span class="dashboard-chip neutral">Programs {{ total_programs }}</span>
+                                <span class="dashboard-chip neutral">Announcements {{ total_announcements }}</span>
+                            </div>
+                        </div>
+                        <div class="sa-stat-icon icon-warning dashboard-stat-icon-wrap">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-3">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie mr-2"></i>Municipality Activity Status</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="municipalityStatusChart" style="height: 320px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0"><i class="fas fa-users-cog mr-2"></i>Admin and User Activity Status</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="accountStatusChart" style="height: 320px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12 mb-3">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0"><i class="fas fa-wave-square mr-2"></i>System Activities (Last 7 Days)</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="weeklyActivityChart" style="height: 340px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0"><i class="fas fa-map-marked-alt mr-2"></i>User Count by Municipality</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="municipalityUsersChart" style="height: 370px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Recent Admin Activity</h6>
+                    <a href="{{ url_for('super_admin.admin_logs') }}" class="btn btn-sm btn-outline-custom">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm sa-table mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>When</th>
+                                <th>Admin</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_admin_logs %}
+                            <tr>
+                                <td>{{ log.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                                <td>{{ log.admin_name }}</td>
+                                <td>{{ log.action }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">No admin logs available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card sa-panel h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Recent Community Activity</h6>
+                    <a href="{{ url_for('super_admin.user_logs') }}" class="btn btn-sm btn-outline-custom">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm sa-table mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>When</th>
+                                <th>User</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_user_logs %}
+                            <tr>
+                                <td>{{ log.created_at | manila('%Y-%m-%d %H:%M', 'N/A') }}</td>
+                                <td>{{ log.user_name }}</td>
+                                <td>{{ log.action }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">No user logs available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="application/json" id="municipality-status-data">{{ municipality_status_chart | tojson }}</script>
+    <script type="application/json" id="account-status-data">{{ account_status_chart | tojson }}</script>
+    <script type="application/json" id="weekly-activity-data">{{ weekly_activity_chart | tojson }}</script>
+    <script type="application/json" id="municipality-user-counts-data">{{ municipality_user_counts_chart | tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+(function () {
+    function parseData(id, fallback) {
+        const node = document.getElementById(id);
+        if (!node) return fallback;
+        try {
+            return JSON.parse(node.textContent || '{}');
+        } catch (e) {
+            console.error('Failed to parse chart data for', id, e);
+            return fallback;
+        }
+    }
+
+    const municipalityStatus = parseData('municipality-status-data', { labels: [], data: [] });
+    const accountStatus = parseData('account-status-data', { labels: [], active: [], inactive: [] });
+    const weeklyActivity = parseData('weekly-activity-data', { labels: [], applications: [], programs: [], announcements: [] });
+    const municipalityUsers = parseData('municipality-user-counts-data', { labels: [], data: [] });
+
+    const municipalityStatusCtx = document.getElementById('municipalityStatusChart');
+    if (municipalityStatusCtx) {
+        new Chart(municipalityStatusCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: municipalityStatus.labels,
+                datasets: [{
+                    data: municipalityStatus.data,
+                    backgroundColor: ['rgba(28, 200, 138, 0.85)', 'rgba(231, 74, 59, 0.85)'],
+                    borderColor: ['rgba(28, 200, 138, 1)', 'rgba(231, 74, 59, 1)'],
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                },
+            },
+        });
+    }
+
+    const accountStatusCtx = document.getElementById('accountStatusChart');
+    if (accountStatusCtx) {
+        new Chart(accountStatusCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: accountStatus.labels,
+                datasets: [
+                    {
+                        label: 'Active',
+                        data: accountStatus.active,
+                        backgroundColor: 'rgba(54, 185, 204, 0.82)',
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'Inactive',
+                        data: accountStatus.inactive,
+                        backgroundColor: 'rgba(246, 194, 62, 0.82)',
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        borderWidth: 2,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { beginAtZero: true, stacked: true, ticks: { stepSize: 1 } },
+                },
+            },
+        });
+    }
+
+    const weeklyActivityCtx = document.getElementById('weeklyActivityChart');
+    if (weeklyActivityCtx) {
+        new Chart(weeklyActivityCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: weeklyActivity.labels,
+                datasets: [
+                    {
+                        label: 'Applications',
+                        data: weeklyActivity.applications,
+                        borderColor: 'rgba(78, 115, 223, 1)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.15)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: 'Programs',
+                        data: weeklyActivity.programs,
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        backgroundColor: 'rgba(28, 200, 138, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: 'Announcements',
+                        data: weeklyActivity.announcements,
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                },
+            },
+        });
+    }
+
+    const municipalityUsersCtx = document.getElementById('municipalityUsersChart');
+    if (municipalityUsersCtx) {
+        new Chart(municipalityUsersCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: municipalityUsers.labels,
+                datasets: [{
+                    label: 'Number of Users',
+                    data: municipalityUsers.data,
+                    backgroundColor: 'rgba(31, 111, 235, 0.65)',
+                    borderColor: 'rgba(31, 111, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    maxBarThickness: 48,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                },
+            },
+        });
+    }
+})();
+</script>
+{% endblock %}

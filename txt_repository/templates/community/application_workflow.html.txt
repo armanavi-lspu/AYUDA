@@ -1,0 +1,2707 @@
+{% extends "community/community_base.html" %}
+{% block title %}Application Workflow - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --workflow-slate: #1f2a44;
+        --workflow-muted: #667085;
+        --workflow-border: #e5e7eb;
+        --workflow-bg-soft: #f8fbff;
+        --workflow-blue: #1f6feb;
+        --workflow-cyan: #0ea5a6;
+    }
+
+    .workflow-page {
+        animation: workflowFadeIn 0.4s ease-out;
+    }
+
+    @keyframes workflowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .workflow-toolbar {
+        background: linear-gradient(135deg, #f7fbff 0%, #eef4ff 100%);
+        border: 1px solid #dce8ff;
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+    }
+
+    .workflow-toolbar .breadcrumb {
+        background: transparent;
+        padding: 0;
+    }
+
+    .workflow-toolbar .breadcrumb-item,
+    .workflow-toolbar .breadcrumb-item a {
+        color: #34507f;
+        font-weight: 600;
+    }
+
+    .workflow-back-btn {
+        border-radius: 10px;
+        border-color: #c9d6ef;
+        color: #2c4f83;
+        font-weight: 600;
+        background: #ffffff;
+    }
+
+    .workflow-back-btn:hover {
+        color: #1f3f6f;
+        background: #f9fbff;
+    }
+
+    .workflow-hero-card {
+        border: 1px solid var(--workflow-border);
+        border-radius: 16px;
+        box-shadow: 0 14px 28px rgba(15, 34, 73, 0.08);
+        overflow: hidden;
+    }
+
+    .workflow-hero-card .card-body {
+        background:
+            radial-gradient(circle at top right, rgba(31, 111, 235, 0.1), transparent 40%),
+            linear-gradient(135deg, #f8fbff 0%, #ffffff 70%);
+    }
+
+    .workflow-status-badge {
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        letter-spacing: 0.2px;
+    }
+
+    .workflow-timeline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.5rem 1rem 1.25rem;
+        position: relative;
+    }
+    
+    .workflow-timeline::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        right: 12px;
+        height: 4px;
+        background: #d8e2f0;
+        z-index: 0;
+        transform: translateY(-50%);
+        border-radius: 999px;
+    }
+    
+    .workflow-timeline::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        width: var(--progress-width, 0%);
+        height: 4px;
+        background: linear-gradient(to right, #0ea5a6, #1f6feb, #1f4da3);
+        z-index: 1;
+        transform: translateY(-50%);
+        transition: width 0.3s ease;
+        border-radius: 999px;
+    }
+    
+    .workflow-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.2rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+        border: 3px solid #ffffff;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.17);
+    }
+    
+    .step-completed {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .step-current {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4da3 100%);
+        color: white;
+        box-shadow: 0 0 0 4px rgba(31, 111, 235, 0.22), 0 6px 14px rgba(15, 23, 42, 0.2);
+        animation: pulse 2s infinite;
+    }
+    
+    .step-pending {
+        background: linear-gradient(135deg, #8f9cb3 0%, #6d7890 100%);
+        color: white;
+    }
+    
+    .step-review {
+        background: linear-gradient(135deg, #ffd24a 0%, #f2ad28 100%);
+        color: #212529;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7), 0 2px 8px rgba(0, 0, 0, 0.15); }
+        70% { box-shadow: 0 0 0 12px rgba(0, 123, 255, 0), 0 2px 8px rgba(0, 0, 0, 0.15); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0), 0 2px 8px rgba(0, 0, 0, 0.15); }
+    }
+    
+    .step-label {
+        text-align: center;
+        margin-top: 0.5rem;
+        max-width: 124px;
+    }
+    
+    .step-label .small:first-child {
+        font-weight: 600;
+        color: #212529;
+        font-size: 0.875rem;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+    
+    .step-label .text-muted {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+    
+    .step-link {
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .step-link .step-indicator {
+        transition: all 0.3s ease;
+    }
+
+    .workflow-mobile-hint {
+        display: none;
+    }
+    
+    .step-link:hover .step-indicator {
+        transform: scale(1.1);
+        box-shadow: 0 10px 20px rgba(14, 165, 166, 0.35);
+    }
+    
+    .workflow-step.viewing {
+        opacity: 1;
+    }
+    
+    .workflow-step.viewing .step-indicator {
+        border: 3px solid #ffd24a;
+        box-shadow: inset 0 0 0 1px #f2ad28, 0 0 10px rgba(255, 193, 7, 0.5);
+    }
+    
+    .document-upload-area {
+        border: 2px dashed #c8d6ee;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        background-color: #f8fbff;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .document-upload-area:hover {
+        border-color: #1f6feb;
+        background-color: #eef5ff;
+    }
+    
+    .document-upload-area.dragover {
+        border-color: #0ea5a6;
+        background-color: #e8fffc;
+    }
+    
+    .uploaded-document {
+        background: linear-gradient(135deg, #f8fbff 0%, #f1f6ff 100%);
+        border-left: 4px solid #1f6feb;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .step-content-card {
+        border: 1px solid var(--workflow-border);
+        box-shadow: 0 16px 30px rgba(15, 34, 73, 0.09);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .step-content-card .card-header {
+        border-bottom: 0;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .step-content-card .card-header.bg-primary {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f4da3 100%) !important;
+    }
+
+    .step-content-card .card-header.bg-warning {
+        background: linear-gradient(135deg, #ffd24a 0%, #f2ad28 100%) !important;
+        color: #1f2a44 !important;
+    }
+
+    .step-content-card .card-header.bg-success {
+        background: linear-gradient(135deg, #16a34a 0%, #0ea5a6 100%) !important;
+    }
+
+    .step-content-card .card-header.bg-info {
+        background: linear-gradient(135deg, #06b6d4 0%, #2563eb 100%) !important;
+    }
+
+    .step-content-card .card-body {
+        background: #ffffff;
+    }
+
+    .workflow-page .card {
+        border-radius: 14px;
+    }
+
+    .workflow-page .alert {
+        border-radius: 12px;
+    }
+
+    .workflow-page .table thead th {
+        background: #f8fafc;
+        border-top: none;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.72rem;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #334155;
+    }
+
+    .workflow-page .table td,
+    .workflow-page .table th {
+        vertical-align: middle;
+    }
+    
+    .step-actions {
+        background: linear-gradient(135deg, #f7faff 0%, #eef3ff 100%);
+        padding: 1.5rem;
+        border-top: 1px solid #dbe5f7;
+    }
+
+    .step-actions .badge {
+        border-radius: 999px;
+        padding: 0.5rem 0.85rem;
+        font-weight: 600;
+    }
+    
+    .btn-next-step {
+        background: linear-gradient(135deg, #16a34a 0%, #0ea5a6 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        box-shadow: 0 10px 20px rgba(14, 165, 166, 0.26);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-next-step:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 22px rgba(14, 165, 166, 0.35);
+    }
+
+    #uploadModal .modal-content,
+    #documentViewerModal .modal-content,
+    #submitStepConfirmModal .modal-content,
+    #photoPreviewModal .modal-content,
+    #editCaptionModal .modal-content,
+    #replacePhotoModal .modal-content,
+    #deletePhotoConfirmModal .modal-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 24px 52px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    #uploadModal .modal-header,
+    #submitStepConfirmModal .modal-header {
+        border-bottom: 0;
+    }
+
+    #uploadModal .modal-footer,
+    #documentViewerModal .modal-footer,
+    #submitStepConfirmModal .modal-footer,
+    #photoPreviewModal .modal-footer,
+    #editCaptionModal .modal-footer,
+    #replacePhotoModal .modal-footer,
+    #deletePhotoConfirmModal .modal-footer {
+        border-top: 1px solid #ecf1fb;
+        background: #fbfdff;
+    }
+
+    @media (max-width: 991.98px) {
+        .workflow-page {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+
+        .workflow-toolbar {
+            padding: 0.75rem;
+        }
+
+        .workflow-timeline {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            padding: 0.75rem 0.4rem 0.2rem;
+        }
+
+        .workflow-timeline::before,
+        .workflow-timeline::after {
+            display: none;
+        }
+
+        .workflow-step {
+            flex: 0 0 calc(50% - 0.8rem);
+            max-width: calc(50% - 0.8rem);
+        }
+
+        .step-indicator {
+            width: 54px;
+            height: 54px;
+            font-size: 1.05rem;
+        }
+
+        .step-label {
+            max-width: 100%;
+        }
+
+        .step-actions {
+            padding: 1rem;
+        }
+
+        .step-actions .d-flex {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 0.85rem;
+        }
+
+        .step-actions .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .workflow-toolbar {
+            flex-direction: column;
+            align-items: stretch !important;
+            gap: 0.65rem;
+        }
+
+        .workflow-toolbar > div {
+            width: 100%;
+        }
+
+        .workflow-back-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-top: 0.6rem;
+        }
+
+        .workflow-toolbar .breadcrumb {
+            white-space: normal;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .workflow-page {
+            padding-left: 0.45rem;
+            padding-right: 0.45rem;
+        }
+
+        .workflow-toolbar {
+            padding: clamp(0.6rem, 2.5vw, 0.78rem);
+        }
+
+        .workflow-toolbar .breadcrumb {
+            font-size: clamp(0.72rem, 2.9vw, 0.84rem);
+        }
+
+        .workflow-back-btn {
+            font-size: clamp(0.78rem, 3.2vw, 0.9rem);
+            padding: 0.45rem 0.75rem;
+        }
+
+        .workflow-hero-card .card-body {
+            padding: clamp(0.9rem, 3.6vw, 1.15rem);
+        }
+
+        .workflow-hero-card h4 {
+            font-size: clamp(1.05rem, 4.5vw, 1.3rem);
+        }
+
+        .workflow-page .btn {
+            font-size: clamp(0.74rem, 3.2vw, 0.9rem);
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .workflow-page .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+
+        .workflow-page .btn-group > .btn {
+            flex: 1 1 calc(50% - 0.2rem);
+            min-width: 0;
+            border-radius: 0.35rem !important;
+        }
+
+        .qualification-header {
+            flex-wrap: wrap;
+            align-items: flex-start !important;
+            gap: 0.45rem;
+        }
+
+        .qualification-header h6 {
+            flex: 1 1 100%;
+            margin-right: 0;
+            font-size: clamp(0.86rem, 3.6vw, 0.96rem);
+            line-height: 1.25;
+            word-break: break-word;
+        }
+
+        .qualification-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            width: 100%;
+        }
+
+        .qualification-badges .badge {
+            margin-right: 0 !important;
+            font-size: clamp(0.64rem, 2.7vw, 0.72rem);
+            line-height: 1.2;
+            white-space: normal;
+        }
+
+        .qualification-item {
+            flex-wrap: wrap;
+            align-items: flex-start !important;
+            row-gap: 0.45rem;
+        }
+
+        .qualification-item-icon {
+            margin-right: 0.6rem !important;
+        }
+
+        .qualification-item-content {
+            min-width: 0;
+        }
+
+        .qualification-item-content h6,
+        .qualification-item-content small {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .qualification-item-required {
+            margin-left: 0 !important;
+            width: 100%;
+        }
+
+        .qualification-item-required .badge {
+            font-size: clamp(0.64rem, 2.8vw, 0.72rem);
+            white-space: normal;
+        }
+
+        .workflow-mobile-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: clamp(0.7rem, 2.8vw, 0.78rem);
+            font-weight: 600;
+            color: #3f5886;
+            background: #eef4ff;
+            border: 1px solid #d6e4ff;
+            border-radius: 999px;
+            padding: 0.35rem 0.65rem;
+        }
+
+        .workflow-timeline {
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            gap: 0.7rem;
+            padding: 0.3rem 0.25rem 0.65rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-padding-left: 0.25rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .workflow-timeline::before,
+        .workflow-timeline::after {
+            display: none;
+        }
+
+        .workflow-timeline::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .workflow-timeline::-webkit-scrollbar-thumb {
+            background: #c7d5ed;
+            border-radius: 999px;
+        }
+
+        .workflow-step {
+            flex: 0 0 clamp(138px, 44vw, 182px);
+            max-width: clamp(138px, 44vw, 182px);
+            min-height: clamp(132px, 41vw, 162px);
+            border: 1px solid #e2e8f5;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: clamp(0.62rem, 2.6vw, 0.8rem) clamp(0.5rem, 2.1vw, 0.66rem);
+            scroll-snap-align: start;
+            box-shadow: 0 6px 16px rgba(31, 42, 68, 0.08);
+        }
+
+        .workflow-step.viewing {
+            border-color: #f2ad28;
+            box-shadow: 0 8px 18px rgba(242, 173, 40, 0.24);
+        }
+
+        .step-indicator {
+            width: clamp(42px, 11vw, 50px);
+            height: clamp(42px, 11vw, 50px);
+            font-size: clamp(0.86rem, 3.4vw, 1rem);
+            margin-bottom: clamp(0.42rem, 1.9vw, 0.58rem);
+        }
+
+        .step-link:hover .step-indicator {
+            transform: none;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.17);
+        }
+
+        .step-label {
+            max-width: 100%;
+            margin-top: 0.2rem;
+        }
+
+        .step-label .small:first-child {
+            font-size: clamp(0.75rem, 3.2vw, 0.84rem);
+        }
+
+        .step-label .text-muted {
+            font-size: clamp(0.66rem, 2.8vw, 0.74rem);
+            margin-top: 0.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="communityWorkflowPageRoot">
+<div class="container-fluid workflow-page">
+    <!-- Header -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4 workflow-toolbar">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{{ url_for('community.applications') }}">Applications</a></li>
+                        <li class="breadcrumb-item active">Application #{{ application.id }}</li>
+                    </ol>
+                </nav>
+                <div class="btn-group" role="group" aria-label="Workflow actions">
+                    <a href="{{ url_for('community.application_logs', application_id=application.id) }}" class="btn btn-outline-info workflow-back-btn">
+                        <i class="fas fa-clipboard-list mr-1"></i>View Application Logs
+                    </a>
+                    <a href="{{ url_for('community.applications') }}" class="btn btn-outline-secondary workflow-back-btn">
+                        <i class="fas fa-arrow-left mr-1"></i>Back to Application
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Program Information Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm workflow-hero-card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 class="font-weight-bold mb-3">{{ application.program.program_name }}</h4>
+                            <div class="mb-2">
+                                <strong>Application ID:</strong> #{{ application.id }}
+                            </div>
+                            <div class="mb-0">
+                                <strong>Status:</strong> 
+                                <span class="badge workflow-status-badge badge-{% if application.application_status == 'pending' %}warning{% elif application.application_status == 'approved' %}success{% elif application.application_status == 'rejected' %}danger{% elif application.application_status == 'active' %}info{% elif application.application_status == 'completed' %}primary{% else %}secondary{% endif %}">
+                                    {{ application.application_status|title }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-6 mb-2">
+                                    <div class="text-muted small">Date of Application</div>
+                                    <strong>{{ application.application_date|manila('%B %d, %Y', 'N/A') }}</strong>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <div class="text-muted small">Last Updated</div>
+                                    <strong>{{ application.updated_at|manila('%B %d, %Y') if application.updated_at else application.application_date|manila('%B %d, %Y') if application.application_date else 'N/A' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Steps Overview (Progress Tracker) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            {% set total_steps = workflow_status|length %}
+            {% set completed_steps = 0 %}
+            {% for status in workflow_status %}
+                {% if status.step_status in ['completed', 'approved'] %}
+                    {% set completed_steps = completed_steps + 1 %}
+                {% elif status.step_status == 'in_progress' or (current_step and status.workflow_step.id == current_step.id) %}
+                    {% set completed_steps = completed_steps + 0.5 %}
+                {% endif %}
+            {% endfor %}
+            {% set progress_percentage = ((completed_steps / total_steps) * 100)|int if total_steps > 0 else 0 %}
+            {% if total_steps > 1 %}
+            <div class="workflow-mobile-hint mb-2">
+                <i class="fas fa-arrows-alt-h"></i>
+                Swipe to view all steps
+            </div>
+            {% endif %}
+            <div class="workflow-timeline" style="--progress-width: {{ progress_percentage }}%;">
+                {% for status in workflow_status %}
+                {% set step = status.workflow_step %}
+                <div class="workflow-step {% if current_step and step.id == current_step.id %}viewing{% endif %}">
+                    {% if status.step_status in ['completed', 'approved', 'pending_review'] or (active_step and step.id == active_step.id) %}
+                    <!-- Completed, under review, and active steps are clickable -->
+                    <a href="{{ url_for('community.application_workflow', application_id=application.id, step_id=step.id) }}" 
+                       class="step-link" title="{% if status.step_status in ['completed', 'approved'] %}View completed step{% elif status.step_status == 'pending_review' %}View step under review{% else %}Return to active step{% endif %}" style="text-decoration: none;">
+                        <div class="step-indicator {% if status.step_status in ['completed', 'approved'] %}step-completed{% elif status.step_status == 'pending_review' %}step-review{% elif active_step and step.id == active_step.id %}step-current{% else %}step-pending{% endif %}">
+                            {% if status.step_status == 'completed' or status.step_status == 'approved' %}
+                                <i class="fas fa-check"></i>
+                            {% elif status.step_status == 'pending_review' %}
+                                <i class="fas fa-clock"></i>
+                            {% else %}
+                                {{ step.step_order }}
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% else %}
+                    <!-- Other non-clickable steps -->
+                    <div class="step-indicator step-pending">
+                        {{ step.step_order }}
+                    </div>
+                    {% endif %}
+                    <div class="step-label">
+                        <div class="small font-weight-bold">{{ step.step_name }}</div>
+                        <div class="small text-muted">
+                            {% if status.step_status == 'completed' or status.step_status == 'approved' %}
+                                Complete
+                            {% elif status.step_status == 'pending_review' %}
+                                Under Review
+                            {% elif active_step and step.id == active_step.id %}
+                                Active
+                            {% else %}
+                                Waiting
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Step Content -->
+    {% if current_step %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card step-content-card">
+                <div class="card-header {% if current_step_status and current_step_status.step_status == 'pending_review' %}bg-warning{% elif current_step_status and current_step_status.step_status in ['approved', 'completed'] %}bg-success{% elif current_step_status and current_step_status.step_status == 'in_progress' %}bg-primary{% else %}bg-primary{% endif %} text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-play-circle mr-2"></i>
+                        Step {{ current_step.step_order }}: {{ current_step.step_name }}
+                    </h4>
+                    {% if current_step.step_description %}
+                    <p class="mb-0 mt-2 small">{{ current_step.step_description }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body p-4">
+                    {% if current_step.step_type == 'photo_upload' %}
+                        <!-- Photo Upload Step -->
+                        
+                        {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                        <!-- Photos submitted and waiting for admin review -->
+                        <div class="alert alert-warning border-0 d-flex align-items-start mb-4">
+                            <i class="fas fa-hourglass-half fa-lg mt-1 mr-2"></i>
+                            <div>
+                                <h6 class="mb-1 font-weight-bold">Photos Under Review</h6>
+                                <p class="mb-0">Your shelter photos have been submitted and are currently being reviewed by an administrator.</p>
+                            </div>
+                        </div>
+
+                        <div id="reviewContent">
+                                <!-- Show submitted photos (read-only) -->
+                                <h6 class="mb-3 text-muted"><i class="fas fa-images mr-2"></i>Submitted Photos ({{ step_content.photo_count }})</h6>
+                                {% if step_content.photos %}
+                                <div class="row">
+                                    {% for photo in step_content.photos %}
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100 {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
+                                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center position-relative" style="height: 180px;">
+                                                   <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
+                                                       alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('files.shelter_photo', photo_id=photo.id) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
+                                                {% if photo.verification_status != 'approved' %}
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="setPhotoForDelete({{ photo.id }})" data-toggle="modal" data-target="#deletePhotoConfirmModal" style="position: absolute; top: 5px; right: 5px; border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(220, 53, 69, 0.9); border: none;" title="Delete photo">
+                                                    <i class="fas fa-times" style="font-size: 16px;"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                            <div class="card-body p-2">
+                                                {% if photo.caption %}
+                                                <small class="d-block text-muted mb-2">{{ photo.caption }}</small>
+                                                {% endif %}
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    {% if photo.verification_status == 'approved' %}
+                                                    <span class="badge badge-success"><i class="fas fa-check mr-1"></i>Approved</span>
+                                                    {% elif photo.verification_status == 'rejected' %}
+                                                    <span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Rejected</span>
+                                                    {% else %}
+                                                    <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending</span>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <!-- Edit/Reupload buttons for non-approved photos -->
+                                                {% if photo.verification_status != 'approved' %}
+                                                <div class="btn-group btn-group-sm w-100" role="group">
+                                                    <button type="button" class="btn btn-outline-primary" data-toggle="modal" data-target="#editCaptionModal" onclick="setPhotoForEdit({{ photo.id }}, '{{ photo.caption or '' }}')">
+                                                        <i class="fas fa-edit"></i> Edit
+                                                    </button>
+                                                    <button type="button" class="btn btn-outline-success" data-toggle="modal" data-target="#replacePhotoModal" onclick="setPhotoForReplace({{ photo.id }})">
+                                                        <i class="fas fa-sync"></i> Replace
+                                                    </button>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                {% if photo.admin_notes %}
+                                                <div class="alert alert-warning mt-2 mb-0 py-1 px-2">
+                                                    <small><strong>Admin:</strong> {{ photo.admin_notes }}</small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                        </div>
+                        
+                        {% else %}
+                        <!-- Normal photo upload interface -->
+                        <h5 class="mb-3"><i class="fas fa-camera mr-2"></i>Upload Shelter Photos</h5>
+                        <p class="text-muted mb-3">{{ current_step.step_description or 'Upload clear photos of your current shelter/housing situation. A minimum of 3 photos are required.' }}</p>
+                        
+                        <!-- Upload Progress -->
+                        <div class="alert {% if step_content.has_min_photos %}alert-success{% else %}alert-warning{% endif %} mb-4" id="photoStatusAlert">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                <div>
+                                    <i class="fas {% if step_content.has_min_photos %}fa-check-circle{% else %}fa-info-circle{% endif %} mr-2"></i>
+                                    <strong id="photoCountText">{{ step_content.photo_count }}/3 photos uploaded</strong>
+                                    {% if not step_content.has_min_photos %}
+                                    <span class="ml-2 text-muted" id="photosNeededText">({{ 3 - step_content.photo_count }} more needed)</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if step_content.pending_count > 0 %}
+                                    <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>{{ step_content.pending_count }} Pending Review</span>
+                                    {% endif %}
+                                    {% if step_content.approved_count > 0 %}
+                                    <span class="badge badge-success ml-1"><i class="fas fa-check mr-1"></i>{{ step_content.approved_count }} Approved</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if step_content.has_rejected %}
+                        <div class="alert alert-danger mb-4">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Some photos were rejected.</strong> Please review the admin feedback below and upload new photos.
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Upload Area -->
+                        {% if not step_content.all_approved %}
+                        <div class="document-upload-area mb-3" id="photoDropArea" onclick="document.getElementById('photoFileInput').click()">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Click or drag photos here to upload</h5>
+                            <p class="text-muted mb-0">JPG, JPEG, PNG, GIF &bull; Max 5MB per photo</p>
+                        </div>
+                        <input type="file" id="photoFileInput" accept="image/jpeg,image/png,image/gif" multiple style="display: none;" onchange="handlePhotoUpload(this.files)">
+                        
+                        <!-- Optional Caption -->
+                        <div class="form-group mb-4">
+                            <label><i class="fas fa-pencil-alt mr-1"></i>Photo Caption (optional)</label>
+                            <input type="text" class="form-control" id="photoCaption" placeholder="e.g., Front view of house, Interior damage, etc.">
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Upload progress indicator -->
+                        <div id="uploadProgressArea" class="mb-4" style="display: none;">
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="uploadProgressBar" role="progressbar" style="width: 0%">
+                                    <span id="uploadProgressText">Uploading...</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Uploaded Photos Grid -->
+                        <h6 class="mb-3 font-weight-bold"><i class="fas fa-images mr-2"></i>Uploaded Photos (<span id="photoTotalCount">{{ step_content.photo_count }}</span>)</h6>
+                        {% if step_content.photos %}
+                        <div class="row" id="photosGrid">
+                            {% for photo in step_content.photos %}
+                            <div class="col-md-4 mb-3" id="photo-{{ photo.id }}">
+                                <div class="card h-100 {% if photo.verification_status == 'approved' %}border-success{% elif photo.verification_status == 'rejected' %}border-danger{% else %}border-warning{% endif %}">
+                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center position-relative" style="height: 180px;">
+                                        <img src="{{ url_for('files.shelter_photo', photo_id=photo.id) }}" class="mw-100" style="max-height: 100%; object-fit: cover; cursor: pointer;" 
+                                            alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('{{ url_for('files.shelter_photo', photo_id=photo.id) }}', '{{ photo.caption or 'Shelter Photo' }}')" onerror="this.parentElement.innerHTML='<div class=\'text-muted text-center\'>Photo Not Available</div>'">
+                                        {% if photo.verification_status != 'approved' %}
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="setPhotoForDelete({{ photo.id }})" data-toggle="modal" data-target="#deletePhotoConfirmModal" style="position: absolute; top: 5px; right: 5px; border-radius: 50%; width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background-color: rgba(220, 53, 69, 0.9); border: none;" title="Delete photo">
+                                            <i class="fas fa-times" style="font-size: 16px;"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-body p-2">
+                                        {% if photo.caption %}
+                                        <small class="d-block text-muted mb-1">{{ photo.caption }}</small>
+                                        {% endif %}
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge badge-{% if photo.verification_status == 'approved' %}success{% elif photo.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                                {% if photo.verification_status == 'approved' %}
+                                                    <i class="fas fa-check mr-1"></i>Approved
+                                                {% elif photo.verification_status == 'rejected' %}
+                                                    <i class="fas fa-times mr-1"></i>Rejected
+                                                {% else %}
+                                                    <i class="fas fa-clock mr-1"></i>Pending
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        {% if photo.admin_notes %}
+                                        <div class="alert alert-info mt-2 mb-0 p-2">
+                                            <small><strong>Admin Feedback:</strong> {{ photo.admin_notes }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4" id="noPhotosMessage">
+                            <i class="fas fa-camera fa-3x mb-3 text-secondary"></i>
+                            <p>No photos uploaded yet. Click the upload area above to start.</p>
+                        </div>
+                        <div class="row" id="photosGrid"></div>
+                        {% endif %}
+                        {% endif %} {# End pending_review check #}
+                    
+                    {% elif current_step.step_type in ['document_submission', 'document_submission_office', 'physical_submission'] %}
+                        <!-- Physical Submission (MSWD Office) - Initial submission instruction or read-only checklist view -->
+                        {% set office_submission_confirmed = step_content.form_data.get('office_submission_confirmed', False) %}
+                        
+                        {% if current_step_status and current_step_status.step_status == 'in_progress' and not office_submission_confirmed %}
+                        <!-- Initial submission - Show instruction overlay -->
+                        <div class="position-relative" style="min-height: 400px;">
+                            <div class="submission-instruction-overlay position-absolute w-100 h-100" id="mswordSubmissionOverlay" style="top: 0; left: 0; z-index: 100; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px); border-radius: 0.25rem; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem;">
+                                <div class="text-center">
+                                    <i class="fas fa-building fa-3x mb-3" style="color: #6c757d;"></i>
+                                    <h4 class="font-weight-bold mb-3">Submit Documents at MSWD Office</h4>
+                                    <p class="text-muted mb-4" style="max-width: 500px;">
+                                        Please bring all the required documents to the <strong>MSWD Office</strong> for physical submission. <br><br>
+                                        The MSWD office staff will process your documents and update your application status once verified.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- After submission - Show read-only checklist view -->
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            This step is read-only. It shows the status of documents you submitted physically at the MSWD Office.
+                        </div>
+
+                        {% set verified_count = step_content.verified_checklist or 0 %}
+                        {% set total_docs = step_content.total_checklist or 0 %}
+
+                        <div class="card border-0 shadow-sm mb-4">
+                            <div class="card-body d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">
+                                        <i class="fas fa-clipboard-check mr-2 text-primary"></i>MSWD Document Checklist
+                                    </h6>
+                                    <small class="text-muted">Track physical submission verification and admin feedback</small>
+                                </div>
+                                <span class="badge badge-light px-3 py-2" style="font-size: 0.9rem;">
+                                    {{ verified_count }} / {{ total_docs }} Verified
+                                </span>
+                            </div>
+                        </div>
+
+                        {% if step_content.checklist %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Document</th>
+                                        <th>Status</th>
+                                        <th>Submitted Copy</th>
+                                        <th>Admin Feedback</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in step_content.checklist %}
+                                    {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', item.requirement_id) | first %}
+                                    <tr>
+                                        <td>
+                                            <div class="font-weight-bold">{{ item.requirement_name }}</div>
+                                            {% if item.is_mandatory %}
+                                            <span class="badge badge-danger badge-pill">Required</span>
+                                            {% endif %}
+                                            {% if item.description %}
+                                            <div class="small text-muted mt-1">{{ item.description }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.submission_status in ['verified', 'approved'] %}
+                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Verified</span>
+                                            {% elif item.submission_status == 'rejected' %}
+                                            <span class="badge badge-danger"><i class="fas fa-times-circle mr-1"></i>Rejected</span>
+                                            {% elif item.submission_status in ['pending', 'submitted'] %}
+                                            <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Pending Review</span>
+                                            {% elif item.submission_status == 'returned' %}
+                                            <span class="badge badge-secondary"><i class="fas fa-undo mr-1"></i>Returned</span>
+                                            {% else %}
+                                            <span class="badge badge-light text-muted"><i class="fas fa-minus-circle mr-1"></i>Not Submitted</span>
+                                            {% endif %}
+                                            {% if item.verified_at %}
+                                            <div class="small text-muted mt-1">Updated {{ item.verified_at|manila('%b %d, %Y %I:%M %p') }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if existing_upload %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
+                                                <i class="fas fa-eye mr-1"></i>View
+                                            </button>
+                                            <div class="small text-muted mt-1">{{ existing_upload.original_filename }}</div>
+                                            {% else %}
+                                            <span class="text-muted small"><i class="fas fa-file-alt mr-1"></i>No uploaded copy</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.admin_feedback %}
+                                            <div class="alert alert-info py-2 px-3 mb-0">
+                                                <small><strong>Feedback:</strong> {{ item.admin_feedback }}</small>
+                                            </div>
+                                            {% elif item.notes %}
+                                            <div class="alert alert-light py-2 px-3 mb-0 border">
+                                                <small><strong>Notes:</strong> {{ item.notes }}</small>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted small">No feedback yet</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-info-circle fa-3x mb-3"></i>
+                            <p class="mb-0">No document checklist items are configured for this step.</p>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+
+                    {% elif current_step.step_type in ['document_upload'] %}
+                        
+                        {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                        <!-- Documents submitted and waiting for admin review -->
+                        
+                        {% set verified_count = step_content.uploads | selectattr('verification_status', 'equalto', 'approved') | list | length %}
+                        {% set total_docs = step_content.documents | length %}
+                        
+                        <!-- Header Banner -->
+                        <div class="alert alert-warning mb-4" style="border-radius: 8px; padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <h5 class="mb-0 font-weight-bold">
+                                <i class="fas fa-file-check mr-2"></i>Document Requirements Verification
+                            </h5>
+                            <div class="d-flex gap-2">
+                                <span class="badge badge-light" style="background-color: #f0f0f0; color: #333; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                                    <i class="fas fa-cloud-upload-alt mr-1"></i>ONLINE UPLOADS: {% if verified_count == total_docs %}VERIFIED{% else %}PENDING{% endif %}
+                                </span>
+                                <span class="badge badge-light" style="background-color: #f0f0f0; color: #333; padding: 0.5rem 0.75rem; font-size: 0.85rem;">
+                                    {{ verified_count }} / {{ total_docs }} VERIFIED ({{ (verified_count / total_docs * 100) | int }}%)
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Show submitted documents in grid layout -->
+                        <h6 class="mb-3 font-weight-bold"><i class="fas fa-file-alt mr-2"></i>Required Documents</h6>
+                        {% if step_content.documents %}
+                            <div class="row">
+                                {% for document in step_content.documents %}
+                                {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', document.id) | first %}
+                                {% if existing_upload %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card h-100" style="border-left: 4px solid #007bff; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                                <h6 class="card-title font-weight-bold mb-0">{{ document.requirement_name }}</h6>
+                                                <span class="badge badge-success">
+                                                    <i class="fas fa-check mr-1"></i>
+                                                    {% if existing_upload.verification_status == 'approved' %}
+                                                        VERIFIED
+                                                    {% elif existing_upload.verification_status == 'rejected' %}
+                                                    
+                                                    <i class="fas fa-times mr-1"></i>
+                                                        REJECTED
+                                                    {% else %}
+                                                    <i class="fas fa-clock mr-1"></i>
+                                                        PENDING
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            
+                                            <div class="mb-2">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-file mr-1"></i>{{ existing_upload.original_filename }}
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <small class="text-muted d-block">
+                                                    <i class="fas fa-calendar mr-1"></i>Uploaded {{ existing_upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
+                                                </small>
+                                            </div>
+                                            
+                                            {% if existing_upload.admin_feedback %}
+                                            <div class="alert alert-info mt-2 mb-2 p-2">
+                                                <small><strong>Admin Feedback:</strong> {{ existing_upload.admin_feedback }}</small>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
+                                                <i class="fas fa-eye mr-1"></i>View
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        {% else %}
+                        <!-- Normal document upload interface -->
+                        {% if step_content.documents %}
+                            {% for document in step_content.documents %}
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <h6 class="font-weight-bold mb-1">{{ document.requirement_name }}</h6>
+                                        {% if document.description %}
+                                        <p class="text-muted small mb-2">{{ document.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% set existing_upload = step_content.uploads | selectattr('requirement_id', 'equalto', document.id) | first %}
+                                    {% if existing_upload %}
+                                    <span class="badge badge-{% if existing_upload.verification_status == 'approved' %}success{% elif existing_upload.verification_status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                        {% if existing_upload.verification_status == 'approved' %}
+                                            <i class="fas fa-check"></i> Approved
+                                        {% elif existing_upload.verification_status == 'rejected' %}
+                                            <i class="fas fa-times"></i> Rejected
+                                        {% else %}
+                                            <i class="fas fa-clock"></i> Pending Review
+                                        {% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if existing_upload %}
+                                <div class="uploaded-document">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="fas fa-file mr-2"></i>
+                                            <strong>{{ existing_upload.original_filename }}</strong>
+                                            <small class="text-muted ml-2">
+                                                Uploaded {{ existing_upload.uploaded_at|manila('%b %d, %Y at %I:%M %p') }}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="viewDocument({{ existing_upload.id }}, '{{ existing_upload.original_filename }}', {{ existing_upload.requirement_id }})">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            {% if existing_upload.verification_status != 'approved' %}
+                                            <button type="button" class="btn btn-sm btn-outline-secondary ml-1" 
+                                                    onclick="replaceDocument({{ document.id }}, {{ existing_upload.id }})">
+                                                <i class="fas fa-upload"></i> Replace
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if existing_upload.admin_feedback %}
+                                    <div class="alert alert-info mt-2 mb-0">
+                                        <small><strong>Admin Feedback:</strong> {{ existing_upload.admin_feedback }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="document-upload-area" onclick="uploadDocument({{ document.id }})">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">Click to Upload {{ document.requirement_name }}</h5>
+                                    <p class="text-muted mb-0">
+                                        {% if current_step.allowed_file_types %}
+                                        Supported formats: {{ current_step.allowed_file_types }}
+                                        {% else %}
+                                        PDF, JPG, PNG files accepted
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <p>No specific documents required for this step.</p>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
+                    {% elif current_step.step_type == 'approval' %}
+                        <!-- Approval Step - Enhanced Interface -->
+                        <div class="text-center mb-4">
+                            {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                                <i class="fas fa-hourglass-half fa-4x text-warning mb-3"></i>
+                                <h4 class="font-weight-bold">Application Under Review</h4>
+                                <p class="text-muted">Your application has been submitted for approval. An administrator is currently reviewing your qualifications.</p>
+                            {% elif current_step_status and current_step_status.step_status == 'rejected' %}
+                                <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
+                                <h4 class="font-weight-bold text-danger">Application Declined</h4>
+                                <p class="text-muted">Unfortunately, your application did not meet the requirements at this time.</p>
+                                {% if current_step_status.admin_feedback %}
+                                <div class="alert alert-danger text-left mt-3">
+                                    <h6 class="font-weight-bold"><i class="fas fa-comment-alt mr-2"></i>Admin Feedback:</h6>
+                                    <p class="mb-0">{{ current_step_status.admin_feedback }}</p>
+                                </div>
+                                {% endif %}
+                            {% elif current_step_status and current_step_status.step_status in ['approved', 'completed'] %}
+                                <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                                <h4 class="font-weight-bold text-success">Application Approved!</h4>
+                                <p class="text-muted">Your application has been approved. You can now proceed to the next step.</p>
+                            {% else %}
+                                <i class="fas fa-user-check fa-4x text-primary mb-3"></i>
+                                <h4 class="font-weight-bold">Pending Admin Approval</h4>
+                                <p class="text-muted">Your application is waiting to be reviewed by an administrator. You will be notified once a decision is made.</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Qualification Requirements Container -->
+                        {% if step_content.qualifications %}
+                        <div class="card border-0 shadow-sm mt-3">
+                            <div class="card-header bg-light border-bottom">
+                                <div class="d-flex justify-content-between align-items-center qualification-header">
+                                    <h6 class="mb-0 font-weight-bold">
+                                        <i class="fas fa-clipboard-list mr-2 text-primary"></i>Qualification Requirements
+                                    </h6>
+                                    <div class="qualification-badges">
+                                        {% if step_content.met_count > 0 %}
+                                        <span class="badge badge-success mr-1">{{ step_content.met_count }} Met</span>
+                                        {% endif %}
+                                        {% if step_content.not_met_count > 0 %}
+                                        <span class="badge badge-danger mr-1">{{ step_content.not_met_count }} Not Met</span>
+                                        {% endif %}
+                                        {% if step_content.review_count > 0 %}
+                                        <span class="badge badge-warning">{{ step_content.review_count }} Under Review</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="list-group list-group-flush">
+                                    {% for qual in step_content.qualifications %}
+                                    <div class="list-group-item px-4 py-3">
+                                        <div class="d-flex align-items-center qualification-item">
+                                            <div class="mr-3 qualification-item-icon">
+                                                {% if qual.is_met is true %}
+                                                <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                    <i class="fas fa-check"></i>
+                                                </div>
+                                                {% elif qual.is_met is false %}
+                                                <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                    <i class="fas fa-times"></i>
+                                                </div>
+                                                {% else %}
+                                                <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                    <i class="fas fa-question"></i>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="flex-grow-1 qualification-item-content">
+                                                <h6 class="mb-0 font-weight-bold">{{ qual.name }}</h6>
+                                                {% if qual.description %}
+                                                <small class="text-muted">{{ qual.description }}</small>
+                                                {% endif %}
+                                            </div>
+                                            <div class="ml-2 qualification-item-required">
+                                                <span class="badge badge-outline-danger" style="border: 1px solid #dc3545; color: #dc3545;">Required</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                    {% elif current_step.step_type == 'verification' %}
+                        <!-- Verification Step -->
+                        <div class="text-center">
+                            <i class="fas fa-clipboard-check fa-4x text-info mb-4"></i>
+                            <h4>Document Verification in Progress</h4>
+                            <p class="text-muted">Administrators are verifying your submitted documents. Please wait for the verification to complete.</p>
+                        </div>
+                        
+                    {% elif current_step.step_type == 'scheduling' %}
+                        <!-- Scheduling Step -->
+                        {% if application.claim_status == 'scheduled' and application.claim_date %}
+                        <div class="text-center mb-4">
+                            <i class="fas fa-calendar-check fa-4x text-success mb-3"></i>
+                            <h4 class="font-weight-bold text-success">Appointment Scheduled</h4>
+                            <p class="text-muted">Your appointment for benefit release has been set. Please be present on the scheduled date.</p>
+                        </div>
+                        <div class="row justify-content-center">
+                            <div class="col-md-8">
+                                <div class="card border-success shadow-sm">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0"><i class="fas fa-calendar-alt mr-2"></i>Schedule Details</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-sm-6 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-calendar fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Date</div>
+                                                        <div class="font-weight-bold">{{ application.claim_date|manila('%A, %B %d, %Y') }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% if application.claim_time %}
+                                            <div class="col-sm-6 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-clock fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Time</div>
+                                                        <div class="font-weight-bold">{{ application.claim_time }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% if application.claim_location %}
+                                            <div class="col-sm-12 mb-3">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-map-marker-alt fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Location</div>
+                                                        <div class="font-weight-bold">{{ application.claim_location }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% if application.claim_instructions %}
+                                            <div class="col-sm-12 mb-0">
+                                                <div class="d-flex align-items-start">
+                                                    <i class="fas fa-info-circle fa-fw text-success mt-1 mr-2"></i>
+                                                    <div>
+                                                        <div class="text-muted small font-weight-bold text-uppercase">Instructions</div>
+                                                        <div>{{ application.claim_instructions }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center">
+                            <i class="fas fa-calendar-alt fa-4x text-primary mb-4"></i>
+                            <h4>Scheduling Available</h4>
+                            <p class="text-muted">Your application has been approved! The administrator will schedule your appointment soon.</p>
+                        </div>
+                        {% endif %}
+                        
+                    {% elif current_step.step_type == 'assessment' %}
+                        <!-- Assessment Step -->
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-clipboard-list mr-2"></i>Assessment / Social Case Study Report
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted mb-4">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    The administrator will schedule and conduct interviews or home visits for the Social Case Study Report (SCSR) assessment.
+                                </p>
+                                
+                                {% if step_content.assessments %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover sm">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Title</th>
+                                                <th>Type</th>
+                                                <th>Scheduled</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for assessment in step_content.assessments %}
+                                            <tr>
+                                                <td class="font-weight-bold">{{ assessment.title }}</td>
+                                                <td>
+                                                    {% if assessment.assessment_type == 'interview' %}
+                                                        <span class="badge badge-primary">Interview</span>
+                                                    {% elif assessment.assessment_type == 'home_visit' %}
+                                                        <span class="badge badge-info">Home Visit</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if assessment.scheduled_date %}
+                                                        <small>{{ assessment.scheduled_date }}</small>
+                                                        {% if assessment.scheduled_time %}
+                                                        <br><small class="text-muted">{{ assessment.scheduled_time }}</small>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if assessment.status == 'scheduled' %}
+                                                        <span class="badge badge-warning">Scheduled</span>
+                                                    {% elif assessment.status == 'completed' %}
+                                                        <span class="badge badge-success">Completed</span>
+                                                    {% elif assessment.status == 'cancelled' %}
+                                                        <span class="badge badge-danger">Cancelled</span>
+                                                    {% else %}
+                                                        <span class="badge badge-secondary">{{ assessment.status }}</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                                    <p>No assessments have been scheduled yet. Please wait for the administrator to schedule your assessment.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                    {% else %}
+                        <!-- Default Step -->
+                        <div class="text-center">
+                            <i class="fas fa-tasks fa-4x text-secondary mb-4"></i>
+                            <h4>{{ current_step.step_name }}</h4>
+                            <p class="text-muted">{{ current_step.step_description or 'Please wait for further instructions.' }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Step Actions -->
+                <div class="step-actions">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                            <span class="badge badge-warning p-2">
+                                <i class="fas fa-clock mr-1"></i>Waiting for Admin Review
+                            </span>
+                            {% elif current_step_status and current_step_status.step_status == 'rejected' %}
+                            <span class="badge badge-danger p-2">
+                                <i class="fas fa-times-circle mr-1"></i>Rejected - Please Resubmit
+                            </span>
+                            {% elif current_step_status and current_step_status.step_status == 'in_progress' %}
+                            <span class="badge badge-info p-2">
+                                <i class="fas fa-play mr-1"></i>In Progress
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if current_step.step_type == 'photo_upload' %}
+                                {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                                    {# Already submitted, waiting for review #}
+                                    <span class="badge badge-success p-2">
+                                        <i class="fas fa-check-circle mr-1"></i>Photos Submitted - Awaiting Review
+                                    </span>
+                                {% elif step_content.has_min_photos and not step_content.all_approved %}
+                                <button type="button" class="btn btn-next-step text-white" onclick="submitStep()" id="submitPhotoBtn">
+                                    <i class="fas fa-paper-plane mr-2"></i>Submit Photos for Review
+                                </button>
+                                {% elif step_content.all_approved %}
+                                <span class="badge badge-success p-2">
+                                    <i class="fas fa-check-circle mr-1"></i>Photos Approved - Step Complete
+                                </span>
+                                {% endif %}
+                            {% elif current_step.step_type in ['document_upload', 'document_submission'] %}
+                                {% if current_step_status and current_step_status.step_status == 'pending_review' %}
+                                    {# Already submitted, waiting for review #}
+                                    <span class="badge badge-success p-2">
+                                        <i class="fas fa-check-circle mr-1"></i>Documents Submitted - Awaiting Review
+                                    </span>
+                                {% else %}
+                                    {% set all_uploaded = step_content.documents | length == step_content.uploads | length %}
+                                    {% if all_uploaded and step_content.documents %}
+                                    <button type="button" class="btn btn-next-step text-white" onclick="submitStep()">
+                                        <i class="fas fa-paper-plane mr-2"></i>Submit for Review
+                                    </button>
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Current Step (Workflow Complete or No Workflow) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>Application Status
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    {% if no_workflow %}
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <strong>Application Received</strong>
+                        <p class="mb-0 mt-2">This program does not have a detailed workflow configured. Your application has been submitted and is being processed by our team. You will be notified of any updates.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <strong>Workflow Complete!</strong>
+                        <p class="mb-0 mt-2">You have completed all the required steps for your application. Please wait for the results from our team.</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <h6 class="font-weight-bold mb-3">Application Summary</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td class="font-weight-bold" width="30%">Program:</td>
+                                    <td>{{ application.program.program_name if application.program else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Application ID:</td>
+                                    <td>#{{ application.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Status:</td>
+                                    <td>
+                                        {% if application.application_status == 'pending' %}
+                                        <span class="badge badge-warning">Pending Review</span>
+                                        {% elif application.application_status == 'approved' %}
+                                        <span class="badge badge-success">Approved</span>
+                                        {% elif application.application_status == 'rejected' %}
+                                        <span class="badge badge-danger">Rejected</span>
+                                        {% elif application.application_status == 'active' %}
+                                        <span class="badge badge-info">Active</span>
+                                        {% elif application.application_status == 'completed' %}
+                                        <span class="badge badge-primary">Completed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="font-weight-bold">Submitted:</td>
+                                    <td>{{ application.application_date|manila('%B %d, %Y', 'N/A') }}</td>
+                                </tr>
+                                {% if application.review_date %}
+                                <tr>
+                                    <td class="font-weight-bold">Reviewed:</td>
+                                    <td>{{ application.review_date|manila('%B %d, %Y', 'N/A') }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    
+                    {% if application.remarks %}
+                    <div class="alert alert-info mt-4" role="alert">
+                        <h6 class="alert-heading font-weight-bold">
+                            <i class="fas fa-comment-alt mr-2"></i>Admin Notes
+                        </h6>
+                        <p class="mb-0">{{ application.remarks }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('community.applications') }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Applications
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- File Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document" style="max-width: 90vw;">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
+                    <input type="hidden" id="requirementId" name="requirement_id">
+                    <input type="hidden" name="application_id" value="{{ application.id }}">
+                    
+                    <div class="form-group">
+                        <label><strong>Select File:</strong></label>
+                        <div class="custom-file mb-2">
+                            <input type="file" class="custom-file-input" id="documentFile" name="document" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                            <label class="custom-file-label" for="documentFile">Choose file...</label>
+                        </div>
+                        <small class="form-text text-muted d-block">
+                            {% if current_step and current_step.allowed_file_types %}
+                            Accepted formats: {{ current_step.allowed_file_types }}
+                            {% else %}
+                            Accepted formats: PDF, JPG, PNG, DOC, DOCX
+                            {% endif %}
+                        </small>
+                    </div>
+                    
+                    <!-- File Preview Section -->
+                    <div id="filePreviewSection" style="display: none; margin-top: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                        <h6 class="font-weight-bold mb-3">
+                            <i class="fas fa-eye mr-2"></i>File Preview
+                        </h6>
+                        
+                        <!-- Image Preview -->
+                        <div id="imagePreview" style="display: none;">
+                            <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 400px; border-radius: 6px;">
+                            <p id="imageInfo" class="text-muted small mt-2 mb-0"></p>
+                        </div>
+                        
+                        <!-- PDF Preview -->
+                        <div id="pdfPreview" style="display: none;">
+                            <iframe id="previewPdf" src="" style="width: 100%; height: 400px; border: 1px solid #dee2e6; border-radius: 6px;"></iframe>
+                            <p id="pdfInfo" class="text-muted small mt-2 mb-0"></p>
+                        </div>
+                        
+                        <!-- Document Preview (for other types) -->
+                        <div id="documentPreview" style="display: none;">
+                            <div style="padding: 1rem; background: white; border-radius: 6px; border: 1px solid #dee2e6;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file fa-4x text-primary mr-3"></i>
+                                    <div>
+                                        <p id="docFileName" class="mb-1"><strong></strong></p>
+                                        <p id="docFileSize" class="text-muted small mb-0"></p>
+                                        <p id="docFileType" class="text-muted small mb-0"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- No Preview Available -->
+                        <div id="noPreview" style="display: none;">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <strong>Preview not available</strong> for this file type, but it's ready to upload.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="uploadSubmitBtn">
+                        <i class="fas fa-upload mr-2"></i>Upload Document
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Document Viewer Modal -->
+<div class="modal fade" id="documentViewerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl" role="document" style="max-width: 95vw;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="documentViewerTitle">Document Viewer</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="documentViewerBody" style="max-height: 85vh; overflow: auto;">
+                <div class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                    <p class="mt-3 text-muted">Loading document...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="documentReuploadBtn" class="btn btn-primary" style="display: none;" onclick="reuploadDocumentFromModal()">
+                    <i class="fas fa-upload mr-2"></i>Reupload
+                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Step Submission Confirmation Modal -->
+<div class="modal fade" id="submitStepConfirmModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle mr-2"></i>Confirm Step Submission
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <strong>Important:</strong> Once you submit this step, you will not be able to make any changes.
+                </div>
+                <p>Are you sure you want to complete and submit this step for review?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmSubmitStep()">
+                    <i class="fas fa-paper-plane mr-2"></i>Yes, Submit Step
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photo Preview Modal -->
+<div class="modal fade" id="photoPreviewModal" tabindex="-1" role="dialog" aria-labelledby="photoPreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="photoPreviewLabel">
+                    <i class="fas fa-image mr-2"></i>Photo Preview
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="photoPreviewImage" src="" alt="Photo Preview" style="max-width: 100%; height: auto; max-height: 500px;">
+                <p id="photoPreviewCaption" class="mt-3 text-muted">Photo Caption</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Photo Caption Modal -->
+<div class="modal fade" id="editCaptionModal" tabindex="-1" role="dialog" aria-labelledby="editCaptionLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCaptionLabel">
+                    <i class="fas fa-edit mr-2"></i>Edit Photo Caption
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editPhotoId">
+                <div class="form-group">
+                    <label>Caption (optional)</label>
+                    <textarea class="form-control" id="editCaption" rows="3" placeholder="Enter a description for this photo..."></textarea>
+                    <small class="form-text text-muted">Describe what's in the photo to help with review</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="savePhotoCaption()">
+                    <i class="fas fa-save mr-1"></i>Save Caption
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Replace Photo Modal -->
+<div class="modal fade" id="replacePhotoModal" tabindex="-1" role="dialog" aria-labelledby="replacePhotoLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="replacePhotoLabel">
+                    <i class="fas fa-sync mr-2"></i>Replace Photo
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="replacePhotoId">
+                <div class="form-group">
+                    <label>Select New Photo</label>
+                    <input type="file" class="form-control-file" id="replacePhotoFile" accept="image/jpeg,image/png,image/gif">
+                    <small class="form-text text-muted">JPG, PNG, GIF • Max 5MB</small>
+                </div>
+                <div id="replacePreview" class="mt-3" style="display: none;">
+                    <p class="text-muted small">Preview:</p>
+                    <img id="replacePreviewImage" src="" alt="Preview" style="max-width: 100%; max-height: 300px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="replacePhoto()">
+                    <i class="fas fa-check mr-1"></i>Replace Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Photo Confirmation Modal -->
+<div class="modal fade" id="deletePhotoConfirmModal" tabindex="-1" role="dialog" aria-labelledby="deletePhotoConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deletePhotoConfirmLabel">
+                    <i class="fas fa-trash-alt mr-2"></i>Delete Photo
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Warning!</strong> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to delete this photo?</p>
+            </div>
+            <div class="modal-footer">
+                <input type="hidden" id="deletePhotoId">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeletePhoto()">
+                    <i class="fas fa-trash-alt mr-1"></i>Delete Photo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const COMMUNITY_WORKFLOW_APPLICATION_ID = {{ application.id }};
+let communityWorkflowRealtimeRefreshTimer = null;
+let communityWorkflowRefreshInProgress = false;
+let communityWorkflowPendingRealtimePayload = null;
+
+function refreshCommunityWorkflowPage(options = {}) {
+    if (communityWorkflowRefreshInProgress) {
+        return;
+    }
+
+    const root = document.getElementById('communityWorkflowPageRoot');
+    if (!root) {
+        window.location.reload();
+        return;
+    }
+
+    communityWorkflowRefreshInProgress = true;
+
+    if (window.jQuery) {
+        $('.modal.show').modal('hide');
+    }
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('padding-right');
+
+    const refreshUrl = new URL(window.location.href);
+    if (options.focusActiveStep) {
+        refreshUrl.searchParams.delete('step_id');
+    }
+
+    fetch(`${refreshUrl.pathname}${refreshUrl.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh workflow view (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('communityWorkflowPageRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated workflow content not found');
+            }
+
+            root.replaceWith(nextRoot);
+
+            if (options.toastMessage && typeof showRealtimeToast === 'function') {
+                showRealtimeToast(options.toastMessage);
+            }
+        })
+        .catch(error => {
+            console.error('Community workflow soft refresh failed:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            communityWorkflowRefreshInProgress = false;
+        });
+}
+
+function uploadDocument(requirementId) {
+    document.getElementById('requirementId').value = requirementId;
+    // Clear previous file and preview
+    document.getElementById('documentFile').value = '';
+    document.getElementById('filePreviewSection').style.display = 'none';
+    document.querySelector('.custom-file-label').textContent = 'Choose file...';
+    $('#uploadModal').modal('show');
+}
+
+// Handle file preview
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('documentFile');
+    const previewSection = document.getElementById('filePreviewSection');
+    const customFileLabel = document.querySelector('.custom-file-label');
+    
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = this.files[0];
+            
+            if (!file) {
+                previewSection.style.display = 'none';
+                return;
+            }
+            
+            // Update file label with actual filename
+            customFileLabel.textContent = file.name;
+            
+            // Check file type and show appropriate preview
+            const fileType = file.type;
+            const fileName = file.name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            
+            // Show preview section
+            previewSection.style.display = 'block';
+            
+            // Hide all preview types first
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('pdfPreview').style.display = 'none';
+            document.getElementById('documentPreview').style.display = 'none';
+            document.getElementById('noPreview').style.display = 'none';
+            
+            // Show image preview for image files
+            if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('imageInfo').textContent = `File: ${fileName} | Size: ${(file.size / 1024).toFixed(2)} KB`;
+                    document.getElementById('imagePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+            // Show PDF preview for PDF files
+            else if (fileExt === 'pdf') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewPdf').src = e.target.result;
+                    document.getElementById('pdfInfo').textContent = `File: ${fileName} | Size: ${(file.size / 1024).toFixed(2)} KB`;
+                    document.getElementById('pdfPreview').style.display = 'block';
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            // Show document preview for other file types
+            else if (['doc', 'docx', 'txt'].includes(fileExt)) {
+                document.getElementById('docFileName').textContent = fileName;
+                document.getElementById('docFileSize').textContent = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+                document.getElementById('docFileType').textContent = `Type: ${fileType || 'Document'}`;
+                document.getElementById('documentPreview').style.display = 'block';
+            }
+            // No preview available for other types
+            else {
+                document.getElementById('noPreview').style.display = 'block';
+            }
+        });
+    }
+});
+
+function replaceDocument(requirementId, uploadId) {
+    document.getElementById('requirementId').value = requirementId;
+    $('#uploadModal').modal('show');
+}
+
+// ==================== Photo Upload Functions ====================
+
+function handlePhotoUpload(files) {
+    if (!files || files.length === 0) return;
+    
+    const applicationId = {{ application.id }};
+    const progressArea = document.getElementById('uploadProgressArea');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const progressText = document.getElementById('uploadProgressText');
+    
+    if (progressArea) progressArea.style.display = 'block';
+    
+    let uploaded = 0;
+    const total = files.length;
+    const caption = document.getElementById('photoCaption') ? document.getElementById('photoCaption').value : '';
+    
+    // Upload files sequentially
+    uploadNextPhoto(files, 0, total, caption, applicationId);
+}
+
+function uploadNextPhoto(files, index, total, caption, applicationId) {
+    if (index >= total) {
+        // All done
+        const progressArea = document.getElementById('uploadProgressArea');
+        if (progressArea) progressArea.style.display = 'none';
+        if (document.getElementById('photoCaption')) document.getElementById('photoCaption').value = '';
+        document.getElementById('photoFileInput').value = '';
+        return;
+    }
+    
+    const file = files[index];
+    const formData = new FormData();
+    formData.append('shelter_photo', file);
+    formData.append('caption', caption);
+    
+    const progressBar = document.getElementById('uploadProgressBar');
+    const progressText = document.getElementById('uploadProgressText');
+    const pct = Math.round(((index) / total) * 100);
+    if (progressBar) progressBar.style.width = pct + '%';
+    if (progressText) progressText.textContent = `Uploading ${index + 1} of ${total}...`;
+    
+    fetch(`/community/applications/${applicationId}/upload-workflow-photo`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Add photo to grid
+            addPhotoToGrid(data.photo);
+            updatePhotoCount(data.total_photos, data.has_min_photos);
+            
+            // Upload next
+            uploadNextPhoto(files, index + 1, total, caption, applicationId);
+        } else {
+            const errorMsg = data.message || 'Unknown error occurred';
+            console.error('Upload error for ' + file.name + ':', errorMsg);
+            alert('Error uploading ' + file.name + ':\n' + errorMsg);
+            uploadNextPhoto(files, index + 1, total, caption, applicationId);
+        }
+    })
+    .catch(error => {
+        console.error('Upload error:', error);
+        const errorMsg = error.message || 'Network error or server is unavailable';
+        alert('Error uploading ' + file.name + ':\n' + errorMsg);
+        uploadNextPhoto(files, index + 1, total, caption, applicationId);
+    });
+}
+
+function addPhotoToGrid(photo) {
+    const grid = document.getElementById('photosGrid');
+    const noPhotosMsg = document.getElementById('noPhotosMessage');
+    if (noPhotosMsg) noPhotosMsg.style.display = 'none';
+    
+    const photoPath = photo.photo_path;
+    
+    const photoHtml = `
+        <div class="col-md-4 mb-3" id="photo-${photo.id}">
+            <div class="card h-100 border-warning">
+                <img src="${photoPath}" class="card-img-top" style="height: 180px; object-fit: cover; cursor: pointer;" 
+                     alt="Shelter Photo" data-toggle="modal" data-target="#photoPreviewModal" onclick="openPhotoModal('${photoPath}', '${photo.caption || 'Shelter Photo'}')">
+                <div class="card-body p-2">
+                    ${photo.caption ? `<small class="d-block text-muted mb-1">${photo.caption}</small>` : ''}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge badge-warning">
+                            <i class="fas fa-clock mr-1"></i>Pending
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePhoto(${photo.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    grid.insertAdjacentHTML('beforeend', photoHtml);
+}
+
+function updatePhotoCount(totalPhotos, hasMinPhotos) {
+    const countText = document.getElementById('photoCountText');
+    const neededText = document.getElementById('photosNeededText');
+    const totalCountSpan = document.getElementById('photoTotalCount');
+    const statusAlert = document.getElementById('photoStatusAlert');
+    const submitBtn = document.getElementById('submitPhotoBtn');
+    
+    if (countText) countText.textContent = `${totalPhotos}/3 photos uploaded`;
+    if (totalCountSpan) totalCountSpan.textContent = totalPhotos;
+    
+    if (hasMinPhotos) {
+        if (statusAlert) {
+            statusAlert.className = 'alert alert-success mb-4';
+            statusAlert.querySelector('i').className = 'fas fa-check-circle mr-2';
+        }
+        if (neededText) neededText.style.display = 'none';
+        // Show submit button if it exists, or add one
+        if (!submitBtn) {
+            const actionsDiv = document.querySelector('.step-actions .d-flex > div:last-child');
+            if (actionsDiv) {
+                actionsDiv.innerHTML = `
+                    <button type="button" class="btn btn-next-step text-white" onclick="submitStep()" id="submitPhotoBtn">
+                        <i class="fas fa-paper-plane mr-2"></i>Submit Photos for Review
+                    </button>
+                `;
+            }
+        }
+    } else {
+        if (neededText) {
+            neededText.style.display = 'inline';
+            neededText.textContent = `(${3 - totalPhotos} more needed)`;
+        }
+    }
+}
+
+function deletePhoto(photoId) {
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+    
+    const applicationId = {{ application.id }};
+    
+    fetch(`/community/applications/${applicationId}/delete-workflow-photo/${photoId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Remove photo card
+            const photoCard = document.getElementById(`photo-${photoId}`);
+            if (photoCard) photoCard.remove();
+            updatePhotoCount(data.total_photos, data.has_min_photos);
+        } else {
+            alert('Error: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting photo:\n' + (error.message || 'An error occurred'));
+    });
+}
+
+// Drag and drop support for photo area
+const dropArea = document.getElementById('photoDropArea');
+if (dropArea) {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+    });
+    
+    dropArea.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        handlePhotoUpload(files);
+    }, false);
+}
+
+// ==================== End Photo Upload Functions ====================
+
+function submitStep() {
+    // Show confirmation modal instead of using browser confirm
+    $('#submitStepConfirmModal').modal('show');
+}
+
+function confirmSubmitStep() {
+    // Close the confirmation modal
+    $('#submitStepConfirmModal').modal('hide');
+    
+    // Submit current step for review
+    const submitBtn = document.querySelector('#submitStepConfirmModal .btn-primary');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
+    
+    fetch(`/community/applications/{{ application.id }}/submit-workflow-step`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            step_id: {{ current_step.id if current_step else 'null' }}
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message before reloading
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong>Success!</strong> Your step has been submitted for review.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.container-fluid').prepend(successAlert);
+            
+            setTimeout(() => refreshCommunityWorkflowPage({ focusActiveStep: true }), 1200);
+        } else {
+            // Reset button state
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            
+            // Show error in modal
+            const bodyElement = document.getElementById('submitStepConfirmModal').querySelector('.modal-body');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger mt-3';
+            alertDiv.innerHTML = `<strong>Error:</strong> ${data.message || 'Unknown error occurred'}`;
+            bodyElement.appendChild(alertDiv);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        
+        // Show error in modal
+        const bodyElement = document.getElementById('submitStepConfirmModal').querySelector('.modal-body');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger mt-3';
+        alertDiv.innerHTML = `<strong>Error:</strong> ${error.message || 'An error occurred'}`;
+        bodyElement.appendChild(alertDiv);
+    });
+}
+
+// Handle file upload form (document uploads only)
+var uploadFormEl = document.getElementById('uploadForm');
+if (uploadFormEl) {
+    uploadFormEl.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
+    
+    fetch(`/community/upload-workflow-document`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            $('#uploadModal').modal('hide');
+            refreshCommunityWorkflowPage();
+        } else {
+            const errorMsg = data.message || 'Unknown error occurred';
+            alert('Upload failed:\n' + errorMsg);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const errorMsg = error.message || 'An error occurred while uploading the document';
+        alert('Upload failed:\n' + errorMsg);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+}
+
+// ==================== Document Viewer Functions ====================
+
+function viewDocument(uploadId, filename, requirementId) {
+    const title = document.getElementById('documentViewerTitle');
+    const body = document.getElementById('documentViewerBody');
+    const reuploadBtn = document.getElementById('documentReuploadBtn');
+    const modal = document.getElementById('documentViewerModal');
+    
+    // Store IDs in modal for reupload
+    modal.dataset.uploadId = uploadId;
+    modal.dataset.requirementId = requirementId || '';
+    
+    // Set title
+    title.textContent = filename;
+    
+    // Show loader
+    body.innerHTML = `<div class="text-center py-5">
+        <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+        <p class="mt-3 text-muted">Loading document...</p>
+    </div>`;
+    
+    // Get file extension
+    const fileExt = filename.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif'].includes(fileExt);
+    const isPdf = fileExt === 'pdf';
+    
+    // Fetch document metadata
+    fetch(`/community/document-uploads/${uploadId}/view-data`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load document: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.message || 'Error loading document');
+            }
+            
+            const documentUrl = data.document_url;
+            
+            // Show reupload button if document is not approved
+            if (data.verification_status !== 'approved') {
+                reuploadBtn.style.display = 'block';
+            } else {
+                reuploadBtn.style.display = 'none';
+            }
+            
+            // Display document based on type
+            if (isImage) {
+                body.innerHTML = `<div class="text-center">
+                    <img src="${documentUrl}" style="max-width: 100%; max-height: 80vh;" alt="${filename}">
+                </div>`;
+            } else if (isPdf) {
+                body.innerHTML = `<iframe src="${documentUrl}" style="width: 100%; height: 80vh; border: none;" title="${filename}"></iframe>`;
+            } else {
+                body.innerHTML = `<div class="alert alert-info">
+                    <p><strong>${filename}</strong></p>
+                    <p class="mb-0">This file type cannot be previewed. You can reupload the document if needed.</p>
+                </div>`;
+            }
+            
+            $('#documentViewerModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error loading document:', error);
+            body.innerHTML = `<div class="alert alert-danger">
+                <strong>Error:</strong> ${error.message}
+            </div>`;
+            reuploadBtn.style.display = 'none';
+            $('#documentViewerModal').modal('show');
+        });
+}
+
+// Handle reupload from document viewer modal
+function reuploadDocumentFromModal() {
+    const modal = document.getElementById('documentViewerModal');
+    const requirementId = modal.dataset.requirementId;
+    
+    if (!requirementId) {
+        alert('Error: Requirement ID not found');
+        return;
+    }
+    
+    // Close the viewer modal
+    $('#documentViewerModal').modal('hide');
+    
+    // Open upload modal with the requirement ID
+    document.getElementById('requirementId').value = requirementId;
+    $('#uploadModal').modal('show');
+}
+
+// Photo preview modal function
+function openPhotoModal(photoPath, caption) {
+    document.getElementById('photoPreviewImage').src = photoPath;
+    document.getElementById('photoPreviewCaption').textContent = caption;
+}
+
+// Edit photo caption functions
+function setPhotoForEdit(photoId, caption) {
+    document.getElementById('editPhotoId').value = photoId;
+    document.getElementById('editCaption').value = caption;
+}
+
+function savePhotoCaption() {
+    const photoId = document.getElementById('editPhotoId').value;
+    const caption = document.getElementById('editCaption').value;
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+    
+    const formData = new FormData();
+    formData.append('caption', caption);
+    
+    fetch(`/community/shelter-photo/${photoId}/edit-caption`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and show success
+            $('#editCaptionModal').modal('hide');
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show mb-3';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong>Success!</strong> Caption updated successfully.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.card-body').insertAdjacentElement('afterbegin', successAlert);
+            
+            // Update caption in the card if visible
+            const photoCards = document.querySelectorAll('[id^="photo-"]');
+            photoCards.forEach(card => {
+                const captions = card.querySelectorAll('.text-muted');
+                if (captions.length > 0) {
+                    const match = card.id.match(/\d+/);
+                    if (match && parseInt(match[0]) === parseInt(photoId)) {
+                        const captionElement = captions[0];
+                        if (caption) {
+                            captionElement.textContent = caption;
+                            captionElement.style.display = 'block';
+                        } else {
+                            captionElement.style.display = 'none';
+                        }
+                    }
+                }
+            });
+        } else {
+            alert('Error: ' + (data.message || 'Failed to update caption'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error: ' + error.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// Replace photo functions
+function setPhotoForReplace(photoId) {
+    document.getElementById('replacePhotoId').value = photoId;
+    document.getElementById('replacePhotoFile').value = '';
+    document.getElementById('replacePreview').style.display = 'none';
+}
+
+// Preview image before replacing
+document.addEventListener('DOMContentLoaded', function() {
+    const replacePhotoFile = document.getElementById('replacePhotoFile');
+    if (replacePhotoFile) {
+        replacePhotoFile.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('replacePreviewImage').src = event.target.result;
+                    document.getElementById('replacePreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+
+function replacePhoto() {
+    const photoId = document.getElementById('replacePhotoId').value;
+    const file = document.getElementById('replacePhotoFile').files[0];
+    
+    if (!file) {
+        alert('Please select a photo to upload');
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Uploading...';
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    fetch(`/community/shelter-photo/${photoId}/replace`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal and show success
+            $('#replacePhotoModal').modal('hide');
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show mb-3';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong>Success!</strong> Photo replaced successfully. It will be reviewed again.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.card-body').insertAdjacentElement('afterbegin', successAlert);
+            
+            // Update the photo in the grid
+            const photoCard = document.getElementById(`photo-${photoId}`);
+            if (photoCard) {
+                const img = photoCard.querySelector('img');
+                if (img) {
+                    img.src = data.photo_path;
+                }
+            }
+        } else {
+            alert('Error: ' + (data.message || 'Failed to replace photo'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error: ' + error.message);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+// Delete photo functions
+function setPhotoForDelete(photoId) {
+    document.getElementById('deletePhotoId').value = photoId;
+}
+
+function confirmDeletePhoto() {
+    const photoId = document.getElementById('deletePhotoId').value;
+    if (!photoId) {
+        alert('Error: Photo ID not found');
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Deleting...';
+    
+    const applicationId = {{ application.id }};
+    
+    fetch(`/community/applications/${applicationId}/delete-workflow-photo/${photoId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `Server error: ${response.status}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            $('#deletePhotoConfirmModal').modal('hide');
+            
+            // Remove photo card
+            const photoCard = document.getElementById(`photo-${photoId}`);
+            if (photoCard) photoCard.remove();
+            
+            // Update photo count
+            updatePhotoCount(data.total_photos, data.has_min_photos);
+            
+            // Show success message
+            const successAlert = document.createElement('div');
+            successAlert.className = 'alert alert-success alert-dismissible fade show mb-3';
+            successAlert.innerHTML = `
+                <i class="fas fa-check-circle mr-2"></i>
+                <strong>Success!</strong> Photo deleted successfully.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.card-body').insertAdjacentElement('afterbegin', successAlert);
+        } else {
+            alert('Error: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting photo:\n' + (error.message || 'An error occurred'));
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+document.addEventListener('ayuda:application-workflow-update', function(event) {
+    const payload = event && event.detail ? event.detail : {};
+    if (Number(payload.application_id) !== Number(COMMUNITY_WORKFLOW_APPLICATION_ID)) {
+        return;
+    }
+
+    if (document.hidden) {
+        communityWorkflowPendingRealtimePayload = payload;
+        return;
+    }
+
+    if (communityWorkflowRealtimeRefreshTimer) {
+        clearTimeout(communityWorkflowRealtimeRefreshTimer);
+    }
+
+    communityWorkflowRealtimeRefreshTimer = setTimeout(function() {
+        const reason = payload.reason ? payload.reason.replace(/_/g, ' ') : 'workflow changes';
+        refreshCommunityWorkflowPage({
+            toastMessage: `Workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
+        });
+    }, 800);
+});
+
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden || !communityWorkflowPendingRealtimePayload) {
+        return;
+    }
+
+    const pendingPayload = communityWorkflowPendingRealtimePayload;
+    communityWorkflowPendingRealtimePayload = null;
+
+    if (communityWorkflowRealtimeRefreshTimer) {
+        clearTimeout(communityWorkflowRealtimeRefreshTimer);
+    }
+
+    communityWorkflowRealtimeRefreshTimer = setTimeout(function() {
+        const reason = pendingPayload.reason ? pendingPayload.reason.replace(/_/g, ' ') : 'workflow changes';
+        refreshCommunityWorkflowPage({
+            toastMessage: `Workflow updated in realtime (${reason}).`,
+            focusActiveStep: true
+        });
+    }, 180);
+});
+</script>
+{% endblock %}

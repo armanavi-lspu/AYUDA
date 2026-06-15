@@ -1,0 +1,1214 @@
+{% extends "community/community_base.html" %}
+{% block title %}Community Dashboard - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-surface: #ffffff;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+        --dash-soft: #f6f8fb;
+    }
+
+    .dashboard-shell {
+        animation: dashboardFadeIn 0.45s ease-out;
+    }
+
+    @keyframes dashboardFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .dashboard-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .dashboard-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+    }
+
+    .dashboard-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .last-updated {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 0.7rem 1rem;
+        color: #334155;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .quick-actions-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .quick-action-btn {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid #d7dff2;
+        padding: 0.8rem 0.9rem;
+        color: #22304e;
+        font-weight: 700;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        transition: all 0.25s ease;
+        text-align: left;
+    }
+
+    .quick-action-btn i {
+        width: 20px;
+    }
+
+    .quick-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 18px rgba(20, 52, 105, 0.08);
+        border-color: #abc0ef;
+        color: #123268;
+        text-decoration: none;
+    }
+
+    .quick-action-empty {
+        border: 1px dashed #c9d5ef;
+        background: #f8fbff;
+        border-radius: 10px;
+        padding: 0.8rem;
+        color: #48658f;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.9rem;
+    }
+
+    .quick-actions-config-item {
+        border: 1px solid #e6ecfa;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        margin-bottom: 0.45rem;
+        background: #fbfcff;
+    }
+
+    .quick-actions-config-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .kpi-card {
+        border-radius: 14px;
+        border: none;
+        box-shadow: 0 8px 20px rgba(15, 34, 73, 0.08);
+        overflow: hidden;
+        transition: all 0.28s ease;
+        cursor: pointer;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 28px rgba(15, 34, 73, 0.14);
+    }
+
+    .kpi-card .card-body {
+        padding: 1rem 1.1rem;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #1f2937;
+    }
+
+    .kpi-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.06);
+        color: #334155;
+    }
+
+    .border-left-primary { border-left: 0.3rem solid var(--dash-blue) !important; }
+    .border-left-success { border-left: 0.3rem solid #0ea565 !important; }
+    .border-left-info { border-left: 0.3rem solid var(--dash-cyan) !important; }
+    .border-left-warning { border-left: 0.3rem solid var(--dash-gold) !important; }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+    
+    .application-item {
+        transition: all 0.2s ease;
+        border: 1px solid #e3e6f0;
+        border-left: 4px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+    }
+    .application-item:hover {
+        border-left-color: #4e73df;
+        background-color: #f8f9fc;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        font-weight: 600;
+    }
+    
+    .announcement-item {
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .announcement-item:hover {
+        background-color: #f8f9fc;
+        border-color: #e3e6f0;
+        transform: translateX(5px);
+    }
+    
+    .progress-ring {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto;
+    }
+    
+    .welcome-card {
+        background: linear-gradient(135deg, #cfd8ff 0%, #002270 100%);
+        color: white;
+        border: none;
+    }
+    
+    .quick-action-card {
+        border: 2px dashed #dee2e6;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        transition: all 0.3s ease;
+        border-radius: 12px;
+    }
+    .quick-action-card:hover {
+        border-color: #4e73df;
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        transform: translateY(-2px);
+    }
+    
+    .time-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .event-mini-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #e9ecef;
+        border-radius: 8px;
+        background-color: #fff;
+    }
+    .event-mini-card:hover {
+        background-color: #f8f9fc;
+        box-shadow: 0 0.125rem 0.5rem rgba(58, 59, 69, 0.1);
+        transform: translateX(3px);
+    }
+    .event-mini-card.deadline {
+        border-left-color: #f6c23e;
+    }
+    .event-mini-card.claiming {
+        border-left-color: #1cc88a;
+    }
+    
+    .event-date-badge {
+        background: linear-gradient(135deg, #0032A0 0%, #002270 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 8px 12px;
+        text-align: center;
+        min-width: 70px;
+    }
+    
+    .event-date-badge .day {
+        font-size: 1.5rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    
+    .event-date-badge .month {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+    }
+    
+    #dismissProfileAlert {
+        position: relative;
+        z-index: 100;
+        white-space: nowrap;
+        flex-shrink: 0;
+        cursor: pointer;
+        padding: 0.5rem 1rem !important;
+        border-radius: 0.25rem;
+        transition: all 0.3s ease;
+    }
+
+    #dismissProfileAlert:hover {
+        background-color: #218838 !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        transform: scale(1.05);
+    }
+
+    #dismissProfileAlert:active {
+        transform: scale(0.98);
+    }
+
+    @media (max-width: 991.98px) {
+        .dashboard-hero {
+            padding: 1.15rem;
+        }
+
+        .dashboard-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .quick-actions-panel {
+            padding: 0.85rem;
+        }
+
+        .kpi-card { margin-bottom: 0.75rem; }
+        .application-item { margin-bottom: 1rem; }
+
+        .alert .d-flex.align-items-center,
+        .alert .d-flex.align-items-center.justify-content-between {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 0.75rem;
+        }
+
+        .alert .btn {
+            width: 100%;
+        }
+
+        #dismissProfileAlert {
+            width: 100%;
+            min-width: 0 !important;
+        }
+
+        .card-header .btn-group {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .card-header .btn-group .btn {
+            width: 100%;
+        }
+
+        .event-date-badge {
+            min-width: 60px;
+            padding: 6px 9px;
+        }
+
+        .event-date-badge .day {
+            font-size: 1.2rem;
+        }
+
+        .event-date-badge .month {
+            font-size: 0.65rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid dashboard-shell py-4">
+    <div class="dashboard-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="font-weight-bold">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Community Dashboard
+                </h1>
+                <p class="subtitle">Welcome back, {{ current_user.first_name }}. Track applications, check schedules, and manage your next steps in one place.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <span class="last-updated">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <span id="lastUpdatedTime">Updated {{ today|manila('%b %d, %Y %I:%M %p', '') }}</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-actions-panel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </h6>
+            <div class="d-flex align-items-center">
+                <small class="text-muted mr-2">One-click community shortcuts</small>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="openQuickActionsEditor" data-toggle="modal" data-target="#editQuickActionsModal">
+                    <i class="fas fa-sliders-h mr-1"></i>Edit
+                </button>
+            </div>
+        </div>
+        <div class="row" id="quickActionsContainer">
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="browse_programs">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.programs') }}">
+                    <i class="fas fa-search mr-2"></i>Browse Programs
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="my_applications">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.applications') }}">
+                    <i class="fas fa-clipboard-list mr-2"></i>My Applications
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="view_schedule">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.schedule') }}">
+                    <i class="fas fa-calendar-day mr-2"></i>View Schedule
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="latest_updates">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.announcements') }}">
+                    <i class="fas fa-bullhorn mr-2"></i>Latest Updates
+                </a>
+            </div>
+            <div class="col-lg col-md-6 mb-2 mb-lg-0 quick-action-item" data-action-key="update_profile">
+                <a class="quick-action-btn d-block" href="{{ url_for('community.edit_profile') }}">
+                    <i class="fas fa-user-edit mr-2"></i>Update Profile
+                </a>
+            </div>
+        </div>
+        <div id="quickActionsEmptyState" class="quick-action-empty d-none">
+            <i class="fas fa-info-circle mr-2"></i>No quick actions selected. Click <strong>Edit</strong> to choose what to show.
+        </div>
+    </div>
+                    
+    <!-- Profile Completion Alert -->
+    {% if completion and not completion.is_complete %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #f6c23e;">
+                <div class="d-flex align-items-center">
+                    <div class="mr-3">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="alert-heading mb-2">
+                            <i class="fas fa-user-edit mr-2"></i>Complete Your Profile
+                        </h5>
+                        <p class="mb-2">
+                            Your profile is <strong>{{ completion.percentage }}% complete</strong>. 
+                            Please complete all required fields to apply for assistance programs.
+                        </p>
+                        <p class="mb-2 text-muted">
+                            <strong>Missing fields ({{ completion.missing_count }}):</strong>
+                            {{ completion.missing_fields|join(', ') }}
+                        </p>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ completion.percentage }}%;" 
+                                 aria-valuenow="{{ completion.percentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100"></div>
+                        </div>
+                        <a href="{{ url_for('community.edit_profile') }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit mr-1"></i>Complete Profile Now
+                        </a>
+                    </div>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% elif completion and completion.is_complete and not current_user.profile_complete_alert_dismissed %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert" style="border-left: 5px solid #1cc88a;" id="profileCompleteAlert">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <div class="mr-3 flex-shrink-0">
+                            <i class="fas fa-check-circle fa-2x text-success"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading mb-1">
+                                <i class="fas fa-user-check mr-2"></i>Profile Complete!
+                            </h5>
+                            <p class="mb-0">
+                                Your profile is <strong>{{ completion.percentage }}% complete</strong>. 
+                                You can now apply for all available assistance programs!
+                            </p>
+                        </div>
+                    </div>
+                    <form method="POST" action="{{ url_for('community.dismiss_profile_alert') }}" class="ml-3 flex-shrink-0">
+                        <button type="submit" class="btn btn-success btn-sm" id="dismissProfileAlert" style="min-width: 150px;">
+                            <i class="fas fa-check mr-1"></i>Okay, don't show again
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-warning h-100" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view pending applications"
+                 onclick="location.href='{{ url_for('community.applications', status='pending') }}'">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-warning">Pending Applications</div>
+                            <div class="kpi-value text-warning" data-count="{{ pending_applications }}">{{ pending_applications }}</div>
+                            <small class="text-muted">Awaiting review</small>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-hourglass-half"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-success h-100" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view all applications"
+                 onclick="location.href='{{ url_for('community.applications') }}'">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-success">Total Applications</div>
+                            <div class="kpi-value text-success" data-count="{{ total_applications }}">{{ total_applications }}</div>
+                            {% if total_applications > 0 %}
+                            {% set completed_count = (total_applications - pending_applications) %}
+                            <small class="text-muted">{{ completed_count }} completed</small>
+                            {% else %}
+                            <small class="text-muted">No submissions yet</small>
+                            {% endif %}
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-clipboard-list"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-info h-100" 
+                 data-toggle="tooltip" data-placement="top" title="Click to browse programs"
+                 onclick="location.href='{{ url_for('community.programs') }}'">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-info">Available Programs</div>
+                            <div class="kpi-value text-info" data-count="{{ available_programs }}">{{ available_programs }}</div>
+                            <small class="text-muted">Ready to apply</small>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-folder-open"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card kpi-card border-left-primary h-100" 
+                 data-toggle="tooltip" data-placement="top" title="Click to view announcements"
+                 onclick="location.href='{{ url_for('community.announcements') }}'">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="kpi-label text-primary">New Announcements</div>
+                            <div class="kpi-value text-primary" data-count="{{ new_announcements }}">{{ new_announcements }}</div>
+                            <small class="text-muted">Recent updates</small>
+                        </div>
+                        <span class="kpi-icon"><i class="fas fa-bullhorn"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Alert for Important Notices -->
+    {% if returned_applications > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-lg mr-3"></i>
+                    <div class="flex-grow-1">
+                        <strong>Action Required!</strong> You have {{ returned_applications }} application(s) requiring your attention.
+                    </div>
+                    <a href="{{ url_for('community.applications', status='returned') }}" class="btn btn-warning btn-sm ml-3">
+                        Review Now
+                    </a>
+                </div>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <!-- Recent Applications with Enhanced Bootstrap Card -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-clipboard-list text-primary mr-2"></i>Recent Applications
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.applications') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if recent_applications %}
+                        {% for application in recent_applications %}
+                        <div class="application-item p-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <h6 class="mb-0 font-weight-bold mr-3">
+                                            {{ application.program.program_name if application.program else 'Unknown Program' }}
+                                        </h6>
+                                        <!-- Enhanced Status Badges -->
+                                        {% if application.application_status == 'pending' %}
+                                            <span class="badge badge-warning status-badge">
+                                                <i class="fas fa-clock mr-1"></i>Pending Review
+                                            </span>
+                                        {% elif application.application_status == 'approved' %}
+                                            <span class="badge badge-success status-badge">
+                                                <i class="fas fa-check-circle mr-1"></i>Approved
+                                            </span>
+                                        {% elif application.application_status == 'rejected' %}
+                                            <span class="badge badge-danger status-badge">
+                                                <i class="fas fa-times-circle mr-1"></i>Rejected
+                                            </span>
+                                        {% elif application.application_status == 'active' %}
+                                            <span class="badge badge-info status-badge">
+                                                <i class="fas fa-check-circle mr-1"></i>Active
+                                            </span>
+                                        {% elif application.application_status == 'completed' %}
+                                            <span class="badge badge-primary status-badge">
+                                                <i class="fas fa-flag-checkered mr-1"></i>Completed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-secondary status-badge">
+                                                {{ application.application_status.title() if application.application_status else 'Unknown' }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Bootstrap Grid for Application Details -->
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Application ID:</small>
+                                            <div class="font-weight-semibold">#{{ application.id }}</div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Submitted:</small>
+                                            <div class="font-weight-semibold">
+                                                {% if application.application_date %}
+                                                    {{ application.application_date|manila('%b %d, %Y') }}
+                                                {% else %}
+                                                    Not available
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <small class="text-muted font-weight-bold">Days Ago:</small>
+                                            <div class="font-weight-semibold text-primary">
+                                                {% if application.application_date %}
+                                                    {% set days_ago = (today - application.application_date.date()).days %}
+                                                    {{ days_ago }} day{{ 's' if days_ago != 1 else '' }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Bootstrap Badges for Program Info -->
+                                    {% if application.program %}
+                                    <div class="mt-2">
+                                        <span class="badge badge-light mr-2">
+                                            <i class="fas fa-tag mr-1"></i>{{ application.program.program_type }}
+                                        </span>
+                                        <span class="badge badge-info">
+                                            <i class="fas fa-calendar mr-1"></i>{{ application.program.program_period }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Bootstrap Button Group -->
+                                <div class="ml-3">
+                                    <div class="btn-group-vertical" role="group">
+                                        <a href="{{ url_for('community.application_detail', application_id=application.id) }}" 
+                                           class="btn btn-sm btn-outline-primary mb-1">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Enhanced Empty State -->
+                        <div class="quick-action-card text-center py-5">
+                            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                            <h5 class="text-dark font-weight-bold mb-2">No Applications Yet</h5>
+                            <p class="text-muted mb-4">Start your journey by applying for a program that meets your needs.</p>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('community.programs') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-2"></i>Apply for Program
+                                </a>
+                                <a href="{{ url_for('community.programs') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-search mr-2"></i>Browse Programs
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Events Section -->
+        <div class="col-xl-6 col-lg-6">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-calendar-day text-info mr-2"></i>Upcoming Events
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.schedule') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View Schedule
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_events %}
+                        {% for event in upcoming_events %}
+                        <div class="event-mini-card {{ event.type }} p-3 mb-3">
+                            <div class="d-flex align-items-start">
+                                <!-- Date Badge -->
+                                <div class="event-date-badge mr-3">
+                                    <div class="day">{{ event.date|manila('%d') }}</div>
+                                    <div class="month">{{ event.date|manila('%b') }}</div>
+                                </div>
+                                
+                                <!-- Event Details -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-start justify-content-between mb-1">
+                                        <h6 class="mb-0 font-weight-bold">
+                                            {{ event.title }}
+                                        </h6>
+                                        {% if event.type == 'deadline' %}
+                                        <span class="badge badge-warning badge-pill ml-2">
+                                            <i class="fas fa-clock mr-1"></i>Deadline
+                                        </span>
+                                        {% elif event.type == 'claiming' %}
+                                        <span class="badge badge-success badge-pill ml-2">
+                                            <i class="fas fa-hand-holding-usd mr-1"></i>Claiming
+                                        </span>
+                                        {% elif event.type == 'assessment' %}
+                                        <span class="badge badge-primary badge-pill ml-2">
+                                            <i class="fas fa-clipboard-check mr-1"></i>Assessment
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <p class="mb-2 small text-muted">
+                                        <i class="fas fa-info-circle mr-1"></i>{{ event.description }}
+                                    </p>
+                                    
+                                    {% if event.type == 'assessment' and event.time %}
+                                    <p class="mb-2 small text-muted">
+                                        <i class="fas fa-clock mr-1"></i><strong>Time:</strong> {{ event.time }}
+                                    </p>
+                                    {% endif %}
+                                    
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="badge badge-light">
+                                            <i class="fas fa-file-alt mr-1"></i>{{ event.program }}
+                                        </span>
+                                        <a href="{{ url_for('community.application_detail', application_id=event.application_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye mr-1"></i>View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Empty State -->
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-day fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted font-weight-bold mb-2">No Upcoming Events</h6>
+                            <p class="text-muted small mb-3">You don't have any scheduled deadlines or claim dates.</p>
+                            <a href="{{ url_for('community.schedule') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-calendar-alt mr-1"></i>View Full Schedule
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Recent Announcements with Enhanced Bootstrap Features -->
+        <div class="col-xl-12 col-lg-12">
+            <div class="card section-card h-100 mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="h5 m-0 font-weight-bold text-dark">
+                        <i class="fas fa-bullhorn text-warning mr-2"></i>Recent Announcements
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('community.announcements') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt mr-1"></i>View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_announcements %}
+                        <div class="row mx-0">
+                            {% for announcement in recent_announcements %}
+                            <div class="col px-2 mb-2">
+                                <div class="announcement-item border p-3 h-100">
+                                    <div class="d-flex flex-column h-100">
+                                        <h6 class="mb-2 font-weight-bold">
+                                            <a href="{{ url_for('community.view_announcement_detail', announcement_id=announcement.id) }}" 
+                                               class="text-decoration-none text-dark stretched-link">
+                                                {{ announcement.announcement_title or 'Untitled Announcement' }}
+                                            </a>
+                                        </h6>
+                                        <p class="mb-2 text-muted small flex-grow-1">
+                                            {% if announcement.announcement_content %}
+                                                {% if announcement.announcement_content|length > 100 %}
+                                                    {{ announcement.announcement_content|striptags|truncate(100) }}
+                                                {% else %}
+                                                    {{ announcement.announcement_content|striptags }}
+                                                {% endif %}
+                                            {% else %}
+                                                No content available.
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                                            <span class="badge badge-secondary badge-pill">
+                                                <i class="fas fa-folder mr-1"></i>{{ announcement.category or 'General' }}
+                                            </span>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock mr-1"></i>
+                                                {% if announcement.created_at %}
+                                                    {% set days_ago = (today - announcement.created_at.date()).days %}
+                                                    {% if days_ago == 0 %}
+                                                        Today
+                                                    {% elif days_ago == 1 %}
+                                                        Yesterday  
+                                                    {% elif days_ago < 7 %}
+                                                        {{ days_ago }} days ago
+                                                    {% else %}
+                                                        {{ announcement.created_at|manila('%b %d') }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    Recently
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 px-3">
+                            <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                            <h6 class="text-muted font-weight-bold mb-2">No Announcements</h6>
+                            <p class="text-muted small mb-3">Check back later for updates from the MSWD Office.</p>
+                            <a href="{{ url_for('community.announcements') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-refresh mr-1"></i>Refresh
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editQuickActionsModal" tabindex="-1" role="dialog" aria-labelledby="editQuickActionsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editQuickActionsModalLabel">
+                        <i class="fas fa-sliders-h mr-2"></i>Edit Quick Actions
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Choose which quick actions are visible on your dashboard.</p>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaBrowsePrograms" value="browse_programs">
+                            <label class="custom-control-label" for="qaBrowsePrograms">
+                                <i class="fas fa-search mr-2 text-primary"></i>Browse Programs
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaMyApplications" value="my_applications">
+                            <label class="custom-control-label" for="qaMyApplications">
+                                <i class="fas fa-clipboard-list mr-2 text-primary"></i>My Applications
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaViewSchedule" value="view_schedule">
+                            <label class="custom-control-label" for="qaViewSchedule">
+                                <i class="fas fa-calendar-day mr-2 text-primary"></i>View Schedule
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaLatestUpdates" value="latest_updates">
+                            <label class="custom-control-label" for="qaLatestUpdates">
+                                <i class="fas fa-bullhorn mr-2 text-primary"></i>Latest Updates
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions-config-item">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input quick-action-toggle" id="qaUpdateProfile" value="update_profile">
+                            <label class="custom-control-label" for="qaUpdateProfile">
+                                <i class="fas fa-user-edit mr-2 text-primary"></i>Update Profile
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" id="resetQuickActionsBtn">
+                        <i class="fas fa-undo mr-1"></i>Reset Defaults
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveQuickActionsBtn">
+                        <i class="fas fa-save mr-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function initializeCommunityDashboard() {
+    const quickActionsStorageKey = 'community_dashboard_quick_actions';
+    const defaultQuickActions = [
+        'browse_programs',
+        'my_applications',
+        'view_schedule',
+        'latest_updates',
+        'update_profile'
+    ];
+
+    function formatUpdatedDateTime(dateObj) {
+        return 'Updated ' + dateObj.toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Manila'
+        });
+    }
+
+    function updateLastUpdatedTime() {
+        const updatedTimeEl = document.getElementById('lastUpdatedTime');
+        if (!updatedTimeEl) {
+            return;
+        }
+        updatedTimeEl.textContent = formatUpdatedDateTime(new Date());
+    }
+
+    function getSavedQuickActions() {
+        try {
+            const raw = localStorage.getItem(quickActionsStorageKey);
+            if (!raw) {
+                return defaultQuickActions.slice();
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return defaultQuickActions.slice();
+            }
+
+            return parsed.filter(function(action) {
+                return defaultQuickActions.indexOf(action) !== -1;
+            });
+        } catch (error) {
+            return defaultQuickActions.slice();
+        }
+    }
+
+    function setSavedQuickActions(actions) {
+        localStorage.setItem(quickActionsStorageKey, JSON.stringify(actions));
+    }
+
+    function syncQuickActionCheckboxes(actions) {
+        document.querySelectorAll('.quick-action-toggle').forEach(function(toggle) {
+            toggle.checked = actions.includes(toggle.value);
+        });
+    }
+
+    function applyQuickActions(actions) {
+        let visibleCount = 0;
+
+        document.querySelectorAll('.quick-action-item[data-action-key]').forEach(function(item) {
+            const key = item.getAttribute('data-action-key');
+            const shouldShow = actions.includes(key);
+            item.classList.toggle('d-none', !shouldShow);
+            if (shouldShow) {
+                visibleCount += 1;
+            }
+        });
+
+        const emptyState = document.getElementById('quickActionsEmptyState');
+        if (emptyState) {
+            emptyState.classList.toggle('d-none', visibleCount > 0);
+        }
+    }
+
+    function getSelectedQuickActionsFromModal() {
+        return Array.from(document.querySelectorAll('.quick-action-toggle:checked')).map(function(input) {
+            return input.value;
+        });
+    }
+
+    updateLastUpdatedTime();
+    if (window.communityLastUpdatedIntervalId) {
+        clearInterval(window.communityLastUpdatedIntervalId);
+    }
+    window.communityLastUpdatedIntervalId = setInterval(updateLastUpdatedTime, 60000);
+
+    const initialActions = getSavedQuickActions();
+    applyQuickActions(initialActions);
+    syncQuickActionCheckboxes(initialActions);
+
+    $('#editQuickActionsModal').on('show.bs.modal', function() {
+        syncQuickActionCheckboxes(getSavedQuickActions());
+    });
+
+    const saveQuickActionsBtn = document.getElementById('saveQuickActionsBtn');
+    if (saveQuickActionsBtn) {
+        saveQuickActionsBtn.addEventListener('click', function() {
+            const selectedActions = getSelectedQuickActionsFromModal();
+            setSavedQuickActions(selectedActions);
+            applyQuickActions(selectedActions);
+            $('#editQuickActionsModal').modal('hide');
+        });
+    }
+
+    const resetQuickActionsBtn = document.getElementById('resetQuickActionsBtn');
+    if (resetQuickActionsBtn) {
+        resetQuickActionsBtn.addEventListener('click', function() {
+            setSavedQuickActions(defaultQuickActions);
+            syncQuickActionCheckboxes(defaultQuickActions);
+            applyQuickActions(defaultQuickActions);
+        });
+    }
+
+    // Initialize Bootstrap tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Animate KPI counters only
+    document.querySelectorAll('.kpi-value[data-count]').forEach(function(element) {
+        const countTo = parseInt(element.getAttribute('data-count'), 10);
+        if (!isNaN(countTo) && countTo > 0) {
+            let current = 0;
+            const increment = Math.ceil(countTo / 25);
+            const timer = setInterval(function() {
+                current += increment;
+                if (current >= countTo) {
+                    element.textContent = countTo.toLocaleString();
+                    clearInterval(timer);
+                } else {
+                    element.textContent = current.toLocaleString();
+                }
+            }, 40);
+        } else {
+            element.textContent = '0';
+        }
+    });
+    
+    // Add ripple effect to KPI cards
+    document.querySelectorAll('.kpi-card').forEach(function(card) {
+        card.addEventListener('click', function(e) {
+            // Create ripple effect
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s ease-out;
+                pointer-events: none;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(function() {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    // Auto-refresh data every 5 minutes (optional)
+    {% if pending_applications > 0 %}
+    if (window.communityPendingReloadTimeoutId) {
+        clearTimeout(window.communityPendingReloadTimeoutId);
+    }
+    window.communityPendingReloadTimeoutId = setTimeout(function() {
+        softRefreshCommunityDashboard();
+    }, 300000); // 5 minutes
+    {% endif %}
+    
+    // Dismissal is handled by a regular form POST for guaranteed persistence.
+}
+
+window.initializeCommunityDashboard = initializeCommunityDashboard;
+document.addEventListener('DOMContentLoaded', initializeCommunityDashboard);
+
+let communityDashboardReloadTimer = null;
+let communityDashboardRefreshInFlight = false;
+
+async function softRefreshCommunityDashboard() {
+    if (communityDashboardRefreshInFlight) {
+        return;
+    }
+
+    communityDashboardRefreshInFlight = true;
+
+    try {
+        const response = await fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache'
+            }
+        });
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const nextDoc = parser.parseFromString(html, 'text/html');
+        const nextShell = nextDoc.querySelector('.dashboard-shell');
+        const currentShell = document.querySelector('.dashboard-shell');
+
+        if (!nextShell || !currentShell) {
+            throw new Error('Dashboard shell not found for soft refresh');
+        }
+
+        currentShell.replaceWith(nextShell);
+        initializeCommunityDashboard();
+
+        if (window.showRealtimeToast) {
+            window.showRealtimeToast('Dashboard refreshed with latest updates');
+        }
+    } catch (error) {
+        console.error('Soft dashboard refresh failed:', error);
+    } finally {
+        communityDashboardRefreshInFlight = false;
+    }
+}
+
+if (!window.communityDashboardRealtimeBound) {
+    document.addEventListener('ayuda:community-dashboard-update', function() {
+        if (document.hidden) {
+            return;
+        }
+
+        if (communityDashboardReloadTimer) {
+            clearTimeout(communityDashboardReloadTimer);
+        }
+
+        communityDashboardReloadTimer = setTimeout(function() {
+            softRefreshCommunityDashboard();
+        }, 1200);
+    });
+
+    window.communityDashboardRealtimeBound = true;
+}
+
+// Add CSS for ripple animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes ripple {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,1637 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Analysis - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-indigo: #1942a8;
+        --dash-cyan: #0ea5a6;
+        --dash-border: #e5e7eb;
+        --dash-muted: #667085;
+        --dash-surface: #ffffff;
+    }
+
+    .analytics-shell {
+        animation: analyticsFadeIn 0.45s ease-out;
+    }
+
+    @keyframes analyticsFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .analytics-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.15), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-hero h1 {
+        color: var(--dash-slate);
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+        letter-spacing: 0.2px;
+    }
+
+    .analytics-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .btn-gradient-primary {
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        border: none;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        box-shadow: 0 4px 15px rgba(25, 66, 168, 0.3);
+        transition: all 0.25s ease;
+    }
+
+    .btn-gradient-primary:hover {
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(25, 66, 168, 0.35);
+    }
+
+    .btn-outline-report {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        background: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.625rem 1.25rem;
+        transition: all 0.25s ease;
+    }
+
+    .btn-outline-report:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+    }
+
+    .analytics-nav-panel {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        padding: 0.55rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .analytics-nav {
+        gap: 0.55rem;
+    }
+
+    .analytics-nav .nav-link {
+        color: #2a4b79;
+        font-weight: 600;
+        padding: 0.62rem 1.1rem;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: all 0.25s ease;
+    }
+
+    .analytics-nav .nav-link:hover {
+        color: #1942a8;
+        background: #f4f8ff;
+        border-color: #dbe7fd;
+    }
+
+    .analytics-nav .nav-link.active {
+        color: #fff;
+        background: linear-gradient(135deg, var(--dash-blue) 0%, var(--dash-indigo) 100%);
+        box-shadow: 0 6px 16px rgba(31, 111, 235, 0.28);
+    }
+
+    .chart-card .card,
+    .forecast-card {
+        background: var(--dash-surface);
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .chart-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .forecast-card .card-header {
+        border: 0;
+        background: linear-gradient(135deg, #d89f1d 0%, #b77908 100%) !important;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 0;
+    }
+
+    .no-data-message {
+        padding: 4rem 2rem;
+        text-align: center;
+        color: #858796;
+    }
+
+    .no-data-message i {
+        opacity: 0.5;
+    }
+    
+    /* Loading spinner for charts */
+    .chart-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 10;
+    }
+    .chart-loading .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #4e73df;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 991.98px) {
+        .analytics-hero {
+            padding: 1.15rem;
+        }
+
+        .analytics-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .analytics-nav .nav-link,
+        .analytics-hero .btn {
+            width: 100%;
+        }
+    }
+
+    @media print {
+        .analytics-nav-panel,
+        .btn {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="adminAnalyticsRoot">
+<div class="container-fluid analytics-shell py-4">
+    <div class="analytics-hero">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <h1 class="h2 font-weight-bold mb-0">
+                    <i class="fas fa-chart-line mr-2"></i>Data Analysis
+                </h1>
+                <p class="subtitle">Comprehensive analytics and forecasting for program planning.</p>
+            </div>
+            <div class="col-lg-4 text-lg-right">
+                <a class="btn btn-outline-report mr-2 mb-2 mb-lg-0" href="{{ url_for('admin.analytics_reports') }}">
+                    <i class="fas fa-file-export mr-2"></i>Generate Report
+                </a>
+                <button class="btn btn-gradient-primary" onclick="window.print()">
+                    <i class="fas fa-print mr-2"></i>Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics-nav-panel">
+        <ul class="nav nav-pills analytics-nav mb-0">
+            <li class="nav-item">
+                <a class="nav-link active" href="{{ url_for('admin.analytics_analysis') }}">
+                    <i class="fas fa-chart-line mr-2"></i>Analysis
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_recommend') }}">
+                    <i class="fas fa-users mr-2"></i>Recommend Beneficiaries
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('admin.analytics_reports') }}">
+                    <i class="fas fa-file-export mr-2"></i>Reports
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div id="analyticsUpdateNotice" class="alert alert-info d-none" role="status">
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="mr-3 mb-2 mb-md-0">
+                <i class="fas fa-sync-alt mr-2"></i>
+                <span id="analyticsUpdateNoticeMessage">A new analytics update is available.</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="refreshAnalyticsGraphsBtn">
+                <i class="fas fa-redo mr-1"></i>Refresh Graphs
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-primary font-weight-bold text-xs mb-1">
+                                Total Applications
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_applications }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-list fa-2x text-primary opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-success h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-success font-weight-bold text-xs mb-1">
+                                Unique Applicants
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_applicants }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-success opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-info h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-info font-weight-bold text-xs mb-1">
+                                Active Programs
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_programs }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-folder-open fa-2x text-info opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-left-warning h-100">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-uppercase text-warning font-weight-bold text-xs mb-1">
+                                Registered Community Users
+                            </div>
+                            <div class="h3 mb-0 font-weight-bold text-gray-800">
+                                {{ total_community_users }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-friends fa-2x text-warning opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Section -->
+    <div class="row">
+        <!-- Applicants Over Time -->
+        <div class="col-12 mb-4 chart-card">
+            <div class="card shadow">
+                <div class="card-header bg-white py-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-area mr-2"></i>Applicants Count Over Time
+                            </h6>
+                        </div>
+                        <div class="col-md-4 text-md-right mt-2 mt-md-0">
+                            <select class="form-control form-control-sm" id="timeRangeSelect" style="max-width: 200px; margin-left: auto;">
+                                <option value="6">Last 6 Months</option>
+                                <option value="12" selected>Last 12 Months</option>
+                                <option value="24">Last 24 Months</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="timeSeriesContainer">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="applicantsTimeSeriesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications by Program Type -->
+        <div class="col-lg-6 mb-4 chart-card">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-chart-pie mr-2"></i>Applications per Program Type
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="programTypeContainer" style="height: 350px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="programTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completion Rate by Barangay (Top 10) -->
+        <div class="col-lg-6 mb-4 chart-card">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-check-circle mr-2"></i>Application Completion Rate per Barangay (Top 10)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="completionRateBarangayContainer" style="height: 350px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="completionRateBarangayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applicants by Barangay -->
+        <div class="col-12 mb-4 chart-card">
+            <div class="card shadow h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-map-marker-alt mr-2"></i>Applicants per Barangay
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="barangayContainer" style="height: 620px;">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="barangayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast: Applicants Over Time -->
+        <div class="col-12 mb-4">
+            <div class="card shadow border-left-warning forecast-card" style="border-left-width: 4px;">
+                <div class="card-header bg-warning text-white py-3">
+                    <h6 class="m-0 font-weight-bold d-flex align-items-center flex-wrap">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        <span>Forecast: Applicants Over Time</span>
+                        <div class="ml-auto" style="margin-left:12px;">
+                            <select id="forecastViewSelect" class="form-control form-control-sm" style="min-width:180px;">
+                                <option value="monthly">Monthly Forecast (default)</option>
+                                <option value="by_year">Group by Year (2023 / 2024 / 2025)</option>
+                            </select>
+                        </div>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="forecastApplicantsContainer">
+                        <div class="chart-loading">
+                            <div class="spinner"></div>
+                            <p class="mt-3 text-muted">Loading chart...</p>
+                        </div>
+                        <canvas id="forecastApplicantsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast: Applications per Program Category removed -->
+    </div>
+</div>
+
+<!-- Hidden data elements for JavaScript -->
+<script type="application/json" id="applicants-over-time-data">{{ applicants_over_time_json | safe }}</script>
+<script type="application/json" id="applications-by-type-data">{{ applications_by_type_json | safe }}</script>
+<script type="application/json" id="completion-rate-by-barangay-data">{{ completion_rate_by_barangay_json | safe }}</script>
+<script type="application/json" id="applicants-by-barangay-data">{{ applicants_by_barangay_json | safe }}</script>
+{% if mabitac_static_applicants_over_time_json %}
+<script type="application/json" id="mabitac-static-applicants-data">{{ mabitac_static_applicants_over_time_json | safe }}</script>
+{% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load Chart.js with specific version for compatibility -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<script>
+// Check if Chart.js loaded successfully
+if (typeof Chart === 'undefined') {
+    console.error('❌ Chart.js failed to load!');
+    alert('Chart library failed to load. Please check your internet connection.');
+} else {
+    console.log('✅ Chart.js loaded successfully, version:', Chart.version);
+}
+
+let analyticsRealtimeListenerBound = false;
+let analyticsRefreshInProgress = false;
+let analyticsPendingUpdateMessage = '';
+
+function refreshAnalyticsAnalysisPage(message) {
+    if (analyticsRefreshInProgress) {
+        return;
+    }
+
+    const currentRoot = document.getElementById('adminAnalyticsRoot');
+    if (!currentRoot) {
+        window.location.reload();
+        return;
+    }
+
+    analyticsRefreshInProgress = true;
+
+    fetch(`${window.location.pathname}${window.location.search}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to refresh analytics (${response.status})`);
+            }
+            return response.text();
+        })
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nextRoot = doc.getElementById('adminAnalyticsRoot');
+
+            if (!nextRoot) {
+                throw new Error('Updated analytics content not found');
+            }
+
+            currentRoot.replaceWith(nextRoot);
+            initializeAnalyticsAnalysisPage();
+
+            if (typeof showRealtimeToast === 'function') {
+                showRealtimeToast(message || 'Analytics refreshed from live updates.');
+            }
+        })
+        .catch(error => {
+            console.error('Soft refresh failed, falling back to full reload:', error);
+            window.location.reload();
+        })
+        .finally(() => {
+            analyticsRefreshInProgress = false;
+        });
+}
+
+function initializeAnalyticsAnalysisPage() {
+    console.log('📊 Analytics page loaded');
+
+    function showAnalyticsUpdateNotice(message) {
+        const notice = document.getElementById('analyticsUpdateNotice');
+        const messageNode = document.getElementById('analyticsUpdateNoticeMessage');
+        if (!notice || !messageNode) {
+            return;
+        }
+
+        if (message) {
+            analyticsPendingUpdateMessage = message;
+        }
+
+        messageNode.textContent = analyticsPendingUpdateMessage || 'A new analytics update is available.';
+        notice.classList.remove('d-none');
+    }
+
+    function hideAnalyticsUpdateNotice() {
+        const notice = document.getElementById('analyticsUpdateNotice');
+        if (!notice) {
+            return;
+        }
+
+        notice.classList.add('d-none');
+        analyticsPendingUpdateMessage = '';
+    }
+
+    const refreshGraphsBtn = document.getElementById('refreshAnalyticsGraphsBtn');
+    if (refreshGraphsBtn && !refreshGraphsBtn.dataset.bound) {
+        refreshGraphsBtn.dataset.bound = '1';
+        refreshGraphsBtn.addEventListener('click', function() {
+            hideAnalyticsUpdateNotice();
+            refreshAnalyticsAnalysisPage('Analytics graphs refreshed with latest updates.');
+        });
+    }
+    
+    /**
+     * Helper function to build forecast data array for Chart.js
+     * Creates an array with null values for historical period, 
+     * then connects from lastValue to forecast values
+     * @param {number} historicalLength - Number of historical data points
+     * @param {number} lastValue - Last value from historical data (connection point)
+     * @param {Array} forecastData - Array of forecast values
+     * @returns {Array} - Data array for chart with nulls for historical and forecast values
+     */
+    function buildForecastDataArray(historicalLength, lastValue, forecastData) {
+        const nullsForHistorical = Array(historicalLength).fill(null);
+        return [...nullsForHistorical, lastValue, ...forecastData];
+    }
+    
+    /**
+     * Remove loading spinner and show chart with animation
+     */
+    function showChart(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            const loader = container.querySelector('.chart-loading');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 300);
+            }
+        }
+    }
+
+    function clearForecastStatus(chartContainer) {
+        if (!chartContainer) return;
+        const existing = chartContainer.querySelector('.forecast-status-message');
+        if (existing) {
+            existing.remove();
+        }
+    }
+
+    function renderForecastStatus(chartContainer, message) {
+        if (!chartContainer) return;
+        clearForecastStatus(chartContainer);
+
+        const note = document.createElement('div');
+        note.className = 'forecast-status-message alert alert-warning mt-3 mb-0';
+        note.textContent = message;
+        chartContainer.appendChild(note);
+    }
+    
+    // Parse data from hidden script tags with error handling
+    let applicantsOverTimeData, applicationsByTypeData, completionRateByBarangayData, applicantsByBarangayData;
+    
+    try {
+        const timeDataElement = document.getElementById('applicants-over-time-data');
+        const typeDataElement = document.getElementById('applications-by-type-data');
+        const completionRateBarangayDataElement = document.getElementById('completion-rate-by-barangay-data');
+        const barangayDataElement = document.getElementById('applicants-by-barangay-data');
+        
+        console.log('🔍 Checking for data elements...');
+        console.log('   Time element:', timeDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Type element:', typeDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Completion rate element:', completionRateBarangayDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Barangay element:', barangayDataElement ? '✅ Found' : '❌ Missing');
+        console.log('   Municipality chart removed from this page');
+        
+        if (!timeDataElement || !typeDataElement || !completionRateBarangayDataElement || !barangayDataElement) {
+            console.error('❌ ERROR: Required data elements not found in DOM!');
+            console.error('   This means data is not being passed from Flask backend.');
+            console.error('   Check that analytics_analysis route is passing all JSON variables:');
+            console.error('   - applicants_over_time_json');
+            console.error('   - applications_by_type_json');
+            console.error('   - completion_rate_by_barangay_json');
+            console.error('   - applicants_by_barangay_json');
+            alert('Error: Chart data not found. Please check server logs.');
+            return;
+        }
+        
+        console.log('📦 Parsing JSON data...');
+        applicantsOverTimeData = JSON.parse(timeDataElement.textContent);
+        applicationsByTypeData = JSON.parse(typeDataElement.textContent);
+        completionRateByBarangayData = JSON.parse(completionRateBarangayDataElement.textContent);
+        applicantsByBarangayData = JSON.parse(barangayDataElement.textContent);
+        
+        console.log('✅ Data loaded successfully');
+        console.log('Applicants Over Time:', applicantsOverTimeData);
+        console.log('Applications By Type:', applicationsByTypeData);
+        console.log('Completion Rate By Barangay:', completionRateByBarangayData);
+        console.log('Applicants By Barangay:', applicantsByBarangayData);
+        
+        // Show debug panel with data
+        const debugPanel = document.getElementById('debugData');
+        if (debugPanel) {
+            debugPanel.style.display = 'block';
+            document.getElementById('debugTime').textContent = JSON.stringify(applicantsOverTimeData, null, 2);
+            document.getElementById('debugType').textContent = JSON.stringify(applicationsByTypeData, null, 2);
+            document.getElementById('debugBarangay').textContent = JSON.stringify(applicantsByBarangayData, null, 2);
+        }
+        
+        // Validate data structure
+        if (!applicantsOverTimeData.labels || !applicantsOverTimeData.data) {
+            console.error('ERROR: Invalid applicantsOverTimeData structure');
+            return;
+        }
+        if (!applicationsByTypeData.labels || !applicationsByTypeData.data) {
+            console.error('ERROR: Invalid applicationsByTypeData structure');
+            return;
+        }
+        if (!completionRateByBarangayData.labels || !completionRateByBarangayData.rates) {
+            console.error('ERROR: Invalid completionRateByBarangayData structure');
+            return;
+        }
+        if (!applicantsByBarangayData.labels || !applicantsByBarangayData.data) {
+            console.error('ERROR: Invalid applicantsByBarangayData structure');
+            return;
+        }
+    } catch (error) {
+        console.error('ERROR parsing data:', error);
+        return;
+    }
+    
+    // 1. Applicants Time Series Chart
+    const timeSeriesCtx = document.getElementById('applicantsTimeSeriesChart');
+    if (timeSeriesCtx) {
+        console.log('Creating Applicants Time Series Chart...');
+        try {
+            new Chart(timeSeriesCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: applicantsOverTimeData.labels,
+                    datasets: [{
+                        label: 'Number of Applicants',
+                        data: applicantsOverTimeData.data,
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Time Series Chart created');
+            showChart('timeSeriesContainer');
+        } catch (error) {
+            console.error('❌ Error creating Time Series Chart:', error);
+        }
+    } else {
+        console.error('❌ Time Series Chart canvas not found');
+    }
+    
+    // 2. Program Type Pie Chart
+    const programTypeCtx = document.getElementById('programTypeChart');
+    if (programTypeCtx) {
+        console.log('Creating Program Type Pie Chart...');
+        try {
+            new Chart(programTypeCtx.getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: applicationsByTypeData.labels,
+                    datasets: [{
+                        data: applicationsByTypeData.data,
+                        backgroundColor: [
+                            'rgba(78, 115, 223, 0.8)',
+                            'rgba(28, 200, 138, 0.8)',
+                            'rgba(54, 185, 204, 0.8)',
+                            'rgba(246, 194, 62, 0.8)',
+                            'rgba(231, 74, 59, 0.8)',
+                            'rgba(133, 135, 150, 0.8)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Program Type Chart created');
+            showChart('programTypeContainer');
+        } catch (error) {
+            console.error('❌ Error creating Program Type Chart:', error);
+        }
+    } else {
+        console.error('❌ Program Type Chart canvas not found');
+    }
+    
+    // 3. Completion Rate per Barangay (Top 10)
+    const completionRateBarangayCtx = document.getElementById('completionRateBarangayChart');
+    if (completionRateBarangayCtx) {
+        console.log('Creating Completion Rate by Barangay Chart...');
+        try {
+            new Chart(completionRateBarangayCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: completionRateByBarangayData.labels,
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: completionRateByBarangayData.rates,
+                        backgroundColor: 'rgba(28, 200, 138, 0.6)',
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const idx = context.dataIndex;
+                                    const rate = Number(context.parsed.x || 0).toFixed(2);
+                                    const completed = (completionRateByBarangayData.completed_counts || [])[idx] || 0;
+                                    const total = (completionRateByBarangayData.total_counts || [])[idx] || 0;
+                                    return `Completion Rate: ${rate}% (${completed}/${total})`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return `${value}%`; }
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Completion Rate by Barangay Chart created');
+            showChart('completionRateBarangayContainer');
+        } catch (error) {
+            console.error('❌ Error creating Completion Rate by Barangay Chart:', error);
+        }
+    } else {
+        console.error('❌ Completion Rate by Barangay Chart canvas not found');
+    }
+
+    // 4. Barangay Bar Chart
+    const barangayCtx = document.getElementById('barangayChart');
+    if (barangayCtx) {
+        console.log('Creating Barangay Bar Chart...');
+        try {
+            const barangayContainer = document.getElementById('barangayContainer');
+            if (barangayContainer) {
+                const labelCount = (applicantsByBarangayData.labels || []).length;
+                const calculatedHeight = Math.max(620, labelCount * 28);
+                barangayContainer.style.height = `${calculatedHeight}px`;
+            }
+
+            new Chart(barangayCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: applicantsByBarangayData.labels,
+                    datasets: [{
+                        label: 'Number of Applicants',
+                        data: applicantsByBarangayData.data,
+                        backgroundColor: 'rgba(54, 185, 204, 0.6)',
+                        borderColor: 'rgba(54, 185, 204, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('✅ Barangay Chart created');
+            showChart('barangayContainer');
+        } catch (error) {
+            console.error('❌ Error creating Barangay Chart:', error);
+        }
+    } else {
+        console.error('❌ Barangay Chart canvas not found');
+    }
+
+    // 5. Forecast: Applicants Over Time - Using ARIMA from backend
+    const forecastApplicantsCtx = document.getElementById('forecastApplicantsChart');
+    let applicantsForecastChart = null;
+    // Keep the last-loaded forecast/historical series so we can re-render when
+    // the user toggles views without re-fetching.
+    let lastForecastData = null; // { historicalLabels, historicalData, forecastLabels, forecastData, source }
+    
+    // Helper: parse labels like 'Jan-2023' into Date objects (month start)
+    function parseMonthLabelToDate(label) {
+        try {
+            const cleaned = String(label || '').trim().replace(/\s+/g, '-');
+            const parts = cleaned.split('-');
+            if (parts.length < 2) {
+                return new Date();
+            }
+            const monthName = parts[0].toLowerCase().slice(0,3);
+            const year = parseInt(parts[1], 10) || new Date().getFullYear();
+            const map = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+            const m = map[monthName] !== undefined ? map[monthName] : 0;
+            return new Date(year, m, 1);
+        } catch (e) {
+            return new Date();
+        }
+    }
+
+    // Helper: simple linear regression (x=0..n-1) -> {slope, intercept}
+    function computeLinearTrend(values) {
+        const n = (values || []).length;
+        if (n === 0) return { slope: 0, intercept: 0 };
+        const meanX = (n - 1) / 2;
+        const meanY = values.reduce((a, b) => a + (Number(b) || 0), 0) / n;
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+            const x = i;
+            num += (x - meanX) * ((Number(values[i]) || 0) - meanY);
+            den += (x - meanX) * (x - meanX);
+        }
+        const slope = den === 0 ? 0 : num / den;
+        const intercept = meanY - slope * meanX;
+        return { slope, intercept };
+    }
+
+    // Client-side forecast for the MSWD Mabitac static series (12 months)
+    function loadStaticMabitacForecast(staticSeries) {
+        if (!forecastApplicantsCtx) return;
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        chartContainer.style.opacity = '0.5';
+        clearForecastStatus(chartContainer);
+
+        const historicalLabels = Array.isArray(staticSeries.labels) ? staticSeries.labels.slice() : [];
+        const historicalData = Array.isArray(staticSeries.data) ? staticSeries.data.map(v => Math.max(0, Math.round(Number(v) || 0))) : [];
+        if (historicalLabels.length === 0 || historicalLabels.length !== historicalData.length) {
+            renderForecastStatus(chartContainer, 'Static Mabitac series is invalid or missing.');
+            chartContainer.style.opacity = '1';
+            showChart('forecastApplicantsContainer');
+            return;
+        }
+
+        // Trend and seasonal decomposition (simple)
+        const n = historicalData.length;
+        const lastDate = parseMonthLabelToDate(historicalLabels[historicalLabels.length - 1]);
+        const { slope, intercept } = computeLinearTrend(historicalData);
+
+        // Seasonal offsets: average residual per calendar month
+        const seasonOffsets = new Array(12).fill(0);
+        const seasonCounts = new Array(12).fill(0);
+        for (let i = 0; i < n; i++) {
+            const dt = parseMonthLabelToDate(historicalLabels[i]);
+            const m = dt.getMonth();
+            const trendVal = intercept + slope * i;
+            const residual = historicalData[i] - trendVal;
+            seasonOffsets[m] += residual;
+            seasonCounts[m] += 1;
+        }
+        for (let m = 0; m < 12; m++) {
+            if (seasonCounts[m] > 0) seasonOffsets[m] = seasonOffsets[m] / seasonCounts[m];
+            else seasonOffsets[m] = 0;
+        }
+
+        // Forecast next 12 months
+        const forecastPeriods = 12;
+        const forecastValues = [];
+        const forecastLabels = [];
+        for (let t = 1; t <= forecastPeriods; t++) {
+            const xFuture = n + (t - 1);
+            const futureMonth = (lastDate.getMonth() + t) % 12;
+            const seasonal = seasonOffsets[futureMonth] || 0;
+            let value = intercept + slope * xFuture + seasonal;
+            value = Math.max(0, Math.round(value));
+            forecastValues.push(value);
+            const futureDate = new Date(lastDate.getFullYear(), lastDate.getMonth() + t, 1);
+            forecastLabels.push(futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
+        }
+
+        // Store last data for toggling
+        lastForecastData = {
+            historicalLabels: historicalLabels,
+            historicalData: historicalData,
+            forecastLabels: forecastLabels,
+            forecastData: forecastValues,
+            source: 'static'
+        };
+
+        // Render chart
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+        const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalLabels, ...forecastLabels],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(forecastValues.length).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Forecast (12 months) - Static Mabitac',
+                        data: buildForecastDataArray(historicalData.length, lastValue, forecastValues),
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) label += Math.round(context.parsed.y);
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+
+        chartContainer.style.opacity = '1';
+        showChart('forecastApplicantsContainer');
+    }
+    
+    function loadArimaForecast() {
+        if (!forecastApplicantsCtx) return;
+        // If a static Mabitac series is present, use it and render a 12-month
+        // forecast entirely on the client (MSWD Mabitac special-case).
+        try {
+            const staticEl = document.getElementById('mabitac-static-applicants-data');
+            if (staticEl && staticEl.textContent && staticEl.textContent.trim().length > 0) {
+                const staticSeries = JSON.parse(staticEl.textContent);
+                loadStaticMabitacForecast(staticSeries);
+                return;
+            }
+        } catch (err) {
+            console.error('Error reading static Mabitac series:', err);
+        }
+
+        // Show loading state
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        chartContainer.style.opacity = '0.5';
+        clearForecastStatus(chartContainer);
+
+        fetch('/admin/api/analytics/arima-forecast?months=18&forecast_periods=6')
+            .then(response => response.json())
+            .then(data => {
+                console.log('ARIMA Forecast Data:', data);
+                
+                const historicalLabels = data.historical.labels;
+                const historicalData = data.historical.values;
+                const forecastLabels = data.forecast.forecast_labels || [];
+                const forecastData = data.forecast.forecast_values || [];
+                const confidenceLower = data.forecast.confidence_lower || [];
+                const confidenceUpper = data.forecast.confidence_upper || [];
+                const modelType = data.model || 'unknown';
+                const fallbackReason = data.fallback_reason || data.forecast.fallback_reason || null;
+                const fallbackNote = data.forecast_note || data.forecast.forecast_note || null;
+                const forecastSupported = data.forecast_supported !== false;
+                const forecastMessage = data.forecast_message || 'Forecasting is not supported because there is not enough data.';
+                const hasLinearInsufficientDataFallback = modelType === 'linear' && fallbackReason === 'insufficient_data';
+                const hasInsufficientDataUnsupported = !forecastSupported && (
+                    fallbackReason === 'insufficient_data' ||
+                    data.forecast.reason === 'insufficient_data'
+                );
+                const linearFallbackMessage = fallbackNote ||
+                    'Not enough historical data to fit the ARIMA model. Forecasts are using linear regression fallback, and additional monthly data will support stronger and more reliable forecasts.';
+                
+                // Destroy existing chart if any
+                if (applicantsForecastChart) {
+                    applicantsForecastChart.destroy();
+                }
+
+                // Save last fetched series for toggling
+                lastForecastData = {
+                    historicalLabels: historicalLabels,
+                    historicalData: historicalData,
+                    forecastLabels: forecastLabels,
+                    forecastData: forecastData,
+                    confidenceLower: confidenceLower,
+                    confidenceUpper: confidenceUpper,
+                    source: 'arima'
+                };
+
+                if (!forecastSupported) {
+                    if (hasInsufficientDataUnsupported) {
+                        loadFallbackForecast(forecastMessage);
+                        chartContainer.style.opacity = '1';
+                        showChart('forecastApplicantsContainer');
+                        return;
+                    }
+
+                    applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: historicalLabels,
+                            datasets: [
+                                {
+                                    label: 'Historical Data',
+                                    data: historicalData,
+                                    borderColor: 'rgb(78, 115, 223)',
+                                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                                    fill: true,
+                                    tension: 0.4,
+                                    borderWidth: 3,
+                                    pointBackgroundColor: 'rgb(78, 115, 223)',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2,
+                                    pointRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    renderForecastStatus(chartContainer, forecastMessage);
+                    chartContainer.style.opacity = '1';
+                    showChart('forecastApplicantsContainer');
+                    return;
+                }
+                
+                // Get last historical value for connecting forecast line
+                const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+                
+                // Create datasets
+                const datasets = [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(78, 115, 223)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: hasLinearInsufficientDataFallback
+                            ? 'Forecast (Linear Regression Fallback)'
+                            : `ARIMA Forecast`,
+                        // Connect forecast to last historical point, then show forecast values
+                        data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5],
+                        pointBackgroundColor: 'rgb(246, 194, 62)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }
+                ];
+                
+                // Add confidence interval bands if available
+                if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
+                    datasets.push({
+                        label: '95% Confidence Interval',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceUpper],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: '+1',
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0
+                    });
+                    datasets.push({
+                        label: 'Confidence Lower',
+                        data: [...Array(historicalData.length).fill(null), ...confidenceLower],
+                        borderColor: 'rgba(246, 194, 62, 0.3)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        hidden: true // Hide from legend
+                    });
+                }
+                
+                applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [...historicalLabels, ...forecastLabels],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    filter: function(item) {
+                                        // Hide confidence lower from legend
+                                        return item.text !== 'Confidence Lower';
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += Math.round(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (hasLinearInsufficientDataFallback) {
+                    renderForecastStatus(chartContainer, linearFallbackMessage);
+                }
+                
+                chartContainer.style.opacity = '1';
+                showChart('forecastApplicantsContainer');
+            })
+            .catch(error => {
+                console.error('Error loading ARIMA forecast:', error);
+                chartContainer.style.opacity = '1';
+                showChart('forecastApplicantsContainer');
+                
+                // Fallback to simple linear forecast on error
+                loadFallbackForecast();
+            });
+    }
+    
+    function loadFallbackForecast(noteMessage = null) {
+        if (!forecastApplicantsCtx) return;
+
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        clearForecastStatus(chartContainer);
+        
+        const historicalData = applicantsOverTimeData.data;
+        const historicalLabels = applicantsOverTimeData.labels;
+        
+        // Simple linear projection for next 6 months
+        const avgGrowth = historicalData.length > 1 
+            ? (historicalData[historicalData.length - 1] - historicalData[0]) / historicalData.length 
+            : 0;
+        
+        const forecastData = [];
+        const forecastLabels = [];
+        const lastValue = historicalData[historicalData.length - 1] || 0;
+        
+        for (let i = 1; i <= 6; i++) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + i);
+            forecastLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }));
+            forecastData.push(Math.max(0, Math.round(lastValue + (avgGrowth * i))));
+        }
+        
+        if (applicantsForecastChart) {
+            applicantsForecastChart.destroy();
+        }
+        
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [...historicalLabels, ...forecastLabels],
+                datasets: [
+                    {
+                        label: 'Historical Data',
+                        data: [...historicalData, ...Array(6).fill(null)],
+                        borderColor: 'rgb(78, 115, 223)',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Forecast (Linear Fallback)',
+                        data: [...Array(historicalData.length).fill(null), lastValue, ...forecastData],
+                        borderColor: 'rgb(246, 194, 62)',
+                        backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Save last data for toggling
+        lastForecastData = {
+            historicalLabels: historicalLabels,
+            historicalData: historicalData,
+            forecastLabels: forecastLabels,
+            forecastData: forecastData,
+            source: 'fallback'
+        };
+
+        if (noteMessage) {
+            renderForecastStatus(chartContainer, noteMessage);
+        }
+
+        showChart('forecastApplicantsContainer');
+    }
+    
+    // Load ARIMA forecast on page load
+    loadArimaForecast();
+    
+    // Render grouped-by-year view from lastForecastData
+    function renderGroupedYearFromLastData() {
+        if (!lastForecastData || !lastForecastData.historicalLabels) {
+            renderForecastStatus(forecastApplicantsCtx.parentElement, 'No historical series available to group by year.');
+            return;
+        }
+
+        // Build a map of year -> array of 12 months (fill null if missing)
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const yearMap = {};
+        const labels = lastForecastData.historicalLabels;
+        const values = lastForecastData.historicalData;
+        for (let i = 0; i < labels.length; i++) {
+            const lbl = labels[i];
+            const dt = parseMonthLabelToDate(lbl);
+            const y = dt.getFullYear();
+            const m = dt.getMonth();
+            yearMap[y] = yearMap[y] || new Array(12).fill(null);
+            yearMap[y][m] = Number(values[i]) || 0;
+        }
+
+        // Use only years 2023,2024,2025 if present, in that order (per request)
+        const yearsToShow = [2023, 2024, 2025].filter(y => yearMap[y]);
+        if (yearsToShow.length === 0) {
+            renderForecastStatus(forecastApplicantsCtx.parentElement, 'No yearly groups found in the historical data.');
+            return;
+        }
+
+        const palette = ['rgb(78, 115, 223)','rgb(246, 194, 62)','rgb(134,134,134)'];
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+        // We'll render months twice: historical (Jan..Dec) then forecast (Jan..Dec - Forecast)
+        const historicalLabelsPart = monthNames;
+        const forecastLabelsPart = monthNames.map(m => `${m} (Forecast)`);
+        const allLabels = [...historicalLabelsPart, ...forecastLabelsPart];
+
+        const datasets = yearsToShow.map((y, idx) => ({
+            label: String(y),
+            // historical values for first 12 slots, then nulls for forecast slots
+            data: yearMap[y].map(v => v === null ? null : Math.max(0, Math.round(v))).concat(new Array(12).fill(null)),
+            borderColor: palette[idx % palette.length],
+            backgroundColor: 'transparent',
+            borderWidth: 3,
+            tension: 0.4,
+            pointRadius: 4
+        }));
+
+        // Add a single-line series showing the 12-month forecast values in the
+        // second block of labels so it appears beside historical months.
+        if (lastForecastData && Array.isArray(lastForecastData.forecastLabels) && lastForecastData.forecastLabels.length > 0) {
+            const forecastByMonth = new Array(12).fill(null);
+            try {
+                for (let i = 0; i < lastForecastData.forecastLabels.length; i++) {
+                    const fl = lastForecastData.forecastLabels[i];
+                    const fv = Number((lastForecastData.forecastData && lastForecastData.forecastData[i]) || null);
+                    const dt = parseMonthLabelToDate(fl);
+                    const m = dt.getMonth();
+                    forecastByMonth[m] = isNaN(fv) ? null : Math.max(0, Math.round(fv));
+                }
+
+                // Place forecast values in the second block of 12 slots
+                const forecastSeries = new Array(12).fill(null).concat(forecastByMonth);
+                datasets.push({
+                    label: '12-month Forecast',
+                    data: forecastSeries,
+                    borderColor: 'rgb(231, 74, 59)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    borderDash: [6,4]
+                });
+            } catch (e) {
+                console.error('Error building grouped forecast series:', e);
+            }
+        }
+
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: allLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        showChart('forecastApplicantsContainer');
+    }
+
+    // Re-render monthly chart from lastForecastData (no re-fetch)
+    function renderMonthlyFromLastData() {
+        if (!lastForecastData || !lastForecastData.historicalLabels) {
+            loadArimaForecast();
+            return;
+        }
+
+        const chartContainer = forecastApplicantsCtx.parentElement;
+        clearForecastStatus(chartContainer);
+        const historicalLabels = lastForecastData.historicalLabels || [];
+        const historicalData = lastForecastData.historicalData || [];
+        const forecastLabels = lastForecastData.forecastLabels || [];
+        const forecastData = lastForecastData.forecastData || [];
+        const confidenceLower = lastForecastData.confidenceLower || [];
+        const confidenceUpper = lastForecastData.confidenceUpper || [];
+
+        if (applicantsForecastChart) applicantsForecastChart.destroy();
+
+        const datasets = [
+            {
+                label: 'Historical Data',
+                data: [...historicalData, ...Array(forecastLabels.length).fill(null)],
+                borderColor: 'rgb(78, 115, 223)',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3
+            }
+        ];
+
+        if (forecastData.length > 0) {
+            const lastValue = historicalData.length > 0 ? historicalData[historicalData.length - 1] : 0;
+            datasets.push({
+                label: 'Forecast',
+                data: buildForecastDataArray(historicalData.length, lastValue, forecastData),
+                borderColor: 'rgb(246, 194, 62)',
+                backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3,
+                borderDash: [5,5]
+            });
+
+            if (confidenceLower.length > 0 && confidenceUpper.length > 0) {
+                datasets.push({ label: 'CI Upper', data: [...Array(historicalData.length).fill(null), ...confidenceUpper], borderColor: 'rgba(246,194,62,0.3)', backgroundColor: 'rgba(246,194,62,0.08)', fill: '+1', pointRadius: 0, borderWidth:1 });
+                datasets.push({ label: 'CI Lower', data: [...Array(historicalData.length).fill(null), ...confidenceLower], borderColor: 'rgba(246,194,62,0.3)', backgroundColor: 'transparent', fill: false, pointRadius:0, borderWidth:1, hidden: true });
+            }
+        }
+
+        applicantsForecastChart = new Chart(forecastApplicantsCtx.getContext('2d'), {
+            type: 'line',
+            data: { labels: [...historicalLabels, ...forecastLabels], datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        chartContainer.style.opacity = '1';
+        showChart('forecastApplicantsContainer');
+    }
+
+    // Wire up view toggle
+    const forecastViewSelect = document.getElementById('forecastViewSelect');
+    if (forecastViewSelect) {
+        forecastViewSelect.addEventListener('change', function() {
+            const val = this.value;
+            if (val === 'by_year') {
+                renderGroupedYearFromLastData();
+            } else {
+                renderMonthlyFromLastData();
+            }
+        });
+    }
+    
+    // Forecast: Applications per Program Category removed from UI
+    
+    // Time range selector
+    const timeRangeSelect = document.getElementById('timeRangeSelect');
+    if (timeRangeSelect) {
+        timeRangeSelect.addEventListener('change', function() {
+            const months = this.value;
+            // Reload data with new time range
+            fetch(`/api/analytics/applicants-timeseries?months=${months}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Updated time range data:', data);
+                    // Update chart with new data
+                    // This would require storing the chart instance and updating it
+                })
+                .catch(error => console.error('Error fetching time range data:', error));
+        });
+    }
+
+    if (!analyticsRealtimeListenerBound) {
+        analyticsRealtimeListenerBound = true;
+        document.addEventListener('ayuda:admin-analytics-update', function(event) {
+            const detail = event && event.detail ? event.detail : {};
+            const reason = detail.reason ? ` (${detail.reason.replace(/_/g, ' ')})` : '';
+            showAnalyticsUpdateNotice(`New analytics update available${reason}.`);
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initializeAnalyticsAnalysisPage);
+</script>
+
+{% endblock %}

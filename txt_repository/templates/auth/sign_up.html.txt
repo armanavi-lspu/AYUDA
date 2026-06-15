@@ -1,0 +1,748 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .signup-shell {
+        min-height: calc(100vh - 76px);
+        padding: 2.2rem 0 2.8rem;
+        background:
+            radial-gradient(circle at 6% 12%, rgba(38, 166, 154, 0.14), transparent 42%),
+            radial-gradient(circle at 90% 8%, rgba(242, 182, 50, 0.19), transparent 44%),
+            linear-gradient(180deg, #f4f9ff 0%, #ffffff 55%, #f8fcff 100%);
+    }
+
+    .signup-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 20px 46px rgba(11, 44, 95, 0.14);
+    }
+
+    .signup-header {
+        background: linear-gradient(135deg, #0b2c5f 0%, #1f5ea8 64%, #26a69a 100%);
+        color: #ffffff;
+        padding: 1.6rem 1.4rem;
+    }
+
+    .signup-header h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: clamp(1.45rem, 2.7vw, 2rem);
+        margin-bottom: 0.4rem;
+    }
+
+    .signup-header p {
+        margin-bottom: 0;
+        opacity: 0.92;
+    }
+
+    .signup-body {
+        padding: 1.5rem;
+        background: #ffffff;
+    }
+
+    .section-title {
+        font-weight: 700;
+        color: #1f2a37;
+        margin-bottom: 0.85rem;
+    }
+
+    .section-panel {
+        border: 1px solid #dde8f7;
+        border-radius: 14px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(180deg, #ffffff, #fbfdff);
+    }
+
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+
+    .form-control,
+    .custom-select {
+        min-height: 46px;
+        border-radius: 12px;
+        border: 1px solid #d4deeb;
+    }
+
+    .form-control:focus,
+    .custom-select:focus {
+        border-color: #1f5ea8;
+        box-shadow: 0 0 0 0.15rem rgba(31, 94, 168, 0.17);
+    }
+
+    .input-group .btn {
+        border-color: #d4deeb;
+    }
+
+    .input-group .btn:focus {
+        box-shadow: none;
+    }
+
+    .hint-text {
+        color: #64758a;
+        font-size: 0.85rem;
+    }
+
+    .btn-create {
+        border: none;
+        border-radius: 12px;
+        min-height: 48px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1f5ea8, #26a69a);
+        color: #ffffff;
+    }
+
+    .btn-create:hover {
+        color: #ffffff;
+        filter: brightness(1.05);
+    }
+
+    .signup-loading-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(11, 44, 95, 0.78);
+        backdrop-filter: blur(2px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2100;
+        padding: 1rem;
+    }
+
+    .signup-loading-overlay.show {
+        display: flex;
+    }
+
+    .signup-loading-card {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 1.2rem 1.4rem;
+        min-width: 270px;
+        text-align: center;
+        box-shadow: 0 14px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .signup-loading-spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #d7e4f8;
+        border-top-color: #1f5ea8;
+        border-radius: 50%;
+        margin: 0 auto 0.8rem;
+        animation: signupSpin 0.8s linear infinite;
+    }
+
+    .signup-loading-text {
+        margin: 0;
+        color: #0b2c5f;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    @keyframes signupSpin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .auth-switch {
+        color: #607186;
+        margin-top: 0.9rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .signup-shell {
+            padding: 1.25rem 0 2rem;
+        }
+
+        .signup-body {
+            padding: 1.1rem;
+        }
+
+        .signup-header {
+            padding: 1.2rem 1rem;
+        }
+
+        .section-panel {
+            padding: 0.85rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="signup-shell">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10 col-xl-9">
+                <div class="card signup-card">
+                    <div class="signup-header">
+                        <h2><i class="fas fa-user-plus mr-2"></i>Create Your AYUDA Account</h2>
+                        <p>Register to apply for programs, receive updates, and track your assistance status.</p>
+                    </div>
+
+                    <div class="signup-body">
+                        <form method="POST" id="signUpForm" novalidate>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {% set first_name_value = request.form.get('firstName', '') %}
+                            {% set middle_name_value = request.form.get('middleName', '') %}
+                            {% set last_name_value = request.form.get('lastName', '') %}
+                            {% set birth_date_value = request.form.get('birthDate', '') %}
+                            {% set selected_gender = request.form.get('gender', '') %}
+                            {% set email_value = request.form.get('email', '') %}
+
+                            <h5 class="section-title">Personal Information</h5>
+                            <div class="section-panel">
+                                <div class="form-row">
+                                    <div class="form-group col-md-4">
+                                        <label for="firstName" class="required-field">First Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="firstName"
+                                            name="firstName"
+                                            placeholder="Juan"
+                                            value="{{ first_name_value }}"
+                                            pattern="[A-Za-z\s]+"
+                                            required
+                                        >
+                                        <div class="invalid-feedback">Please provide your first name (letters only).</div>
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label for="middleName">Middle Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="middleName"
+                                            name="middleName"
+                                            placeholder="Santos"
+                                            value="{{ middle_name_value }}"
+                                            pattern="[A-Za-z\s]+"
+                                        >
+                                        <div class="invalid-feedback">Please provide your middle name (letters only).</div>
+                                    </div>
+                                    <div class="form-group col-md-4">
+                                        <label for="lastName" class="required-field">Last Name</label>
+                                        <input
+                                            type="text"
+                                            class="form-control"
+                                            id="lastName"
+                                            name="lastName"
+                                            placeholder="Dela Cruz"
+                                            value="{{ last_name_value }}"
+                                            pattern="[A-Za-z\s]+"
+                                            required
+                                        >
+                                        <div class="invalid-feedback">Please provide your last name (letters only).</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="birthDate" class="required-field">Birth Date</label>
+                                        <input type="date" class="form-control" id="birthDate" name="birthDate" value="{{ birth_date_value }}" required>
+                                        <div class="invalid-feedback" id="birthDateFeedback">Please select a valid birth date.</div>
+                                        <small class="hint-text">You must be at least 18 years old to register.</small>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="gender" class="required-field">Gender</label>
+                                        <select class="custom-select" id="gender" name="gender" required>
+                                            <option value="">Select Gender</option>
+                                            <option value="Male" {% if selected_gender == 'Male' %}selected{% endif %}>Male</option>
+                                            <option value="Female" {% if selected_gender == 'Female' %}selected{% endif %}>Female</option>
+                                            <option value="Other" {% if selected_gender == 'Other' %}selected{% endif %}>Other</option>
+                                            <option value="Prefer not to say" {% if selected_gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                                        </select>
+                                        <div class="invalid-feedback">Please select your gender.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h5 class="section-title">Location Information</h5>
+                            <div class="section-panel">
+                                {% set selected_municipality = request.form.get('municipality', '') %}
+                                {% set selected_barangay = request.form.get('barangay', '') %}
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="municipality" class="required-field">Municipality</label>
+                                        <select class="custom-select" id="municipality" name="municipality" required>
+                                            <option value="">Select Municipality</option>
+                                            {% for municipality_option in municipalities %}
+                                            <option value="{{ municipality_option }}" {% if selected_municipality == municipality_option %}selected{% endif %}>{{ municipality_option }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="invalid-feedback">Please select your municipality.</div>
+                                    </div>
+                                    <div class="form-group col-md-6">
+                                        <label for="barangay" class="required-field">Barangay</label>
+                                        <select class="custom-select" id="barangay" name="barangay" required>
+                                            <option value="">Select Barangay</option>
+                                            {% if selected_municipality and municipality_barangays.get(selected_municipality) %}
+                                                {% for barangay_option in municipality_barangays[selected_municipality] %}
+                                                <option value="{{ barangay_option }}" {% if selected_barangay == barangay_option %}selected{% endif %}>{{ barangay_option }}</option>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </select>
+                                        <div class="invalid-feedback">Please select your barangay.</div>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="address" class="required-field">Address</label>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="address"
+                                        name="address"
+                                        value="{{ request.form.get('address', '') }}"
+                                        placeholder="House number, street, and barangay"
+                                        required
+                                    >
+                                    <div class="invalid-feedback">Please provide your address.</div>
+                                </div>
+                            </div>
+
+                            <h5 class="section-title">Account Information</h5>
+                            <div class="section-panel">
+                                <div class="form-group">
+                                    <label for="email" class="required-field">Email Address</label>
+                                    <input
+                                        type="email"
+                                        class="form-control"
+                                        id="email"
+                                        name="email"
+                                        placeholder="juan.delacruz@gmail.com"
+                                        value="{{ email_value }}"
+                                        required
+                                    >
+                                    <div class="invalid-feedback">Please provide a valid email address.</div>
+                                    <small class="hint-text">This will be your account login email.</small>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group col-md-6">
+                                        <label for="password" class="required-field">Password</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="password"
+                                                class="form-control"
+                                                id="password"
+                                                name="password"
+                                                placeholder="Minimum 8 characters"
+                                                minlength="8"
+                                                required
+                                            >
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="Toggle password visibility">
+                                                    <i class="fas fa-eye" id="passwordIcon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="invalid-feedback">Password must be at least 8 characters and include upper/lowercase and a symbol.</div>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height:4px;">
+                                                <div id="signupPasswordStrengthBar" class="progress-bar" role="progressbar" style="width:0%"></div>
+                                            </div>
+                                            <small id="signupPasswordStrengthLabel" class="form-text text-muted"></small>
+                                            <div class="password-checklist d-flex flex-wrap mt-1">
+                                                <small id="signupChecklistLength" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="At least 8 characters">
+                                                    <i class="far fa-circle mr-1"></i>8+ chars
+                                                </small>
+                                                <small id="signupChecklistCase" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include both uppercase and lowercase letters">
+                                                    <i class="far fa-circle mr-1"></i>Upper + lower
+                                                </small>
+                                                <small id="signupChecklistSymbol" class="d-flex align-items-center mr-3 mb-1 text-muted" data-toggle="tooltip" data-placement="top" title="Include a symbol (e.g., ! @ # $ %)">
+                                                    <i class="far fa-circle mr-1"></i>Symbol
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group col-md-6">
+                                        <label for="confirmPassword" class="required-field">Confirm Password</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="password"
+                                                class="form-control"
+                                                id="confirmPassword"
+                                                name="confirmPassword"
+                                                placeholder="Re-enter password"
+                                                required
+                                            >
+                                            <div class="input-group-append">
+                                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword" aria-label="Toggle confirm password visibility">
+                                                    <i class="fas fa-eye" id="confirmPasswordIcon"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="invalid-feedback">Passwords must match.</div>
+                                        <small id="signupPasswordMatchText" class="form-text"></small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="section-panel">
+                                <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between">
+                                    <div class="mb-2 mb-md-0">
+                                        <strong>Data Privacy Consent</strong>
+                                        <br>
+                                        <small class="text-muted">Review how AYUDA would use your personal data.</small>
+                                    </div>
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.data_privacy_consent') }}">
+                                        <i class="fas fa-file-alt mr-1"></i>View Notice
+                                    </a>
+                                </div>
+                                <div class="custom-control custom-checkbox mt-3">
+                                    <input type="checkbox" class="custom-control-input" id="privacyConsentOptional" name="privacyConsentOptional">
+                                    <label class="custom-control-label" for="privacyConsentOptional">
+                                        I have read and understood the AYUDA Philippines Privacy Notice and I consent to the
+                                        collection and processing of my personal data (including any sensitive personal
+                                        information I submit) for account creation, application processing, verification,
+                                        scheduling, notifications, auditing, and system security, in accordance with RA 10173.
+                                    </label>
+                                    <small class="form-text text-muted">Optional for now.</small>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-create btn-block mt-2">
+                                <i class="fas fa-check mr-2"></i>Create Account
+                            </button>
+
+                            <div class="text-center auth-switch">
+                                Already have an account?
+                                <a href="{{ url_for('auth.login') }}" class="font-weight-bold">Log in here</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div id="signupLoadingOverlay" class="signup-loading-overlay" aria-live="assertive" aria-label="Creating your account">
+    <div class="signup-loading-card" role="status">
+        <div class="signup-loading-spinner" aria-hidden="true"></div>
+        <p class="signup-loading-text">Creating your account ....</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('signUpForm');
+    const loadingOverlay = document.getElementById('signupLoadingOverlay');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const birthDateInput = document.getElementById('birthDate');
+    const emailInput = document.getElementById('email');
+    const municipalityInput = document.getElementById('municipality');
+    const barangayInput = document.getElementById('barangay');
+    const addressInput = document.getElementById('address');
+    const municipalityBarangays = JSON.parse('{{ municipality_barangays | tojson | safe }}');
+    const signupDraftKey = 'ayuda_signup_draft_v1';
+    const draftFieldIds = [
+        'firstName',
+        'lastName',
+        'birthDate',
+        'gender',
+        'municipality',
+        'barangay',
+        'address',
+        'email'
+    ];
+    const strengthBar = document.getElementById('signupPasswordStrengthBar');
+    const strengthLabel = document.getElementById('signupPasswordStrengthLabel');
+    const checklistLength = document.getElementById('signupChecklistLength');
+    const checklistCase = document.getElementById('signupChecklistCase');
+    const checklistSymbol = document.getElementById('signupChecklistSymbol');
+    const matchText = document.getElementById('signupPasswordMatchText');
+
+    function isReloadNavigation() {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (navEntries && navEntries.length > 0) {
+            return navEntries[0].type === 'reload';
+        }
+
+        if (performance.navigation) {
+            return performance.navigation.type === 1;
+        }
+
+        return false;
+    }
+
+    function saveSignupDraft() {
+        const draft = {};
+        draftFieldIds.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                draft[fieldId] = field.value;
+            }
+        });
+        sessionStorage.setItem(signupDraftKey, JSON.stringify(draft));
+    }
+
+    function loadSignupDraft() {
+        const rawDraft = sessionStorage.getItem(signupDraftKey);
+        if (!rawDraft) {
+            return;
+        }
+
+        let draft = null;
+        try {
+            draft = JSON.parse(rawDraft);
+        } catch (error) {
+            sessionStorage.removeItem(signupDraftKey);
+            return;
+        }
+
+        if (!draft || typeof draft !== 'object') {
+            return;
+        }
+
+        draftFieldIds.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (!field) {
+                return;
+            }
+
+            const serverValue = field.value;
+            const draftValue = draft[fieldId];
+            if (!serverValue && typeof draftValue === 'string') {
+                field.value = draftValue;
+            }
+        });
+    }
+
+    function showSignupLoading() {
+        if (loadingOverlay) {
+            loadingOverlay.classList.add('show');
+        }
+
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Account...';
+        }
+    }
+
+    function setupToggle(buttonId, inputId, iconId) {
+        const button = document.getElementById(buttonId);
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+
+        if (!button || !input || !icon) {
+            return;
+        }
+
+        button.addEventListener('click', function() {
+            const nextType = input.type === 'password' ? 'text' : 'password';
+            input.type = nextType;
+            icon.classList.toggle('fa-eye', nextType === 'password');
+            icon.classList.toggle('fa-eye-slash', nextType !== 'password');
+        });
+    }
+
+    function validateAge() {
+        const rawValue = birthDateInput.value;
+
+        if (!rawValue) {
+            birthDateInput.setCustomValidity('');
+            return true;
+        }
+
+        const birthDate = new Date(rawValue);
+        const today = new Date();
+
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age -= 1;
+        }
+
+        if (age < 18) {
+            birthDateInput.setCustomValidity('You must be at least 18 years old');
+            document.getElementById('birthDateFeedback').textContent = 'You must be at least 18 years old';
+            return false;
+        }
+
+        birthDateInput.setCustomValidity('');
+        return true;
+    }
+
+    function validatePasswordMatch() {
+        if (confirmPasswordInput.value && passwordInput.value !== confirmPasswordInput.value) {
+            confirmPasswordInput.setCustomValidity('Passwords must match');
+            if (matchText) {
+                matchText.textContent = 'Passwords do not match';
+                matchText.className = 'form-text text-danger';
+            }
+            return false;
+        }
+        confirmPasswordInput.setCustomValidity('');
+        if (matchText) {
+            if (!confirmPasswordInput.value) {
+                matchText.textContent = '';
+                matchText.className = 'form-text';
+            } else {
+                matchText.textContent = 'Passwords match';
+                matchText.className = 'form-text text-success';
+            }
+        }
+        return true;
+    }
+
+    function evaluatePasswordStrength(password) {
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasSymbol = /[^A-Za-z0-9]/.test(password);
+        const hasCase = hasLower && hasUpper;
+
+        let score = 0;
+        if (password.length >= 8) score += 40;
+        if (password.length >= 12) score += 10;
+        if (hasCase) score += 30;
+        if (hasSymbol) score += 30;
+        score = Math.min(score, 100);
+
+        let label = 'Weak';
+        let barClass = 'bg-danger';
+        if (score >= 70) {
+            label = 'Strong';
+            barClass = 'bg-success';
+        } else if (score >= 40) {
+            label = 'Medium';
+            barClass = 'bg-warning';
+        }
+
+        return {
+            score,
+            label,
+            barClass,
+            hasCase,
+            hasSymbol,
+            lengthOk: password.length >= 8,
+        };
+    }
+
+    function setChecklistItem(item, met) {
+        if (!item) {
+            return;
+        }
+        const icon = item.querySelector('i');
+        if (icon) {
+            icon.className = met
+                ? 'fas fa-check-circle mr-1 text-success'
+                : 'far fa-circle mr-1 text-muted';
+        }
+        item.classList.toggle('text-success', met);
+        item.classList.toggle('text-muted', !met);
+    }
+
+    function renderPasswordStrength(password) {
+        if (!strengthBar || !strengthLabel) {
+            return;
+        }
+
+        if (!password) {
+            strengthBar.style.width = '0%';
+            strengthBar.className = 'progress-bar';
+            strengthLabel.textContent = '';
+            setChecklistItem(checklistLength, false);
+            setChecklistItem(checklistCase, false);
+            setChecklistItem(checklistSymbol, false);
+            return;
+        }
+
+        const result = evaluatePasswordStrength(password);
+        strengthBar.style.width = result.score + '%';
+        strengthBar.className = 'progress-bar ' + result.barClass;
+        strengthLabel.textContent = 'Strength: ' + result.label;
+        setChecklistItem(checklistLength, result.lengthOk);
+        setChecklistItem(checklistCase, result.hasCase);
+        setChecklistItem(checklistSymbol, result.hasSymbol);
+    }
+
+    function renderBarangays(municipality, selectedBarangay) {
+        barangayInput.innerHTML = '';
+        barangayInput.append(new Option('Select Barangay', ''));
+
+        if (!municipality || !municipalityBarangays[municipality]) {
+            barangayInput.disabled = true;
+            return;
+        }
+
+        municipalityBarangays[municipality].forEach(function(barangayName) {
+            const option = new Option(barangayName, barangayName);
+            if (selectedBarangay && selectedBarangay === barangayName) {
+                option.selected = true;
+            }
+            barangayInput.append(option);
+        });
+
+        barangayInput.disabled = false;
+    }
+
+    setupToggle('togglePassword', 'password', 'passwordIcon');
+    setupToggle('toggleConfirmPassword', 'confirmPassword', 'confirmPasswordIcon');
+
+    if (window.jQuery && window.jQuery.fn && window.jQuery.fn.tooltip) {
+        window.jQuery('[data-toggle="tooltip"]').tooltip();
+    }
+
+    if (!isReloadNavigation()) {
+        sessionStorage.removeItem(signupDraftKey);
+    }
+
+    loadSignupDraft();
+
+    confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+    passwordInput.addEventListener('input', function() {
+        validatePasswordMatch();
+        renderPasswordStrength(passwordInput.value);
+    });
+    birthDateInput.addEventListener('change', validateAge);
+    emailInput.addEventListener('blur', function() {
+        emailInput.value = emailInput.value.trim().toLowerCase();
+    });
+
+    renderBarangays(municipalityInput.value, barangayInput.value);
+
+    municipalityInput.addEventListener('change', function() {
+        renderBarangays(municipalityInput.value, '');
+        saveSignupDraft();
+    });
+
+    draftFieldIds.forEach(function(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) {
+            return;
+        }
+        const eventName = field.tagName === 'SELECT' ? 'change' : 'input';
+        field.addEventListener(eventName, saveSignupDraft);
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        emailInput.value = emailInput.value.trim().toLowerCase();
+        addressInput.value = addressInput.value.trim();
+
+        const isAgeValid = validateAge();
+        const isPasswordValid = validatePasswordMatch();
+
+        form.classList.add('was-validated');
+
+        if (!isAgeValid || !isPasswordValid || form.checkValidity() === false) {
+            e.stopPropagation();
+            return;
+        }
+
+        saveSignupDraft();
+        showSignupLoading();
+        form.submit();
+    });
+});
+</script>
+{% endblock %}

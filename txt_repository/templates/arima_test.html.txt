@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIMA Forecast Test - AYUDA</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Cormorant+Garamond:wght@600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top, rgba(31, 94, 168, 0.15), transparent 45%),
+                linear-gradient(140deg, #f7f9fc 0%, #fdfcf8 100%);
+            color: #1f2a44;
+            min-height: 100vh;
+        }
+
+        .arima-test-shell {
+            animation: arimaFadeIn 0.45s ease-out;
+        }
+
+        @keyframes arimaFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .arima-hero {
+            background:
+                radial-gradient(circle at top left, rgba(38, 166, 154, 0.18), transparent 48%),
+                linear-gradient(135deg, rgba(11, 44, 95, 0.95) 0%, rgba(31, 94, 168, 0.88) 60%, rgba(38, 166, 154, 0.85) 100%);
+            border-radius: 18px;
+            padding: 1.5rem 1.75rem;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 16px 30px rgba(11, 44, 95, 0.18);
+        }
+
+        .arima-hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.3px;
+        }
+
+        .arima-hero p {
+            color: rgba(255, 255, 255, 0.78);
+            margin-bottom: 0;
+        }
+
+        .arima-panel {
+            border-radius: 16px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .arima-panel .card-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            color: #1f2a44;
+            font-weight: 600;
+        }
+
+        .arima-panel .card-header h6 {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 700;
+            margin-bottom: 0;
+        }
+
+        .arima-chart-wrap {
+            position: relative;
+            height: 360px;
+        }
+
+        .arima-chart-tall {
+            height: 380px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px dashed rgba(148, 163, 184, 0.45);
+            font-size: 0.95rem;
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: #475569;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .status-good {
+            background: #e7f6ed;
+            color: #146c2e;
+        }
+
+        .status-warn {
+            background: #fff4d6;
+            color: #b45309;
+        }
+
+        .status-bad {
+            background: #fde7e7;
+            color: #b42318;
+        }
+
+        .status-unknown {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .summary-note {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 0.65rem 0.85rem;
+            color: #475569;
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .arima-custom-panel {
+            border: 1px dashed rgba(148, 163, 184, 0.7);
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 0.75rem;
+        }
+
+        .arima-data-table {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 12px;
+            overflow: hidden;
+            max-height: 260px;
+            background: #ffffff;
+        }
+
+        .arima-data-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 0.65rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+            gap: 0.5rem;
+        }
+
+        .arima-data-row:last-child {
+            border-bottom: none;
+        }
+
+        .arima-data-head {
+            background: #eef2ff;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        .arima-data-label {
+            color: #334155;
+            font-weight: 600;
+        }
+
+        .arima-data-input {
+            max-width: 120px;
+            text-align: right;
+        }
+
+        .arima-raw {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            max-height: 320px;
+            overflow: auto;
+        }
+
+        .btn-arima {
+            background: linear-gradient(135deg, #f2b632 0%, #d97706 100%);
+            border: none;
+            color: #1f2a44;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 0.65rem 1.1rem;
+            box-shadow: 0 8px 18px rgba(242, 182, 50, 0.35);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-arima:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(242, 182, 50, 0.4);
+        }
+
+        @media (max-width: 991.98px) {
+            .arima-hero {
+                padding: 1.25rem;
+            }
+
+            .arima-hero h1 {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4 arima-test-shell">
+        <div class="arima-hero">
+            <h1 class="mb-1"><i class="fas fa-flask mr-2"></i>ARIMA Forecast Test Lab</h1>
+            <p>Standalone testing page using a fixed dataset (Jan-Dec 2025).</p>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card arima-panel">
+                    <div class="card-header">
+                        <h6 class="m-0"><i class="fas fa-sliders-h mr-2"></i>Test Controls</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="arimaPeriods" class="font-weight-bold">Forecast periods</label>
+                            <input type="number" class="form-control" id="arimaPeriods" min="1" max="12" value="6">
+                            <small class="form-text text-muted">Maximum of 12 future periods.</small>
+                        </div>
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="forceArimaToggle">
+                            <label class="custom-control-label" for="forceArimaToggle">Force ARIMA mode</label>
+                        </div>
+                        <div class="custom-control custom-switch mb-3">
+                            <input type="checkbox" class="custom-control-input" id="customDataToggle">
+                            <label class="custom-control-label" for="customDataToggle">Use custom historical data</label>
+                        </div>
+                        <div id="customDataPanel" class="arima-custom-panel d-none">
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label for="arimaStartMonth" class="font-weight-bold">Start month</label>
+                                    <input type="month" class="form-control" id="arimaStartMonth" value="2025-01">
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label for="arimaHistoryCount" class="font-weight-bold">Historical months</label>
+                                    <input type="number" class="form-control" id="arimaHistoryCount" min="3" max="36" value="12">
+                                </div>
+                            </div>
+                            <div class="small text-muted mb-2">Edit the historical values for each month below.</div>
+                            <div class="arima-data-table">
+                                <div class="arima-data-row arima-data-head">
+                                    <span>Month</span>
+                                    <span>Applicants</span>
+                                </div>
+                                <div id="arimaDataRows"></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-arima btn-block" id="runArimaTestBtn">
+                            <i class="fas fa-play mr-2"></i>Run Test
+                        </button>
+                         <p class="text-muted small mt-3 mb-0">Default dataset: Jan-Dec 2025 applicants. Enable custom data to override.</p>
+                    </div>
+                </div>
+
+                <div class="card arima-panel mt-3">
+                    <div class="card-header">
+                        <h6 class="m-0"><i class="fas fa-clipboard-check mr-2"></i>Result Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-row">
+                            <span class="summary-label">Model</span>
+                            <span id="arimaModel">--</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Status</span>
+                            <span id="arimaSupportBadge" class="status-pill status-unknown">Not run</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Data points</span>
+                            <span id="arimaDataPoints">0</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Range</span>
+                            <span id="arimaRange">--</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Force ARIMA</span>
+                            <span id="arimaForceMode">Disabled</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Fallback reason</span>
+                            <span id="arimaFallbackReason">none</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Required points</span>
+                            <span id="arimaRequiredPoints">n/a</span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="summary-label">Available points</span>
+                            <span id="arimaAvailablePoints">0</span>
+                        </div>
+                        <div class="summary-note" id="arimaMessage">Run a test to view notes.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-8 mb-4">
+                <div class="card arima-panel">
+                    <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+                        <h6 class="m-0"><i class="fas fa-chart-line mr-2"></i>Forecast Preview</h6>
+                        <div class="text-muted small" id="arimaLastRun">Not run yet</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="arima-chart-wrap">
+                            <canvas id="arimaForecastChart"></canvas>
+                        </div>
+                        <div id="arimaStatusMessage" class="alert alert-warning mt-3 d-none"></div>
+                    </div>
+                </div>
+
+                <div class="card arima-panel mt-3">
+                    <div class="card-header">
+                        <h6 class="m-0"><i class="fas fa-chart-bar mr-2"></i>Forecast: Applications per Program Category</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="arima-chart-wrap arima-chart-tall">
+                            <canvas id="arimaProgramCategoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card arima-panel mt-3">
+                    <div class="card-header">
+                        <h6 class="m-0"><i class="fas fa-code mr-2"></i>Raw Response</h6>
+                    </div>
+                    <div class="card-body">
+                        <pre id="arimaRawResponse" class="arima-raw"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script>
+    (function () {
+        const periodsInput = document.getElementById('arimaPeriods');
+        const forceToggle = document.getElementById('forceArimaToggle');
+        const runBtn = document.getElementById('runArimaTestBtn');
+        const rawBox = document.getElementById('arimaRawResponse');
+        const messageBox = document.getElementById('arimaStatusMessage');
+        const lastRun = document.getElementById('arimaLastRun');
+        const supportBadge = document.getElementById('arimaSupportBadge');
+        const customToggle = document.getElementById('customDataToggle');
+        const customPanel = document.getElementById('customDataPanel');
+        const startMonthInput = document.getElementById('arimaStartMonth');
+        const historyCountInput = document.getElementById('arimaHistoryCount');
+        const dataRows = document.getElementById('arimaDataRows');
+
+        const modelNode = document.getElementById('arimaModel');
+        const dataPointsNode = document.getElementById('arimaDataPoints');
+        const rangeNode = document.getElementById('arimaRange');
+        const forceNode = document.getElementById('arimaForceMode');
+        const fallbackNode = document.getElementById('arimaFallbackReason');
+        const requiredNode = document.getElementById('arimaRequiredPoints');
+        const availableNode = document.getElementById('arimaAvailablePoints');
+        const noteNode = document.getElementById('arimaMessage');
+        const chartCtx = document.getElementById('arimaForecastChart');
+        const programChartCtx = document.getElementById('arimaProgramCategoryChart');
+
+        let forecastChart = null;
+        let programCategoryChart = null;
+        let customDirty = false;
+
+        const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const PROGRAM_PALETTE = [
+            '#4f46e5',
+            '#0ea5e9',
+            '#10b981',
+            '#f59e0b',
+            '#ef4444',
+            '#6366f1',
+            '#14b8a6',
+            '#a855f7'
+        ];
+
+        function clampNumber(value, min, max, fallback) {
+            if (Number.isNaN(value)) {
+                return fallback;
+            }
+            return Math.min(Math.max(value, min), max);
+        }
+
+        function parseMonthInput(value) {
+            if (!value) return null;
+            const parts = value.split('-');
+            if (parts.length < 2) return null;
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            if (Number.isNaN(year) || Number.isNaN(month)) return null;
+            return new Date(year, month - 1, 1);
+        }
+
+        function formatMonthLabel(date) {
+            return MONTH_NAMES[date.getMonth()] + ' ' + date.getFullYear();
+        }
+
+        function labelToMonthInput(label) {
+            if (!label) return '';
+            const parts = label.split(' ');
+            if (parts.length < 2) return '';
+            const monthIndex = MONTH_NAMES.indexOf(parts[0]);
+            const year = parseInt(parts[1], 10);
+            if (monthIndex < 0 || Number.isNaN(year)) return '';
+            const monthValue = String(monthIndex + 1).padStart(2, '0');
+            return year + '-' + monthValue;
+        }
+
+        function buildLabelsFromStart(startValue, count) {
+            const startDate = parseMonthInput(startValue) || new Date(2025, 0, 1);
+            const labels = [];
+            for (let i = 0; i < count; i += 1) {
+                const date = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+                labels.push(formatMonthLabel(date));
+            }
+            return labels;
+        }
+
+        function setText(node, value) {
+            if (!node) return;
+            node.textContent = value;
+        }
+
+        function setBadge(label, severity) {
+            if (!supportBadge) return;
+            supportBadge.textContent = label || 'Not run';
+            supportBadge.classList.remove('status-good', 'status-warn', 'status-bad', 'status-unknown');
+            if (severity === 'good') {
+                supportBadge.classList.add('status-good');
+            } else if (severity === 'warn') {
+                supportBadge.classList.add('status-warn');
+            } else if (severity === 'bad') {
+                supportBadge.classList.add('status-bad');
+            } else {
+                supportBadge.classList.add('status-unknown');
+            }
+        }
+
+        function showMessage(message) {
+            if (!messageBox) return;
+            if (message) {
+                messageBox.textContent = message;
+                messageBox.classList.remove('d-none');
+            } else {
+                messageBox.classList.add('d-none');
+            }
+        }
+
+        function colorWithAlpha(hexColor, alpha) {
+            const clean = String(hexColor || '').replace('#', '');
+            if (clean.length !== 6) {
+                return 'rgba(79, 70, 229, ' + alpha + ')';
+            }
+
+            const r = parseInt(clean.slice(0, 2), 16);
+            const g = parseInt(clean.slice(2, 4), 16);
+            const b = parseInt(clean.slice(4, 6), 16);
+            return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+        }
+
+        function buildForecastSeries(historicalLength, lastValue, forecastData) {
+            const nulls = Array(historicalLength).fill(null);
+            return nulls.concat([lastValue]).concat(forecastData);
+        }
+
+        function getCustomDataFromTable() {
+            if (!dataRows) return { labels: [], values: [] };
+            const labels = [];
+            const values = [];
+            const rows = dataRows.querySelectorAll('.arima-data-row');
+            rows.forEach(function (row) {
+                const label = row.dataset.label || '';
+                const input = row.querySelector('input');
+                const value = input ? parseFloat(input.value) : 0;
+                labels.push(label);
+                values.push(Number.isNaN(value) ? 0 : value);
+            });
+            return { labels: labels, values: values };
+        }
+
+        function renderCustomTable(labels, values) {
+            if (!dataRows) return;
+            dataRows.innerHTML = '';
+            labels.forEach(function (label, index) {
+                const row = document.createElement('div');
+                row.className = 'arima-data-row';
+                row.dataset.index = String(index);
+                row.dataset.label = label;
+
+                const labelNode = document.createElement('span');
+                labelNode.className = 'arima-data-label';
+                labelNode.textContent = label;
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = '1';
+                input.className = 'form-control form-control-sm arima-data-input';
+                input.value = values[index] != null ? values[index] : 0;
+                input.addEventListener('input', function () {
+                    customDirty = true;
+                    saveCustomDataToStorage();
+                });
+
+                row.appendChild(labelNode);
+                row.appendChild(input);
+                dataRows.appendChild(row);
+            });
+
+            // Scale the visible table height to the number of rows requested so
+            // the user can edit the full series without excessive scrolling.
+            try {
+                const tableWrap = dataRows.closest('.arima-data-table');
+                if (tableWrap) {
+                    const rowCount = Math.max(1, labels.length);
+                    const rowHeight = 44; // approx height per row in px
+                    const maxRows = 36; // cap to match input limit
+                    tableWrap.style.maxHeight = Math.min(rowCount, maxRows) * rowHeight + 'px';
+                }
+            } catch (e) {
+                // ignore styling issues
+            }
+        }
+
+        function buildCustomTable(markDirty) {
+            if (!startMonthInput || !historyCountInput) return;
+            const count = clampNumber(parseInt(historyCountInput.value, 10), 3, 36, 12);
+            historyCountInput.value = count;
+            const labels = buildLabelsFromStart(startMonthInput.value, count);
+            const existing = getCustomDataFromTable();
+            const valueMap = {};
+            existing.labels.forEach(function (label, index) {
+                valueMap[label] = existing.values[index];
+            });
+            const values = labels.map(function (label) {
+                return valueMap[label] != null ? valueMap[label] : 0;
+            });
+            renderCustomTable(labels, values);
+            if (markDirty) {
+                customDirty = true;
+            }
+            // Save the generated table as initial stored data (if not dirty)
+            if (!customDirty) {
+                saveCustomDataToStorage();
+            }
+        }
+
+        function seedCustomData(payload) {
+            if (customDirty) return;
+            const historical = payload.historical || {};
+            const labels = Array.isArray(historical.labels) ? historical.labels.slice() : [];
+            const values = Array.isArray(historical.values) ? historical.values.slice() : [];
+            if (!labels.length || !values.length) return;
+            if (startMonthInput) {
+                const startValue = labelToMonthInput(labels[0]);
+                if (startValue) {
+                    startMonthInput.value = startValue;
+                }
+            }
+            if (historyCountInput) {
+                historyCountInput.value = labels.length;
+            }
+            renderCustomTable(labels, values);
+            // Persist seeded data so reloads keep the same custom series unless
+            // the user actively edits it.
+            saveCustomDataToStorage();
+        }
+
+        function toggleCustomPanel(isEnabled) {
+            if (!customPanel) return;
+            customPanel.classList.toggle('d-none', !isEnabled);
+        }
+
+        // Local storage helpers to persist custom historical data across reloads.
+        const STORAGE_KEY = 'arima_custom_data_v1';
+
+        function saveCustomDataToStorage() {
+            if (!window || !window.localStorage) return;
+            try {
+                const payload = {
+                    start_month: startMonthInput ? startMonthInput.value : null,
+                    history_count: historyCountInput ? parseInt(historyCountInput.value, 10) : null,
+                    data: getCustomDataFromTable(),
+                    ts: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                // ignore storage errors
+            }
+        }
+
+        function loadCustomDataFromStorage() {
+            if (!window || !window.localStorage) return null;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return parsed;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function renderChart(payload) {
+            if (!chartCtx) return;
+
+            const historical = payload.historical || {};
+            const forecast = payload.forecast || {};
+
+            const historicalLabels = historical.labels || [];
+            const historicalValues = historical.values || [];
+            const forecastLabels = forecast.forecast_labels || [];
+            const forecastValues = forecast.forecast_values || [];
+            const confidenceLower = forecast.confidence_lower || [];
+            const confidenceUpper = forecast.confidence_upper || [];
+
+            const forecastSupported = payload.forecast_supported !== false;
+            const lastValue = historicalValues.length ? historicalValues[historicalValues.length - 1] : 0;
+
+            if (forecastChart) {
+                forecastChart.destroy();
+            }
+
+            const labels = historicalLabels.concat(forecastLabels);
+
+            const datasets = [
+                {
+                    label: 'Historical Data',
+                    data: historicalValues.concat(Array(forecastLabels.length).fill(null)),
+                    borderColor: 'rgba(30, 64, 175, 0.9)',
+                    backgroundColor: 'rgba(30, 64, 175, 0.08)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3,
+                    pointRadius: 3
+                }
+            ];
+
+            if (forecastSupported && forecastValues.length) {
+                datasets.push({
+                    label: 'Forecast',
+                    data: buildForecastSeries(historicalValues.length, lastValue, forecastValues),
+                    borderColor: 'rgba(244, 149, 26, 0.95)',
+                    backgroundColor: 'rgba(244, 149, 26, 0.1)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 3,
+                    borderDash: [6, 5],
+                    pointRadius: 3
+                });
+
+                if (confidenceLower.length && confidenceUpper.length) {
+                    datasets.push({
+                        label: 'Confidence Upper',
+                        data: Array(historicalValues.length).fill(null).concat(confidenceUpper),
+                        borderColor: 'rgba(244, 149, 26, 0.35)',
+                        backgroundColor: 'rgba(244, 149, 26, 0.12)',
+                        fill: '+1',
+                        tension: 0.35,
+                        borderWidth: 1,
+                        pointRadius: 0
+                    });
+                    datasets.push({
+                        label: 'Confidence Lower',
+                        data: Array(historicalValues.length).fill(null).concat(confidenceLower),
+                        borderColor: 'rgba(244, 149, 26, 0.2)',
+                        backgroundColor: 'transparent',
+                        fill: false,
+                        tension: 0.35,
+                        borderWidth: 1,
+                        pointRadius: 0,
+                        hidden: true
+                    });
+                }
+            }
+
+            forecastChart = new Chart(chartCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['No data'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                filter: function (item) {
+                                    return item.text !== 'Confidence Lower';
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderProgramCategoryChart(payload) {
+            if (!programChartCtx) return;
+
+            const programForecast = payload.program_category_forecast || {};
+            const historicalLabels = programForecast.historical_labels || [];
+            const forecastLabels = programForecast.forecast_labels || [];
+            const allLabels = historicalLabels.concat(forecastLabels);
+            const categories = Array.isArray(programForecast.categories) ? programForecast.categories : [];
+
+            if (programCategoryChart) {
+                programCategoryChart.destroy();
+            }
+
+            if (!allLabels.length || !categories.length) {
+                return;
+            }
+
+            const datasets = [];
+            categories.forEach(function (category, index) {
+                const name = category.program_type || 'Category ' + (index + 1);
+                const color = PROGRAM_PALETTE[index % PROGRAM_PALETTE.length];
+                const historicalValues = Array.isArray(category.historical_values)
+                    ? category.historical_values
+                    : [];
+                const forecastValues = Array.isArray(category.forecast_values)
+                    ? category.forecast_values
+                    : [];
+
+                datasets.push({
+                    label: name + ' (Historical)',
+                    data: historicalValues.concat(Array(forecastLabels.length).fill(null)),
+                    borderColor: color,
+                    backgroundColor: colorWithAlpha(color, 0.12),
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 2
+                });
+
+                if (forecastValues.length && historicalValues.length) {
+                    const lastHistorical = historicalValues[historicalValues.length - 1];
+                    const forecastSeries = Array(Math.max(historicalValues.length - 1, 0)).fill(null)
+                        .concat([lastHistorical])
+                        .concat(forecastValues);
+
+                    datasets.push({
+                        label: name + ' (Forecast)',
+                        data: forecastSeries,
+                        borderColor: color,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [6, 5],
+                        fill: false,
+                        tension: 0.35,
+                        pointRadius: 2
+                    });
+                }
+            });
+
+            programCategoryChart = new Chart(programChartCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: allLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += Math.round(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSummary(payload, periods) {
+            const forecast = payload.forecast || {};
+            const forecastSupported = payload.forecast_supported !== false;
+            const model = payload.model || forecast.model || 'unknown';
+            const fallbackReason = payload.fallback_reason || forecast.fallback_reason || '';
+            const forecastMessage = payload.forecast_message || forecast.forecast_note || forecast.message || '';
+            const hasFallback = !!fallbackReason || !!payload.forecast_note;
+            const historicalLabels = (payload.historical || {}).labels || [];
+            const rangeLabel = historicalLabels.length
+                ? historicalLabels[0] + ' - ' + historicalLabels[historicalLabels.length - 1]
+                : '--';
+
+            setText(modelNode, model);
+            setText(dataPointsNode, String(payload.data_points || 0));
+            setText(rangeNode, rangeLabel + ' / ' + periods + ' periods');
+            setText(forceNode, payload.force_arima_mode ? 'Enabled' : 'Disabled');
+            setText(fallbackNode, fallbackReason || 'none');
+            setText(requiredNode, String(payload.required_data_points || 'n/a'));
+            setText(availableNode, String(payload.available_data_points || payload.data_points || 0));
+            setText(noteNode, forecastMessage || 'No notes returned.');
+
+            if (!forecastSupported) {
+                setBadge('Unsupported', 'bad');
+            } else if (hasFallback) {
+                setBadge('Fallback', 'warn');
+            } else {
+                setBadge('Supported', 'good');
+            }
+
+            if (lastRun) {
+                const now = new Date();
+                lastRun.textContent = 'Last run: ' + now.toLocaleString('en-US');
+            }
+        }
+
+        function setLoadingState(isLoading) {
+            if (!runBtn) return;
+            runBtn.disabled = isLoading;
+            runBtn.textContent = isLoading ? 'Running Test...' : 'Run Test';
+        }
+
+        function runTest() {
+            const periods = clampNumber(parseInt(periodsInput.value, 10), 1, 12, 6);
+            const forceArima = !!forceToggle.checked;
+            const useCustomData = !!(customToggle && customToggle.checked);
+
+            periodsInput.value = periods;
+
+            setLoadingState(true);
+            showMessage('');
+
+            const url = '/api/arima-test' +
+                '?forecast_periods=' + periods +
+                '&force_arima=' + (forceArima ? 'true' : 'false');
+
+            const requestOptions = { method: 'GET' };
+            if (useCustomData) {
+                const customPayload = getCustomDataFromTable();
+                requestOptions.method = 'POST';
+                requestOptions.headers = { 'Content-Type': 'application/json' };
+                requestOptions.body = JSON.stringify({
+                    historical_labels: customPayload.labels,
+                    historical_values: customPayload.values
+                });
+            }
+
+            fetch(url, requestOptions)
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Request failed: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    renderChart(payload);
+                    renderProgramCategoryChart(payload);
+                    updateSummary(payload, periods);
+                    seedCustomData(payload);
+
+                    const forecastSupported = payload.forecast_supported !== false;
+                    const messages = [];
+                    if (payload.input_warning) {
+                        messages.push(payload.input_warning);
+                    }
+                    if (!forecastSupported) {
+                        messages.push(payload.forecast_message || 'Forecasting not supported for the current data.');
+                    } else if (payload.forecast_note) {
+                        messages.push(payload.forecast_note);
+                    }
+
+                    showMessage(messages.join(' '));
+
+                    if (rawBox) {
+                        rawBox.textContent = JSON.stringify(payload, null, 2);
+                    }
+                })
+                .catch(function (error) {
+                    showMessage('Unable to load forecast. ' + error.message);
+                    setBadge('Error', 'bad');
+                    if (rawBox) {
+                        rawBox.textContent = error.message;
+                    }
+                })
+                .finally(function () {
+                    setLoadingState(false);
+                });
+        }
+
+        if (runBtn) {
+            runBtn.addEventListener('click', runTest);
+        }
+
+        if (customToggle) {
+            customToggle.addEventListener('change', function () {
+                toggleCustomPanel(customToggle.checked);
+            });
+        }
+
+        if (startMonthInput) {
+            startMonthInput.addEventListener('change', function () {
+                buildCustomTable(true);
+                saveCustomDataToStorage();
+            });
+        }
+
+        if (historyCountInput) {
+            historyCountInput.addEventListener('change', function () {
+                buildCustomTable(true);
+                saveCustomDataToStorage();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Load any stored custom series and apply it. If none, build default table.
+            const stored = loadCustomDataFromStorage();
+            if (stored && Array.isArray((stored.data || {}).labels) && (stored.data.labels.length)) {
+                if (startMonthInput && stored.start_month) startMonthInput.value = stored.start_month;
+                if (historyCountInput && stored.history_count) historyCountInput.value = stored.history_count;
+                renderCustomTable((stored.data || {}).labels || [], (stored.data || {}).values || []);
+                if (customToggle) {
+                    customToggle.checked = true;
+                }
+                toggleCustomPanel(true);
+                customDirty = true; // user-saved data should not be overwritten by seeded payload
+            } else {
+                toggleCustomPanel(customToggle && customToggle.checked);
+                buildCustomTable(false);
+            }
+
+            // Kick off initial ARIMA test (uses either seeded or stored custom data)
+            runTest();
+        });
+    })();
+    </script>
+</body>
+</html>

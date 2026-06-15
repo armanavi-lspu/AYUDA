@@ -1,0 +1,945 @@
+{% extends "community/community_base.html" %}
+{% block title %}{{ program.program_name }} - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-gold: #d89f1d;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .program-detail-shell {
+        animation: detailFadeIn 0.45s ease-out;
+    }
+
+    @keyframes detailFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .program-breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin: 0 0 0.8rem;
+    }
+
+    .program-breadcrumb .breadcrumb-item a {
+        color: #5f7393;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .program-breadcrumb .breadcrumb-item.active {
+        color: #264a80;
+        font-weight: 700;
+    }
+
+    .program-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+        color: #94a3b8;
+    }
+
+    .program-header {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        color: var(--dash-slate);
+        box-shadow: 0 10px 24px rgba(31, 42, 68, 0.07);
+    }
+
+    .program-header h1 {
+        font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+        color: var(--dash-slate);
+    }
+
+    .program-header .lead,
+    .program-header .posted-text {
+        color: var(--dash-muted);
+    }
+
+    .program-info-panel {
+        border: 1px solid #d5ddf3;
+        border-radius: 12px;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.86);
+        color: #1f2a44;
+    }
+
+    .program-info-panel h6 {
+        color: #1e3a8a;
+        margin-bottom: 0.9rem;
+    }
+
+    .program-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .info-card {
+        border-left: 4px solid #0032A0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .info-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+    .requirement-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #f8fbff;
+        border-left: 3px solid #4e73df;
+        margin-bottom: 0.5rem;
+        width: 100%;
+        border-radius: 8px;
+    }
+
+    .attachment-card {
+        border: 2px dashed #d7e2f6;
+        transition: all 0.3s ease;
+        background: #fff;
+    }
+
+    .attachment-card:hover {
+        border-color: #4e73df;
+        background-color: #f8fbff;
+    }
+
+    .slip-preview {
+        border: 2px dashed #d7e2f6;
+        background: #f8fbff;
+        border-radius: 12px;
+    }
+
+    .program-modal .modal-content {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 24px 52px rgba(15, 23, 42, 0.22);
+    }
+
+    .program-modal .modal-header {
+        background: linear-gradient(135deg, #1f6feb 0%, #1f5ea8 100%);
+        border-bottom: none;
+        color: #fff;
+    }
+
+    .program-modal .modal-body {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .program-modal .modal-footer {
+        border-top: 1px solid #e2eaf8;
+        background: #f7faff;
+    }
+
+    @media (max-width: 991.98px) {
+        .program-detail-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .program-header {
+            padding: 1.15rem;
+        }
+
+        .program-info-panel {
+            margin-top: 1rem;
+        }
+
+        .program-card .card-body {
+            padding: 1rem;
+        }
+
+        .program-card .card-header {
+            padding: 0.8rem 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid program-detail-shell py-4">
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb program-breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('community.programs') }}">Programs</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('community.programs_by_category', category=program.program_type) }}">{{ program.program_type }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ program.program_name }}</li>
+    </ol>
+</nav>
+
+<!-- Program Header -->
+<div class="program-header shadow-lg">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-5 font-weight-bold mb-3">{{ program.program_name }}</h1>
+            <p class="lead mb-2">{{ program.program_type }}</p>
+            <p class="mb-0 posted-text"><i class="far fa-calendar-alt mr-2"></i>Posted: {{ program.date|manila('%B %d, %Y', 'N/A') }}</p>
+            {% set creator_name = ((program.creator.first_name or '') ~ ' ' ~ (program.creator.last_name or ''))|trim if program.creator else '' %}
+            <p class="mb-0 posted-text"><i class="fas fa-user-shield mr-2"></i>Created by: {{ creator_name if creator_name else (program.creator.email if program.creator and program.creator.email else 'Admin') }}</p>
+        </div>
+        <div class="col text-left">
+            <div class="program-info-panel">
+                <h6 class="font-weight-bold mb-3">Program Information</h6>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-tag text-primary mr-2"></i>
+                        <strong>Type:</strong> {{ program.program_type }}
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-clock text-success mr-2"></i>
+                        <strong>Period:</strong> {{ program.program_period }}
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-file-alt text-info mr-2"></i>
+                        <strong>Documents:</strong> {{ document_requirements|length }} required
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-user-check text-warning mr-2"></i>
+                        <strong>Qualifications:</strong> {{ qualification_requirements|length }} criteria
+                    </li>
+                    {% if program.beneficiary_limit %}
+                    <li class="mb-2">
+                        <i class="fas fa-user-friends {% if is_full %}text-danger{% else %}text-primary{% endif %} mr-2"></i>
+                        <strong>Capacity:</strong> {{ approved_count }} / {{ program.beneficiary_limit }}
+                        {% if is_full %}
+                        <span class="badge badge-danger ml-2">FULL</span>
+                        {% endif %}
+                    </li>
+                    {% endif %}
+                    {% if program.priority_group %}
+                    <li class="mb-2">
+                        <i class="fas fa-bullseye text-info mr-2"></i>
+                        <strong>Priority:</strong> {{ program.priority_group }}
+                    </li>
+                    {% endif %}
+                    {% if program.income_range %}
+                    <li class="mb-2">
+                        <i class="fas fa-money-bill-wave text-success mr-2"></i>
+                        <strong>Target Income:</strong> {{ program.income_range }} monthly
+                    </li>
+                    {% endif %}
+                    
+                </ul>                    
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Program Details -->
+<div class="row">
+    <!-- Left Column: Description & Requirements -->
+    <div class="col-lg-8 mb-4">
+        <!-- Eligibility Summary Card -->
+        {% if qualification_requirements %}
+        {% set qualified_count = qualification_requirements | selectattr('is_qualified', 'equalto', True) | list | length %}
+        {% set not_qualified_count = qualification_requirements | selectattr('is_qualified', 'equalto', False) | list | length %}
+        {% set required_qualifications = qualification_requirements | selectattr('is_mandatory', 'equalto', True) | list %}
+        {% set qualified_required = required_qualifications | selectattr('is_qualified', 'equalto', True) | list | length %}
+        {% set total_required = required_qualifications | length %}
+        
+        {% if total_required > 0 %}
+        <div class="alert {% if qualified_required == total_required %}alert-success{% elif not_qualified_count > 0 %}alert-danger{% else %}alert-warning{% endif %} mb-4 shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="mr-3">
+                    {% if qualified_required == total_required %}
+                    <i class="fas fa-check-circle fa-3x"></i>
+                    {% elif not_qualified_count > 0 %}
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    {% else %}
+                    <i class="fas fa-question-circle fa-3x"></i>
+                    {% endif %}
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="mb-1 font-weight-bold">
+                        {% if qualified_required == total_required %}
+                        Eligibility Status: You Qualify!
+                        {% elif not_qualified_count > 0 %}
+                        Eligibility Status: Requirements Not Met
+                        {% else %}
+                        Eligibility Status: Cannot Determine
+                        {% endif %}
+                    </h5>
+                    <p class="mb-0">
+                        You meet <strong>{{ qualified_count }}</strong> of <strong>{{ qualification_requirements|length }}</strong> qualifications
+                        ({{ qualified_required }} of {{ total_required }} required qualifications met)
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+        
+        <!-- Description Card -->
+        <div class="card shadow mb-4 info-card program-card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle mr-2"></i>Program Description</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-justify mb-0">{{ program.description or 'No description available.' }}</p>
+            </div>
+        </div>       
+        
+        
+        <!-- Additional Program Details Card -->
+        {% if program.priority_group or program.income_range or program.beneficiary_limit %}
+        <div class="card shadow mb-4 info-card program-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-bullseye mr-2"></i>Target Beneficiaries</h5>
+            </div>
+            <div class="card-body">
+                {% if program.priority_group %}
+                <div class="mb-3">
+                    <h6 class="text-primary font-weight-bold mb-2">
+                        <i class="fas fa-users mr-2"></i>Priority Groups
+                    </h6>
+                    <p class="mb-0">{{ program.priority_group }}</p>
+                    <small class="text-muted">These groups receive preferential consideration</small>
+                </div>
+                {% endif %}
+                {% if program.income_range %}
+                <div class="mb-3">
+                    <h6 class="text-success font-weight-bold mb-2">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Target Income Range
+                    </h6>
+                    <p class="mb-0">{{ program.income_range }} monthly household income</p>
+                    <small class="text-muted">Applicants within this income bracket are eligible</small>
+                </div>
+                {% endif %}
+                {% if program.beneficiary_limit %}
+                <div>
+                    <h6 class="text-warning font-weight-bold mb-2">
+                        <i class="fas fa-user-friends mr-2"></i>Beneficiary Capacity
+                    </h6>
+                    <p class="mb-2">Maximum of <strong>{{ program.beneficiary_limit }}</strong> beneficiaries can be accepted</p>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar {% if is_full %}bg-danger{% elif approved_count > program.beneficiary_limit * 0.8 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ (approved_count / program.beneficiary_limit * 100)|round|int }}%">
+                            {{ approved_count }} / {{ program.beneficiary_limit }}
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        {% if is_full %}
+                            <i class="fas fa-exclamation-triangle text-danger mr-1"></i>Program is currently at full capacity
+                        {% elif approved_count > program.beneficiary_limit * 0.8 %}
+                            <i class="fas fa-info-circle text-warning mr-1"></i>Limited slots remaining
+                        {% else %}
+                            <i class="fas fa-check-circle text-success mr-1"></i>Slots still available
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Requirements Cards -->
+        <!-- Qualification Requirements Card -->
+        <div class="card shadow mb-4 info-card program-card">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="fas fa-check-circle mr-2"></i>Eligibility Qualifications</h5>
+            </div>
+            <div class="card-body">
+                {% if qualification_requirements %}
+                    <p class="text-muted mb-3">You must meet the following qualifications to be eligible:</p>
+                    {% for requirement in qualification_requirements %}
+                    <div class="requirement-badge" style="border-left-color: #f6c23e;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-check text-warning mr-3 fa-lg"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 font-weight-bold">{{ requirement['requirement_name'] }}</h6>
+                                {% if requirement['description'] %}
+                                <small class="text-muted">{{ requirement['description'] }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-right">
+                                {% if requirement['is_qualified'] == True %}
+                                <span class="badge badge-success d-block">
+                                    <i class="fas fa-check mr-1"></i>Qualified
+                                </span>
+                                {% elif requirement['is_qualified'] == False %}
+                                <span class="badge badge-danger d-block">
+                                    <i class="fas fa-times mr-1"></i>Not Qualified
+                                </span>
+                                {% else %}
+                                <span class="badge badge-warning d-block">
+                                    <i class="fas fa-question mr-1"></i>Needs Verification
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>No specific qualification requirements for this program.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Document Requirements Card -->
+        <div class="card shadow mb-4 info-card program-card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-file-alt mr-2"></i>Required Documents</h5>
+            </div>
+            <div class="card-body">
+                {% if document_requirements %}
+                    <p class="text-muted mb-3">Please prepare the following documents for your application:</p>
+                    {% for requirement in document_requirements %}
+                    <div class="requirement-badge">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <i class="fas fa-file-alt text-success mr-3 fa-lg"></i>
+                                <div>
+                                    <h6 class="mb-1 font-weight-bold">{{ requirement['requirement_name'] }}</h6>
+                                    {% if requirement['description'] %}
+                                    <small class="text-muted">{{ requirement['description'] }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="ml-3 text-right">
+                                {% for copy_spec in requirement['copy_specs'] %}
+                                    <div class="small mb-1">
+                                        <strong>{{ copy_spec['count'] }}</strong>
+                                        <i>{{ copy_spec['type'].replace('_', ' ')|title }}</i>
+                                        {%- if not loop.last %}<br>{% endif %}
+                                    </div>
+                                {% endfor %}
+                                {% if requirement['is_mandatory'] %}
+                                <span class="badge badge-danger mt-1">Required</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>No specific document requirements for this program.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Application Workflow Preview Card -->
+        {% if program.workflow_steps %}
+        <div class="card shadow mb-4 info-card border-left-info program-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-tasks mr-2"></i>Application Process Steps</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Your application will go through the following steps:</p>
+                <div class="timeline">
+                    {% for step in program.workflow_steps|sort(attribute='step_order') %}
+                    <div class="timeline-item mb-3">
+                        <div class="d-flex">
+                            <div class="timeline-marker">
+                                <div class="step-circle" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 2px 8px rgba(78, 115, 223, 0.3);">
+                                    {{ step.step_order }}
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ml-3">
+                                <h6 class="font-weight-bold mb-1">
+                                    {{ step.step_name }}
+                                    <span class="badge badge-pill" style="
+                                        {% if step.step_type == 'photo_upload' %}
+                                            background: #d4edda; color: #155724;
+                                        {% elif step.step_type == 'document_upload' or step.step_type == 'document_submission' %}
+                                            background: #cce5ff; color: #004085;
+                                        {% elif step.step_type == 'approval' %}
+                                            background: #fff3cd; color: #856404;
+                                        {% elif step.step_type == 'assessment' %}
+                                            background: #f8d7da; color: #721c24;
+                                        {% elif step.step_type == 'scheduling' %}
+                                            background: #e7d4f5; color: #4a148c;
+                                        {% else %}
+                                            background: #e2e3e5; color: #383d41;
+                                        {% endif %}
+                                    ">
+                                        {% if step.step_type == 'photo_upload' %}
+                                            <i class="fas fa-camera mr-1"></i>Photos
+                                        {% elif step.step_type == 'document_upload' %}
+                                            <i class="fas fa-cloud-upload-alt mr-1"></i>Upload
+                                        {% elif step.step_type == 'document_submission' %}
+                                            <i class="fas fa-file-alt mr-1"></i>Documents
+                                        {% elif step.step_type == 'approval' %}
+                                            <i class="fas fa-check-circle mr-1"></i>Review
+                                        {% elif step.step_type == 'assessment' %}
+                                            <i class="fas fa-clipboard-list mr-1"></i>Assessment
+                                        {% elif step.step_type == 'scheduling' %}
+                                            <i class="fas fa-calendar-check mr-1"></i>Schedule
+                                        {% else %}
+                                            <i class="fas fa-tasks mr-1"></i>{{ step.step_type|title }}
+                                        {% endif %}
+                                    </span>
+                                </h6>
+                                {% if step.step_description %}
+                                <p class="text-muted small mb-0">{{ step.step_description }}</p>
+                                {% endif %}
+                                {% if step.is_pre_approval %}
+                                <small class="badge badge-info mt-2">
+                                    <i class="fas fa-star mr-1"></i>Must complete before approval
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                    <div class="ml-5 mb-3" style="height: 20px; border-left: 2px solid #dee2e6;"></div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="alert alert-light mt-3 mb-0" style="border-left: 4px solid #4e73df;">
+                    <i class="fas fa-info-circle text-info mr-2"></i>
+                    <small>After you apply and your application is approved, you'll be guided through each step. Admins may need to review and verify your submissions at each stage.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    
+
+    <!-- Right Column: Application Form & Actions -->
+    <div class="col-lg-4">
+        <!-- Program Duration Card -->
+        {% if program.start_date or program.end_date %}
+        <div class="card shadow mb-4 border-left-warning program-card">
+            <div class="card-header bg-warning text-white">
+                <h6 class="mb-0"><i class="fas fa-calendar-alt mr-2"></i>Program Duration</h6>
+            </div>
+            <div class="card-body">
+                {% if program.start_date %}
+                <div class="mb-3">
+                    <h6 class="text-primary font-weight-bold mb-2">
+                        <i class="fas fa-play-circle mr-2"></i>Start Date
+                    </h6>
+                    <p class="mb-0 h5">{{ program.start_date|manila('%B %d, %Y') }}</p>
+                    <small class="text-muted">Program begins</small>
+                </div>
+                {% endif %}
+                {% if program.end_date %}
+                <div class="mb-3">
+                    <h6 class="text-danger font-weight-bold mb-2">
+                        <i class="fas fa-stop-circle mr-2"></i>End Date / Deadline
+                    </h6>
+                    <p class="mb-0 h5">{{ program.end_date|manila('%B %d, %Y') }}</p>
+                    <small class="text-muted">Last day for submissions</small>
+                </div>
+                {% endif %}
+                {% if program.end_date %}
+                {% set days_remaining = (program.end_date - today).days if program.end_date > today else 0 %}
+                <div class="alert {% if days_remaining > 7 %}alert-info{% elif days_remaining > 0 %}alert-warning{% else %}alert-danger{% endif %} mb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if days_remaining > 0 %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-clock mr-2"></i>
+                                <strong>{{ days_remaining }}</strong> day{{ 's' if days_remaining != 1 else '' }} left
+                            </h6>
+                            <small>Apply before deadline</small>
+                            {% elif days_remaining == 0 %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <strong>Ends Today!</strong>
+                            </h6>
+                            <small>Last day to apply</small>
+                            {% else %}
+                            <h6 class="mb-0">
+                                <i class="fas fa-times-circle mr-2"></i>
+                                <strong>Ended</strong>
+                            </h6>
+                            <small>Deadline passed</small>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if days_remaining > 7 %}
+                            <span class="badge badge-info badge-pill" style="font-size: 1.5rem; padding: 0.5rem 1rem;">{{ days_remaining }}</span>
+                            {% elif days_remaining > 0 %}
+                            <span class="badge badge-warning badge-pill" style="font-size: 1.5rem; padding: 0.5rem 1rem;">{{ days_remaining }}</span>
+                            {% else %}
+                            <span class="badge badge-danger badge-pill" style="font-size: 1rem; padding: 0.5rem 1rem;">Closed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% if program.beneficiary_limit %}
+                <hr class="my-3">
+                <div class="text-center">
+                    <h6 class="text-muted mb-2">Capacity</h6>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar {% if is_full %}bg-danger{% elif approved_count > program.beneficiary_limit * 0.8 %}bg-warning{% else %}bg-success{% endif %}" 
+                             role="progressbar" 
+                             style="width: {{ (approved_count / program.beneficiary_limit * 100)|round|int }}%">
+                            {{ approved_count }} / {{ program.beneficiary_limit }}
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        {% if is_full %}
+                        <i class="fas fa-exclamation-triangle text-danger mr-1"></i>Program Full
+                        {% else %}
+                        <i class="fas fa-users mr-1"></i>{{ program.beneficiary_limit - approved_count }} slots available
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Application Form Card -->
+        <div class="card shadow mb-4 attachment-card program-card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-file-download mr-2"></i>Application Form</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if program.file_attachment %}
+                    <i class="fas fa-file-pdf fa-4x text-danger mb-3"></i>
+                    <p class="font-weight-bold mb-2">{{ program.file_attachment.filename }}</p>
+                    <p class="text-muted small mb-1">File Size: {{ (program.file_attachment.file_size / 1024) | round(2) }} KB</p>
+                    <p class="text-muted small mb-3">Uploaded: {{ program.file_attachment.uploaded_at|manila('%B %d, %Y') }}</p>
+                          <a href="{{ url_for('files.program_attachment', attachment_id=program.file_attachment.id, download=1) }}" 
+                       class="btn btn-danger btn-block" 
+                       download="{{ program.file_attachment.filename }}">
+                        <i class="fas fa-download mr-2"></i>Download Form
+                    </a>
+                          <a href="{{ url_for('files.program_attachment', attachment_id=program.file_attachment.id) }}" 
+                       class="btn btn-outline-secondary btn-block mt-2" 
+                       target="_blank">
+                        <i class="fas fa-eye mr-2"></i>Preview Form
+                    </a>
+                {% else %}
+                    <i class="fas fa-file-excel fa-4x text-muted mb-3"></i>
+                    <p class="text-muted">No application form available for download</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Apply Button Card -->
+        <div class="card shadow border-left-primary program-card">
+            <div class="card-body text-center">
+                <h5 class="font-weight-bold mb-3">Ready to Apply?</h5>
+                {% set is_closed = program.end_date and program.end_date < today %}
+                {% set fails_profile_rule = profile_eligibility and not profile_eligibility.is_eligible %}
+                {% set has_application_restriction = application_restriction and application_restriction.is_blocked %}
+                {% if is_closed %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-calendar-times mr-2"></i>
+                    <strong>Application Period Ended!</strong><br>
+                    The deadline for this program was {{ program.end_date|manila('%B %d, %Y') }}.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-lock mr-2"></i>Closed
+                </button>
+                {% elif has_application_restriction and application_restriction.type == 'active_application' %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-hourglass-half mr-2"></i>
+                    <strong>Application In Progress</strong><br>
+                    You currently have an ongoing application for <strong>{{ application_restriction.program_name }}</strong>.
+                    Please complete or resolve it before applying to another program.
+                </div>
+                <a href="{{ url_for('community.application_detail', application_id=application_restriction.application.id) }}" class="btn btn-primary btn-lg btn-block">
+                    <i class="fas fa-eye mr-2"></i>View Application
+                </a>
+                {% elif has_application_restriction and application_restriction.type == 'cooldown' %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-clock mr-2"></i>
+                    <strong>Cooldown Period Active</strong><br>
+                    You recently completed or had a scheduled release for <strong>{{ application_restriction.program_name }}</strong>.
+                    You may apply again on <strong>{{ application_restriction.lock_until|manila('%B %d, %Y', 'a later date') }}</strong>.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-calendar-check mr-2"></i>Cooldown Active
+                </button>
+                {% elif is_full %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Program Full!</strong><br>
+                    This program has reached its maximum capacity of {{ program.beneficiary_limit }} beneficiaries.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-ban mr-2"></i>Applications Closed
+                </button>
+                {% elif fails_profile_rule %}
+                <div class="alert alert-danger mb-3">
+                    <i class="fas fa-user-times mr-2"></i>
+                    <strong>Not Eligible for This Program</strong><br>
+                    This program only accepts applicants from these profile groups:
+                    <strong>{{ profile_eligibility.required_groups | map('title') | join(', ') }}</strong>.
+                </div>
+                <button type="button" class="btn btn-secondary btn-lg btn-block" disabled>
+                    <i class="fas fa-lock mr-2"></i>Profile Not Eligible
+                </button>
+                {% elif completion and not completion.is_complete %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-user-edit mr-2"></i>
+                    <strong>Complete Your Profile First!</strong><br>
+                    Your profile is {{ completion.percentage }}% complete. You need to complete all required fields to apply.
+                    <br><br>
+                    <strong>Missing fields ({{ completion.missing_count }}):</strong><br>
+                    <small>{{ completion.missing_fields|join(', ') }}</small>
+                </div>
+                <a href="{{ url_for('community.edit_profile') }}" class="btn btn-warning btn-lg btn-block">
+                    <i class="fas fa-edit mr-2"></i>Complete Profile to Apply
+                </a>
+                {% else %}
+                <p class="text-muted small mb-3">Submit your application for this program</p>
+                <button type="button" 
+                        class="btn btn-primary btn-lg btn-block" 
+                        data-toggle="modal" 
+                        data-target="#confirmApplicationModal">
+                    <i class="fas fa-paper-plane mr-2"></i>Apply Now
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Save & Hide Actions Card -->
+        <div class="card shadow mt-3 program-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn {% if is_saved %}btn-warning{% else %}btn-outline-warning{% endif %} flex-fill mr-2" 
+                            id="saveBtn" data-program-id="{{ program.id }}">
+                        <i class="fas fa-bookmark mr-1" id="saveIcon"></i>
+                        <span id="saveText">{% if is_saved %}Saved{% else %}Save{% endif %}</span>
+                    </button>
+                    <button type="button" class="btn {% if is_hidden %}btn-secondary{% else %}btn-outline-secondary{% endif %} flex-fill ml-2" 
+                            id="hideBtn" data-program-id="{{ program.id }}">
+                        <i class="fas fa-eye-slash mr-1" id="hideIcon"></i>
+                        <span id="hideText">{% if is_hidden %}Hidden{% else %}Not Interested{% endif %}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back Button -->
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{{ url_for('community.programs_by_category', category=program.program_type) }}" 
+           class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Programs
+        </a>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade program-modal" id="confirmApplicationModal" tabindex="-1" role="dialog" aria-labelledby="confirmApplicationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h6 class="modal-title" id="confirmApplicationModalLabel">
+                    <i class="fas fa-clipboard-check mr-2"></i>Confirm Your Application for <strong>{{ program.program_name }}</strong> Program
+                </h6>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <div class="modal-body p-0">
+                <!-- Application Slip Preview -->
+                <div class="slip-preview p-4 m-3">
+                    <div class="text-center mb-4 pb-3 border-bottom border-primary">
+                        <h4 class="text-primary font-weight-bold">{{ program.program_name }}</h4>
+                        
+                        <p class="mb-1">
+                            <strong>Applicant:</strong> 
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        </p>
+                        <small class="text-muted">{{ current_user.email }}</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-secondary mb-3">
+                            <i class="fas fa-clipboard-list mr-2"></i>Requirements Checklist
+                        </h5>
+                        
+                        <!-- Document Requirements -->
+                        {% if document_requirements %}
+                        <h6 class="text-success font-weight-bold mb-3">
+                            <i class="fas fa-file-alt mr-2"></i>Required Documents:
+                        </h6>
+                        {% for requirement in document_requirements %}
+                        <div class="requirement-badge mb-3">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center flex-grow-1">
+                                    <i class="fas fa-file-alt text-success mr-3"></i>
+                                    <div>
+                                        <h6 class="mb-1 font-weight-bold">{{ requirement['requirement_name'] }}</h6>
+                                        {% if requirement['description'] %}
+                                        <small class="text-muted">{{ requirement['description'] }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="ml-3 text-right">
+                                    {% for copy_spec in requirement['copy_specs'] %}
+                                        <div class="small mb-1">
+                                            <strong>{{ copy_spec['count'] }}</strong>
+                                            <i>{{ copy_spec['type'].replace('_', ' ')|title }}</i>
+                                            {%- if not loop.last %}<br>{% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    {% if requirement['is_mandatory'] %}
+                                    <span class="badge badge-danger mt-1">Required</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                        
+                        <!-- Qualification Requirements -->
+                        {% if qualification_requirements %}
+                        <h6 class="text-warning font-weight-bold mb-2">
+                            <i class="fas fa-user-check mr-2"></i>Eligibility Qualifications:
+                        </h6>
+                        <ol class="pl-4">
+                            {% for req in qualification_requirements %}
+                            <li class="mb-2">
+                                <strong>{{ req['requirement_name'] }}</strong>
+                                {% if req['is_mandatory'] %}
+                                    <span class="badge badge-danger ml-1">Required</span>
+                                {% endif %}
+                                {% if req['description'] %}
+                                    <br><small class="text-muted">{{ req['description'] }}</small>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ol>
+                        {% endif %}
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle mr-2"></i>Important Instructions:
+                        </h6>
+                        <ul class="mb-0 small">
+                            <li>Submit requirements at: <strong>Municipal Hall, MSWD Office (MSWDO)</strong></li>
+                            <li>Office Hours: <strong>Monday-Thursday 8:00 AM - 5:00 PM</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="w-100 d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-check-circle text-success mr-1"></i>
+                        By confirming, your application will be created.
+                    </small>
+                    
+                    <div>
+                        <form method="POST" 
+                              action="{{ url_for('community.submit_application', program_id=program.id) }}" 
+                              class="d-inline">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane mr-2"></i>Confirm & Create Application
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            const programId = parseInt(saveBtn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleSaveProgram(programId);
+            }
+        });
+    }
+
+    const hideBtn = document.getElementById('hideBtn');
+    if (hideBtn) {
+        hideBtn.addEventListener('click', function() {
+            const programId = parseInt(hideBtn.getAttribute('data-program-id'), 10);
+            if (!isNaN(programId)) {
+                toggleHideProgram(programId);
+            }
+        });
+    }
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+});
+
+function toggleSaveProgram(programId) {
+    fetch(`/community/program/${programId}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const btn = document.getElementById('saveBtn');
+        const text = document.getElementById('saveText');
+        if (data.status === 'saved') {
+            btn.classList.remove('btn-outline-warning');
+            btn.classList.add('btn-warning');
+            text.textContent = 'Saved';
+        } else {
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-outline-warning');
+            text.textContent = 'Save';
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+
+function toggleHideProgram(programId) {
+    fetch(`/community/program/${programId}/hide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const btn = document.getElementById('hideBtn');
+        const text = document.getElementById('hideText');
+        if (data.status === 'hidden') {
+            btn.classList.remove('btn-outline-secondary');
+            btn.classList.add('btn-secondary');
+            text.textContent = 'Hidden';
+        } else {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-outline-secondary');
+            text.textContent = 'Not Interested';
+        }
+    })
+    .catch(err => console.error('Error:', err));
+}
+</script>
+{% endblock %}

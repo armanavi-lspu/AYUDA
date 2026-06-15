@@ -1,0 +1,355 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Scheduled Beneficiaries - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .scheduled-shell {
+        animation: scheduledShellIn 0.4s ease-out;
+    }
+
+    @keyframes scheduledShellIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .scheduled-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.16), transparent 45%),
+            linear-gradient(125deg, #f8fbff 0%, #ffffff 62%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.15rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .scheduled-hero h1 {
+        margin-bottom: 0.2rem;
+        color: #1e293b;
+        font-weight: 700;
+    }
+
+    .scheduled-hero p {
+        margin-bottom: 0;
+        color: #64748b;
+    }
+
+    .summary-card,
+    .list-card {
+        border: 1px solid #e8eef9;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(30, 41, 59, 0.05);
+    }
+
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .meta-tile {
+        background: #f8fbff;
+        border: 1px solid #e5edfb;
+        border-radius: 10px;
+        padding: 0.7rem 0.85rem;
+    }
+
+    .meta-tile .label {
+        display: block;
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .meta-tile .value {
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .beneficiary-table th {
+        border-top: none;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 700;
+    }
+
+    .beneficiary-table td {
+        vertical-align: middle;
+    }
+
+    .capture-wrapper {
+        background: #ffffff;
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .status-pill.draft {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .status-pill.saved {
+        background: #ecfeff;
+        color: #155e75;
+    }
+
+    .status-pill.announced {
+        background: #ecfdf3;
+        color: #166534;
+    }
+
+    @media (max-width: 767.98px) {
+        .meta-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 scheduled-shell">
+    <div class="scheduled-hero">
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div>
+                <h1><i class="fas fa-list-ol mr-2 text-primary"></i>Scheduled Beneficiaries</h1>
+                <p>Review, export, save, and announce payout details for this schedule.</p>
+            </div>
+            <div class="mt-2 mt-md-0">
+                <a href="{{ url_for('admin.adm_subsidy') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Subsidy
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 mb-3">
+            <div class="card summary-card border-left-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <h5 class="mb-0 font-weight-bold text-dark">Payout Summary</h5>
+                        <span class="status-pill {{ payout.status }}">{{ payout.status|title }}</span>
+                    </div>
+
+                    <div class="meta-grid mb-3">
+                        <div class="meta-tile">
+                            <span class="label">Payout ID</span>
+                            <span class="value">{{ payout.payout_id }}</span>
+                        </div>
+                        <div class="meta-tile">
+                            <span class="label">Category</span>
+                            <span class="value">{{ payout.category_label }}</span>
+                        </div>
+                        <div class="meta-tile">
+                            <span class="label">Date and Time</span>
+                            <span class="value">{{ payout.payout_datetime.strftime('%B %d, %Y %I:%M %p') }}</span>
+                        </div>
+                        <div class="meta-tile">
+                            <span class="label">Total Beneficiaries</span>
+                            <span class="value">{{ payout.beneficiary_count }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="font-weight-bold mb-1">Location</h6>
+                        <div class="text-muted">{{ payout.payout_location }}</div>
+                    </div>
+
+                    {% if payout.payout_notes %}
+                    <div class="mb-3">
+                        <h6 class="font-weight-bold mb-1">Notes</h6>
+                        <div class="text-muted">{{ payout.payout_notes }}</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Scheduled by</small>
+                        <strong>
+                            {% if payout.scheduler %}
+                                {{ payout.scheduler.first_name }} {{ payout.scheduler.last_name }}
+                            {% else %}
+                                Admin
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div class="d-flex flex-wrap">
+                        <form method="POST" action="{{ url_for('admin.save_scheduled_beneficiaries', payout_id=payout.payout_id) }}" class="mr-2 mb-2">
+                            <button type="submit" class="btn btn-success" {% if payout.saved_in_system %}disabled{% endif %}>
+                                <i class="fas fa-database mr-2"></i>
+                                {% if payout.saved_in_system %}Saved in System{% else %}Save in System{% endif %}
+                            </button>
+                        </form>
+                        {% if can_schedule_viewed_list %}
+                        <form method="POST" action="{{ url_for('admin.schedule_saved_ranked_list', payout_id=payout.payout_id) }}" class="mr-2 mb-2" onsubmit="return confirm('Schedule all beneficiaries in this saved list using its stored payout date/time and location?');">
+                            <button type="submit" class="btn btn-warning" {% if pending_ranked_schedule_count <= 0 %}disabled{% endif %}>
+                                <i class="fas fa-calendar-check mr-2"></i>
+                                {% if pending_ranked_schedule_count > 0 %}
+                                    Schedule Viewed List ({{ pending_ranked_schedule_count }} pending)
+                                {% else %}
+                                    Already Scheduled
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-primary mr-2 mb-2" id="saveAsPictureBtn">
+                            <i class="fas fa-image mr-2"></i>Save as Picture
+                        </button>
+                        <button type="button" class="btn btn-primary mb-2" data-toggle="modal" data-target="#createAnnouncementModal">
+                            <i class="fas fa-bullhorn mr-2"></i>Create Announcement
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8 mb-3">
+            <div class="card list-card">
+                <div class="card-header bg-white border-0 pb-0">
+                    <h5 class="mb-0 font-weight-bold text-dark">Beneficiary List</h5>
+                    <small class="text-muted">This section is used when saving the beneficiary list as picture.</small>
+                </div>
+                <div class="card-body">
+                    <div class="capture-wrapper" id="beneficiaryCaptureArea">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h6 class="mb-0 font-weight-bold">{{ payout.category_label }}</h6>
+                            <small class="text-muted">{{ payout.payout_id }}</small>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table beneficiary-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 70px;">#</th>
+                                        <th>Beneficiary Name</th>
+                                        <th style="width: 180px;">Barangay</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for beneficiary in beneficiaries %}
+                                    <tr>
+                                        <td>{{ beneficiary.rank or loop.index }}</td>
+                                        <td>{{ beneficiary.name }}</td>
+                                        <td>{{ beneficiary.barangay }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-4">No beneficiaries found for this payout.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createAnnouncementModal" tabindex="-1" role="dialog" aria-labelledby="createAnnouncementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="createAnnouncementForm" action="{{ url_for('admin.create_subsidy_announcement') }}" method="POST">
+                <input type="hidden" name="payout_id" value="{{ payout.payout_id }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="createAnnouncementModalLabel">
+                        <i class="fas fa-bullhorn mr-2"></i>Create Payout Announcement
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="announcementTitle" class="font-weight-bold">Announcement Title <span class="text-danger">*</span></label>
+                        <input type="text" id="announcementTitle" name="announcement_title" class="form-control" value="{{ payout.suggested_title or '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcementContent" class="font-weight-bold">Announcement Content <span class="text-danger">*</span></label>
+                        <textarea id="announcementContent" name="announcement_content" class="form-control" rows="10" required>{{ payout.suggested_content or '' }}</textarea>
+                        <small class="text-muted">Beneficiary list is auto-appended if it is not already included.</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="font-weight-bold">Beneficiary Preview</label>
+                        <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                            {{ payout.beneficiary_list_html|safe }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="publishAnnouncementBtn">
+                        <i class="fas fa-paper-plane mr-2"></i>Publish Announcement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const saveAsPictureBtn = document.getElementById('saveAsPictureBtn');
+    const announcementForm = document.getElementById('createAnnouncementForm');
+    const publishAnnouncementBtn = document.getElementById('publishAnnouncementBtn');
+
+    if (saveAsPictureBtn) {
+        saveAsPictureBtn.addEventListener('click', async function() {
+            const originalHtml = saveAsPictureBtn.innerHTML;
+            const captureNode = document.getElementById('beneficiaryCaptureArea');
+
+            if (!captureNode || typeof window.html2canvas === 'undefined') {
+                alert('Unable to export the beneficiary list as picture right now. Please refresh and try again.');
+                return;
+            }
+
+            saveAsPictureBtn.disabled = true;
+            saveAsPictureBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving image...';
+
+            try {
+                const canvas = await window.html2canvas(captureNode, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                });
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = canvas.toDataURL('image/png');
+                downloadLink.download = '{{ payout.payout_id }}-beneficiaries.png';
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            } catch (error) {
+                alert('Failed to export beneficiary list image. Please try again.');
+            } finally {
+                saveAsPictureBtn.disabled = false;
+                saveAsPictureBtn.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    if (announcementForm && publishAnnouncementBtn) {
+        announcementForm.addEventListener('submit', function() {
+            publishAnnouncementBtn.disabled = true;
+            publishAnnouncementBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Publishing...';
+        });
+    }
+});
+</script>
+{% endblock %}

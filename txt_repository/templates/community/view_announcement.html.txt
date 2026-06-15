@@ -1,0 +1,567 @@
+{% extends "community/community_base.html" %}
+
+{% block title %}{{ announcement.announcement_title or 'Announcement' }} - Community Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-gradient-light { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
+    .author-avatar {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: 3px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .category-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+    .back-btn {
+        background: #6c757d;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    .back-btn:hover {
+        background: #5a6268;
+        transform: translateX(-3px);
+    }
+    .announcement-image {
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: transform 0.3s ease, cursor 0.2s ease;
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+        cursor: pointer;
+    }
+    .announcement-image:hover {
+        transform: scale(1.04);
+        cursor: pointer;
+    }
+    .content-text {
+        font-size: 1.1rem;
+        line-height: 1.7;
+        color: #495057;
+        white-space: pre-line;
+        word-break: break-word;
+    }
+
+    .content-text a {
+        color: #1d4ed8;
+        font-weight: 600;
+        text-decoration: underline;
+        word-break: break-all;
+    }
+    .announcement-images-section {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 2rem;
+    }
+    .announcement-image-item {
+        flex: 0 1 auto;
+        max-width: 90%;
+        text-align: center;
+    }
+    @media (min-width: 768px) {
+        .announcement-image-item {
+            flex: 0 1 calc(50% - 1rem);
+            max-width: 100%;
+        }
+    }
+    @media (min-width: 1200px) {
+        .announcement-image-item {
+            flex: 0 1 calc(50% - 1rem);
+        }
+    }
+
+    .announcement-image-single {
+        max-width: 620px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    .announcement-detail-carousel {
+        border: 1px solid #d9e3f8;
+        border-radius: 14px;
+        background: #f8fbff;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .announcement-detail-carousel .carousel-item {
+        padding: 0.95rem 0.75rem 0.5rem;
+        text-align: center;
+    }
+
+    .announcement-detail-carousel .carousel-control-prev,
+    .announcement-detail-carousel .carousel-control-next {
+        width: 44px;
+        opacity: 1;
+    }
+
+    .announcement-detail-control-icon {
+        width: 34px;
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(12, 28, 57, 0.7);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(6, 24, 54, 0.32);
+    }
+
+    .announcement-detail-control-icon i {
+        font-size: 0.85rem;
+    }
+
+    .announcement-detail-carousel-meta {
+        text-align: center;
+        color: #5f6f8a;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0 0 0.75rem;
+    }
+    
+    /* Image Preview Modal Styles */
+    .image-preview-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .image-preview-modal.show {
+        display: flex;
+        opacity: 1;
+    }
+    .image-preview-content {
+        position: relative;
+        max-width: 90vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .image-preview-content img {
+        max-width: 100%;
+        max-height: 80vh;
+        border-radius: 8px;
+        box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+    }
+    .image-preview-caption {
+        color: #fff;
+        text-align: center;
+        margin-top: 1rem;
+        font-style: italic;
+        font-size: 0.95rem;
+    }
+    .image-preview-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 2rem;
+        cursor: pointer;
+        transition: color 0.3s ease;
+        padding: 0;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .image-preview-close:hover {
+        color: #ccc;
+    }
+    .image-preview-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: #fff;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 10px 15px;
+        border-radius: 4px;
+        transition: background 0.3s ease;
+    }
+    .image-preview-nav:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+    .image-preview-prev {
+        left: 10px;
+    }
+    .image-preview-next {
+        right: 10px;
+    }
+    .image-preview-counter {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+    }
+
+    .image-preview-download {
+        position: absolute;
+        top: -36px;
+        left: 0;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        background: rgba(17, 24, 39, 0.65);
+        border-radius: 999px;
+        padding: 0.38rem 0.78rem;
+        font-size: 0.86rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .image-preview-download:hover {
+        color: #fff;
+        background: rgba(29, 78, 216, 0.84);
+        border-color: rgba(255, 255, 255, 0.78);
+        text-decoration: none;
+    }
+    
+    @media print {
+        .back-btn, .navbar, .sidebar, .no-print {
+            display: none !important;
+        }
+        .card { box-shadow: none !important; border: 1px solid #ddd; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Back Button -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{{ url_for('community.announcements') }}" class="btn back-btn text-white">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Announcements
+            </a>
+        </div>
+    </div>
+
+    <!-- Announcement Card -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            <div class="card shadow-lg border-0">
+                <!-- Header -->
+                <div class="card-header bg-gradient-light border-0 p-4">
+                    <!-- Meta Information -->
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center mb-3 mb-md-0">
+                            <!-- Author Avatar -->
+                            <div class="author-avatar rounded-circle d-flex align-items-center justify-content-center text-white font-weight-bold mr-3">
+                                {{ announcement.author.first_name[0] if announcement.author and announcement.author.first_name else 'A' }}{{ announcement.author.last_name[0] if announcement.author and announcement.author.last_name else 'D' }}
+                            </div>
+                            <!-- Author Details -->
+                            <div>
+                                <h6 class="mb-0 font-weight-bold text-dark">
+                                    {{ announcement.author.first_name if announcement.author and announcement.author.first_name else 'Admin' }} 
+                                    {{ announcement.author.last_name if announcement.author and announcement.author.last_name else '' }}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar-alt mr-1"></i>
+                                    Published {{ announcement.created_at|manila('%B %d, %Y at %I:%M %p', 'Recently') }}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <!-- Category Badge -->
+                        <span class="badge category-badge text-white px-3 py-2 font-weight-normal">
+                            <i class="fas fa-tag mr-1"></i>{{ announcement.category or 'General' }}
+                        </span>
+                    </div>
+                    
+                    <!-- Title -->
+                    <h1 class="display-4 font-weight-bold text-dark mb-0">
+                        {{ announcement.announcement_title or 'Untitled Announcement' }}
+                    </h1>
+                </div>
+
+                <!-- Content Body -->
+                <div class="card-body p-4 p-md-5">
+                    <!-- Program Link Action -->
+                    {% if announcement.linked_program %}
+                    <div class="alert alert-primary border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="text-white mb-2">
+                                    <i class="fas fa-bullseye mr-2"></i>Related Program
+                                </h5>
+                                <p class="text-white mb-0">
+                                    <strong>{{ announcement.linked_program.program_name }}</strong><br>
+                                    <small>{{ announcement.linked_program.description[:100] if announcement.linked_program.description else 'Click below to view details and apply' }}...</small>
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-center text-md-right mt-3 mt-md-0">
+                                <a href="{{ url_for('community.program_detail', program_id=announcement.linked_program.id) }}" 
+                                   class="btn btn-light btn-lg shadow-sm">
+                                    <i class="fas fa-arrow-right mr-2"></i>Apply Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if announcement.attachment_url %}
+                    <div class="alert alert-info border-0 shadow-sm mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-paperclip mr-2"></i>Additional Resource
+                                </h6>
+                                <small class="text-muted">Click the link to view the attachment or resource</small>
+                            </div>
+                            <div class="col-md-4 text-center text-md-right mt-2 mt-md-0">
+                                <a href="{{ announcement.attachment_url }}" target="_blank" 
+                                   class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-external-link-alt mr-1"></i>Open Link
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Main Content -->
+                    <div class="content-text mb-4">
+                        {{- announcement.announcement_content|urlize|safe if announcement.announcement_content else 'No content available.' -}}
+                    </div>
+
+                    <!-- Images Section -->
+                    {% if announcement.images %}
+                        {% if announcement.images|length == 1 %}
+                            {% set single_image = announcement.images[0] %}
+                            <div class="announcement-image-single">
+                                  <img src="{{ url_for('files.announcement_image', image_id=single_image.id) }}"
+                                     alt="{{ single_image.caption or 'Announcement Image' }}"
+                                     class="img-fluid announcement-image"
+                                     onclick="openImagePreview('0')">
+                                {% if single_image.caption %}
+                                <div class="text-center mt-3">
+                                    <small class="text-muted font-italic">{{ single_image.caption }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div id="communityAnnouncementDetailCarousel" class="carousel slide announcement-detail-carousel" data-interval="false">
+                                <div class="carousel-inner">
+                                    {% for image in announcement.images %}
+                                    <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                        <img src="{{ url_for('files.announcement_image', image_id=image.id) }}"
+                                             alt="{{ image.caption or 'Announcement Image' }}"
+                                             class="img-fluid announcement-image"
+                                             onclick="openImagePreview('{{ loop.index0 }}')">
+                                        {% if image.caption %}
+                                        <div class="text-center mt-3">
+                                            <small class="text-muted font-italic">{{ image.caption }}</small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <a class="carousel-control-prev" href="#communityAnnouncementDetailCarousel" role="button" data-slide="prev" aria-label="Previous image">
+                                    <span class="announcement-detail-control-icon" aria-hidden="true"><i class="fas fa-chevron-left"></i></span>
+                                </a>
+                                <a class="carousel-control-next" href="#communityAnnouncementDetailCarousel" role="button" data-slide="next" aria-label="Next image">
+                                    <span class="announcement-detail-control-icon" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                                </a>
+
+                                <div class="announcement-detail-carousel-meta">{{ announcement.images|length }} images</div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="card-footer bg-light border-0 p-4">
+                    <div class="d-flex flex-column flex-md-row justify-content-start align-items-center">
+                        <!-- Update Information -->
+                        <div class="mb-3 mb-md-0">
+                            {% if announcement.updated_at and announcement.updated_at != announcement.created_at %}
+                            <small class="text-muted">
+                                <i class="fas fa-edit mr-1"></i>
+                                Last updated: {{ announcement.updated_at|manila('%B %d, %Y at %I:%M %p') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>            
+        </div>
+    </div>
+</div>
+
+<!-- Image Preview Modal -->
+<div id="imagePreviewModal" class="image-preview-modal">
+    <div class="image-preview-content">
+        <a id="downloadPreviewImage"
+           class="image-preview-download"
+           href="#"
+           download="announcement-image"
+           target="_blank"
+           rel="noopener noreferrer">
+            <i class="fas fa-download mr-1"></i>Download
+        </a>
+        <button class="image-preview-close" onclick="closeImagePreview()">&times;</button>
+        {% if announcement.images %}
+            {% if announcement.images|length > 1 %}
+            <button class="image-preview-nav image-preview-prev" onclick="previousImage()">&lsaquo;</button>
+            <button class="image-preview-nav image-preview-next" onclick="nextImage()">&rsaquo;</button>
+            {% endif %}
+        {% endif %}
+        <img id="previewImage" src="" alt="Preview" style="max-width: 100%; max-height: 80vh;">
+        <div id="previewCaption" class="image-preview-caption"></div>
+        {% if announcement.images and announcement.images|length > 1 %}
+        <div class="image-preview-counter">
+            <span id="imageCounter">1</span> / <span id="imageTotalCount">{{ announcement.images|length }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Store image data for JavaScript -->
+<script>
+    const announcementImages = [
+        {% for image in announcement.images %}
+        {
+            src: '{{ url_for('files.announcement_image', image_id=image.id) }}',
+            caption: '{{ image.caption or "" }}'
+        }{{ "," if not loop.last else "" }}
+        {% endfor %}
+    ];
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentImageIndex = 0;
+
+    function getDownloadFilenameFromSrc(src) {
+        if (!src) {
+            return 'announcement-image';
+        }
+
+        const cleanSrc = src.split('?')[0];
+        const segments = cleanSrc.split('/');
+        return segments[segments.length - 1] || 'announcement-image';
+    }
+
+    function updateDownloadButton(src) {
+        const downloadBtn = document.getElementById('downloadPreviewImage');
+        if (!downloadBtn) {
+            return;
+        }
+
+        downloadBtn.href = src || '#';
+        downloadBtn.download = getDownloadFilenameFromSrc(src);
+    }
+
+    function openImagePreview(index) {
+        if (announcementImages.length === 0) return;
+        
+        currentImageIndex = parseInt(index);
+        const modal = document.getElementById('imagePreviewModal');
+        const previewImage = document.getElementById('previewImage');
+        const previewCaption = document.getElementById('previewCaption');
+        const imageCounter = document.getElementById('imageCounter');
+        
+        previewImage.src = announcementImages[currentImageIndex].src;
+        previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        updateDownloadButton(announcementImages[currentImageIndex].src);
+        
+        if (imageCounter) {
+            imageCounter.textContent = currentImageIndex + 1;
+        }
+        
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeImagePreview() {
+        const modal = document.getElementById('imagePreviewModal');
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+
+    function previousImage() {
+        if (announcementImages.length === 0) return;
+        currentImageIndex = (currentImageIndex - 1 + announcementImages.length) % announcementImages.length;
+        updateImagePreview();
+    }
+
+    function nextImage() {
+        if (announcementImages.length === 0) return;
+        currentImageIndex = (currentImageIndex + 1) % announcementImages.length;
+        updateImagePreview();
+    }
+
+    function updateImagePreview() {
+        const previewImage = document.getElementById('previewImage');
+        const previewCaption = document.getElementById('previewCaption');
+        const imageCounter = document.getElementById('imageCounter');
+        
+        previewImage.src = announcementImages[currentImageIndex].src;
+        previewCaption.textContent = announcementImages[currentImageIndex].caption;
+        updateDownloadButton(announcementImages[currentImageIndex].src);
+        
+        if (imageCounter) {
+            imageCounter.textContent = currentImageIndex + 1;
+        }
+    }
+
+    // Close modal when clicking outside the image
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('imagePreviewModal');
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeImagePreview();
+            }
+        });
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('imagePreviewModal');
+        if (!modal.classList.contains('show')) return;
+        
+        if (e.key === 'Escape') {
+            closeImagePreview();
+        } else if (e.key === 'ArrowLeft') {
+            if (announcementImages.length > 1) previousImage();
+        } else if (e.key === 'ArrowRight') {
+            if (announcementImages.length > 1) nextImage();
+        }
+    });
+
+    // Initialize tooltips if using Bootstrap JS
+    $(document).ready(function(){
+        if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
+            $('[data-toggle="tooltip"]').tooltip();
+        }
+    });
+</script>
+{% endblock %}

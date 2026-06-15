@@ -1,0 +1,279 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Admins - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admins-shell {
+        animation: adminsFadeIn 0.35s ease-out;
+    }
+
+    @keyframes adminsFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .admins-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.12), transparent 42%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 58%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .admins-hero h1 {
+        color: #1f2a44;
+        font-weight: 700;
+        margin-bottom: 0.35rem;
+    }
+
+    .admins-hero .subtitle {
+        color: #667085;
+        margin-bottom: 0;
+    }
+
+    .scope-badge {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cfe1ff;
+        background: #f4f8ff;
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        color: #1d4ed8;
+        font-weight: 600;
+        font-size: 0.82rem;
+    }
+
+    .panel-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+    }
+
+    .panel-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid #e5e7eb;
+        color: #234273;
+    }
+
+    .admin-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+    }
+
+    .admins-table thead th {
+        border-top: none;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+        color: #51617f;
+        font-weight: 700;
+    }
+
+    .admins-table tbody tr:hover {
+        background-color: #f8fbff;
+    }
+
+    .btn-view {
+        border: 1px solid #1d4ed8;
+        color: #1d4ed8;
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 0.3rem 0.75rem;
+    }
+
+    .btn-view:hover {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(135deg, #1f6feb 0%, #1942a8 100%);
+    }
+
+    .activity-log {
+        max-height: 640px;
+        overflow-y: auto;
+        padding-right: 0.2rem;
+    }
+
+    .activity-item {
+        border-left: 3px solid #e3e6f0;
+        padding-left: 0.9rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    .activity-item::before {
+        content: '';
+        position: absolute;
+        left: -7px;
+        top: 5px;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #fff;
+        border: 3px solid #4e73df;
+    }
+
+    .activity-item.create::before { border-color: #1cc88a; }
+    .activity-item.update::before { border-color: #f6c23e; }
+    .activity-item.delete::before { border-color: #e74a3b; }
+    .activity-item.approve::before { border-color: #36b9cc; }
+    .activity-item.reject::before { border-color: #e74a3b; }
+
+    .activity-title {
+        color: #1f2a44;
+        font-weight: 700;
+    }
+
+    .activity-panel-card {
+        position: sticky;
+        top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid admins-shell">
+    <div class="admins-hero d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1">MSWDO {{ municipality_scope }} Admins</h1>
+            <p class="subtitle">Read audit logs of MSWDO {{ municipality_scope }} admins.</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center mt-2 mt-md-0" style="gap: 0.5rem;">
+            <span class="scope-badge">
+                <i class="fas fa-map-marker-alt mr-2"></i>{{ municipality_scope }}
+            </span>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('admin.activity_logs') }}">
+                <i class="fas fa-clipboard-list mr-1"></i>Activity Logs
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card panel-card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Administrators</h6>
+                    <span class="badge badge-light">{{ admins|length }} records</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table admins-table mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Admin</th>
+                                <th>Email</th>
+                                <th>Created</th>
+                                <th>Last Activity</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for admin in admins %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="admin-avatar mr-2">{{ admin.first_name[0] }}{{ admin.last_name[0] }}</div>
+                                        <div>
+                                            <div class="font-weight-bold">{{ admin.first_name }} {{ admin.last_name }}</div>
+                                            {% if admin.id == current_user.id %}
+                                            <small class="text-muted">Current User</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ admin.email }}</td>
+                                <td>{{ admin.created_at | manila('%b %d, %Y', 'N/A') }}</td>
+                                <td>{{ admin.last_activity | manila('%b %d, %Y %I:%M %p', 'N/A') }}</td>
+                                <td class="text-right">
+                                    <a class="btn btn-view btn-sm" href="{{ url_for('admin.activity_logs', admin_id=admin.id) }}">
+                                        <i class="fas fa-eye mr-1"></i>View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No admins found in your municipality.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if pagination and pagination.pages > 1 %}
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">Page {{ pagination.page }} of {{ pagination.pages }}</div>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('admin.admins', page=pagination.prev_num, search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">Previous</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                        {% endif %}
+
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('admin.admins', page=pagination.next_num, search=request.args.get('search', ''), date_range=request.args.get('date_range', '')) }}">Next</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Next</span></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card panel-card activity-panel-card">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-history mr-2"></i>Admin Activity Logs
+                    </h6>
+                </div>
+                <div class="card-body p-3 activity-log">
+                    {% if recent_activities %}
+                        {% for activity in recent_activities %}
+                        <div class="activity-item {{ activity.action_type }}">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="activity-title">{{ activity.admin_name }}</strong>
+                                <small class="text-muted">{{ activity.created_at|manila('%I:%M %p', 'N/A') }}</small>
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <strong>{{ activity.action.replace('_', ' ').title() }}</strong>
+                            </div>
+                            <div class="small text-secondary">
+                                {{ activity.description }}
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-clock mr-1"></i>
+                                {{ activity.created_at|manila('%b %d, %Y', 'N/A') }}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">No recent activities</p>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer text-center small">
+                    <a href="{{ url_for('admin.activity_logs') }}" class="text-primary font-weight-bold">
+                        <i class="fas fa-external-link-alt mr-1"></i>
+                        View all admin activity logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

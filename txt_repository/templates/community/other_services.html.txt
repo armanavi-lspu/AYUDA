@@ -1,0 +1,675 @@
+{% extends "community/community_base.html" %}
+{% block title %}Other services - AYUDA{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --dash-slate: #1f2a44;
+        --dash-blue: #1f6feb;
+        --dash-cyan: #0ea5a6;
+        --dash-muted: #667085;
+        --dash-border: #e5e7eb;
+    }
+
+    .other-services-shell {
+        animation: otherServicesFadeIn 0.45s ease-out;
+    }
+
+    @keyframes otherServicesFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .other-services-hero {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 166, 0.14), transparent 45%),
+            linear-gradient(135deg, #f5f9ff 0%, #ffffff 60%);
+        border: 1px solid #dbe6ff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .other-services-hero h1 {
+        font-size: 1.85rem;
+        color: var(--dash-slate);
+        letter-spacing: 0.2px;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .other-services-hero .subtitle {
+        color: var(--dash-muted);
+        margin-bottom: 0;
+    }
+
+    .section-card {
+        border: 1px solid var(--dash-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(31, 42, 68, 0.06);
+        margin-bottom: 1rem;
+    }
+
+    .section-card .card-header {
+        background: linear-gradient(180deg, #f9fbff 0%, #f3f7ff 100%);
+        border-bottom: 1px solid var(--dash-border);
+        color: #234273;
+    }
+
+    .service-card {
+        border-left: 4px solid #1f6feb;
+        border: 1px solid #dbe5f7;
+        border-left-width: 4px;
+        border-radius: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .service-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 20px rgba(31, 42, 68, 0.11);
+    }
+
+    .service-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        background: rgba(31, 111, 235, 0.12);
+        color: #1f6feb;
+    }
+
+    .status-pill {
+        border-radius: 999px;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+        font-weight: 600;
+    }
+
+    .request-history-item {
+        border: 1px solid #dbe5f7;
+        border-radius: 0.75rem;
+        padding: 0.85rem 0.9rem;
+        margin-bottom: 0.7rem;
+        background: #fbfdff;
+    }
+
+    .request-history-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .request-history-actions {
+        margin-top: 0.65rem;
+    }
+
+    .request-history-actions .btn {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .request-status-badge {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .office-note-box {
+        border: 1px solid #dbeafe;
+        border-left: 4px solid #2563eb;
+        background: #f8fbff;
+        border-radius: 10px;
+        padding: 0.7rem 0.85rem;
+    }
+
+    .service-form .form-control,
+    .service-form select,
+    .service-form textarea {
+        border-radius: 10px;
+        border: 1px solid #d8deea;
+        transition: all 0.2s ease;
+    }
+
+    .service-form .form-control:focus,
+    .service-form select:focus,
+    .service-form textarea:focus {
+        border-color: var(--dash-blue);
+        box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.15);
+    }
+
+    .service-empty {
+        border: 2px dashed #d3ddf5;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f8fbff 0%, #eef3ff 100%);
+        padding: 1rem;
+        color: #5a6b87;
+        text-align: center;
+    }
+
+    @media (max-width: 991.98px) {
+        .other-services-shell {
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+
+        .other-services-hero {
+            padding: 1.15rem;
+        }
+
+        .other-services-hero h1 {
+            font-size: 1.55rem;
+        }
+
+        .section-card .card-body,
+        .service-card .card-body {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid other-services-shell py-4">
+    <div class="other-services-hero">
+        <h1 class="mb-1"><i class="fas fa-layer-group mr-2"></i>Other Services</h1>
+        <p class="subtitle">Apply for subsidy support and request an Assessment/SCSR based on your needs.</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+        <div class="card section-card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-hand-holding-heart mr-2"></i>Available Subsidies
+                </h6>
+                <span class="text-muted small">Based on your profile eligibility</span>
+            </div>
+            <div class="card-body">
+                {% if subsidy_cards %}
+                    <div class="row">
+                        {% for subsidy in subsidy_cards %}
+                        <div class="col-md-12 mb-3">
+                            <div class="service-card card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="d-flex align-items-center">
+                                            <span class="service-icon mr-3"><i class="fas {{ subsidy.icon }}"></i></span>
+                                            <div>
+                                                <h6 class="mb-1 font-weight-bold">{{ subsidy.name }}</h6>
+                                                <small class="text-muted">{{ subsidy.description }}</small>
+                                            </div>
+                                        </div>
+                                        {% if subsidy.eligible %}
+                                            <span class="badge badge-success status-pill">Eligible</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary status-pill">Not Eligible</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <p class="small text-muted mb-3">{{ subsidy.eligibility_note }}</p>
+
+                                    {% if subsidy.eligible and not subsidy.has_open_request %}
+                                    <form method="POST" action="{{ url_for('community.apply_subsidy') }}" class="mb-0">
+                                        <input type="hidden" name="category" value="{{ subsidy.key }}">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-paper-plane mr-1"></i>Apply Subsidy
+                                        </button>
+                                    </form>
+                                    {% elif subsidy.has_open_request %}
+                                        <span class="badge badge-info status-pill">Application Submitted</span>
+                                    {% else %}
+                                        <button type="button" class="btn btn-light btn-sm" disabled>
+                                            <i class="fas fa-lock mr-1"></i>Complete verification first
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="service-empty">No subsidy categories are available at the moment.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card section-card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-list-check mr-2"></i>Your Subsidy Applications
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if subsidy_requests %}
+                    {% for req in subsidy_requests %}
+                    {% set req_docs = req.details.get('required_documents') if req.details.get('required_documents') is iterable and req.details.get('required_documents') is not string else [] %}
+                    {% set req_docs_specs = req.details.get('required_documents_specs') if req.details.get('required_documents_specs') is iterable and req.details.get('required_documents_specs') is not string else [] %}
+                    <div class="request-history-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ req.details.get('category_name', 'Subsidy Request') }}</strong>
+                                <div class="small text-muted">Requested on {{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A') }}</div>
+                            </div>
+                            <span class="badge badge-info status-pill request-status-badge">{{ req.status|replace('_', ' ')|title }}</span>
+                        </div>
+                        <div class="request-history-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm open-subsidy-request-modal"
+                                data-toggle="modal"
+                                data-target="#subsidyRequestModal"
+                                data-request-id="{{ req.id }}"
+                                data-category-name="{{ req.details.get('category_name', 'Subsidy Request')|e }}"
+                                data-status="{{ req.status|replace('_', ' ')|title|e }}"
+                                data-status-key="{{ req.status|lower|e }}"
+                                data-submitted-at="{{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                data-description="{{ req.description|e }}"
+                                data-admin-instructions="{{ req.details.get('admin_instructions', '')|e }}"
+                                data-required-docs="{{ req_docs|join('||')|e }}"
+                                data-required-docs-specs='{{ req_docs_specs|tojson|forceescape }}'
+                                data-office-note="{{ req.details.get('office_submission_note', 'Please submit the required documents in the office within the week.')|e }}"
+                                data-cancel-url="{{ url_for('community.cancel_subsidy_request', request_id=req.id) }}"
+                                data-delete-url="{{ url_for('community.delete_subsidy_request', request_id=req.id) }}"
+                            >
+                                <i class="fas fa-eye mr-1"></i>View / Modify
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="service-empty">No subsidy applications submitted yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5 mb-4">
+        <div class="card section-card mb-4">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-clipboard-list mr-2"></i>Request Assessment / SCSR
+                </h6>
+            </div>
+            <div class="card-body">
+                <form class="service-form" method="POST" action="{{ url_for('community.request_assessment_service') }}">
+                    <div class="form-group">
+                        <label for="application_id">Related Application (optional)</label>
+                        <select class="form-control" id="application_id" name="application_id">
+                            <option value="">No specific application (auto-link latest)</option>
+                            {% for app in user_applications %}
+                            <option value="{{ app.id }}">
+                                #{{ app.id }} - {{ app.program.program_name }} ({{ app.application_status|title }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank if this request is general. The system will auto-link your latest application.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="purpose">Purpose <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="purpose" name="purpose" maxlength="255" placeholder="e.g., Scholarship requirement" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preferred_date">Preferred Date (optional)</label>
+                        <input type="date" class="form-control" id="preferred_date" name="preferred_date">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notes (optional)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" maxlength="1000" placeholder="Provide extra details for the assessor."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-paper-plane mr-1"></i>Submit Assessment/SCSR Request
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card section-card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-history mr-2"></i>Your Assessment/SCSR Requests
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if assessment_requests %}
+                    {% for req in assessment_requests %}
+                    <div class="request-history-item">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>{{ req.details.get('purpose', 'Assessment Request') }}</strong>
+                            <span class="badge badge-info status-pill">
+                                {% if req.status == 'requested' %}
+                                Request
+                                {% else %}
+                                {{ req.status|replace('_', ' ')|title }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if req.details.get('preferred_date') %}
+                            <div class="small text-muted">Preferred date: {{ req.details.get('preferred_date') }}</div>
+                        {% endif %}
+                        <div class="small text-muted">Submitted on {{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A') }}</div>
+
+                        <div class="request-history-actions">
+                            <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm open-assessment-request-modal"
+                                data-toggle="modal"
+                                data-target="#assessmentRequestModal"
+                                data-purpose="{{ req.details.get('purpose', 'Assessment Request')|e }}"
+                                data-status="{% if req.status == 'requested' %}Request{% else %}{{ req.status|replace('_', ' ')|title }}{% endif %}"
+                                data-submitted-at="{{ req.created_at|manila('%b %d, %Y %I:%M %p', 'N/A')|e }}"
+                                data-preferred-date="{{ req.details.get('preferred_date', '')|e }}"
+                                data-notes="{{ req.details.get('notes', '')|e }}"
+                                data-assessment-type="{{ req.details.get('assessment_type', '')|replace('_', ' ')|title|e }}"
+                                data-assessment-title="{{ req.details.get('assessment_title', '')|e }}"
+                                data-scheduled-date="{{ req.details.get('scheduled_date', '')|e }}"
+                                data-scheduled-time="{{ req.details.get('scheduled_time', '')|e }}"
+                                data-location="{{ req.details.get('location', '')|e }}"
+                                data-program="{{ req.details.get('application_program', '')|e }}"
+                            >
+                                <i class="fas fa-eye mr-1"></i>View Details
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="service-empty">No assessment/SCSR requests submitted yet.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Subsidy Request View/Modify Modal -->
+<div class="modal fade" id="subsidyRequestModal" tabindex="-1" role="dialog" aria-labelledby="subsidyRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="subsidyRequestModalLabel">
+                    <i class="fas fa-file-alt mr-2"></i>Subsidy Application Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Category</small>
+                        <strong id="subsidyModalCategory">-</strong>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Status</small>
+                        <span id="subsidyModalStatus" class="badge badge-info status-pill">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Submitted</small>
+                        <span id="subsidyModalSubmitted">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Summary</small>
+                        <span id="subsidyModalDescription">-</span>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div id="subsidyModalAdminSection" style="display:none;">
+                    <h6 class="font-weight-bold text-primary mb-2">
+                        <i class="fas fa-clipboard-list mr-1"></i>Office Submission Instructions
+                    </h6>
+                    <p id="subsidyModalInstructions" class="mb-2"></p>
+                    <div class="mb-2">
+                        <strong>Required Documents:</strong>
+                        <ul id="subsidyModalRequiredDocs" class="mb-1"></ul>
+                    </div>
+                    <div class="office-note-box mt-2">
+                        <small id="subsidyModalOfficeNote" class="text-muted d-block"></small>
+                    </div>
+                    <hr>
+                </div>
+
+                <div id="subsidyModalNoAdminSection" class="text-muted small mb-3">
+                    No office instructions have been sent yet for this subsidy application.
+                </div>
+
+                <div id="subsidyActionHint" class="small text-muted"></div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <div>
+                    <form id="cancelSubsidyRequestForm" method="POST" class="d-inline-block mr-2">
+                        <button type="submit" id="cancelSubsidyRequestBtn" class="btn btn-warning btn-sm">
+                            <i class="fas fa-ban mr-1"></i>Cancel Application
+                        </button>
+                    </form>
+                    <form id="deleteSubsidyRequestForm" method="POST" class="d-inline-block">
+                        <button type="submit" id="deleteSubsidyRequestBtn" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash-alt mr-1"></i>Delete Application
+                        </button>
+                    </form>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assessment Request Summary Modal -->
+<div class="modal fade" id="assessmentRequestModal" tabindex="-1" role="dialog" aria-labelledby="assessmentRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="assessmentRequestModalLabel">
+                    <i class="fas fa-clipboard-list mr-2"></i>Assessment/SCSR Request Details
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Status</small>
+                        <span class="badge badge-info status-pill" id="assessmentModalStatus">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Submitted</small>
+                        <span id="assessmentModalSubmitted">-</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Preferred Date</small>
+                        <span id="assessmentModalPreferredDate">No preference submitted</span>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted d-block">Program</small>
+                        <span id="assessmentModalProgram">Not specified</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Purpose</small>
+                    <div class="border rounded p-2 bg-light" id="assessmentModalPurpose">-</div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block">Notes</small>
+                    <div class="border rounded p-2 bg-light" id="assessmentModalNotes">No notes provided.</div>
+                </div>
+
+                <div class="mb-0">
+                    <small class="text-muted d-block">Latest Assessment Update</small>
+                    <div class="border rounded p-2 bg-light">
+                        <div><strong id="assessmentModalTitle">No title yet</strong></div>
+                        <div class="small text-muted" id="assessmentModalType">Type: Not set</div>
+                        <div class="small text-muted" id="assessmentModalSchedule">Schedule: Not yet scheduled</div>
+                        <div class="small text-muted" id="assessmentModalLocation">Location: To be announced</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const activeStatuses = new Set(['pending', 'submitted', 'under_review', 'documents_required', 'processing', 'approved']);
+
+    function normalizeRequiredDocSpecs(rawSpecs, fallbackDocs) {
+        if (Array.isArray(rawSpecs) && rawSpecs.length) {
+            return rawSpecs
+                .filter((item) => item && typeof item === 'object')
+                .map((item) => {
+                    const name = String(item.name || '').trim();
+                    const copySpecs = Array.isArray(item.copy_specs)
+                        ? item.copy_specs
+                            .filter((spec) => spec && typeof spec === 'object')
+                            .map((spec) => ({
+                                type: String(spec.type || 'original').trim() || 'original',
+                                count: Math.max(1, parseInt(spec.count, 10) || 1)
+                            }))
+                        : [{ type: 'original', count: 1 }];
+                    return { name, copy_specs: copySpecs.length ? copySpecs : [{ type: 'original', count: 1 }] };
+                })
+                .filter((item) => item.name);
+        }
+
+        return fallbackDocs.map((docName) => ({
+            name: docName,
+            copy_specs: [{ type: 'original', count: 1 }]
+        }));
+    }
+
+    function copyTypeLabel(copyType) {
+        const clean = String(copyType || 'original').trim().toLowerCase();
+        if (clean === 'certified_true_copy') {
+            return 'Certified True Copy';
+        }
+        if (clean === 'photocopy') {
+            return 'Photocopy';
+        }
+        return 'Original';
+    }
+
+    $(document).on('click', '.open-subsidy-request-modal', function() {
+        const data = this.dataset;
+        const statusKey = (data.statusKey || '').toLowerCase();
+        const docs = (data.requiredDocs || '').split('||').map((item) => item.trim()).filter(Boolean);
+        let docsSpecsRaw = [];
+        if (data.requiredDocsSpecs) {
+            try {
+                docsSpecsRaw = JSON.parse(data.requiredDocsSpecs);
+            } catch (err) {
+                docsSpecsRaw = [];
+            }
+        }
+        const docsSpecs = normalizeRequiredDocSpecs(docsSpecsRaw, docs);
+        const hasInstructions = (data.adminInstructions || '').trim().length > 0;
+
+        $('#subsidyModalCategory').text(data.categoryName || '-');
+        $('#subsidyModalStatus').text(data.status || '-');
+        $('#subsidyModalSubmitted').text(data.submittedAt || '-');
+        $('#subsidyModalDescription').text(data.description || '-');
+
+        $('#cancelSubsidyRequestForm').attr('action', data.cancelUrl || '#');
+        $('#deleteSubsidyRequestForm').attr('action', data.deleteUrl || '#');
+
+        if (hasInstructions) {
+            $('#subsidyModalAdminSection').show();
+            $('#subsidyModalNoAdminSection').hide();
+            $('#subsidyModalInstructions').text(data.adminInstructions);
+            $('#subsidyModalOfficeNote').text(data.officeNote || 'Please submit the required documents in the office within the week.');
+
+            const docsList = $('#subsidyModalRequiredDocs');
+            docsList.empty();
+            if (docsSpecs.length) {
+                docsSpecs.forEach((doc) => {
+                    const copySpecText = doc.copy_specs
+                        .map((spec) => `${spec.count} ${copyTypeLabel(spec.type)}`)
+                        .join(', ');
+
+                    const item = $('<li></li>');
+                    $('<strong></strong>').text(doc.name).appendTo(item);
+                    $('<br>').appendTo(item);
+                    $('<small class="text-muted"></small>').text(copySpecText).appendTo(item);
+                    docsList.append(item);
+                });
+            } else {
+                docsList.append('<li>No required documents listed yet.</li>');
+            }
+        } else {
+            $('#subsidyModalAdminSection').hide();
+            $('#subsidyModalNoAdminSection').show();
+            $('#subsidyModalInstructions').text('');
+            $('#subsidyModalRequiredDocs').empty();
+            $('#subsidyModalOfficeNote').text('');
+        }
+
+        if (statusKey === 'cancelled') {
+            $('#cancelSubsidyRequestBtn').prop('disabled', true);
+            $('#deleteSubsidyRequestBtn').prop('disabled', false);
+            $('#subsidyActionHint').text('This request is cancelled. You may delete it from your history.');
+        } else if (activeStatuses.has(statusKey)) {
+            $('#cancelSubsidyRequestBtn').prop('disabled', false);
+            $('#deleteSubsidyRequestBtn').prop('disabled', true);
+            $('#subsidyActionHint').text('Active requests must be cancelled before they can be deleted.');
+        } else {
+            $('#cancelSubsidyRequestBtn').prop('disabled', true);
+            $('#deleteSubsidyRequestBtn').prop('disabled', false);
+            $('#subsidyActionHint').text('You can delete this non-active request from your history.');
+        }
+    });
+
+    $('#cancelSubsidyRequestForm').on('submit', function(e) {
+        if (!confirm('Cancel this subsidy application?')) {
+            e.preventDefault();
+        }
+    });
+
+    $('#deleteSubsidyRequestForm').on('submit', function(e) {
+        if (!confirm('Delete this subsidy application from your history?')) {
+            e.preventDefault();
+        }
+    });
+
+    $(document).on('click', '.open-assessment-request-modal', function() {
+        const data = this.dataset;
+
+        $('#assessmentModalStatus').text(data.status || '-');
+        $('#assessmentModalSubmitted').text(data.submittedAt || '-');
+        $('#assessmentModalPreferredDate').text(data.preferredDate || 'No preference submitted');
+        $('#assessmentModalProgram').text(data.program || 'Not specified');
+        $('#assessmentModalPurpose').text(data.purpose || 'No purpose provided.');
+        $('#assessmentModalNotes').text(data.notes || 'No notes provided.');
+
+        $('#assessmentModalTitle').text(data.assessmentTitle || 'No title yet');
+        $('#assessmentModalType').text('Type: ' + (data.assessmentType || 'Not set'));
+
+        if (data.scheduledDate) {
+            const scheduleText = 'Schedule: ' + data.scheduledDate + (data.scheduledTime ? (' at ' + data.scheduledTime) : '');
+            $('#assessmentModalSchedule').text(scheduleText);
+        } else {
+            $('#assessmentModalSchedule').text('Schedule: Not yet scheduled');
+        }
+
+        $('#assessmentModalLocation').text('Location: ' + (data.location || 'To be announced'));
+    });
+});
+</script>
+{% endblock %}

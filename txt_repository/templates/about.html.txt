@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+{% block title %}About AYUDA{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        --laguna-navy: #0b2c5f;
+        --laguna-blue: #1f5ea8;
+        --laguna-cyan: #26a69a;
+        --laguna-gold: #f2b632;
+        --panel-light: #f5f9ff;
+        --ink: #1f2a37;
+    }
+
+    .landing-shell {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 10% 15%, rgba(38, 166, 154, 0.16), transparent 40%),
+            radial-gradient(circle at 85% 20%, rgba(242, 182, 50, 0.16), transparent 45%),
+            linear-gradient(180deg, #ffffff 0%, #f7fbff 35%, #ffffff 100%);
+    }
+
+    .hero-section {
+        min-height: 92vh;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background:
+            linear-gradient(120deg, rgba(11, 44, 95, 0.92) 0%, rgba(31, 94, 168, 0.9) 55%, rgba(38, 166, 154, 0.82) 100%),
+            url('{{ url_for('static', filename='images/hero-bg.png') }}') center/cover no-repeat;
+        color: #fff;
+    }
+
+    .hero-section::before,
+    .hero-section::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(0.2px);
+        pointer-events: none;
+    }
+
+    .hero-section::before {
+        width: 260px;
+        height: 260px;
+        right: -70px;
+        top: 80px;
+        background: rgba(242, 182, 50, 0.2);
+        animation: floatOne 7s ease-in-out infinite;
+    }
+
+    .hero-section::after {
+        width: 220px;
+        height: 220px;
+        left: -80px;
+        bottom: 30px;
+        background: rgba(255, 255, 255, 0.14);
+        animation: floatTwo 8s ease-in-out infinite;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-title {
+        font-size: clamp(2rem, 4vw, 3.5rem);
+        line-height: 1.15;
+        font-weight: 800;
+        margin: 0.75rem 0 1rem;
+    }
+
+    .hero-copy {
+        max-width: 600px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.05rem;
+        line-height: 1.7;
+    }
+
+    .coverage-pill {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.13);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        margin: 0 0.45rem 0.55rem 0;
+        backdrop-filter: blur(3px);
+    }
+
+    .quick-card {
+        background: rgba(255, 255, 255, 0.11);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px;
+        padding: 1.1rem;
+        transition: transform 0.3s ease, background 0.3s ease;
+    }
+
+    .quick-card:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .quick-card h6 {
+        font-size: 0.95rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .quick-card p {
+        margin-bottom: 0;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .btn-hero-primary {
+        background: linear-gradient(135deg, var(--laguna-gold), #ffd36a);
+        color: #1f2a37;
+        border: none;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 0.78rem 1.5rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-hero-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(242, 182, 50, 0.3);
+        color: #1f2a37;
+    }
+
+    .btn-hero-outline {
+        border-radius: 999px;
+        padding: 0.74rem 1.4rem;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        color: #ffffff;
+        font-weight: 700;
+        background: transparent;
+    }
+
+    .btn-hero-outline:hover {
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+    }
+
+    .section-wrap {
+        padding: 4.4rem 0;
+    }
+
+    .section-title {
+        color: var(--ink);
+        font-size: clamp(1.6rem, 3vw, 2.5rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .section-copy {
+        color: #4f5b6a;
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .feature-card {
+        height: 100%;
+        border: none;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 12px 30px rgba(11, 44, 95, 0.08);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 35px rgba(11, 44, 95, 0.12);
+    }
+
+    .feature-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        color: #fff;
+        margin-bottom: 1rem;
+    }
+
+    .icon-fair { background: linear-gradient(135deg, #1f5ea8, #2e7cd0); }
+    .icon-transparency { background: linear-gradient(135deg, #26a69a, #2fbfb1); }
+    .icon-coverage { background: linear-gradient(135deg, #ef9a21, #f7be5a); }
+
+    .municipality-panel {
+        background: var(--panel-light);
+        border: 1px solid #d8e8fb;
+        border-radius: 18px;
+        padding: 1.5rem;
+    }
+
+    .municipality-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        margin: 0.25rem;
+        background: #ffffff;
+        border: 1px solid #cfe1f8;
+        color: #27415f;
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .how-card {
+        border-radius: 14px;
+        border: 1px solid #e2edf9;
+        background: #ffffff;
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .how-number {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        background: #deedff;
+        color: var(--laguna-navy);
+        margin-bottom: 0.7rem;
+    }
+
+    .animate-on-scroll {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .animate-on-scroll.animated {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @keyframes floatOne {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-14px); }
+    }
+
+    @keyframes floatTwo {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(11px); }
+    }
+
+    @media (max-width: 991.98px) {
+        .hero-section {
+            min-height: auto;
+            padding: 4.5rem 0;
+        }
+
+        .hero-right {
+            margin-top: 1.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="landing-shell">
+    <section class="hero-section" role="banner">
+        <div class="container hero-content">
+            <div class="row align-items-center">
+                <div class="col-lg-7 mb-4 mb-lg-0">
+                   <h1 class="hero-title">Reach out for MSWDO financial services easily</h1>
+                    <p class="hero-copy mb-4">
+                        Find, apply, and qualify with available MSWDO financial services in your area. AYUDA para sa lahat.
+                    </p>
+
+                    <div class="mb-4">
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Mabitac</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Sta. Maria</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Famy</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Siniloan</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Paete</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Pakil</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Pangil</span>
+                        <span class="coverage-pill"><i class="fas fa-map-marker-alt mr-2"></i>Kalayaan</span>
+
+                    </div>
+
+                    <div>
+                        <a href="{{ url_for('auth.sign_up') }}" class="btn btn-hero-primary mr-2 mb-2">
+                            <i class="fas fa-user-plus mr-2"></i>Sign Up to AYUDA
+                        </a>
+                        <a href="{{ url_for('main.programs') }}" class="btn btn-hero-outline mb-2">
+                            <i class="fas fa-list-ul mr-2"></i>Explore Programs
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-lg-5 hero-right">
+                    <div class="quick-card mb-3 animate-on-scroll">
+                        <h6><i class="fas fa-check-circle mr-2"></i>Targeted Allocation Support</h6>
+                        <p>Content-based matching helps recommend suitable beneficiaries for specific MSWD aid programs.</p>
+                    </div>
+                    <div class="quick-card mb-3 animate-on-scroll">
+                        <h6><i class="fas fa-chart-line mr-2"></i>Predictive Planning</h6>
+                        <p>ARIMA forecasting estimates future applicant volume to support better aid planning and resource allocation.</p>
+                    </div>
+                    <div class="quick-card animate-on-scroll">
+                        <h6><i class="fas fa-shield-alt mr-2"></i>Transparent Processing</h6>
+                        <p>System logs, notifications, and dashboards improve accountability in financial assistance processing.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-wrap">
+        <div class="container">
+            <div class="text-center mb-5 animate-on-scroll">
+                <h2 class="section-title">AYUDA Objectives</h2>
+                <p class="section-copy">
+                    AYUDA is designed to improve the distribution process of government financial assistance through automation, objective recommendation, and predictive analytics.
+                </p>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-4 animate-on-scroll">
+                    <div class="feature-card">
+                        <div class="card-body p-4">
+                            <div class="feature-icon icon-fair"><i class="fas fa-balance-scale"></i></div>
+                            <h5 class="font-weight-bold">Data Input and Verification</h5>
+                            <p class="text-muted mb-0">Structured applicant profiling and requirement checking reduce manual errors and duplicate records.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4 animate-on-scroll">
+                    <div class="feature-card">
+                        <div class="card-body p-4">
+                            <div class="feature-icon icon-transparency"><i class="fas fa-search"></i></div>
+                            <h5 class="font-weight-bold">Admin Dashboard and Tracking</h5>
+                            <p class="text-muted mb-0">Administrators can manage approvals, monitor activity logs, send notifications, and generate reports.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4 animate-on-scroll">
+                    <div class="feature-card">
+                        <div class="card-body p-4">
+                            <div class="feature-icon icon-coverage"><i class="fas fa-map-marked-alt"></i></div>
+                            <h5 class="font-weight-bold">Recommendation and Forecasting</h5>
+                            <p class="text-muted mb-0">Content-based filtering and ARIMA forecasting support targeted allocation and proactive program planning.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-wrap pt-0">
+        <div class="container">
+            <div class="municipality-panel mb-4 animate-on-scroll">
+                <h4 class="font-weight-bold mb-3 text-dark">Coverage Context</h4>
+                <p class="text-muted mb-3">
+                    The system can support multiple local service areas, while maintaining one core purpose: improved distribution management of financial assistance.
+                </p>
+                <div>
+                    <span class="municipality-tag">Mabitac</span>
+                    <span class="municipality-tag">Famy</span>
+                    <span class="municipality-tag">Kalayaan</span>
+                    <span class="municipality-tag">Siniloan</span>
+                    <span class="municipality-tag">Paete</span>
+                    <span class="municipality-tag">Pakil</span>
+                    <span class="municipality-tag">Pangil</span>
+                    <span class="municipality-tag">Sta. Maria</span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3 animate-on-scroll">
+                    <div class="how-card">
+                        <div class="how-number">1</div>
+                        <h6 class="font-weight-bold">Applicant Profiling</h6>
+                        <p class="text-muted mb-0">Community users submit demographic data and documentary requirements for validation.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3 animate-on-scroll">
+                    <div class="how-card">
+                        <div class="how-number">2</div>
+                        <h6 class="font-weight-bold">Recommendation and Review</h6>
+                        <p class="text-muted mb-0">The system ranks suitable aid programs and supports admin review and approval workflows.</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3 animate-on-scroll">
+                    <div class="how-card">
+                        <div class="how-number">3</div>
+                        <h6 class="font-weight-bold">Notification and Reporting</h6>
+                        <p class="text-muted mb-0">Applicants receive status updates while MSWD staff use logs and reports for transparent monitoring.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 animate-on-scroll">
+                <a href="{{ url_for('auth.sign_up') }}" class="btn btn-primary btn-lg mr-2 mb-2">Create an Account</a>
+                <a href="{{ url_for('main.programs') }}" class="btn btn-outline-primary btn-lg mb-2">View Program Categories</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animated');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+        observer.observe(el);
+    });
+});
+</script>
+{% endblock %}
+
+

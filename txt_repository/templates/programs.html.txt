@@ -1,0 +1,467 @@
+{% extends "base.html" %}
+{% block title %}MSWD Programs - AYUDA{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        --ink: #1f2a37;
+        --laguna-navy: #10315f;
+        --laguna-blue: #255fa5;
+        --laguna-gold: #f2b632;
+        --panel: #f5f9ff;
+    }
+
+    .programs-shell {
+        width: 100vw;
+        margin-left: calc(-50vw + 50%);
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 8% 12%, rgba(36, 98, 173, 0.12), transparent 40%),
+            radial-gradient(circle at 92% 16%, rgba(242, 182, 50, 0.15), transparent 38%),
+            linear-gradient(180deg, #ffffff 0%, #f7fbff 40%, #ffffff 100%);
+    }
+
+    .hero-section {
+        min-height: 72vh;
+        color: #ffffff;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background:
+            linear-gradient(120deg, rgba(16, 49, 95, 0.94) 0%, rgba(37, 95, 165, 0.9) 58%, rgba(14, 129, 149, 0.82) 100%),
+            url('{{ url_for('static', filename='images/hero-bg.png') }}') center/cover no-repeat;
+    }
+
+    .hero-section::before,
+    .hero-section::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+    }
+
+    .hero-section::before {
+        width: 210px;
+        height: 210px;
+        top: 70px;
+        right: -55px;
+        background: rgba(242, 182, 50, 0.2);
+    }
+
+    .hero-section::after {
+        width: 180px;
+        height: 180px;
+        bottom: 40px;
+        left: -60px;
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .hero-body {
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-eyebrow {
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-size: 0.78rem;
+        color: #d8e9ff;
+    }
+
+    .hero-title {
+        font-size: clamp(2rem, 4vw, 3.3rem);
+        line-height: 1.15;
+        font-weight: 800;
+        margin: 0.8rem 0 1rem;
+    }
+
+    .hero-copy {
+        color: rgba(255, 255, 255, 0.9);
+        max-width: 660px;
+        line-height: 1.7;
+        font-size: 1.05rem;
+    }
+
+    .scope-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.14);
+        padding: 0.45rem 0.9rem;
+        margin: 0 0.45rem 0.6rem 0;
+        font-size: 0.82rem;
+    }
+
+    .stat-panel {
+        border: 1px solid rgba(255, 255, 255, 0.24);
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        backdrop-filter: blur(4px);
+    }
+
+    .section-wrap {
+        padding: 4.2rem 0;
+    }
+
+    .section-title {
+        color: var(--ink);
+        font-size: clamp(1.5rem, 3vw, 2.4rem);
+        font-weight: 800;
+        margin-bottom: 0.9rem;
+    }
+
+    .section-copy {
+        color: #4f5b6a;
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    .category-card {
+        height: 100%;
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        position: relative;
+        background: #ffffff;
+        box-shadow: 0 12px 28px rgba(16, 49, 95, 0.09);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .category-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 16px 35px rgba(16, 49, 95, 0.14);
+    }
+
+    .category-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--tone-a), var(--tone-b));
+    }
+
+    .card-tone-aics { --tone-a: #274d95; --tone-b: #3f73d2; }
+    .card-tone-educ { --tone-a: #d28020; --tone-b: #f3b14f; }
+    .card-tone-sp { --tone-a: #14738d; --tone-b: #28a2b8; }
+    .card-tone-em { --tone-a: #9a2a37; --tone-b: #d44e59; }
+
+    .category-icon {
+        width: 62px;
+        height: 62px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-size: 1.45rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--tone-a), var(--tone-b));
+    }
+
+    .program-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #d8e3f3;
+        background: #f9fbff;
+        color: #334b6d;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.28rem 0.62rem;
+        margin: 0.18rem;
+    }
+
+    .btn-card {
+        border: none;
+        border-radius: 999px;
+        font-weight: 700;
+        padding: 0.58rem 1.15rem;
+        color: #ffffff;
+        background: linear-gradient(135deg, var(--tone-a), var(--tone-b));
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-card:hover {
+        color: #ffffff;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(25, 61, 112, 0.22);
+        text-decoration: none;
+    }
+
+    .process-panel {
+        background: var(--panel);
+        border: 1px solid #d7e8fb;
+        border-radius: 16px;
+        padding: 1.25rem;
+    }
+
+    .process-card {
+        background: #ffffff;
+        border: 1px solid #e1edf9;
+        border-radius: 14px;
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .process-step {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #deedff;
+        color: #1a4178;
+        font-weight: 700;
+        margin-bottom: 0.72rem;
+    }
+
+    .scope-note {
+        border-left: 4px solid var(--laguna-gold);
+        background: #fffaf0;
+        border-radius: 0.4rem;
+    }
+
+    .animate-on-scroll {
+        opacity: 0;
+        transform: translateY(22px);
+        transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+
+    .animate-on-scroll.animated {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @media (max-width: 991.98px) {
+        .hero-section {
+            min-height: auto;
+            padding: 4.5rem 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="programs-shell">
+    <section class="hero-section">
+        <div class="container hero-body">
+            <div class="row align-items-center">
+                <div class="col-lg-8 mb-4 mb-lg-0">
+                    <div class="hero-eyebrow">Programs Tab</div>
+                    <h1 class="hero-title">MSWD Financial Assistance Programs</h1>
+                    <p class="hero-copy mb-4">
+                        This section focuses on financial assistance distribution only. AYUDA supports transparent application intake, verification, recommendation, and status monitoring for qualified beneficiaries.
+                    </p>
+                    <div class="mb-3">
+                        <span class="scope-badge"><i class="fas fa-check-circle mr-2"></i>Financial Assistance Focus</span>
+                        <span class="scope-badge"><i class="fas fa-user-check mr-2"></i>Targeted Beneficiary Matching</span>
+                        <span class="scope-badge"><i class="fas fa-chart-line mr-2"></i>Demand Forecasting Support</span>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <div class="stat-panel p-3 text-center">
+                                <div class="h2 font-weight-bold mb-0 text-white">4</div>
+                                <small class="text-white text-uppercase">Program Groups</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-wrap">
+        <div class="container">
+            <div class="text-center mb-5 animate-on-scroll">
+                <h2 class="section-title">Financial Assistance Categories</h2>
+                <p class="section-copy">
+                    Categories below represent common financial assistance groups handled through MSWD workflows. Recommendation and prioritization are based on verified applicant data and requirements.
+                </p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="category-card card-tone-aics">
+                        <div class="p-4">
+                            <div class="category-icon">
+                                <i class="fas fa-hand-holding-heart"></i>
+                            </div>
+                            <h3 class="h4 font-weight-bold mb-2">AICS</h3>
+                            <p class="text-muted mb-3">Assistance to Individuals in Crisis Situation</p>
+                            <p class="text-muted mb-3">
+                                Emergency-focused financial support for urgent needs requiring immediate intervention.
+                            </p>
+                            <div class="mb-3">
+                                <span class="program-pill">Medical Aid</span>
+                                <span class="program-pill">Burial Support</span>
+                                <span class="program-pill">Transportation Assistance</span>
+                                <span class="program-pill">Food and Basic Needs</span>
+                            </div>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-card">
+                                <i class="fas fa-arrow-right mr-2"></i>Check Eligibility
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="category-card card-tone-educ">
+                        <div class="p-4">
+                            <div class="category-icon">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h3 class="h4 font-weight-bold mb-2">Educational Assistance</h3>
+                            <p class="text-muted mb-3">Education-Related Financial Support</p>
+                            <p class="text-muted mb-3">
+                                Financial aid intended to help qualified students or households cope with school-related costs.
+                            </p>
+                            <div class="mb-3">
+                                <span class="program-pill">Student Assistance</span>
+                                <span class="program-pill">School Requirement Support</span>
+                                <span class="program-pill">Crisis-Education Cases</span>
+                            </div>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-card">
+                                <i class="fas fa-arrow-right mr-2"></i>Start Application
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="category-card card-tone-sp">
+                        <div class="p-4">
+                            <div class="category-icon">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                            <h3 class="h4 font-weight-bold mb-2">Social Pension and Sectoral Aid</h3>
+                            <p class="text-muted mb-3">Priority Sector Financial Assistance</p>
+                            <p class="text-muted mb-3">
+                                Support streams for qualified senior citizens and other priority groups under existing policies.
+                            </p>
+                            <div class="mb-3">
+                                <span class="program-pill">SPISC Support</span>
+                                <span class="program-pill">Sectoral Validation</span>
+                                <span class="program-pill">Assistance Tracking</span>
+                            </div>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-card">
+                                <i class="fas fa-arrow-right mr-2"></i>View Requirements
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 mb-4 animate-on-scroll">
+                    <div class="category-card card-tone-em">
+                        <div class="p-4">
+                            <div class="category-icon">
+                                <i class="fas fa-house-damage"></i>
+                            </div>
+                            <h3 class="h4 font-weight-bold mb-2">Emergency and Disaster Relief Aid</h3>
+                            <p class="text-muted mb-3">Calamity-Related Financial Support</p>
+                            <p class="text-muted mb-3">
+                                Time-sensitive support for households affected by disasters and crisis events, subject to verification and prioritization.
+                            </p>
+                            <div class="mb-3">
+                                <span class="program-pill">Emergency Financial Assistance</span>
+                                <span class="program-pill">Calamity Support Intake</span>
+                                <span class="program-pill">Rapid Beneficiary Listing</span>
+                            </div>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-card">
+                                <i class="fas fa-arrow-right mr-2"></i>Apply for Assistance
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scope-note p-3 mb-4 animate-on-scroll">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-info-circle text-warning mt-1 mr-2"></i>
+                    <p class="mb-0 text-muted">
+                        Note: AYUDA is limited to financial assistance distribution workflows (profiling, verification, recommendation, tracking, and reporting) and does not directly disburse funds.
+                    </p>
+                </div>
+            </div>
+
+            <div class="process-panel animate-on-scroll mb-4">
+                <h4 class="font-weight-bold text-dark mb-3">How Distribution Processing Works</h4>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="process-card">
+                            <div class="process-step">1</div>
+                            <h6 class="font-weight-bold">Profile and Submit</h6>
+                            <p class="text-muted mb-0">Applicant data and required documents are submitted digitally.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="process-card">
+                            <div class="process-step">2</div>
+                            <h6 class="font-weight-bold">Verify Requirements</h6>
+                            <p class="text-muted mb-0">MSWD validation and checks reduce duplicate or invalid applications.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="process-card">
+                            <div class="process-step">3</div>
+                            <h6 class="font-weight-bold">Recommend and Prioritize</h6>
+                            <p class="text-muted mb-0">Content-based scoring supports objective beneficiary recommendation.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="process-card">
+                            <div class="process-step">4</div>
+                            <h6 class="font-weight-bold">Approve and Notify</h6>
+                            <p class="text-muted mb-0">Admins track progress, send updates, and generate program reports.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="bg-light rounded p-5 text-center mb-5 animate-on-scroll">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <h2 class="h3 font-weight-bold mb-3">Ready to apply for financial assistance?</h2>
+                        <p class="text-muted mb-4">
+                            Login to check eligibility requirements, submit your application, and receive status notifications from your local MSWD office.
+                        </p>
+                        <div class="d-flex justify-content-center flex-wrap">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg mr-2 mb-2">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Login and Apply
+                            </a>
+                            <a href="{{ url_for('auth.sign_up') }}" class="btn btn-outline-primary btn-lg mb-2">
+                                <i class="fas fa-user-plus mr-2"></i>Create Account
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animated');
+            }
+        });
+    }, {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    document.querySelectorAll('.animate-on-scroll').forEach(el => {
+        observer.observe(el);
+    });
+});
+</script>
+{% endblock %}
